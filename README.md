@@ -52,6 +52,14 @@ BITRIX_WEBHOOK_URL="https://.../" npm run bitrix:fields
 BITRIX_WEBHOOK_URL="https://.../" npm run bitrix:stages
 ```
 
+Для текущего портала Verkup уже определены основные значения:
+
+- `BITRIX_STAGE_ID` = `4` (`Запустить в Производство`)
+- `BITRIX_FIELD_CLASSIFICATION` = `UF_CRM_6512B7A78D965`
+- `BITRIX_FIELD_INSTALL_AMOUNT` = `UF_CRM_1547662428256`
+
+Дата запуска и предполагаемая дата завершения сейчас берутся из стандартных полей Bitrix24 `BEGINDATE` и `CLOSEDATE`. Если позже появятся отдельные производственные даты, их можно подключить через `BITRIX_FIELD_START_DATE` и `BITRIX_FIELD_EXPECTED_FINISH_DATE`.
+
 ## Моментальный запуск из Bitrix24
 
 Для почти моментальной выгрузки добавьте робота на стадии `Запустить в производство`, который отправляет webhook в GitHub `repository_dispatch`.
