@@ -7,6 +7,7 @@ import {
   formatPercent,
   margin,
   profit,
+  saleBreakdownForDeal,
   saleAmountForDeal,
 } from "../lib/costing";
 
@@ -83,6 +84,7 @@ export function DealTable({
           <tbody>
             {deals.map((deal) => {
               const calculation = calculations.get(deal.id);
+              const sales = saleBreakdownForDeal(deal, calculation, agentRatio);
               const isSelected = selectedDealId === deal.id;
               return (
                 <tr key={deal.id} className={isSelected ? "selected" : ""}>
@@ -101,8 +103,11 @@ export function DealTable({
                     <small>{formatDate(deal.expectedFinishDate) || "финиш не указан"}</small>
                   </td>
                   <td>
-                    {formatMoney(saleAmountForDeal(deal, calculation, agentRatio))}
-                    <small>монтаж {formatMoney(deal.installSaleAmount)}</small>
+                    {formatMoney(sales.totalSale)}
+                    <small>
+                      изготовление {formatMoney(sales.productionSale)} · монтаж{" "}
+                      {formatMoney(sales.installSale)}
+                    </small>
                   </td>
                   <td>
                     <button className="cost-chip" onClick={() => onSelect(deal)}>
