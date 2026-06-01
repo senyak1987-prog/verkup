@@ -1,0 +1,44 @@
+name: Sync Bitrix deals
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [bitrix_deal_started]
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - name: Sync deals from Bitrix24
+        env:
+          BITRIX_WEBHOOK_URL: ${{ secrets.BITRIX_WEBHOOK_URL }}
+          BITRIX_DOMAIN: verkup.bitrix24.ru
+          BITRIX_STAGE_ID: ${{ secrets.BITRIX_STAGE_ID }}
+          BITRIX_STAGE_NAME: Запустить в производство
+          BITRIX_CATEGORY_ID: ${{ secrets.BITRIX_CATEGORY_ID }}
+          BITRIX_FIELD_CLASSIFICATION: ${{ secrets.BITRIX_FIELD_CLASSIFICATION }}
+          BITRIX_FIELD_INSTALL_AMOUNT: ${{ secrets.BITRIX_FIELD_INSTALL_AMOUNT }}
+          BITRIX_FIELD_START_DATE: ${{ secrets.BITRIX_FIELD_START_DATE }}
+          BITRIX_FIELD_EXPECTED_FINISH_DATE: ${{ secrets.BITRIX_FIELD_EXPECTED_FINISH_DATE }}
+        run: npm run sync:bitrix
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/deals.json
+          git diff --cached --quiet || git commit -m "Sync Bitrix production deals"
+          git push
