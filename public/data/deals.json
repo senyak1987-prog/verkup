@@ -1,4 +1,69 @@
 {
-  "generatedAt": "2026-06-01T00:00:00.000Z",
-  "items": []
+  "generatedAt": "2026-06-01T16:10:19.998Z",
+  "items": [
+    {
+      "id": "16856",
+      "number": "16856",
+      "title": "Вафли",
+      "source": "Агент",
+      "type": "Изготовление + Самовывоз",
+      "classification": "152",
+      "saleAmount": 0,
+      "installSaleAmount": 0,
+      "responsible": "Сергей",
+      "startDate": "2026-06-01T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-08T03:00:00+03:00",
+      "createdDate": "2026-06-01T10:42:40+03:00",
+      "stageName": "Запустить в Производство",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16856/"
+    },
+    {
+      "id": "16862",
+      "number": "16862",
+      "title": "Цветопроба для сделки 8704",
+      "source": "Директ",
+      "type": "Изготовление + Доставка",
+      "classification": "152",
+      "saleAmount": 0,
+      "installSaleAmount": 0,
+      "responsible": "Алексей Купоров",
+      "startDate": "2026-06-01T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-03T03:00:00+03:00",
+      "createdDate": "2026-06-01T18:07:51+03:00",
+      "stageName": "Запустить в Производство",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16862/"
+    },
+    {
+      "id": "16860",
+      "number": "16860",
+      "title": "Гарантия 8632 Филиус",
+      "source": "Гарантия",
+      "type": "Монтажные работы",
+      "classification": "236",
+      "saleAmount": 0,
+      "installSaleAmount": 0,
+      "responsible": "Алексей Купоров",
+      "startDate": "2026-06-01T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-03T03:00:00+03:00",
+      "createdDate": "2026-06-01T15:22:20+03:00",
+      "stageName": "Запустить в Производство",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16860/"
+    },
+    {
+      "id": "16774",
+      "number": "16774",
+      "title": "Нота",
+      "source": "Агент",
+      "type": "Изготовление + Самовывоз",
+      "classification": "144",
+      "saleAmount": 0,
+      "installSaleAmount": 0,
+      "responsible": "Сергей",
+      "startDate": "2026-05-25T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-03T03:00:00+03:00",
+      "createdDate": "2026-05-25T12:46:41+03:00",
+      "stageName": "Запустить в Производство",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16774/"
+    }
+  ]
 }
