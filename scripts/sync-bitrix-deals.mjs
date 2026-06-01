@@ -34,6 +34,7 @@ const deals = await fetchDeals(targetStageIds);
 const users = await fetchUsers([...new Set(deals.map((deal) => deal.ASSIGNED_BY_ID).filter(Boolean))]);
 const sourceMap = await loadStatusNameMap("SOURCE");
 const typeMap = await loadStatusNameMap("DEAL_TYPE");
+const customFieldMaps = await loadCustomFieldMaps();
 const normalized = deals.map((deal) => normalizeDeal(deal, users, stageMap));
 
 await fs.mkdir(path.resolve("public/data"), { recursive: true });
@@ -154,15 +155,20 @@ async function addStatuses(stages, entityId) {
 function normalizeDeal(deal, users, stageMap) {
   const id = String(deal.ID);
   const title = deal.TITLE || "";
+  const totalSaleAmount = toNumber(deal.OPPORTUNITY);
+  const installSaleAmount = toNumber(valueByField(deal, customFields.installAmount));
+  const productionSaleAmount =
+    installSaleAmount > 0 ? Math.max(0, totalSaleAmount - installSaleAmount) : totalSaleAmount;
+
   return {
     id,
     number: id,
     title,
     source: sourceMap.get(deal.SOURCE_ID) || deal.SOURCE_ID || "",
     type: typeMap.get(deal.TYPE_ID) || deal.TYPE_ID || "",
-    classification: valueByField(deal, customFields.classification),
-    saleAmount: toNumber(deal.OPPORTUNITY),
-    installSaleAmount: toNumber(valueByField(deal, customFields.installAmount)),
+    classification: displayValueByField(deal, customFields.classification),
+    saleAmount: productionSaleAmount,
+    installSaleAmount,
     responsible: users.get(String(deal.ASSIGNED_BY_ID)) || "",
     startDate: valueByField(deal, customFields.startDate) || deal.BEGINDATE || "",
     expectedFinishDate: valueByField(deal, customFields.expectedFinishDate) || deal.CLOSEDATE || "",
@@ -190,6 +196,23 @@ async function callRest(method, params) {
   return json;
 }
 
+async function loadCustomFieldMaps() {
+  const maps = new Map();
+  try {
+    const response = await callRest("crm.deal.userfield.list", {});
+    for (const field of response.result || []) {
+      if (!field.FIELD_NAME || !Array.isArray(field.LIST)) continue;
+      maps.set(
+        field.FIELD_NAME,
+        new Map(field.LIST.map((item) => [String(item.ID), item.VALUE || String(item.ID)])),
+      );
+    }
+  } catch {
+    // Enumeration decoding is helpful, but not required for syncing deals.
+  }
+  return maps;
+}
+
 function required(name) {
   const value = env[name];
   if (!value) throw new Error(`${name} is required`);
@@ -203,8 +226,23 @@ function valueByField(row, fieldName) {
   return value ?? "";
 }
 
+function displayValueByField(row, fieldName) {
+  const value = valueByField(row, fieldName);
+  if (!fieldName || value === "") return "";
+  const values = String(value).split(",").map((item) => item.trim()).filter(Boolean);
+  const dictionary = customFieldMaps.get(fieldName);
+  if (!dictionary) return values.join(", ");
+  return values.map((item) => dictionary.get(String(item)) || item).join(", ");
+}
+
 function toNumber(value) {
-  const number = Number(String(value ?? "").replace(",", "."));
+  const raw = Array.isArray(value) ? value[0] : value;
+  const normalized = String(raw ?? "")
+    .split("|")[0]
+    .replace(/\s+/g, "")
+    .replace(/[^\d,.-]/g, "")
+    .replace(",", ".");
+  const number = Number(normalized);
   return Number.isFinite(number) ? number : 0;
 }
 
