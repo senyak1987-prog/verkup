@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-01T16:10:19.998Z",
+  "generatedAt": "2026-06-01T16:15:24.773Z",
   "items": [
     {
       "id": "16856",
@@ -7,7 +7,7 @@
       "title": "Вафли",
       "source": "Агент",
       "type": "Изготовление + Самовывоз",
-      "classification": "152",
+      "classification": "Печать (наклейки, постеры и пр.)",
       "saleAmount": 0,
       "installSaleAmount": 0,
       "responsible": "Сергей",
@@ -23,7 +23,7 @@
       "title": "Цветопроба для сделки 8704",
       "source": "Директ",
       "type": "Изготовление + Доставка",
-      "classification": "152",
+      "classification": "Печать (наклейки, постеры и пр.)",
       "saleAmount": 0,
       "installSaleAmount": 0,
       "responsible": "Алексей Купоров",
@@ -39,7 +39,7 @@
       "title": "Гарантия 8632 Филиус",
       "source": "Гарантия",
       "type": "Монтажные работы",
-      "classification": "236",
+      "classification": "Гарантия",
       "saleAmount": 0,
       "installSaleAmount": 0,
       "responsible": "Алексей Купоров",
@@ -55,7 +55,7 @@
       "title": "Нота",
       "source": "Агент",
       "type": "Изготовление + Самовывоз",
-      "classification": "144",
+      "classification": "Буквы",
       "saleAmount": 0,
       "installSaleAmount": 0,
       "responsible": "Сергей",
