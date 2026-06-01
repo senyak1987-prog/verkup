@@ -361,6 +361,10 @@ td small {
   text-align: right;
 }
 
+.position-note {
+  grid-column: 2 / -1;
+}
+
 .github-save .primary {
   width: 100%;
   justify-content: center;

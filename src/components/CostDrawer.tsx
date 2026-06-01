@@ -16,9 +16,12 @@ import {
   finalCost,
   formatMoney,
   formatPercent,
+  isAgentDeal,
   margin,
+  manufacturingCost,
+  mountingCost,
   profit,
-  saleAmountForDeal,
+  saleBreakdownForDeal,
 } from "../lib/costing";
 import { saveCalculationsToGitHub } from "../lib/githubStorage";
 
@@ -80,6 +83,9 @@ export function CostDrawer({
       </aside>
     );
   }
+
+  const sales = saleBreakdownForDeal(deal, activeCalculation, storedCalculations.agentCostRatio);
+  const isAgent = isAgentDeal(deal);
 
   function updatePositions(positions: CostPosition[]) {
     onChange({
@@ -169,18 +175,25 @@ export function CostDrawer({
       </div>
 
       <section className="summary-grid">
-        <Summary label="Продажа" value={formatMoney(saleAmountForDeal(deal, activeCalculation, storedCalculations.agentCostRatio))} />
+        <Summary label="Продажа всего" value={formatMoney(sales.totalSale)} />
+        <Summary label="Изготовление" value={formatMoney(sales.productionSale)} />
+        <Summary label="Монтаж" value={formatMoney(sales.installSale)} />
         <Summary label="Чистый себес" value={formatMoney(cleanCost(activeCalculation))} />
+        <Summary label="Себес изделия" value={formatMoney(manufacturingCost(activeCalculation))} />
+        <Summary label="Себес монтажа" value={formatMoney(mountingCost(activeCalculation))} />
         <Summary label="Косяки" value={formatMoney(defectsCost(activeCalculation))} />
         <Summary label="Итоговый себес" value={formatMoney(finalCost(activeCalculation))} />
         <Summary label="Прибыль" value={formatMoney(profit(deal, activeCalculation, storedCalculations.agentCostRatio))} />
         <Summary label="Маржа" value={formatPercent(margin(deal, activeCalculation, storedCalculations.agentCostRatio))} />
       </section>
 
-      {deal.source.toLowerCase().includes("агент") && (
+      {isAgent && (
         <div className="notice">
           <AlertTriangle size={18} />
-          <span>Для агента продажа считается от себестоимости по коэффициенту 0,58.</span>
+          <span>
+            Для агента изготовление и монтаж считаются от соответствующей себестоимости по
+            коэффициенту 0,58.
+          </span>
         </div>
       )}
 
@@ -215,6 +228,15 @@ export function CostDrawer({
             </button>
             <button onClick={() => addEmptyPosition("assembly")}>
               <CirclePlus size={16} /> Сборка
+            </button>
+            <button onClick={() => addEmptyPosition("print")}>
+              <CirclePlus size={16} /> Печать
+            </button>
+            <button onClick={() => addEmptyPosition("mounting")}>
+              <CirclePlus size={16} /> Монтаж
+            </button>
+            <button onClick={() => addEmptyPosition("subcontract")}>
+              <CirclePlus size={16} /> Подряд
             </button>
             <button onClick={() => addEmptyPosition("defects")}>
               <CirclePlus size={16} /> Косяк
@@ -260,6 +282,12 @@ export function CostDrawer({
             <button title="Удалить" onClick={() => deletePosition(position.id)}>
               <Trash2 size={16} />
             </button>
+            <input
+              className="position-note"
+              value={position.note || ""}
+              onChange={(event) => patchPosition(position.id, { note: event.target.value })}
+              placeholder="Комментарий / источник"
+            />
           </div>
         ))}
 
