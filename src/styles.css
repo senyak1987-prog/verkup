@@ -30,7 +30,7 @@ a {
 
 .app {
   display: grid;
-  grid-template-columns: minmax(720px, 1fr) 520px;
+  grid-template-columns: minmax(720px, 1fr) 12px minmax(420px, var(--drawer-width, 520px));
   min-height: 100vh;
 }
 
@@ -169,6 +169,16 @@ table {
   table-layout: fixed;
 }
 
+.deals-table th,
+.deals-table td {
+  border-right: 1px solid #e1e7ef;
+}
+
+.deals-table th:last-child,
+.deals-table td:last-child {
+  border-right: 0;
+}
+
 th,
 td {
   padding: 13px 12px;
@@ -198,9 +208,9 @@ th {
 .column-resizer {
   position: absolute;
   top: 0;
-  right: -4px;
+  right: -7px;
   z-index: 3;
-  width: 8px;
+  width: 14px;
   height: 100%;
   cursor: col-resize;
   touch-action: none;
@@ -209,13 +219,15 @@ th {
 .column-resizer::after {
   position: absolute;
   top: 10px;
-  right: 3px;
+  right: 6px;
   bottom: 10px;
-  width: 1px;
-  background: #d8dee8;
+  width: 2px;
+  border-radius: 2px;
+  background: #cbd5e1;
   content: "";
 }
 
+.resizable-th:hover .column-resizer::after,
 .column-resizer:hover::after,
 .is-resizing-columns .column-resizer::after {
   background: #0f766e;
@@ -295,8 +307,41 @@ td small {
   overflow: auto;
   height: 100vh;
   padding: 22px;
-  border-left: 1px solid #d8dee8;
   background: #fff;
+}
+
+.drawer-resizer {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  height: 100vh;
+  cursor: ew-resize;
+  background: #eef3f8;
+  border-left: 1px solid #d8dee8;
+  border-right: 1px solid #d8dee8;
+  touch-action: none;
+}
+
+.drawer-resizer::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  background: #cbd5e1;
+  content: "";
+}
+
+.drawer-resizer:hover::before,
+.is-resizing-drawer .drawer-resizer::before {
+  background: #0f766e;
+}
+
+.is-resizing-drawer {
+  cursor: ew-resize;
+  user-select: none;
 }
 
 .drawer.placeholder {
@@ -460,6 +505,10 @@ td small {
 @media (max-width: 1180px) {
   .app {
     grid-template-columns: 1fr;
+  }
+
+  .drawer-resizer {
+    display: none;
   }
 
   .drawer {
