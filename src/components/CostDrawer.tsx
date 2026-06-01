@@ -1,0 +1,305 @@
+import {
+  AlertTriangle,
+  Check,
+  CirclePlus,
+  Database,
+  Github,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import type { CatalogItem, CostPosition, Deal, DealCalculation, StoredCalculations } from "../types";
+import {
+  cleanCost,
+  defectsCost,
+  finalCost,
+  formatMoney,
+  formatPercent,
+  margin,
+  profit,
+  saleAmountForDeal,
+} from "../lib/costing";
+import { saveCalculationsToGitHub } from "../lib/githubStorage";
+
+const sectionLabels: Record<CostPosition["section"], string> = {
+  materials: "Материалы",
+  assembly: "Сборка",
+  consumables: "Расходники",
+  subcontract: "Подряд",
+  milling: "Фрезеровка",
+  print: "Печать",
+  plotter: "Плоттер",
+  mounting: "Монтаж",
+  defects: "Косяки",
+  other: "Разное",
+};
+
+type CostDrawerProps = {
+  deal?: Deal;
+  calculation?: DealCalculation;
+  catalogItems: CatalogItem[];
+  storedCalculations: StoredCalculations;
+  onClose: () => void;
+  onChange: (calculation: DealCalculation) => void;
+};
+
+export function CostDrawer({
+  deal,
+  calculation,
+  catalogItems,
+  storedCalculations,
+  onClose,
+  onChange,
+}: CostDrawerProps) {
+  const [catalogQuery, setCatalogQuery] = useState("");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveError, setSaveError] = useState("");
+  const [githubToken, setGithubToken] = useState(() => localStorage.getItem("verkupGithubToken") || "");
+
+  const activeCalculation = useMemo<DealCalculation>(() => {
+    return (
+      calculation || {
+        dealId: deal?.id || "",
+        updatedAt: new Date().toISOString(),
+        positions: [],
+      }
+    );
+  }, [calculation, deal?.id]);
+
+  const filteredCatalog = catalogItems
+    .filter((item) => item.title.toLowerCase().includes(catalogQuery.toLowerCase()))
+    .slice(0, 16);
+
+  if (!deal) {
+    return (
+      <aside className="drawer placeholder">
+        <Database size={28} />
+        <h2>Выберите сделку</h2>
+        <p>Расчет откроется здесь.</p>
+      </aside>
+    );
+  }
+
+  function updatePositions(positions: CostPosition[]) {
+    onChange({
+      dealId: deal!.id,
+      updatedAt: new Date().toISOString(),
+      positions,
+    });
+  }
+
+  function addCatalogItem(item: CatalogItem) {
+    updatePositions([
+      ...activeCalculation.positions,
+      {
+        id: crypto.randomUUID(),
+        section: item.section,
+        title: item.title,
+        qty: 1,
+        unit: item.unit,
+        unitCost: item.unitCost,
+        note: item.source,
+      },
+    ]);
+  }
+
+  function addEmptyPosition(section: CostPosition["section"]) {
+    updatePositions([
+      ...activeCalculation.positions,
+      {
+        id: crypto.randomUUID(),
+        section,
+        title: "",
+        qty: 1,
+        unit: "шт",
+        unitCost: 0,
+      },
+    ]);
+  }
+
+  function patchPosition(id: string, patch: Partial<CostPosition>) {
+    updatePositions(
+      activeCalculation.positions.map((position) =>
+        position.id === id ? { ...position, ...patch } : position,
+      ),
+    );
+  }
+
+  function deletePosition(id: string) {
+    updatePositions(activeCalculation.positions.filter((position) => position.id !== id));
+  }
+
+  async function saveToGitHub() {
+    setSaveState("saving");
+    setSaveError("");
+    localStorage.setItem("verkupGithubToken", githubToken);
+    try {
+      await saveCalculationsToGitHub(
+        {
+          owner: "senyak1987-prog",
+          repo: "verkup",
+          branch: "main",
+          token: githubToken,
+        },
+        {
+          ...storedCalculations,
+          generatedAt: new Date().toISOString(),
+          calculations: upsertCalculation(storedCalculations, activeCalculation),
+        },
+      );
+      setSaveState("saved");
+    } catch (error) {
+      setSaveState("error");
+      setSaveError(error instanceof Error ? error.message : "Не удалось сохранить расчет");
+    }
+  }
+
+  return (
+    <aside className="drawer">
+      <div className="drawer-head">
+        <div>
+          <span className="eyebrow">#{deal.number}</span>
+          <h2>{deal.title}</h2>
+          <p>{deal.responsible || "Ответственный не указан"}</p>
+        </div>
+        <button title="Закрыть" onClick={onClose}>
+          <X size={20} />
+        </button>
+      </div>
+
+      <section className="summary-grid">
+        <Summary label="Продажа" value={formatMoney(saleAmountForDeal(deal, activeCalculation, storedCalculations.agentCostRatio))} />
+        <Summary label="Чистый себес" value={formatMoney(cleanCost(activeCalculation))} />
+        <Summary label="Косяки" value={formatMoney(defectsCost(activeCalculation))} />
+        <Summary label="Итоговый себес" value={formatMoney(finalCost(activeCalculation))} />
+        <Summary label="Прибыль" value={formatMoney(profit(deal, activeCalculation, storedCalculations.agentCostRatio))} />
+        <Summary label="Маржа" value={formatPercent(margin(deal, activeCalculation, storedCalculations.agentCostRatio))} />
+      </section>
+
+      {deal.source.toLowerCase().includes("агент") && (
+        <div className="notice">
+          <AlertTriangle size={18} />
+          <span>Для агента продажа считается от себестоимости по коэффициенту 0,58.</span>
+        </div>
+      )}
+
+      <section className="catalog-panel">
+        <div className="section-title">
+          <h3>Добавить из справочника</h3>
+          <span>{catalogItems.length} позиций</span>
+        </div>
+        <input
+          value={catalogQuery}
+          onChange={(event) => setCatalogQuery(event.target.value)}
+          placeholder="Материал, сборка, фрезеровка..."
+        />
+        <div className="catalog-list">
+          {filteredCatalog.map((item) => (
+            <button key={item.id} onClick={() => addCatalogItem(item)}>
+              <span>{item.title}</span>
+              <small>
+                {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+              </small>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="positions">
+        <div className="section-title">
+          <h3>Позиции расчета</h3>
+          <div className="quick-add">
+            <button onClick={() => addEmptyPosition("materials")}>
+              <CirclePlus size={16} /> Материал
+            </button>
+            <button onClick={() => addEmptyPosition("assembly")}>
+              <CirclePlus size={16} /> Сборка
+            </button>
+            <button onClick={() => addEmptyPosition("defects")}>
+              <CirclePlus size={16} /> Косяк
+            </button>
+          </div>
+        </div>
+
+        {activeCalculation.positions.map((position) => (
+          <div className="position-row" key={position.id}>
+            <select
+              value={position.section}
+              onChange={(event) =>
+                patchPosition(position.id, { section: event.target.value as CostPosition["section"] })
+              }
+            >
+              {Object.entries(sectionLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input
+              className="position-title"
+              value={position.title}
+              onChange={(event) => patchPosition(position.id, { title: event.target.value })}
+              placeholder="Позиция"
+            />
+            <input
+              type="number"
+              value={position.qty}
+              onChange={(event) => patchPosition(position.id, { qty: Number(event.target.value) })}
+            />
+            <input
+              value={position.unit}
+              onChange={(event) => patchPosition(position.id, { unit: event.target.value })}
+            />
+            <input
+              type="number"
+              value={position.unitCost}
+              onChange={(event) => patchPosition(position.id, { unitCost: Number(event.target.value) })}
+            />
+            <strong>{formatMoney(position.qty * position.unitCost)}</strong>
+            <button title="Удалить" onClick={() => deletePosition(position.id)}>
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ))}
+
+        {!activeCalculation.positions.length && (
+          <p className="empty-state">Добавьте первую позицию из справочника или вручную.</p>
+        )}
+      </section>
+
+      <section className="github-save">
+        <div className="section-title">
+          <h3>Сохранение</h3>
+          <Github size={18} />
+        </div>
+        <input
+          type="password"
+          value={githubToken}
+          onChange={(event) => setGithubToken(event.target.value)}
+          placeholder="GitHub token с правом Contents: Read and write"
+        />
+        <button className="primary" disabled={!githubToken || saveState === "saving"} onClick={saveToGitHub}>
+          {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
+          {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет в GitHub"}
+        </button>
+        {saveState === "error" && <p className="error">{saveError}</p>}
+        {saveState === "saved" && <p className="ok">Расчет записан в репозиторий.</p>}
+      </section>
+    </aside>
+  );
+}
+
+function Summary({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="summary">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function upsertCalculation(stored: StoredCalculations, calculation: DealCalculation) {
+  const rest = stored.calculations.filter((item) => item.dealId !== calculation.dealId);
+  return [...rest, calculation];
+}
