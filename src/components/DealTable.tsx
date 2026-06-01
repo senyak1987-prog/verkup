@@ -1,4 +1,5 @@
-import { ExternalLink, Pencil, Search } from "lucide-react";
+import { ExternalLink, Pencil, RotateCcw, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type { Deal, DealCalculation } from "../types";
 import {
   cleanCost,
@@ -10,6 +11,23 @@ import {
   saleBreakdownForDeal,
   saleAmountForDeal,
 } from "../lib/costing";
+
+const COLUMN_STORAGE_KEY = "verkupDealColumnWidths";
+
+const tableColumns = [
+  { id: "deal", label: "Сделка", defaultWidth: 280, minWidth: 180 },
+  { id: "source", label: "Источник", defaultWidth: 110, minWidth: 90 },
+  { id: "type", label: "Тип", defaultWidth: 240, minWidth: 130 },
+  { id: "responsible", label: "Ответственный", defaultWidth: 160, minWidth: 110 },
+  { id: "dates", label: "Даты", defaultWidth: 120, minWidth: 100 },
+  { id: "sales", label: "Продажа / монтаж", defaultWidth: 230, minWidth: 150 },
+  { id: "cost", label: "Себестоимость", defaultWidth: 190, minWidth: 150 },
+  { id: "profit", label: "Прибыль", defaultWidth: 110, minWidth: 90 },
+  { id: "actions", label: "", defaultWidth: 80, minWidth: 72 },
+] as const;
+
+type ColumnId = (typeof tableColumns)[number]["id"];
+type ColumnWidths = Record<ColumnId, number>;
 
 type DealTableProps = {
   deals: Deal[];
@@ -30,6 +48,17 @@ export function DealTable({
   query,
   onQueryChange,
 }: DealTableProps) {
+  const [columnWidths, setColumnWidths] = useState<ColumnWidths>(() => loadColumnWidths());
+
+  useEffect(() => {
+    localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnWidths));
+  }, [columnWidths]);
+
+  const tableWidth = useMemo(
+    () => tableColumns.reduce((sum, column) => sum + columnWidths[column.id], 0),
+    [columnWidths],
+  );
+
   const totals = deals.reduce(
     (acc, deal) => {
       const calculation = calculations.get(deal.id);
@@ -42,6 +71,37 @@ export function DealTable({
     { sale: 0, clean: 0, final: 0, profit: 0 },
   );
 
+  function startColumnResize(column: (typeof tableColumns)[number], event: React.PointerEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startWidth = columnWidths[column.id];
+    document.body.classList.add("is-resizing-columns");
+
+    function handlePointerMove(pointerEvent: PointerEvent) {
+      const nextWidth = clamp(startWidth + pointerEvent.clientX - startX, column.minWidth, 520);
+      setColumnWidths((current) => ({ ...current, [column.id]: nextWidth }));
+    }
+
+    function handlePointerUp() {
+      document.body.classList.remove("is-resizing-columns");
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    }
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+  }
+
+  function resetColumnWidth(column: (typeof tableColumns)[number]) {
+    setColumnWidths((current) => ({ ...current, [column.id]: column.defaultWidth }));
+  }
+
+  function resetAllColumnWidths() {
+    setColumnWidths(defaultColumnWidths());
+  }
+
   return (
     <main className="deal-list">
       <div className="toolbar">
@@ -49,14 +109,23 @@ export function DealTable({
           <h1>Сделки к запуску</h1>
           <p>{deals.length} сделок на стадии производства</p>
         </div>
-        <label className="search">
-          <Search size={18} />
-          <input
-            value={query}
-            onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Поиск по номеру, названию, менеджеру"
-          />
-        </label>
+        <div className="toolbar-actions">
+          <label className="search">
+            <Search size={18} />
+            <input
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Поиск по номеру, названию, менеджеру"
+            />
+          </label>
+          <button
+            className="icon-button"
+            title="Сбросить ширину столбцов"
+            onClick={resetAllColumnWidths}
+          >
+            <RotateCcw size={18} />
+          </button>
+        </div>
       </div>
 
       <section className="kpis">
@@ -67,18 +136,27 @@ export function DealTable({
       </section>
 
       <div className="table-wrap">
-        <table>
+        <table className="deals-table" style={{ width: `max(100%, ${tableWidth}px)` }}>
+          <colgroup>
+            {tableColumns.map((column) => (
+              <col key={column.id} style={{ width: `${columnWidths[column.id]}px` }} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
-              <th>Сделка</th>
-              <th>Источник</th>
-              <th>Тип</th>
-              <th>Ответственный</th>
-              <th>Даты</th>
-              <th>Продажа / монтаж</th>
-              <th>Себестоимость</th>
-              <th>Прибыль</th>
-              <th></th>
+              {tableColumns.map((column) => (
+                <th key={column.id} className="resizable-th">
+                  {column.label}
+                  <span
+                    aria-label={`Изменить ширину: ${column.label || "действия"}`}
+                    className="column-resizer"
+                    role="separator"
+                    title="Потяните, чтобы изменить ширину. Двойной клик сбрасывает колонку."
+                    onDoubleClick={() => resetColumnWidth(column)}
+                    onPointerDown={(event) => startColumnResize(column, event)}
+                  />
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -144,6 +222,37 @@ export function DealTable({
       </div>
     </main>
   );
+}
+
+function defaultColumnWidths(): ColumnWidths {
+  return tableColumns.reduce((widths, column) => {
+    widths[column.id] = column.defaultWidth;
+    return widths;
+  }, {} as ColumnWidths);
+}
+
+function loadColumnWidths(): ColumnWidths {
+  const defaults = defaultColumnWidths();
+
+  try {
+    const saved = localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (!saved) return defaults;
+    const parsed = JSON.parse(saved) as Partial<Record<ColumnId, number>>;
+    return tableColumns.reduce((widths, column) => {
+      widths[column.id] = clamp(
+        Number(parsed[column.id]) || column.defaultWidth,
+        column.minWidth,
+        520,
+      );
+      return widths;
+    }, {} as ColumnWidths);
+  } catch {
+    return defaults;
+  }
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function Kpi({ label, value }: { label: string; value: string }) {

@@ -60,6 +60,12 @@ a {
   margin-bottom: 18px;
 }
 
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 h1,
 h2,
 h3,
@@ -88,6 +94,18 @@ small,
   border: 1px solid #d6dce6;
   border-radius: 7px;
   background: #fff;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #d6dce6;
+  border-radius: 7px;
+  background: #fff;
+  color: #334155;
 }
 
 .search input,
@@ -147,6 +165,10 @@ table {
   min-width: 1120px;
 }
 
+.deals-table {
+  table-layout: fixed;
+}
+
 th,
 td {
   padding: 13px 12px;
@@ -164,6 +186,44 @@ th {
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
+}
+
+.resizable-th {
+  position: sticky;
+  overflow: visible;
+  padding-right: 18px;
+  user-select: none;
+}
+
+.column-resizer {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  z-index: 3;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.column-resizer::after {
+  position: absolute;
+  top: 10px;
+  right: 3px;
+  bottom: 10px;
+  width: 1px;
+  background: #d8dee8;
+  content: "";
+}
+
+.column-resizer:hover::after,
+.is-resizing-columns .column-resizer::after {
+  background: #0f766e;
+}
+
+.is-resizing-columns {
+  cursor: col-resize;
+  user-select: none;
 }
 
 tr.selected td {
@@ -412,6 +472,10 @@ td small {
   .toolbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .toolbar-actions {
+    width: 100%;
   }
 
   .search {
