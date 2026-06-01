@@ -1,10 +1,7 @@
-name: Inspect Bitrix fields
+name: Inspect Bitrix metadata
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   inspect:

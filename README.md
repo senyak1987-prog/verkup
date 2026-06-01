@@ -31,6 +31,13 @@ Webhook должен иметь права CRM. Если запросы `crm.dea
 
 ## Как узнать коды полей
 
+Через GitHub Actions:
+
+1. Добавьте `BITRIX_WEBHOOK_URL` в `Settings -> Secrets and variables -> Actions`.
+2. Откройте `Actions -> Inspect Bitrix metadata`.
+3. Нажмите `Run workflow`.
+4. В логах шага `Print deal fields` будут коды `UF_CRM_...`, типы и названия полей.
+
 Локально:
 
 ```bash
