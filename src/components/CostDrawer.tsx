@@ -4,6 +4,7 @@ import {
   CirclePlus,
   Database,
   Github,
+  Pencil,
   Save,
   Trash2,
   X,
@@ -23,7 +24,7 @@ import {
   profit,
   saleBreakdownForDeal,
 } from "../lib/costing";
-import { saveCalculationsToGitHub } from "../lib/githubStorage";
+import { saveCalculationsToGitHub, saveCatalogsToGitHub } from "../lib/githubStorage";
 
 const sectionLabels: Record<CostPosition["section"], string> = {
   materials: "Материалы",
@@ -44,6 +45,7 @@ type CostDrawerProps = {
   catalogItems: CatalogItem[];
   storedCalculations: StoredCalculations;
   onClose: () => void;
+  onCatalogItemsChange: (items: CatalogItem[]) => void;
   onChange: (calculation: DealCalculation) => void;
 };
 
@@ -53,11 +55,17 @@ export function CostDrawer({
   catalogItems,
   storedCalculations,
   onClose,
+  onCatalogItemsChange,
   onChange,
 }: CostDrawerProps) {
   const [catalogQuery, setCatalogQuery] = useState("");
+  const [catalogEditorOpen, setCatalogEditorOpen] = useState(false);
+  const [selectedCatalogId, setSelectedCatalogId] = useState("");
+  const [catalogDraft, setCatalogDraft] = useState<CatalogItem>(() => createEmptyCatalogItem());
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
+  const [catalogSaveState, setCatalogSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [catalogSaveError, setCatalogSaveError] = useState("");
   const [githubToken, setGithubToken] = useState(() => localStorage.getItem("verkupGithubToken") || "");
 
   const activeCalculation = useMemo<DealCalculation>(() => {
@@ -70,8 +78,14 @@ export function CostDrawer({
     );
   }, [calculation, deal?.id]);
 
+  const catalogNeedle = catalogQuery.trim().toLowerCase();
   const filteredCatalog = catalogItems
-    .filter((item) => item.title.toLowerCase().includes(catalogQuery.toLowerCase()))
+    .filter((item) =>
+      [item.title, item.source, item.unit, sectionLabels[item.section]]
+        .join(" ")
+        .toLowerCase()
+        .includes(catalogNeedle),
+    )
     .slice(0, 16);
 
   if (!deal) {
@@ -136,6 +150,47 @@ export function CostDrawer({
     updatePositions(activeCalculation.positions.filter((position) => position.id !== id));
   }
 
+  function startNewCatalogItem() {
+    setSelectedCatalogId("");
+    setCatalogDraft(createEmptyCatalogItem());
+    setCatalogSaveState("idle");
+    setCatalogSaveError("");
+  }
+
+  function selectCatalogItem(item: CatalogItem) {
+    setSelectedCatalogId(item.id);
+    setCatalogDraft({ ...item });
+    setCatalogSaveState("idle");
+    setCatalogSaveError("");
+  }
+
+  function patchCatalogDraft(patch: Partial<CatalogItem>) {
+    setCatalogDraft((current) => ({ ...current, ...patch }));
+    setCatalogSaveState("idle");
+  }
+
+  function applyCatalogDraft() {
+    const normalized = normalizeCatalogItem(catalogDraft);
+    if (!normalized) {
+      setCatalogSaveState("error");
+      setCatalogSaveError("Заполните название позиции.");
+      return;
+    }
+
+    const nextItems = upsertCatalogItem(catalogItems, normalized);
+    onCatalogItemsChange(nextItems);
+    setSelectedCatalogId(normalized.id);
+    setCatalogDraft(normalized);
+    setCatalogSaveState("idle");
+    setCatalogSaveError("");
+  }
+
+  function deleteCatalogDraft() {
+    if (!selectedCatalogId) return;
+    onCatalogItemsChange(catalogItems.filter((item) => item.id !== selectedCatalogId));
+    startNewCatalogItem();
+  }
+
   async function saveToGitHub() {
     setSaveState("saving");
     setSaveError("");
@@ -158,6 +213,42 @@ export function CostDrawer({
     } catch (error) {
       setSaveState("error");
       setSaveError(error instanceof Error ? error.message : "Не удалось сохранить расчет");
+    }
+  }
+
+  async function saveCatalogToGitHub() {
+    setCatalogSaveState("saving");
+    setCatalogSaveError("");
+    localStorage.setItem("verkupGithubToken", githubToken);
+    try {
+      const normalizedDraft = normalizeCatalogItem(catalogDraft);
+      const itemsToSave =
+        catalogEditorOpen && normalizedDraft
+          ? upsertCatalogItem(catalogItems, normalizedDraft)
+          : catalogItems;
+
+      if (catalogEditorOpen && normalizedDraft) {
+        onCatalogItemsChange(itemsToSave);
+        setSelectedCatalogId(normalizedDraft.id);
+        setCatalogDraft(normalizedDraft);
+      }
+
+      await saveCatalogsToGitHub(
+        {
+          owner: "senyak1987-prog",
+          repo: "verkup",
+          branch: "main",
+          token: githubToken,
+        },
+        {
+          generatedAt: new Date().toISOString(),
+          items: itemsToSave,
+        },
+      );
+      setCatalogSaveState("saved");
+    } catch (error) {
+      setCatalogSaveState("error");
+      setCatalogSaveError(error instanceof Error ? error.message : "Не удалось сохранить справочник");
     }
   }
 
@@ -217,7 +308,84 @@ export function CostDrawer({
             </button>
           ))}
         </div>
+        <button className="secondary full" onClick={() => setCatalogEditorOpen((open) => !open)}>
+          <Pencil size={16} />
+          {catalogEditorOpen ? "Скрыть редактор" : "Редактировать справочник"}
+        </button>
       </section>
+
+      {catalogEditorOpen && (
+        <section className="catalog-editor">
+          <div className="section-title">
+            <h3>Редактор справочника</h3>
+            <button className="secondary compact" onClick={startNewCatalogItem}>
+              <CirclePlus size={16} /> Новая
+            </button>
+          </div>
+
+          <div className="catalog-editor-list">
+            {filteredCatalog.map((item) => (
+              <button
+                className={item.id === selectedCatalogId ? "active" : ""}
+                key={item.id}
+                onClick={() => selectCatalogItem(item)}
+              >
+                <span>{item.title}</span>
+                <small>
+                  {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                </small>
+              </button>
+            ))}
+          </div>
+
+          <div className="catalog-edit-grid">
+            <select
+              value={catalogDraft.section}
+              onChange={(event) =>
+                patchCatalogDraft({ section: event.target.value as CostPosition["section"] })
+              }
+            >
+              {Object.entries(sectionLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            <input
+              value={catalogDraft.unit}
+              onChange={(event) => patchCatalogDraft({ unit: event.target.value })}
+              placeholder="Ед."
+            />
+            <input
+              className="wide"
+              value={catalogDraft.title}
+              onChange={(event) => patchCatalogDraft({ title: event.target.value })}
+              placeholder="Название позиции"
+            />
+            <input
+              type="number"
+              value={catalogDraft.unitCost}
+              onChange={(event) => patchCatalogDraft({ unitCost: Number(event.target.value) })}
+              placeholder="Цена"
+            />
+            <input
+              className="wide"
+              value={catalogDraft.source}
+              onChange={(event) => patchCatalogDraft({ source: event.target.value })}
+              placeholder="Источник"
+            />
+          </div>
+
+          <div className="editor-actions">
+            <button className="primary" onClick={applyCatalogDraft}>
+              <Check size={16} /> Применить позицию
+            </button>
+            <button className="danger" disabled={!selectedCatalogId} onClick={deleteCatalogDraft}>
+              <Trash2 size={16} /> Удалить
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="positions">
         <div className="section-title">
@@ -311,8 +479,18 @@ export function CostDrawer({
           {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
           {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет в GitHub"}
         </button>
+        <button
+          className="secondary full"
+          disabled={!githubToken || catalogSaveState === "saving"}
+          onClick={saveCatalogToGitHub}
+        >
+          {catalogSaveState === "saved" ? <Check size={18} /> : <Save size={18} />}
+          {catalogSaveState === "saving" ? "Сохраняю справочник..." : "Сохранить справочник в GitHub"}
+        </button>
         {saveState === "error" && <p className="error">{saveError}</p>}
         {saveState === "saved" && <p className="ok">Расчет записан в репозиторий.</p>}
+        {catalogSaveState === "error" && <p className="error">{catalogSaveError}</p>}
+        {catalogSaveState === "saved" && <p className="ok">Справочник записан в репозиторий.</p>}
       </section>
     </aside>
   );
@@ -330,4 +508,45 @@ function Summary({ label, value }: { label: string; value: string }) {
 function upsertCalculation(stored: StoredCalculations, calculation: DealCalculation) {
   const rest = stored.calculations.filter((item) => item.dealId !== calculation.dealId);
   return [...rest, calculation];
+}
+
+function createEmptyCatalogItem(): CatalogItem {
+  return {
+    id: "",
+    section: "materials",
+    title: "",
+    unit: "шт",
+    unitCost: 0,
+    source: "Ручной справочник",
+  };
+}
+
+function normalizeCatalogItem(item: CatalogItem) {
+  const title = item.title.trim();
+  if (!title) return undefined;
+
+  return {
+    ...item,
+    id: item.id || createCatalogId(item.section, title),
+    title,
+    unit: item.unit.trim() || "шт",
+    unitCost: Number.isFinite(item.unitCost) ? item.unitCost : 0,
+    source: item.source.trim() || "Ручной справочник",
+  };
+}
+
+function upsertCatalogItem(items: CatalogItem[], item: CatalogItem) {
+  return items.some((current) => current.id === item.id)
+    ? items.map((current) => (current.id === item.id ? item : current))
+    : [...items, item];
+}
+
+function createCatalogId(section: CostPosition["section"], title: string) {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-zа-я0-9]+/gi, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 48);
+
+  return `${section}-${slug || "position"}-${crypto.randomUUID().slice(0, 8)}`;
 }

@@ -119,6 +119,7 @@ export default function App() {
         calculation={selectedCalculation}
         catalogItems={catalogItems}
         storedCalculations={storedCalculations}
+        onCatalogItemsChange={setCatalogItems}
         onChange={handleCalculationChange}
         onClose={() => setSelectedDealId(undefined)}
       />

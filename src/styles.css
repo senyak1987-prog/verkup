@@ -435,7 +435,9 @@ td small {
 }
 
 .quick-add button,
-.primary {
+.primary,
+.secondary,
+.danger {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -443,6 +445,87 @@ td small {
   border-radius: 7px;
   background: #fff;
   padding: 8px 10px;
+}
+
+.secondary.full {
+  width: 100%;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.secondary.compact {
+  white-space: nowrap;
+}
+
+.danger {
+  border-color: #f1b8b8;
+  color: #b42318;
+}
+
+.danger:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.catalog-editor {
+  margin-top: 16px;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 12px;
+}
+
+.catalog-editor-list {
+  display: grid;
+  gap: 7px;
+  max-height: 190px;
+  overflow: auto;
+  margin-bottom: 10px;
+}
+
+.catalog-editor-list button {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.catalog-editor-list button.active {
+  border-color: #0f766e;
+  background: #edf8f5;
+}
+
+.catalog-edit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px;
+  gap: 8px;
+}
+
+.catalog-edit-grid input,
+.catalog-edit-grid select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #d8dee8;
+  border-radius: 7px;
+  padding: 9px;
+}
+
+.catalog-edit-grid .wide {
+  grid-column: 1 / -1;
+}
+
+.editor-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.editor-actions button {
+  justify-content: center;
 }
 
 .position-row {
@@ -479,7 +562,12 @@ td small {
   color: #fff;
 }
 
-.github-save .primary:disabled {
+.github-save .secondary.full {
+  margin-top: 8px;
+}
+
+.github-save .primary:disabled,
+.github-save .secondary:disabled {
   opacity: 0.55;
 }
 
@@ -545,6 +633,10 @@ td small {
 
   .position-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .editor-actions {
+    grid-template-columns: 1fr;
   }
 
   .position-title {
