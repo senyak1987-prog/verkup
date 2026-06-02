@@ -81,7 +81,14 @@ export function CostDrawer({
   const sales = saleBreakdownForDeal(deal, activeCalculation, storedCalculations.agentCostRatio);
   const isAgent = isAgentDeal(deal);
   const dealCost = finalCost(activeCalculation);
-  const canMoveToProduction = stageCodeForDeal(deal) === "launch" && dealCost > 0;
+  const isLaunchDeal = stageCodeForDeal(deal) === "launch";
+  const hasGithubToken = githubToken.trim().length > 0;
+  const hasCalculatedCost = dealCost > 0;
+  const canMoveToProduction = isLaunchDeal && hasGithubToken && hasCalculatedCost;
+  const moveHints = [
+    !hasCalculatedCost ? "Добавьте хотя бы одну позицию себестоимости с суммой больше 0 ₽." : "",
+    !hasGithubToken ? "Вставьте GitHub token с правами Contents и Actions: Read and write." : "",
+  ].filter(Boolean);
 
   function updatePositions(positions: CostPosition[]) {
     onChange({
@@ -141,16 +148,17 @@ export function CostDrawer({
   }
 
   async function saveToGitHub() {
+    const token = githubToken.trim();
     setSaveState("saving");
     setSaveError("");
-    localStorage.setItem("verkupGithubToken", githubToken);
+    localStorage.setItem("verkupGithubToken", token);
     try {
       await saveCalculationsToGitHub(
         {
           owner: "senyak1987-prog",
           repo: "verkup",
           branch: "main",
-          token: githubToken,
+          token,
         },
         calculationPayload(),
       );
@@ -163,12 +171,13 @@ export function CostDrawer({
 
   async function moveToProduction() {
     const activeDeal = deal;
-    if (!activeDeal) return;
+    if (!activeDeal || !canMoveToProduction) return;
 
+    const token = githubToken.trim();
     setMoveState("moving");
     setMoveError("");
     setSaveError("");
-    localStorage.setItem("verkupGithubToken", githubToken);
+    localStorage.setItem("verkupGithubToken", token);
 
     try {
       await saveCalculationsToGitHub(
@@ -176,7 +185,7 @@ export function CostDrawer({
           owner: "senyak1987-prog",
           repo: "verkup",
           branch: "main",
-          token: githubToken,
+          token,
         },
         calculationPayload(),
       );
@@ -185,7 +194,7 @@ export function CostDrawer({
           owner: "senyak1987-prog",
           repo: "verkup",
           branch: "main",
-          token: githubToken,
+          token,
         },
         activeDeal.id,
       );
@@ -348,24 +357,27 @@ export function CostDrawer({
           onChange={(event) => setGithubToken(event.target.value)}
           placeholder="GitHub token с правами Contents и Actions: Read and write"
         />
-        <button className="primary" disabled={!githubToken || saveState === "saving"} onClick={saveToGitHub}>
+        <button className="primary" disabled={!hasGithubToken || saveState === "saving"} onClick={saveToGitHub}>
           {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
           {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет в GitHub"}
         </button>
-        {stageCodeForDeal(deal) === "launch" && (
+        {isLaunchDeal && (
           <button
             className="production-button"
-            disabled={!githubToken || !canMoveToProduction || moveState === "moving"}
+            disabled={!canMoveToProduction || moveState === "moving"}
             onClick={moveToProduction}
             title={
-              canMoveToProduction
+              !moveHints.length
                 ? "Сохранить расчет и перевести сделку в стадию В производстве"
-                : "Добавьте хотя бы одну позицию себестоимости"
+                : moveHints.join(" ")
             }
           >
             {moveState === "moved" ? <Check size={18} /> : <ArrowRight size={18} />}
             {moveState === "moving" ? "Перевожу..." : "Перевести в производство"}
           </button>
+        )}
+        {isLaunchDeal && moveState !== "moved" && !!moveHints.length && (
+          <p className="hint">{moveHints.join(" ")}</p>
         )}
         {saveState === "error" && <p className="error">{saveError}</p>}
         {saveState === "saved" && <p className="ok">Расчет записан в репозиторий.</p>}

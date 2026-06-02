@@ -838,6 +838,13 @@ td small {
   font-size: 13px;
 }
 
+.hint {
+  margin-top: 8px;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .empty,
 .empty-state {
   padding: 22px;
