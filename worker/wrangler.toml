@@ -1,6 +1,7 @@
 name = "verkup-save-api"
 main = "worker.js"
 compatibility_date = "2026-06-02"
+workers_dev = true
 
 [vars]
 GITHUB_OWNER = "senyak1987-prog"
