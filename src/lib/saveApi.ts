@@ -4,10 +4,10 @@ const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim();
 
 export type SaveApiSettings = {
   apiUrl: string;
-  apiKey: string;
 };
 
 export function defaultSaveApiUrl() {
+  localStorage.removeItem("verkupSaveApiKey");
   return configuredApiUrl || localStorage.getItem("verkupSaveApiUrl") || "";
 }
 
@@ -16,8 +16,7 @@ export function isSaveApiUrlConfigured() {
 }
 
 export function persistSaveApiSettings(settings: SaveApiSettings) {
-  localStorage.setItem("verkupSaveApiKey", settings.apiKey.trim());
-
+  localStorage.removeItem("verkupSaveApiKey");
   if (!isSaveApiUrlConfigured()) {
     localStorage.setItem("verkupSaveApiUrl", settings.apiUrl.trim());
   }
@@ -40,20 +39,14 @@ export async function moveDealToProduction(settings: SaveApiSettings, dealId: st
 
 async function postToSaveApi(settings: SaveApiSettings, path: string, payload: unknown) {
   const apiUrl = normalizeApiUrl(settings.apiUrl);
-  const apiKey = settings.apiKey.trim();
 
   if (!apiUrl) {
     throw new Error("Не указан адрес API сохранения.");
   }
 
-  if (!apiKey) {
-    throw new Error("Не указан ключ сохранения.");
-  }
-
   const response = await fetch(`${apiUrl}${path}`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),

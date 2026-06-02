@@ -22,8 +22,6 @@ export default {
       }
 
       requireEnv(env, "GITHUB_TOKEN");
-      requireEnv(env, "SAVE_API_KEY");
-      requireSaveKey(request, env);
 
       if (url.pathname === "/save-calculations") {
         const body = await request.json();
@@ -134,19 +132,6 @@ function requireEnv(env, name) {
   }
 }
 
-function requireSaveKey(request, env) {
-  const auth = request.headers.get("Authorization") || "";
-  const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
-  const headerKey = request.headers.get("X-Verkup-Key") || "";
-  const actual = bearer || headerKey;
-
-  if (actual !== env.SAVE_API_KEY) {
-    const error = new Error("Неверный ключ сохранения");
-    error.status = 401;
-    throw error;
-  }
-}
-
 function githubHeaders(env) {
   return {
     Authorization: `Bearer ${env.GITHUB_TOKEN}`,
@@ -189,7 +174,7 @@ function corsHeaders(request, env) {
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Authorization, Content-Type, X-Verkup-Key",
+    "Access-Control-Allow-Headers": "Content-Type",
   };
 }
 

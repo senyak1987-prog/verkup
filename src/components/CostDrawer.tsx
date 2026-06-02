@@ -4,7 +4,6 @@ import {
   Check,
   CirclePlus,
   Database,
-  KeyRound,
   Save,
   Trash2,
   X,
@@ -60,7 +59,6 @@ export function CostDrawer({
   const [saveError, setSaveError] = useState("");
   const [moveState, setMoveState] = useState<"idle" | "moving" | "moved" | "error">("idle");
   const [moveError, setMoveError] = useState("");
-  const [saveApiKey, setSaveApiKey] = useState(() => localStorage.getItem("verkupSaveApiKey") || "");
   const [saveApiUrl, setSaveApiUrl] = useState(() => defaultSaveApiUrl());
 
   const activeCalculation = useMemo<DealCalculation>(() => {
@@ -89,14 +87,10 @@ export function CostDrawer({
   const isAgent = isAgentDeal(deal);
   const dealCost = finalCost(activeCalculation);
   const isLaunchDeal = stageCodeForDeal(deal) === "launch";
-  const hasSaveApiKey = saveApiKey.trim().length > 0;
   const hasSaveApiUrl = saveApiUrl.trim().length > 0;
-  const canSave = hasSaveApiKey && hasSaveApiUrl;
+  const canSave = hasSaveApiUrl;
   const canMoveToProduction = isLaunchDeal && canSave;
-  const moveHints = [
-    !hasSaveApiKey ? "Вставьте ключ сохранения." : "",
-    !hasSaveApiUrl ? "Укажите адрес API сохранения." : "",
-  ].filter(Boolean);
+  const moveHints = [!hasSaveApiUrl ? "Укажите адрес API сохранения." : ""].filter(Boolean);
 
   function updatePositions(positions: CostPosition[]) {
     onChange({
@@ -158,7 +152,6 @@ export function CostDrawer({
   async function saveCalculation() {
     const settings = {
       apiUrl: saveApiUrl,
-      apiKey: saveApiKey,
     };
     setSaveState("saving");
     setSaveError("");
@@ -178,7 +171,6 @@ export function CostDrawer({
 
     const settings = {
       apiUrl: saveApiUrl,
-      apiKey: saveApiKey,
     };
     setMoveState("moving");
     setMoveError("");
@@ -339,7 +331,7 @@ export function CostDrawer({
       <section className="github-save">
         <div className="section-title">
           <h3>Сохранение</h3>
-          <KeyRound size={18} />
+          <Save size={18} />
         </div>
         {!isSaveApiUrlConfigured() && (
           <input
@@ -348,12 +340,6 @@ export function CostDrawer({
             placeholder="Адрес API сохранения, например https://verkup-save-api...workers.dev"
           />
         )}
-        <input
-          type="password"
-          value={saveApiKey}
-          onChange={(event) => setSaveApiKey(event.target.value)}
-          placeholder="Ключ сохранения"
-        />
         <button className="primary" disabled={!canSave || saveState === "saving"} onClick={saveCalculation}>
           {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
           {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет"}

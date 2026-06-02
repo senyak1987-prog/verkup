@@ -26,14 +26,6 @@ jobs:
         run: |
           printf "%s" "$WORKER_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN --config worker/wrangler.toml
 
-      - name: Put Worker save key secret
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          SAVE_API_KEY: ${{ secrets.SAVE_API_KEY }}
-        run: |
-          printf "%s" "$SAVE_API_KEY" | npx wrangler secret put SAVE_API_KEY --config worker/wrangler.toml
-
       - name: Deploy Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

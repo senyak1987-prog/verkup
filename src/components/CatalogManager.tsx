@@ -1,4 +1,4 @@
-import { Check, CirclePlus, KeyRound, Save, Search, Trash2, X } from "lucide-react";
+import { Check, CirclePlus, Save, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   createEmptyCatalogItem,
@@ -30,9 +30,8 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
   );
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
-  const [saveApiKey, setSaveApiKey] = useState(() => localStorage.getItem("verkupSaveApiKey") || "");
   const [saveApiUrl, setSaveApiUrl] = useState(() => defaultSaveApiUrl());
-  const canSave = saveApiKey.trim().length > 0 && saveApiUrl.trim().length > 0;
+  const canSave = saveApiUrl.trim().length > 0;
 
   const filteredItems = useMemo(() => filterCatalogItems(items, query, 300), [items, query]);
 
@@ -85,7 +84,6 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
   async function saveCatalog() {
     const settings = {
       apiUrl: saveApiUrl,
-      apiKey: saveApiKey,
     };
     setSaveState("saving");
     setSaveError("");
@@ -223,7 +221,7 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
             <div className="catalog-save-panel">
               <div className="section-title">
                 <h3>Сохранение</h3>
-                <KeyRound size={18} />
+                <Save size={18} />
               </div>
               {!isSaveApiUrlConfigured() && (
                 <input
@@ -232,12 +230,6 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
                   placeholder="Адрес API сохранения, например https://verkup-save-api...workers.dev"
                 />
               )}
-              <input
-                type="password"
-                value={saveApiKey}
-                onChange={(event) => setSaveApiKey(event.target.value)}
-                placeholder="Ключ сохранения"
-              />
               <button
                 className="primary"
                 disabled={!canSave || saveState === "saving"}
