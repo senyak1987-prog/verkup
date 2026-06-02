@@ -1,23 +1,23 @@
 {
-  "generatedAt": "2026-06-02T11:02:00.785Z",
+  "generatedAt": "2026-06-02T12:51:36.787Z",
   "items": [
     {
-      "id": "16874",
-      "number": "16874",
-      "title": "Тест",
+      "id": "16876",
+      "number": "16876",
+      "title": "Гинты 1 коробок",
       "stageId": "4",
       "stageCode": "launch",
       "source": "Повтор (уже заказывали)",
-      "type": "Изготовление + Монтаж",
-      "classification": "Буквы",
-      "saleAmount": 700,
-      "installSaleAmount": 300,
-      "responsible": "Семён Рябов",
+      "type": "Изготовление + Доставка",
+      "classification": "Нестандартная сделка (считаем через Технолога)",
+      "saleAmount": 10000,
+      "installSaleAmount": 2500,
+      "responsible": "Сергей Кирсанов",
       "startDate": "2026-06-02T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-09T03:00:00+03:00",
-      "createdDate": "2026-06-02T13:01:31+03:00",
+      "expectedFinishDate": "2026-06-04T03:00:00+03:00",
+      "createdDate": "2026-06-02T13:53:24+03:00",
       "stageName": "Запустить в Производство (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16874/"
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16876/"
     },
     {
       "id": "16872",
@@ -36,6 +36,24 @@
       "createdDate": "2026-06-02T12:54:35+03:00",
       "stageName": "Запустить в Производство (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16872/"
+    },
+    {
+      "id": "16874",
+      "number": "16874",
+      "title": "Тест",
+      "stageId": "4",
+      "stageCode": "launch",
+      "source": "Повтор (уже заказывали)",
+      "type": "Изготовление + Монтаж",
+      "classification": "Буквы",
+      "saleAmount": 700,
+      "installSaleAmount": 300,
+      "responsible": "Семён Рябов",
+      "startDate": "2026-06-02T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-09T03:00:00+03:00",
+      "createdDate": "2026-06-02T13:01:31+03:00",
+      "stageName": "Запустить в Производство (пр)",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16874/"
     },
     {
       "id": "16870",
