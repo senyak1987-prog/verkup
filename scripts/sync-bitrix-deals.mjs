@@ -6,7 +6,7 @@ const webhookUrl = required("BITRIX_WEBHOOK_URL").replace(/\/?$/, "/");
 const bitrixDomain = env.BITRIX_DOMAIN || new URL(webhookUrl).host;
 const stageId = env.BITRIX_STAGE_ID || "";
 const stageName = env.BITRIX_STAGE_NAME || "Запустить в производство";
-const productionStageId = env.BITRIX_PRODUCTION_STAGE_ID || "";
+const productionStageId = env.BITRIX_PRODUCTION_STAGE_ID || "10";
 const productionStageName = env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве";
 const categoryId = env.BITRIX_CATEGORY_ID || "";
 

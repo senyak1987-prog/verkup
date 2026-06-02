@@ -50,12 +50,13 @@ export default {
       if (url.pathname === "/move-to-production") {
         const body = await request.json();
         const dealId = String(body.dealId || "").trim();
+        const targetStageId = String(body.targetStageId || env.BITRIX_PRODUCTION_STAGE_ID || "10").trim();
 
         if (!dealId) {
           return json({ error: "dealId is required" }, 400, cors);
         }
 
-        await dispatchMoveWorkflow(env, dealId);
+        await dispatchMoveWorkflow(env, dealId, targetStageId);
         return json({ ok: true }, 200, cors);
       }
 
@@ -97,7 +98,7 @@ async function saveJsonToGitHub(env, path, message, data, cors) {
   return json({ ok: true, result: await response.json() }, 200, cors);
 }
 
-async function dispatchMoveWorkflow(env, dealId) {
+async function dispatchMoveWorkflow(env, dealId, targetStageId) {
   const branch = env.GITHUB_BRANCH || "main";
   const url = `https://api.github.com/repos/${owner(env)}/${repo(env)}/actions/workflows/move-bitrix-stage.yml/dispatches`;
   const response = await fetch(url, {
@@ -107,6 +108,7 @@ async function dispatchMoveWorkflow(env, dealId) {
       ref: branch,
       inputs: {
         deal_id: dealId,
+        target_stage_id: targetStageId,
       },
     }),
   });

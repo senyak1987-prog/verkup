@@ -92,10 +92,8 @@ export function CostDrawer({
   const hasSaveApiKey = saveApiKey.trim().length > 0;
   const hasSaveApiUrl = saveApiUrl.trim().length > 0;
   const canSave = hasSaveApiKey && hasSaveApiUrl;
-  const hasCalculatedCost = dealCost > 0;
-  const canMoveToProduction = isLaunchDeal && canSave && hasCalculatedCost;
+  const canMoveToProduction = isLaunchDeal && canSave;
   const moveHints = [
-    !hasCalculatedCost ? "Добавьте хотя бы одну позицию себестоимости с суммой больше 0 ₽." : "",
     !hasSaveApiKey ? "Вставьте ключ сохранения." : "",
     !hasSaveApiUrl ? "Укажите адрес API сохранения." : "",
   ].filter(Boolean);
