@@ -1,5 +1,5 @@
 import { Check, CirclePlus, Github, Save, Search, Trash2, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   createEmptyCatalogItem,
   filterCatalogItems,
@@ -28,6 +28,11 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
   const [githubToken, setGithubToken] = useState(() => localStorage.getItem("verkupGithubToken") || "");
 
   const filteredItems = useMemo(() => filterCatalogItems(items, query, 300), [items, query]);
+
+  useEffect(() => {
+    document.body.classList.add("modal-open");
+    return () => document.body.classList.remove("modal-open");
+  }, []);
 
   function selectItem(item: CatalogItem) {
     setSelectedId(item.id);

@@ -14,6 +14,10 @@ body {
   margin: 0;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 button,
 input,
 select {
@@ -488,6 +492,7 @@ td small {
   display: grid;
   place-items: center;
   padding: 24px;
+  overflow: hidden;
   background: rgba(15, 23, 42, 0.28);
 }
 
@@ -495,7 +500,9 @@ td small {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   width: min(1280px, calc(100vw - 48px));
-  max-height: calc(100vh - 48px);
+  height: calc(100dvh - 48px);
+  min-height: 0;
+  overflow: hidden;
   border: 1px solid #cfd8e3;
   border-radius: 8px;
   background: #fff;
@@ -525,13 +532,16 @@ td small {
   display: grid;
   grid-template-columns: minmax(340px, 44%) minmax(360px, 1fr);
   min-height: 0;
+  overflow: hidden;
 }
 
 .catalog-sidebar {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 12px;
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
   padding: 16px;
   border-right: 1px solid #e4e9f1;
 }
@@ -591,6 +601,7 @@ td small {
   align-content: start;
   grid-template-columns: minmax(0, 1fr) 140px;
   gap: 12px;
+  min-height: 0;
   min-width: 0;
   overflow: auto;
   padding: 16px;
@@ -805,6 +816,7 @@ td small {
 
   .catalog-manager {
     grid-template-columns: 1fr;
+    overflow: auto;
   }
 
   .catalog-sidebar {
@@ -813,7 +825,11 @@ td small {
   }
 
   .catalog-browser-list {
-    max-height: 320px;
+    max-height: 280px;
+  }
+
+  .catalog-form {
+    overflow: visible;
   }
 }
 
@@ -834,7 +850,7 @@ td small {
 
   .catalog-modal {
     width: 100vw;
-    max-height: 100vh;
+    height: 100dvh;
     border-radius: 0;
   }
 
