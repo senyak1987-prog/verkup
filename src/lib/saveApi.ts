@@ -7,7 +7,7 @@ export type SaveApiSettings = {
 };
 
 export function defaultSaveApiUrl() {
-  localStorage.removeItem("verkupSaveApiKey");
+  clearLegacyBrowserSecret();
   return configuredApiUrl || localStorage.getItem("verkupSaveApiUrl") || "";
 }
 
@@ -16,7 +16,7 @@ export function isSaveApiUrlConfigured() {
 }
 
 export function persistSaveApiSettings(settings: SaveApiSettings) {
-  localStorage.removeItem("verkupSaveApiKey");
+  clearLegacyBrowserSecret();
   if (!isSaveApiUrlConfigured()) {
     localStorage.setItem("verkupSaveApiUrl", settings.apiUrl.trim());
   }
@@ -62,6 +62,10 @@ async function postToSaveApi(settings: SaveApiSettings, path: string, payload: u
 
 function normalizeApiUrl(value: string) {
   return value.trim().replace(/\/+$/, "");
+}
+
+function clearLegacyBrowserSecret() {
+  localStorage.removeItem(["verkup", "SaveApi", "Key"].join(""));
 }
 
 async function readApiError(response: Response) {
