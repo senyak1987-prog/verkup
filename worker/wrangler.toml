@@ -7,5 +7,6 @@ workers_dev = true
 GITHUB_OWNER = "senyak1987-prog"
 GITHUB_REPO = "verkup"
 GITHUB_BRANCH = "main"
+BITRIX_LAUNCH_STAGE_ID = "4"
 BITRIX_PRODUCTION_STAGE_ID = "10"
 ALLOWED_ORIGIN = "https://senyak1987-prog.github.io"

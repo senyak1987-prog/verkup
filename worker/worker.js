@@ -48,12 +48,39 @@ export default {
       if (url.pathname === "/move-to-production") {
         const body = await request.json();
         const dealId = String(body.dealId || "").trim();
-        const targetStageId = String(body.targetStageId || env.BITRIX_PRODUCTION_STAGE_ID || "10").trim();
+        const targetStageId = targetStageIdFor(env, "production", body.targetStageId);
 
         if (!dealId) {
           return json({ error: "dealId is required" }, 400, cors);
         }
 
+        await dispatchMoveWorkflow(env, dealId, targetStageId);
+        return json({ ok: true }, 200, cors);
+      }
+
+      if (url.pathname === "/move-to-launch") {
+        const body = await request.json();
+        const dealId = String(body.dealId || "").trim();
+        const targetStageId = targetStageIdFor(env, "launch", body.targetStageId);
+
+        if (!dealId) {
+          return json({ error: "dealId is required" }, 400, cors);
+        }
+
+        await dispatchMoveWorkflow(env, dealId, targetStageId);
+        return json({ ok: true }, 200, cors);
+      }
+
+      if (url.pathname === "/move-stage") {
+        const body = await request.json();
+        const dealId = String(body.dealId || "").trim();
+        const targetStage = String(body.targetStage || "").trim();
+
+        if (!dealId) {
+          return json({ error: "dealId is required" }, 400, cors);
+        }
+
+        const targetStageId = targetStageIdFor(env, targetStage, body.targetStageId);
         await dispatchMoveWorkflow(env, dealId, targetStageId);
         return json({ ok: true }, 200, cors);
       }
@@ -130,6 +157,19 @@ function requireEnv(env, name) {
     error.status = 500;
     throw error;
   }
+}
+
+function targetStageIdFor(env, targetStage, explicitStageId) {
+  const target = String(targetStage || "").trim().toLowerCase();
+  const explicit = String(explicitStageId || "").trim();
+  if (explicit) return explicit;
+
+  if (target === "launch") return String(env.BITRIX_LAUNCH_STAGE_ID || "4");
+  if (target === "production") return String(env.BITRIX_PRODUCTION_STAGE_ID || "10");
+
+  const error = new Error("targetStage must be launch or production");
+  error.status = 400;
+  throw error;
 }
 
 function githubHeaders(env) {

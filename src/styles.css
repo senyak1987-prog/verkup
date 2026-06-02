@@ -817,6 +817,12 @@ td small {
   opacity: 0.5;
 }
 
+.production-button.rollback {
+  border-color: #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+}
+
 .github-save .secondary.full {
   margin-top: 8px;
 }

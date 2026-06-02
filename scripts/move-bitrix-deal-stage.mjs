@@ -1,12 +1,16 @@
 const env = process.env;
 const webhookUrl = required("BITRIX_WEBHOOK_URL").replace(/\/?$/, "/");
 const dealId = required("BITRIX_DEAL_ID");
-const targetStageId = env.BITRIX_TARGET_STAGE_ID || env.BITRIX_PRODUCTION_STAGE_ID || "10";
-const targetStageName = env.BITRIX_TARGET_STAGE_NAME || env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве";
+const targetStageId = env.BITRIX_TARGET_STAGE_ID || "";
+const targetStageName =
+  env.BITRIX_TARGET_STAGE_NAME ||
+  (targetStageId === env.BITRIX_LAUNCH_STAGE_ID ? env.BITRIX_LAUNCH_STAGE_NAME : "") ||
+  env.BITRIX_PRODUCTION_STAGE_NAME ||
+  "В производстве";
 
 const stageId = targetStageId || (await resolveStageId(targetStageName));
 if (!stageId) {
-  throw new Error(`Stage "${targetStageName}" was not found. Set BITRIX_PRODUCTION_STAGE_ID.`);
+  throw new Error(`Stage "${targetStageName}" was not found. Set BITRIX_TARGET_STAGE_ID.`);
 }
 
 await callRest("crm.deal.update", {

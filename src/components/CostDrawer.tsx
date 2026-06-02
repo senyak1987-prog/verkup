@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
   Check,
   CirclePlus,
@@ -27,7 +28,7 @@ import { filterCatalogItems, sectionLabels } from "../lib/catalog";
 import {
   defaultSaveApiUrl,
   isSaveApiUrlConfigured,
-  moveDealToProduction,
+  moveDealToStage,
   persistSaveApiSettings,
   saveCalculations,
 } from "../lib/saveApi";
@@ -41,7 +42,7 @@ type CostDrawerProps = {
   onClose: () => void;
   onOpenCatalog: () => void;
   onChange: (calculation: DealCalculation) => void;
-  onMovedToProduction: (dealId: string) => void;
+  onStageMoved: (dealId: string, stage: "launch" | "production") => void;
 };
 
 export function CostDrawer({
@@ -52,7 +53,7 @@ export function CostDrawer({
   onClose,
   onOpenCatalog,
   onChange,
-  onMovedToProduction,
+  onStageMoved,
 }: CostDrawerProps) {
   const [catalogQuery, setCatalogQuery] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -86,10 +87,12 @@ export function CostDrawer({
   const sales = saleBreakdownForDeal(deal, activeCalculation, storedCalculations.agentCostRatio);
   const isAgent = isAgentDeal(deal);
   const dealCost = finalCost(activeCalculation);
-  const isLaunchDeal = stageCodeForDeal(deal) === "launch";
+  const currentStage = stageCodeForDeal(deal);
+  const isLaunchDeal = currentStage === "launch";
+  const isProductionDeal = currentStage === "production";
   const hasSaveApiUrl = saveApiUrl.trim().length > 0;
   const canSave = hasSaveApiUrl;
-  const canMoveToProduction = isLaunchDeal && canSave;
+  const canMoveStage = canSave;
   const moveHints = [!hasSaveApiUrl ? "Укажите адрес API сохранения." : ""].filter(Boolean);
 
   function updatePositions(positions: CostPosition[]) {
@@ -165,9 +168,9 @@ export function CostDrawer({
     }
   }
 
-  async function moveToProduction() {
+  async function moveToStage(targetStage: "launch" | "production") {
     const activeDeal = deal;
-    if (!activeDeal || !canMoveToProduction) return;
+    if (!activeDeal || currentStage === targetStage || !canMoveStage) return;
 
     const settings = {
       apiUrl: saveApiUrl,
@@ -179,10 +182,10 @@ export function CostDrawer({
 
     try {
       await saveCalculations(settings, calculationPayload());
-      await moveDealToProduction(settings, activeDeal.id);
+      await moveDealToStage(settings, activeDeal.id, targetStage);
       setSaveState("saved");
       setMoveState("moved");
-      onMovedToProduction(activeDeal.id);
+      onStageMoved(activeDeal.id, targetStage);
     } catch (error) {
       setMoveState("error");
       setMoveError(error instanceof Error ? error.message : "Не удалось перевести сделку");
@@ -347,8 +350,8 @@ export function CostDrawer({
         {isLaunchDeal && (
           <button
             className="production-button"
-            disabled={!canMoveToProduction || moveState === "moving"}
-            onClick={moveToProduction}
+            disabled={!canMoveStage || moveState === "moving"}
+            onClick={() => moveToStage("production")}
             title={
               !moveHints.length
                 ? "Сохранить расчет и перевести сделку в стадию В производстве"
@@ -359,14 +362,29 @@ export function CostDrawer({
             {moveState === "moving" ? "Перевожу..." : "Перевести в производство"}
           </button>
         )}
-        {isLaunchDeal && moveState !== "moved" && !!moveHints.length && (
+        {isProductionDeal && (
+          <button
+            className="production-button rollback"
+            disabled={!canMoveStage || moveState === "moving"}
+            onClick={() => moveToStage("launch")}
+            title={
+              !moveHints.length
+                ? "Сохранить расчет и вернуть сделку в стадию Запустить в производство"
+                : moveHints.join(" ")
+            }
+          >
+            {moveState === "moved" ? <Check size={18} /> : <ArrowLeft size={18} />}
+            {moveState === "moving" ? "Откатываю..." : "Откатить в запуск"}
+          </button>
+        )}
+        {(isLaunchDeal || isProductionDeal) && moveState !== "moved" && !!moveHints.length && (
           <p className="hint">{moveHints.join(" ")}</p>
         )}
         {saveState === "error" && <p className="error">{saveError}</p>}
         {saveState === "saved" && <p className="ok">Расчет записан в GitHub через API.</p>}
         {moveState === "error" && <p className="error">{moveError}</p>}
         {moveState === "moved" && (
-          <p className="ok">Запущен перевод сделки в Bitrix24. Обновление подтянется после Actions.</p>
+          <p className="ok">Запущено изменение стадии в Bitrix24. Обновление подтянется после Actions.</p>
         )}
       </section>
     </aside>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
@@ -12,6 +12,12 @@ const DRAWER_STORAGE_KEY = "verkupDrawerWidth";
 const DEFAULT_DRAWER_WIDTH = 520;
 const MIN_DRAWER_WIDTH = 420;
 const MAX_DRAWER_WIDTH = 860;
+const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
+
+type PendingStageMove = {
+  stage: DealStageCode;
+  expiresAt: number;
+};
 
 export default function App() {
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -27,16 +33,35 @@ export default function App() {
   const [drawerWidth, setDrawerWidth] = useState(() => loadDrawerWidth());
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
+  const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
 
   useEffect(() => {
     Promise.all([loadDeals(), loadCalculations(), loadCatalogs()])
       .then(([dealsData, calculationsData, catalogsData]) => {
-        setDeals(dealsData.items);
+        setDeals(applyPendingStageMoves(dealsData.items));
         setStoredCalculations(calculationsData);
         setCatalogItems(catalogsData.items);
         setSelectedDealId(dealsData.items[0]?.id);
       })
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    let canceled = false;
+
+    async function refreshDeals() {
+      const dealsData = await loadDeals();
+      if (!canceled) setDeals(applyPendingStageMoves(dealsData.items));
+    }
+
+    const intervalId = window.setInterval(refreshDeals, 30000);
+    window.addEventListener("focus", refreshDeals);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshDeals);
+    };
   }, []);
 
   useEffect(() => {
@@ -94,15 +119,39 @@ export default function App() {
     }));
   }
 
-  function handleDealMovedToProduction(dealId: string) {
+  function handleDealStageChanged(dealId: string, stage: DealStageCode) {
+    pendingStageMovesRef.current.set(dealId, {
+      stage,
+      expiresAt: Date.now() + PENDING_STAGE_MOVE_TTL,
+    });
+
     setDeals((current) =>
       current.map((deal) =>
-        deal.id === dealId
-          ? { ...deal, stageCode: "production", stageName: "В производстве" }
-          : deal,
+        deal.id === dealId ? withStage(deal, stage) : deal,
       ),
     );
-    setActiveStage("production");
+    setActiveStage(stage);
+  }
+
+  function applyPendingStageMoves(items: Deal[]) {
+    const now = Date.now();
+
+    return items.map((deal) => {
+      const pending = pendingStageMovesRef.current.get(deal.id);
+      if (!pending) return deal;
+
+      if (pending.expiresAt <= now) {
+        pendingStageMovesRef.current.delete(deal.id);
+        return deal;
+      }
+
+      if (stageCodeForDeal(deal) === pending.stage) {
+        pendingStageMovesRef.current.delete(deal.id);
+        return deal;
+      }
+
+      return withStage(deal, pending.stage);
+    });
   }
 
   function startDrawerResize(event: ReactPointerEvent<HTMLDivElement>) {
@@ -164,7 +213,7 @@ export default function App() {
         onOpenCatalog={() => setCatalogOpen(true)}
         onChange={handleCalculationChange}
         onClose={() => setSelectedDealId(undefined)}
-        onMovedToProduction={handleDealMovedToProduction}
+        onStageMoved={handleDealStageChanged}
       />
       {catalogOpen && (
         <CatalogManager
@@ -184,4 +233,12 @@ function loadDrawerWidth() {
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function withStage(deal: Deal, stage: DealStageCode): Deal {
+  return {
+    ...deal,
+    stageCode: stage,
+    stageName: stage === "production" ? "В производстве" : "Запустить в производство",
+  };
 }

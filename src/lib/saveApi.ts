@@ -1,4 +1,4 @@
-import type { AppData, CatalogItem, StoredCalculations } from "../types";
+import type { AppData, CatalogItem, DealStageCode, StoredCalculations } from "../types";
 
 const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim();
 
@@ -33,8 +33,12 @@ export async function saveCatalogs(
   return postToSaveApi(settings, "/save-catalogs", { data });
 }
 
-export async function moveDealToProduction(settings: SaveApiSettings, dealId: string) {
-  return postToSaveApi(settings, "/move-to-production", { dealId });
+export async function moveDealToStage(
+  settings: SaveApiSettings,
+  dealId: string,
+  targetStage: DealStageCode,
+) {
+  return postToSaveApi(settings, "/move-stage", { dealId, targetStage });
 }
 
 async function postToSaveApi(settings: SaveApiSettings, path: string, payload: unknown) {

@@ -32,6 +32,8 @@ jobs:
           BITRIX_WEBHOOK_URL: ${{ secrets.BITRIX_WEBHOOK_URL }}
           BITRIX_DEAL_ID: ${{ inputs.deal_id }}
           BITRIX_TARGET_STAGE_ID: ${{ inputs.target_stage_id }}
+          BITRIX_LAUNCH_STAGE_ID: ${{ secrets.BITRIX_STAGE_ID }}
+          BITRIX_LAUNCH_STAGE_NAME: Запустить в производство
           BITRIX_PRODUCTION_STAGE_ID: ${{ secrets.BITRIX_PRODUCTION_STAGE_ID }}
           BITRIX_PRODUCTION_STAGE_NAME: В производстве
         run: npm run bitrix:move-stage
@@ -56,7 +58,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/data/deals.json
-          git diff --cached --quiet || git commit -m "Move Bitrix deal to production"
+          git diff --cached --quiet || git commit -m "Move Bitrix deal stage"
           git push
 
       - name: Build site
