@@ -40,8 +40,7 @@ export default {
       }
 
       if (request.method === "GET" && url.pathname === "/data/catalogs.json") {
-        requireEnv(env, "GITHUB_TOKEN");
-        return await loadJsonFromGitHub(env, "public/data/catalogs.json", cors);
+        return json({ error: "Use static catalogs from GitHub Pages" }, 503, noStoreHeaders(cors));
       }
 
       if (request.method !== "POST") {
@@ -127,6 +126,33 @@ export default {
 
 async function loadJsonFromGitHub(env, path, cors) {
   const branch = env.GITHUB_BRANCH || "main";
+  const staticUrl = staticDataUrlFor(env, path);
+
+  if (staticUrl) {
+    const staticResponse = await fetch(`${staticUrl}?t=${Date.now()}`, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "verkup-save-api",
+      },
+    });
+
+    if (staticResponse.ok) {
+      return json(await staticResponse.json(), 200, noStoreHeaders(cors));
+    }
+  }
+
+  const rawUrl = `https://raw.githubusercontent.com/${owner(env)}/${repo(env)}/${encodeURIComponent(branch)}/${path}?t=${Date.now()}`;
+  const rawResponse = await fetch(rawUrl, {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "verkup-save-api",
+    },
+  });
+
+  if (rawResponse.ok) {
+    return json(await rawResponse.json(), 200, noStoreHeaders(cors));
+  }
+
   const url = `https://api.github.com/repos/${owner(env)}/${repo(env)}/contents/${path}?ref=${encodeURIComponent(branch)}`;
   const response = await fetch(url, {
     headers: githubHeaders(env),
@@ -138,6 +164,17 @@ async function loadJsonFromGitHub(env, path, cors) {
 
   const body = await response.json();
   return json(JSON.parse(fromBase64Utf8(body.content || "")), 200, noStoreHeaders(cors));
+}
+
+function staticDataUrlFor(env, path) {
+  const match = String(path).match(/^public\/data\/(.+)$/);
+  if (!match) return "";
+
+  const base =
+    env.STATIC_DATA_BASE_URL ||
+    `https://${owner(env)}.github.io/${repo(env)}/data`;
+
+  return `${base.replace(/\/+$/, "")}/${match[1]}`;
 }
 
 async function saveJsonToGitHub(env, path, message, data, cors) {

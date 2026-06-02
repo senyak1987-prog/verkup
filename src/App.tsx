@@ -36,14 +36,29 @@ export default function App() {
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
 
   useEffect(() => {
-    Promise.all([loadDeals(), loadCalculations(), loadCatalogs()])
-      .then(([dealsData, calculationsData, catalogsData]) => {
+    let canceled = false;
+
+    async function loadInitialData() {
+      try {
+        const [dealsData, calculationsData] = await Promise.all([loadDeals(), loadCalculations()]);
+        if (canceled) return;
+
         setDeals(applyPendingStageMoves(dealsData.items));
         setStoredCalculations(calculationsData);
-        setCatalogItems(catalogsData.items);
         setSelectedDealId(dealsData.items[0]?.id);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        if (!canceled) setLoading(false);
+      }
+
+      const catalogsData = await loadCatalogs();
+      if (!canceled) setCatalogItems(catalogsData.items);
+    }
+
+    loadInitialData();
+
+    return () => {
+      canceled = true;
+    };
   }, []);
 
   useEffect(() => {

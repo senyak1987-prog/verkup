@@ -44,21 +44,27 @@ const fallbackCatalogs: AppData<CatalogItem> = {
 };
 
 export async function loadDeals() {
-  return loadJson<AppData<Deal>>("/data/deals.json", fallbackDeals);
+  return loadJson<AppData<Deal>>("/data/deals.json", fallbackDeals, { preferApi: true });
 }
 
 export async function loadCalculations() {
-  return loadJson<StoredCalculations>("/data/calculations.json", fallbackCalculations);
+  return loadJson<StoredCalculations>("/data/calculations.json", fallbackCalculations, {
+    preferApi: true,
+  });
 }
 
 export async function loadCatalogs() {
   return loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs);
 }
 
-async function loadJson<T>(path: string, fallback: T): Promise<T> {
+async function loadJson<T>(
+  path: string,
+  fallback: T,
+  options: { preferApi?: boolean } = {},
+): Promise<T> {
   const normalizedPath = path.replace(/^\//, "");
 
-  if (configuredApiUrl) {
+  if (configuredApiUrl && options.preferApi) {
     const apiData = await fetchJson<T>(`${configuredApiUrl}/${normalizedPath}`);
     if (apiData) return apiData;
   }
