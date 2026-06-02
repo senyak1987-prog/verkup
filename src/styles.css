@@ -66,6 +66,17 @@ a {
   gap: 8px;
 }
 
+.toolbar-catalog {
+  height: 44px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.toolbar-catalog span {
+  color: #667085;
+  font-size: 12px;
+}
+
 h1,
 h2,
 h3,
@@ -109,8 +120,10 @@ small,
 }
 
 .search input,
+.catalog-search input,
 .catalog-panel input,
-.github-save input {
+.github-save input,
+.catalog-save-panel input {
   width: 100%;
   min-width: 0;
   border: 0;
@@ -288,6 +301,7 @@ td small {
 .row-actions button,
 .row-actions a,
 .drawer-head button,
+.catalog-modal-head button,
 .position-row button {
   display: inline-flex;
   align-items: center;
@@ -467,6 +481,176 @@ td small {
   opacity: 0.45;
 }
 
+.catalog-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.catalog-modal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(1280px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  border: 1px solid #cfd8e3;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.catalog-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e4e9f1;
+}
+
+.catalog-modal-head h2 {
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.catalog-modal-head p {
+  margin-top: 3px;
+  color: #667085;
+}
+
+.catalog-manager {
+  display: grid;
+  grid-template-columns: minmax(340px, 44%) minmax(360px, 1fr);
+  min-height: 0;
+}
+
+.catalog-sidebar {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border-right: 1px solid #e4e9f1;
+}
+
+.catalog-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid #d6dce6;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.catalog-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.catalog-toolbar span {
+  color: #667085;
+  white-space: nowrap;
+}
+
+.catalog-browser-list {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.catalog-browser-list button {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  background: #f9fafb;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.catalog-browser-list button.active {
+  border-color: #0f766e;
+  background: #edf8f5;
+}
+
+.catalog-browser-list button span {
+  overflow-wrap: anywhere;
+}
+
+.catalog-form {
+  display: grid;
+  align-content: start;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 12px;
+  min-width: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.catalog-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.catalog-form label span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.catalog-form input,
+.catalog-form select,
+.catalog-save-panel input {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #d8dee8;
+  border-radius: 7px;
+  padding: 10px 11px;
+}
+
+.catalog-form-wide,
+.catalog-form-actions,
+.catalog-save-panel {
+  grid-column: 1 / -1;
+}
+
+.catalog-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.catalog-form-actions button {
+  justify-content: center;
+}
+
+.catalog-save-panel {
+  margin-top: 8px;
+  border-top: 1px solid #e4e9f1;
+  padding-top: 16px;
+}
+
+.catalog-save-panel .primary {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+}
+
+.catalog-save-panel .primary:disabled {
+  opacity: 0.55;
+}
+
 .catalog-editor {
   margin-top: 16px;
   border: 1px solid #dde3ec;
@@ -618,6 +802,19 @@ td small {
   .search {
     width: 100%;
   }
+
+  .catalog-manager {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #e4e9f1;
+  }
+
+  .catalog-browser-list {
+    max-height: 320px;
+  }
 }
 
 @media (max-width: 720px) {
@@ -629,6 +826,26 @@ td small {
   .kpis,
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .catalog-modal-backdrop {
+    padding: 0;
+  }
+
+  .catalog-modal {
+    width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .catalog-modal-head,
+  .catalog-sidebar,
+  .catalog-form {
+    padding: 14px;
+  }
+
+  .catalog-form {
+    grid-template-columns: 1fr;
   }
 
   .position-row {

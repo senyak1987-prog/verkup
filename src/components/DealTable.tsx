@@ -1,4 +1,4 @@
-import { ExternalLink, Pencil, RotateCcw, Search } from "lucide-react";
+import { Database, ExternalLink, Pencil, RotateCcw, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Deal, DealCalculation } from "../types";
 import {
@@ -35,6 +35,8 @@ type DealTableProps = {
   agentRatio: number;
   selectedDealId?: string;
   onSelect: (deal: Deal) => void;
+  onOpenCatalog: () => void;
+  catalogCount: number;
   query: string;
   onQueryChange: (value: string) => void;
 };
@@ -45,6 +47,8 @@ export function DealTable({
   agentRatio,
   selectedDealId,
   onSelect,
+  onOpenCatalog,
+  catalogCount,
   query,
   onQueryChange,
 }: DealTableProps) {
@@ -124,6 +128,11 @@ export function DealTable({
             onClick={resetAllColumnWidths}
           >
             <RotateCcw size={18} />
+          </button>
+          <button className="secondary toolbar-catalog" onClick={onOpenCatalog}>
+            <Database size={18} />
+            Справочник
+            <span>{catalogCount}</span>
           </button>
         </div>
       </div>

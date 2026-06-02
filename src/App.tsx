@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
 import { DealTable } from "./components/DealTable";
 import { loadCalculations, loadCatalogs, loadDeals } from "./lib/data";
@@ -23,6 +24,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [drawerWidth, setDrawerWidth] = useState(() => loadDrawerWidth());
+  const [catalogOpen, setCatalogOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([loadDeals(), loadCalculations(), loadCatalogs()])
@@ -103,6 +105,8 @@ export default function App() {
         agentRatio={storedCalculations.agentCostRatio}
         selectedDealId={selectedDealId}
         onSelect={(deal) => setSelectedDealId(deal.id)}
+        onOpenCatalog={() => setCatalogOpen(true)}
+        catalogCount={catalogItems.length}
         query={query}
         onQueryChange={setQuery}
       />
@@ -119,10 +123,17 @@ export default function App() {
         calculation={selectedCalculation}
         catalogItems={catalogItems}
         storedCalculations={storedCalculations}
-        onCatalogItemsChange={setCatalogItems}
+        onOpenCatalog={() => setCatalogOpen(true)}
         onChange={handleCalculationChange}
         onClose={() => setSelectedDealId(undefined)}
       />
+      {catalogOpen && (
+        <CatalogManager
+          items={catalogItems}
+          onChange={setCatalogItems}
+          onClose={() => setCatalogOpen(false)}
+        />
+      )}
     </div>
   );
 }
