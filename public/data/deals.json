@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-06-02T20:46:13.291Z",
+  "generatedAt": "2026-06-02T21:16:43.268Z",
   "items": [
     {
       "id": "16874",
       "number": "16874",
       "title": "Тест",
-      "stageId": "10",
-      "stageCode": "production",
+      "stageId": "4",
+      "stageCode": "launch",
       "source": "Повтор (уже заказывали)",
       "type": "Изготовление + Монтаж",
       "classification": "Буквы",
@@ -16,7 +16,7 @@
       "startDate": "2026-06-02T03:00:00+03:00",
       "expectedFinishDate": "2026-06-09T03:00:00+03:00",
       "createdDate": "2026-06-02T13:01:31+03:00",
-      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
+      "stageName": "Запустить в Производство (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16874/"
     },
     {
