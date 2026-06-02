@@ -3,9 +3,13 @@ name: Sync Bitrix deals
 on:
   workflow_dispatch:
   repository_dispatch:
-    types: [bitrix_deal_started]
+    types: [bitrix_deal_started, bitrix_deal_stage_changed, bitrix_instant_sync]
   schedule:
     - cron: "*/5 * * * *"
+
+concurrency:
+  group: sync-bitrix-deals
+  cancel-in-progress: false
 
 permissions:
   contents: write

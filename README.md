@@ -65,7 +65,7 @@ BITRIX_WEBHOOK_URL="https://.../" npm run bitrix:stages
 
 ## Моментальный запуск из Bitrix24
 
-Для почти моментальной выгрузки добавьте робота на стадии `Запустить в производство`, который отправляет webhook в GitHub `repository_dispatch`.
+Для моментальной выгрузки добавьте робота на стадии `Запустить в производство`, который отправляет webhook в GitHub `repository_dispatch`. После этого сделка не будет ждать расписание 5 минут: Bitrix сразу запустит workflow `Sync Bitrix deals`.
 
 URL:
 
@@ -87,7 +87,18 @@ Body:
 
 ```json
 {
-  "event_type": "bitrix_deal_started"
+  "event_type": "bitrix_deal_stage_changed",
+  "client_payload": {
+    "deal_id": "{{ID}}"
+  }
+}
+```
+
+`{{ID}}` - ID сделки в роботе Bitrix24. Если Bitrix не подставляет это выражение в вашем шаблоне робота, можно убрать `client_payload` полностью:
+
+```json
+{
+  "event_type": "bitrix_deal_stage_changed"
 }
 ```
 
