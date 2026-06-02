@@ -1,6 +1,6 @@
 import { Database, ExternalLink, Pencil, RotateCcw, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Deal, DealCalculation } from "../types";
+import type { Deal, DealCalculation, DealStageCode } from "../types";
 import {
   cleanCost,
   finalCost,
@@ -11,6 +11,7 @@ import {
   saleBreakdownForDeal,
   saleAmountForDeal,
 } from "../lib/costing";
+import { stageLabels } from "../lib/stages";
 
 const COLUMN_STORAGE_KEY = "verkupDealColumnWidths";
 
@@ -33,8 +34,11 @@ type DealTableProps = {
   deals: Deal[];
   calculations: Map<string, DealCalculation>;
   agentRatio: number;
+  activeStage: DealStageCode;
+  stageCounts: Record<DealStageCode, number>;
   selectedDealId?: string;
   onSelect: (deal: Deal) => void;
+  onStageChange: (stage: DealStageCode) => void;
   onOpenCatalog: () => void;
   catalogCount: number;
   query: string;
@@ -45,8 +49,11 @@ export function DealTable({
   deals,
   calculations,
   agentRatio,
+  activeStage,
+  stageCounts,
   selectedDealId,
   onSelect,
+  onStageChange,
   onOpenCatalog,
   catalogCount,
   query,
@@ -110,8 +117,21 @@ export function DealTable({
     <main className="deal-list">
       <div className="toolbar">
         <div>
-          <h1>Сделки к запуску</h1>
-          <p>{deals.length} сделок на стадии производства</p>
+          <div className="stage-tabs" role="tablist" aria-label="Стадии сделок">
+            {(["launch", "production"] as const).map((stage) => (
+              <button
+                aria-selected={activeStage === stage}
+                className={activeStage === stage ? "active" : ""}
+                key={stage}
+                onClick={() => onStageChange(stage)}
+                role="tab"
+              >
+                {stageLabels[stage]}
+                <span>{stageCounts[stage]}</span>
+              </button>
+            ))}
+          </div>
+          <p>{deals.length} сделок в текущей вкладке</p>
         </div>
         <div className="toolbar-actions">
           <label className="search">

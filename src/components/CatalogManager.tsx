@@ -226,7 +226,7 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
                 type="password"
                 value={githubToken}
                 onChange={(event) => setGithubToken(event.target.value)}
-                placeholder="GitHub token с правом Contents: Read and write"
+                placeholder="GitHub token с правами Contents и Actions: Read and write"
               />
               <button
                 className="primary"

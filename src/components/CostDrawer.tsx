@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  ArrowRight,
   Check,
   CirclePlus,
   Database,
@@ -24,7 +25,8 @@ import {
   saleBreakdownForDeal,
 } from "../lib/costing";
 import { filterCatalogItems, sectionLabels } from "../lib/catalog";
-import { saveCalculationsToGitHub } from "../lib/githubStorage";
+import { moveDealToProductionInGitHubActions, saveCalculationsToGitHub } from "../lib/githubStorage";
+import { stageCodeForDeal } from "../lib/stages";
 
 type CostDrawerProps = {
   deal?: Deal;
@@ -34,6 +36,7 @@ type CostDrawerProps = {
   onClose: () => void;
   onOpenCatalog: () => void;
   onChange: (calculation: DealCalculation) => void;
+  onMovedToProduction: (dealId: string) => void;
 };
 
 export function CostDrawer({
@@ -44,10 +47,13 @@ export function CostDrawer({
   onClose,
   onOpenCatalog,
   onChange,
+  onMovedToProduction,
 }: CostDrawerProps) {
   const [catalogQuery, setCatalogQuery] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
+  const [moveState, setMoveState] = useState<"idle" | "moving" | "moved" | "error">("idle");
+  const [moveError, setMoveError] = useState("");
   const [githubToken, setGithubToken] = useState(() => localStorage.getItem("verkupGithubToken") || "");
 
   const activeCalculation = useMemo<DealCalculation>(() => {
@@ -74,6 +80,8 @@ export function CostDrawer({
 
   const sales = saleBreakdownForDeal(deal, activeCalculation, storedCalculations.agentCostRatio);
   const isAgent = isAgentDeal(deal);
+  const dealCost = finalCost(activeCalculation);
+  const canMoveToProduction = stageCodeForDeal(deal) === "launch" && dealCost > 0;
 
   function updatePositions(positions: CostPosition[]) {
     onChange({
@@ -124,6 +132,14 @@ export function CostDrawer({
     updatePositions(activeCalculation.positions.filter((position) => position.id !== id));
   }
 
+  function calculationPayload() {
+    return {
+      ...storedCalculations,
+      generatedAt: new Date().toISOString(),
+      calculations: upsertCalculation(storedCalculations, activeCalculation),
+    };
+  }
+
   async function saveToGitHub() {
     setSaveState("saving");
     setSaveError("");
@@ -136,16 +152,49 @@ export function CostDrawer({
           branch: "main",
           token: githubToken,
         },
-        {
-          ...storedCalculations,
-          generatedAt: new Date().toISOString(),
-          calculations: upsertCalculation(storedCalculations, activeCalculation),
-        },
+        calculationPayload(),
       );
       setSaveState("saved");
     } catch (error) {
       setSaveState("error");
       setSaveError(error instanceof Error ? error.message : "Не удалось сохранить расчет");
+    }
+  }
+
+  async function moveToProduction() {
+    const activeDeal = deal;
+    if (!activeDeal) return;
+
+    setMoveState("moving");
+    setMoveError("");
+    setSaveError("");
+    localStorage.setItem("verkupGithubToken", githubToken);
+
+    try {
+      await saveCalculationsToGitHub(
+        {
+          owner: "senyak1987-prog",
+          repo: "verkup",
+          branch: "main",
+          token: githubToken,
+        },
+        calculationPayload(),
+      );
+      await moveDealToProductionInGitHubActions(
+        {
+          owner: "senyak1987-prog",
+          repo: "verkup",
+          branch: "main",
+          token: githubToken,
+        },
+        activeDeal.id,
+      );
+      setSaveState("saved");
+      setMoveState("moved");
+      onMovedToProduction(activeDeal.id);
+    } catch (error) {
+      setMoveState("error");
+      setMoveError(error instanceof Error ? error.message : "Не удалось перевести сделку");
     }
   }
 
@@ -297,14 +346,33 @@ export function CostDrawer({
           type="password"
           value={githubToken}
           onChange={(event) => setGithubToken(event.target.value)}
-          placeholder="GitHub token с правом Contents: Read and write"
+          placeholder="GitHub token с правами Contents и Actions: Read and write"
         />
         <button className="primary" disabled={!githubToken || saveState === "saving"} onClick={saveToGitHub}>
           {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
           {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет в GitHub"}
         </button>
+        {stageCodeForDeal(deal) === "launch" && (
+          <button
+            className="production-button"
+            disabled={!githubToken || !canMoveToProduction || moveState === "moving"}
+            onClick={moveToProduction}
+            title={
+              canMoveToProduction
+                ? "Сохранить расчет и перевести сделку в стадию В производстве"
+                : "Добавьте хотя бы одну позицию себестоимости"
+            }
+          >
+            {moveState === "moved" ? <Check size={18} /> : <ArrowRight size={18} />}
+            {moveState === "moving" ? "Перевожу..." : "Перевести в производство"}
+          </button>
+        )}
         {saveState === "error" && <p className="error">{saveError}</p>}
         {saveState === "saved" && <p className="ok">Расчет записан в репозиторий.</p>}
+        {moveState === "error" && <p className="error">{moveError}</p>}
+        {moveState === "moved" && (
+          <p className="ok">Запущен перевод сделки в Bitrix24. Обновление подтянется после Actions.</p>
+        )}
       </section>
     </aside>
   );

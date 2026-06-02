@@ -1,17 +1,20 @@
-name: Sync Bitrix deals
+name: Move Bitrix deal stage
 
 on:
   workflow_dispatch:
-  repository_dispatch:
-    types: [bitrix_deal_started]
-  schedule:
-    - cron: "*/5 * * * *"
+    inputs:
+      deal_id:
+        description: Bitrix deal ID
+        required: true
+      target_stage_id:
+        description: Optional exact Bitrix target stage ID
+        required: false
 
 permissions:
   contents: write
 
 jobs:
-  sync:
+  move:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +24,15 @@ jobs:
           node-version: 20
 
       - run: npm install
+
+      - name: Move deal in Bitrix24
+        env:
+          BITRIX_WEBHOOK_URL: ${{ secrets.BITRIX_WEBHOOK_URL }}
+          BITRIX_DEAL_ID: ${{ inputs.deal_id }}
+          BITRIX_TARGET_STAGE_ID: ${{ inputs.target_stage_id }}
+          BITRIX_PRODUCTION_STAGE_ID: ${{ secrets.BITRIX_PRODUCTION_STAGE_ID }}
+          BITRIX_PRODUCTION_STAGE_NAME: В производстве
+        run: npm run bitrix:move-stage
 
       - name: Sync deals from Bitrix24
         env:
@@ -42,5 +54,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/data/deals.json
-          git diff --cached --quiet || git commit -m "Sync Bitrix production deals"
+          git diff --cached --quiet || git commit -m "Move Bitrix deal to production"
           git push

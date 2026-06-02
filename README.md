@@ -20,6 +20,7 @@
 
 - `BITRIX_WEBHOOK_URL` - входящий webhook Bitrix24.
 - `BITRIX_STAGE_ID` - точный ID стадии `Запустить в производство`.
+- `BITRIX_PRODUCTION_STAGE_ID` - точный ID стадии `В производстве`.
 - `BITRIX_CATEGORY_ID` - ID воронки, если сделка не в общей воронке.
 - `BITRIX_FIELD_CLASSIFICATION` - код пользовательского поля классификации заявки.
 - `BITRIX_FIELD_INSTALL_AMOUNT` - код пользовательского поля стоимости монтажа.
@@ -56,6 +57,7 @@ BITRIX_WEBHOOK_URL="https://.../" npm run bitrix:stages
 Для текущего портала Verkup уже определены основные значения:
 
 - `BITRIX_STAGE_ID` = `4` (`Запустить в Производство`)
+- `BITRIX_PRODUCTION_STAGE_ID` = `10` (`В ПРОИЗВОДСТВЕ`)
 - `BITRIX_FIELD_CLASSIFICATION` = `UF_CRM_6512B7A78D965`
 - `BITRIX_FIELD_INSTALL_AMOUNT` = `UF_CRM_1547662428256`
 
@@ -95,7 +97,9 @@ Body:
 
 ## Сохранение расчетов
 
-В правой панели приложения вставьте GitHub token с правом `Contents: Read and write` для репозитория. Токен сохраняется только в браузере пользователя и не попадает в код.
+В правой панели приложения вставьте GitHub token с правами `Contents: Read and write` и `Actions: Read and write` для репозитория. Токен сохраняется только в браузере пользователя и не попадает в код.
+
+Кнопка `Перевести в производство` доступна после добавления хотя бы одной позиции себестоимости. Она сохраняет расчет в GitHub, запускает workflow `Move Bitrix deal stage`, переводит сделку в Bitrix24 на стадию `В производстве` и затем обновляет `public/data/deals.json`.
 
 Для агентских сделок приложение показывает продажу отдельно по изготовлению и монтажу:
 

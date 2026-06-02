@@ -4,7 +4,8 @@ import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
 import { DealTable } from "./components/DealTable";
 import { loadCalculations, loadCatalogs, loadDeals } from "./lib/data";
-import type { CatalogItem, Deal, DealCalculation, StoredCalculations } from "./types";
+import { stageCodeForDeal } from "./lib/stages";
+import type { CatalogItem, Deal, DealCalculation, DealStageCode, StoredCalculations } from "./types";
 import "./styles.css";
 
 const DRAWER_STORAGE_KEY = "verkupDrawerWidth";
@@ -25,6 +26,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [drawerWidth, setDrawerWidth] = useState(() => loadDrawerWidth());
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
 
   useEffect(() => {
     Promise.all([loadDeals(), loadCalculations(), loadCatalogs()])
@@ -45,19 +47,41 @@ export default function App() {
     return new Map(storedCalculations.calculations.map((calculation) => [calculation.dealId, calculation]));
   }, [storedCalculations.calculations]);
 
+  const stageCounts = useMemo(() => {
+    return deals.reduce(
+      (counts, deal) => {
+        counts[stageCodeForDeal(deal)] += 1;
+        return counts;
+      },
+      { launch: 0, production: 0 } as Record<DealStageCode, number>,
+    );
+  }, [deals]);
+
   const filteredDeals = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return deals;
-    return deals.filter((deal) =>
-      [deal.number, deal.title, deal.source, deal.type, deal.classification, deal.responsible]
+    const stageDeals = deals.filter((deal) => stageCodeForDeal(deal) === activeStage);
+    if (!needle) return stageDeals;
+    return stageDeals.filter((deal) =>
+      [deal.number, deal.title, deal.source, deal.type, deal.classification, deal.responsible, deal.stageName]
         .join(" ")
         .toLowerCase()
         .includes(needle),
     );
-  }, [deals, query]);
+  }, [activeStage, deals, query]);
 
   const selectedDeal = deals.find((deal) => deal.id === selectedDealId);
   const selectedCalculation = selectedDealId ? calculationsMap.get(selectedDealId) : undefined;
+
+  useEffect(() => {
+    if (!filteredDeals.length) {
+      setSelectedDealId(undefined);
+      return;
+    }
+
+    if (!selectedDealId || !filteredDeals.some((deal) => deal.id === selectedDealId)) {
+      setSelectedDealId(filteredDeals[0].id);
+    }
+  }, [filteredDeals, selectedDealId]);
 
   function handleCalculationChange(calculation: DealCalculation) {
     setStoredCalculations((current) => ({
@@ -68,6 +92,17 @@ export default function App() {
         calculation,
       ],
     }));
+  }
+
+  function handleDealMovedToProduction(dealId: string) {
+    setDeals((current) =>
+      current.map((deal) =>
+        deal.id === dealId
+          ? { ...deal, stageCode: "production", stageName: "В производстве" }
+          : deal,
+      ),
+    );
+    setActiveStage("production");
   }
 
   function startDrawerResize(event: ReactPointerEvent<HTMLDivElement>) {
@@ -103,8 +138,11 @@ export default function App() {
         deals={filteredDeals}
         calculations={calculationsMap}
         agentRatio={storedCalculations.agentCostRatio}
+        activeStage={activeStage}
+        stageCounts={stageCounts}
         selectedDealId={selectedDealId}
         onSelect={(deal) => setSelectedDealId(deal.id)}
+        onStageChange={setActiveStage}
         onOpenCatalog={() => setCatalogOpen(true)}
         catalogCount={catalogItems.length}
         query={query}
@@ -126,6 +164,7 @@ export default function App() {
         onOpenCatalog={() => setCatalogOpen(true)}
         onChange={handleCalculationChange}
         onClose={() => setSelectedDealId(undefined)}
+        onMovedToProduction={handleDealMovedToProduction}
       />
       {catalogOpen && (
         <CatalogManager

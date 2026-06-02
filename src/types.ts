@@ -2,6 +2,8 @@ export type Deal = {
   id: string;
   number: string;
   title: string;
+  stageId?: string;
+  stageCode?: DealStageCode;
   source: string;
   type: string;
   classification: string;
@@ -14,6 +16,8 @@ export type Deal = {
   stageName: string;
   bitrixUrl: string;
 };
+
+export type DealStageCode = "launch" | "production";
 
 export type CostSection =
   | "materials"

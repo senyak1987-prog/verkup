@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "sync:bitrix": "node scripts/sync-bitrix-deals.mjs",
+    "bitrix:move-stage": "node scripts/move-bitrix-deal-stage.mjs",
     "bitrix:fields": "node scripts/inspect-bitrix-fields.mjs",
     "bitrix:stages": "node scripts/inspect-bitrix-stages.mjs",
     "catalogs:build": "node scripts/build-catalogs.mjs"

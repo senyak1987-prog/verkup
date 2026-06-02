@@ -81,6 +81,47 @@ a {
   font-size: 12px;
 }
 
+.stage-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #d6dce6;
+  border-radius: 8px;
+  background: #fff;
+  padding: 3px;
+}
+
+.stage-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 8px 11px;
+  color: #596474;
+  font-weight: 700;
+}
+
+.stage-tabs button.active {
+  background: #0f766e;
+  color: #fff;
+}
+
+.stage-tabs span {
+  min-width: 22px;
+  border-radius: 999px;
+  background: #eef3f8;
+  padding: 2px 7px;
+  color: #596474;
+  font-size: 12px;
+}
+
+.stage-tabs button.active span {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
 h1,
 h2,
 h3,
@@ -757,6 +798,25 @@ td small {
   color: #fff;
 }
 
+.production-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid #0f766e;
+  border-radius: 7px;
+  background: #0f766e;
+  padding: 9px 10px;
+  color: #fff;
+}
+
+.production-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 .github-save .secondary.full {
   margin-top: 8px;
 }
@@ -812,6 +872,15 @@ td small {
 
   .search {
     width: 100%;
+  }
+
+  .stage-tabs {
+    width: 100%;
+  }
+
+  .stage-tabs button {
+    justify-content: center;
+    flex: 1;
   }
 
   .catalog-manager {

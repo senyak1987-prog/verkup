@@ -6,6 +6,8 @@ const webhookUrl = required("BITRIX_WEBHOOK_URL").replace(/\/?$/, "/");
 const bitrixDomain = env.BITRIX_DOMAIN || new URL(webhookUrl).host;
 const stageId = env.BITRIX_STAGE_ID || "";
 const stageName = env.BITRIX_STAGE_NAME || "Запустить в производство";
+const productionStageId = env.BITRIX_PRODUCTION_STAGE_ID || "";
+const productionStageName = env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве";
 const categoryId = env.BITRIX_CATEGORY_ID || "";
 
 const customFields = {
@@ -16,13 +18,16 @@ const customFields = {
 };
 
 const stageMap = await loadStageMap();
-const targetStageIds = stageId
-  ? new Set([stageId])
-  : new Set(
-      [...stageMap.entries()]
-        .filter(([, name]) => normalize(name) === normalize(stageName))
-        .map(([id]) => id),
-    );
+const stageCodesById = new Map();
+const targetStageIds = new Set();
+
+addTargetStages({ code: "launch", id: stageId, name: stageName, required: true });
+addTargetStages({
+  code: "production",
+  id: productionStageId,
+  name: productionStageName,
+  required: false,
+});
 
 if (!targetStageIds.size) {
   throw new Error(
@@ -50,6 +55,7 @@ async function fetchDeals(targetStageIds) {
   const filter = {};
   if (categoryId !== "") filter.CATEGORY_ID = categoryId;
   if (targetStageIds.size === 1) filter.STAGE_ID = [...targetStageIds][0];
+  if (targetStageIds.size > 1) filter.STAGE_ID = [...targetStageIds];
 
   const select = [
     "ID",
@@ -155,6 +161,8 @@ async function addStatuses(stages, entityId) {
 function normalizeDeal(deal, users, stageMap) {
   const id = String(deal.ID);
   const title = deal.TITLE || "";
+  const stageId = deal.STAGE_ID || "";
+  const stageName = stageMap.get(stageId) || stageId || "";
   const totalSaleAmount = toNumber(deal.OPPORTUNITY);
   const installSaleAmount = toNumber(valueByField(deal, customFields.installAmount));
   const productionSaleAmount =
@@ -164,6 +172,8 @@ function normalizeDeal(deal, users, stageMap) {
     id,
     number: id,
     title,
+    stageId,
+    stageCode: stageCodesById.get(stageId) || inferStageCode(stageName),
     source: sourceMap.get(deal.SOURCE_ID) || deal.SOURCE_ID || "",
     type: typeMap.get(deal.TYPE_ID) || deal.TYPE_ID || "",
     classification: displayValueByField(deal, customFields.classification),
@@ -173,9 +183,33 @@ function normalizeDeal(deal, users, stageMap) {
     startDate: valueByField(deal, customFields.startDate) || deal.BEGINDATE || "",
     expectedFinishDate: valueByField(deal, customFields.expectedFinishDate) || deal.CLOSEDATE || "",
     createdDate: deal.DATE_CREATE || "",
-    stageName: stageMap.get(deal.STAGE_ID) || deal.STAGE_ID || "",
+    stageName,
     bitrixUrl: `https://${bitrixDomain}/crm/deal/details/${id}/`,
   };
+}
+
+function addTargetStages({ code, id, name, required }) {
+  const ids = id
+    ? [id]
+    : [...stageMap.entries()]
+        .filter(([, stageTitle]) => normalize(stageTitle) === normalize(name))
+        .map(([stageId]) => stageId);
+
+  if (!ids.length) {
+    const message = `Stage "${name}" was not found.`;
+    if (required) throw new Error(`${message} Set exact stage ID in GitHub secrets.`);
+    console.warn(`${message} Deals from this stage will not be synced.`);
+    return;
+  }
+
+  for (const stageId of ids) {
+    targetStageIds.add(stageId);
+    stageCodesById.set(stageId, code);
+  }
+}
+
+function inferStageCode(stageTitle) {
+  return normalize(stageTitle) === normalize(productionStageName) ? "production" : "launch";
 }
 
 async function callRest(method, params) {

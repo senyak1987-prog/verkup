@@ -31,6 +31,25 @@ export async function saveCatalogsToGitHub(
   );
 }
 
+export async function moveDealToProductionInGitHubActions(settings: GitHubSettings, dealId: string) {
+  const url = `https://api.github.com/repos/${settings.owner}/${settings.repo}/actions/workflows/move-bitrix-stage.yml/dispatches`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: githubHeaders(settings.token),
+    body: JSON.stringify({
+      ref: settings.branch,
+      inputs: {
+        deal_id: dealId,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`GitHub workflow dispatch failed: ${response.status} ${text}`);
+  }
+}
+
 async function saveJsonToGitHub(
   settings: GitHubSettings,
   path: string,
