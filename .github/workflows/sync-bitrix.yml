@@ -13,6 +13,8 @@ concurrency:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   sync:
@@ -48,3 +50,15 @@ jobs:
           git add public/data/deals.json
           git diff --cached --quiet || git commit -m "Sync Bitrix production deals"
           git push
+
+      - name: Build site
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy GitHub Pages
+        uses: actions/deploy-pages@v4

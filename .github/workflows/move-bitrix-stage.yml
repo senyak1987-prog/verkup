@@ -12,6 +12,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   move:
@@ -56,3 +58,15 @@ jobs:
           git add public/data/deals.json
           git diff --cached --quiet || git commit -m "Move Bitrix deal to production"
           git push
+
+      - name: Build site
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy GitHub Pages
+        uses: actions/deploy-pages@v4
