@@ -1,0 +1,9 @@
+name = "verkup-save-api"
+main = "worker.js"
+compatibility_date = "2026-06-02"
+
+[vars]
+GITHUB_OWNER = "senyak1987-prog"
+GITHUB_REPO = "verkup"
+GITHUB_BRANCH = "main"
+ALLOWED_ORIGIN = "https://senyak1987-prog.github.io"

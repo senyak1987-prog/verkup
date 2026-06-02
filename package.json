@@ -11,7 +11,8 @@
     "bitrix:move-stage": "node scripts/move-bitrix-deal-stage.mjs",
     "bitrix:fields": "node scripts/inspect-bitrix-fields.mjs",
     "bitrix:stages": "node scripts/inspect-bitrix-stages.mjs",
-    "catalogs:build": "node scripts/build-catalogs.mjs"
+    "catalogs:build": "node scripts/build-catalogs.mjs",
+    "worker:deploy": "npx wrangler deploy --config worker/wrangler.toml"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

@@ -4,7 +4,7 @@ import {
   Check,
   CirclePlus,
   Database,
-  Github,
+  KeyRound,
   Save,
   Trash2,
   X,
@@ -25,7 +25,13 @@ import {
   saleBreakdownForDeal,
 } from "../lib/costing";
 import { filterCatalogItems, sectionLabels } from "../lib/catalog";
-import { moveDealToProductionInGitHubActions, saveCalculationsToGitHub } from "../lib/githubStorage";
+import {
+  defaultSaveApiUrl,
+  isSaveApiUrlConfigured,
+  moveDealToProduction,
+  persistSaveApiSettings,
+  saveCalculations,
+} from "../lib/saveApi";
 import { stageCodeForDeal } from "../lib/stages";
 
 type CostDrawerProps = {
@@ -54,7 +60,8 @@ export function CostDrawer({
   const [saveError, setSaveError] = useState("");
   const [moveState, setMoveState] = useState<"idle" | "moving" | "moved" | "error">("idle");
   const [moveError, setMoveError] = useState("");
-  const [githubToken, setGithubToken] = useState(() => localStorage.getItem("verkupGithubToken") || "");
+  const [saveApiKey, setSaveApiKey] = useState(() => localStorage.getItem("verkupSaveApiKey") || "");
+  const [saveApiUrl, setSaveApiUrl] = useState(() => defaultSaveApiUrl());
 
   const activeCalculation = useMemo<DealCalculation>(() => {
     return (
@@ -82,12 +89,15 @@ export function CostDrawer({
   const isAgent = isAgentDeal(deal);
   const dealCost = finalCost(activeCalculation);
   const isLaunchDeal = stageCodeForDeal(deal) === "launch";
-  const hasGithubToken = githubToken.trim().length > 0;
+  const hasSaveApiKey = saveApiKey.trim().length > 0;
+  const hasSaveApiUrl = saveApiUrl.trim().length > 0;
+  const canSave = hasSaveApiKey && hasSaveApiUrl;
   const hasCalculatedCost = dealCost > 0;
-  const canMoveToProduction = isLaunchDeal && hasGithubToken && hasCalculatedCost;
+  const canMoveToProduction = isLaunchDeal && canSave && hasCalculatedCost;
   const moveHints = [
     !hasCalculatedCost ? "Добавьте хотя бы одну позицию себестоимости с суммой больше 0 ₽." : "",
-    !hasGithubToken ? "Вставьте GitHub token с правами Contents и Actions: Read and write." : "",
+    !hasSaveApiKey ? "Вставьте ключ сохранения." : "",
+    !hasSaveApiUrl ? "Укажите адрес API сохранения." : "",
   ].filter(Boolean);
 
   function updatePositions(positions: CostPosition[]) {
@@ -147,21 +157,16 @@ export function CostDrawer({
     };
   }
 
-  async function saveToGitHub() {
-    const token = githubToken.trim();
+  async function saveCalculation() {
+    const settings = {
+      apiUrl: saveApiUrl,
+      apiKey: saveApiKey,
+    };
     setSaveState("saving");
     setSaveError("");
-    localStorage.setItem("verkupGithubToken", token);
+    persistSaveApiSettings(settings);
     try {
-      await saveCalculationsToGitHub(
-        {
-          owner: "senyak1987-prog",
-          repo: "verkup",
-          branch: "main",
-          token,
-        },
-        calculationPayload(),
-      );
+      await saveCalculations(settings, calculationPayload());
       setSaveState("saved");
     } catch (error) {
       setSaveState("error");
@@ -173,31 +178,18 @@ export function CostDrawer({
     const activeDeal = deal;
     if (!activeDeal || !canMoveToProduction) return;
 
-    const token = githubToken.trim();
+    const settings = {
+      apiUrl: saveApiUrl,
+      apiKey: saveApiKey,
+    };
     setMoveState("moving");
     setMoveError("");
     setSaveError("");
-    localStorage.setItem("verkupGithubToken", token);
+    persistSaveApiSettings(settings);
 
     try {
-      await saveCalculationsToGitHub(
-        {
-          owner: "senyak1987-prog",
-          repo: "verkup",
-          branch: "main",
-          token,
-        },
-        calculationPayload(),
-      );
-      await moveDealToProductionInGitHubActions(
-        {
-          owner: "senyak1987-prog",
-          repo: "verkup",
-          branch: "main",
-          token,
-        },
-        activeDeal.id,
-      );
+      await saveCalculations(settings, calculationPayload());
+      await moveDealToProduction(settings, activeDeal.id);
       setSaveState("saved");
       setMoveState("moved");
       onMovedToProduction(activeDeal.id);
@@ -349,17 +341,24 @@ export function CostDrawer({
       <section className="github-save">
         <div className="section-title">
           <h3>Сохранение</h3>
-          <Github size={18} />
+          <KeyRound size={18} />
         </div>
+        {!isSaveApiUrlConfigured() && (
+          <input
+            value={saveApiUrl}
+            onChange={(event) => setSaveApiUrl(event.target.value)}
+            placeholder="Адрес API сохранения, например https://verkup-save-api...workers.dev"
+          />
+        )}
         <input
           type="password"
-          value={githubToken}
-          onChange={(event) => setGithubToken(event.target.value)}
-          placeholder="GitHub token с правами Contents и Actions: Read and write"
+          value={saveApiKey}
+          onChange={(event) => setSaveApiKey(event.target.value)}
+          placeholder="Ключ сохранения"
         />
-        <button className="primary" disabled={!hasGithubToken || saveState === "saving"} onClick={saveToGitHub}>
+        <button className="primary" disabled={!canSave || saveState === "saving"} onClick={saveCalculation}>
           {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
-          {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет в GitHub"}
+          {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет"}
         </button>
         {isLaunchDeal && (
           <button
@@ -380,7 +379,7 @@ export function CostDrawer({
           <p className="hint">{moveHints.join(" ")}</p>
         )}
         {saveState === "error" && <p className="error">{saveError}</p>}
-        {saveState === "saved" && <p className="ok">Расчет записан в репозиторий.</p>}
+        {saveState === "saved" && <p className="ok">Расчет записан в GitHub через API.</p>}
         {moveState === "error" && <p className="error">{moveError}</p>}
         {moveState === "moved" && (
           <p className="ok">Запущен перевод сделки в Bitrix24. Обновление подтянется после Actions.</p>

@@ -1,4 +1,4 @@
-import { Check, CirclePlus, Github, Save, Search, Trash2, X } from "lucide-react";
+import { Check, CirclePlus, KeyRound, Save, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   createEmptyCatalogItem,
@@ -8,7 +8,12 @@ import {
   upsertCatalogItem,
 } from "../lib/catalog";
 import { formatMoney } from "../lib/costing";
-import { saveCatalogsToGitHub } from "../lib/githubStorage";
+import {
+  defaultSaveApiUrl,
+  isSaveApiUrlConfigured,
+  persistSaveApiSettings,
+  saveCatalogs,
+} from "../lib/saveApi";
 import type { CatalogItem, CostSection } from "../types";
 
 type CatalogManagerProps = {
@@ -25,7 +30,9 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
   );
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
-  const [githubToken, setGithubToken] = useState(() => localStorage.getItem("verkupGithubToken") || "");
+  const [saveApiKey, setSaveApiKey] = useState(() => localStorage.getItem("verkupSaveApiKey") || "");
+  const [saveApiUrl, setSaveApiUrl] = useState(() => defaultSaveApiUrl());
+  const canSave = saveApiKey.trim().length > 0 && saveApiUrl.trim().length > 0;
 
   const filteredItems = useMemo(() => filterCatalogItems(items, query, 300), [items, query]);
 
@@ -75,10 +82,14 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
     startNewItem();
   }
 
-  async function saveToGitHub() {
+  async function saveCatalog() {
+    const settings = {
+      apiUrl: saveApiUrl,
+      apiKey: saveApiKey,
+    };
     setSaveState("saving");
     setSaveError("");
-    localStorage.setItem("verkupGithubToken", githubToken);
+    persistSaveApiSettings(settings);
 
     try {
       const hasDraft = Boolean(selectedId || draft.title.trim());
@@ -94,18 +105,10 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
         setDraft(normalized);
       }
 
-      await saveCatalogsToGitHub(
-        {
-          owner: "senyak1987-prog",
-          repo: "verkup",
-          branch: "main",
-          token: githubToken,
-        },
-        {
-          generatedAt: new Date().toISOString(),
-          items: itemsToSave,
-        },
-      );
+      await saveCatalogs(settings, {
+        generatedAt: new Date().toISOString(),
+        items: itemsToSave,
+      });
 
       setSaveState("saved");
     } catch (error) {
@@ -220,24 +223,31 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
             <div className="catalog-save-panel">
               <div className="section-title">
                 <h3>Сохранение</h3>
-                <Github size={18} />
+                <KeyRound size={18} />
               </div>
+              {!isSaveApiUrlConfigured() && (
+                <input
+                  value={saveApiUrl}
+                  onChange={(event) => setSaveApiUrl(event.target.value)}
+                  placeholder="Адрес API сохранения, например https://verkup-save-api...workers.dev"
+                />
+              )}
               <input
                 type="password"
-                value={githubToken}
-                onChange={(event) => setGithubToken(event.target.value)}
-                placeholder="GitHub token с правами Contents и Actions: Read and write"
+                value={saveApiKey}
+                onChange={(event) => setSaveApiKey(event.target.value)}
+                placeholder="Ключ сохранения"
               />
               <button
                 className="primary"
-                disabled={!githubToken || saveState === "saving"}
-                onClick={saveToGitHub}
+                disabled={!canSave || saveState === "saving"}
+                onClick={saveCatalog}
               >
                 {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
-                {saveState === "saving" ? "Сохраняю..." : "Сохранить справочник в GitHub"}
+                {saveState === "saving" ? "Сохраняю..." : "Сохранить справочник"}
               </button>
               {saveState === "error" && <p className="error">{saveError}</p>}
-              {saveState === "saved" && <p className="ok">Справочник записан в репозиторий.</p>}
+              {saveState === "saved" && <p className="ok">Справочник записан в GitHub через API.</p>}
             </div>
           </div>
         </div>

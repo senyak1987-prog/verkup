@@ -60,6 +60,9 @@ jobs:
           git push
 
       - name: Build site
+        env:
+          VITE_SAVE_API_URL: ${{ vars.VITE_SAVE_API_URL }}
+          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH }}
         run: npm run build
 
       - uses: actions/configure-pages@v5
