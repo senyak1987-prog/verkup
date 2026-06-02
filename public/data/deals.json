@@ -1,42 +1,6 @@
 {
-  "generatedAt": "2026-06-02T12:51:36.787Z",
+  "generatedAt": "2026-06-02T19:38:26.754Z",
   "items": [
-    {
-      "id": "16876",
-      "number": "16876",
-      "title": "Гинты 1 коробок",
-      "stageId": "4",
-      "stageCode": "launch",
-      "source": "Повтор (уже заказывали)",
-      "type": "Изготовление + Доставка",
-      "classification": "Нестандартная сделка (считаем через Технолога)",
-      "saleAmount": 10000,
-      "installSaleAmount": 2500,
-      "responsible": "Сергей Кирсанов",
-      "startDate": "2026-06-02T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-04T03:00:00+03:00",
-      "createdDate": "2026-06-02T13:53:24+03:00",
-      "stageName": "Запустить в Производство (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16876/"
-    },
-    {
-      "id": "16872",
-      "number": "16872",
-      "title": "Складно, Краснодар, вывеска",
-      "stageId": "4",
-      "stageCode": "launch",
-      "source": "Агент",
-      "type": "Изготовление + Самовывоз",
-      "classification": "Буквы",
-      "saleAmount": 0,
-      "installSaleAmount": 0,
-      "responsible": "Александра Рябова",
-      "startDate": "2026-06-02T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-11T03:00:00+03:00",
-      "createdDate": "2026-06-02T12:54:35+03:00",
-      "stageName": "Запустить в Производство (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16872/"
-    },
     {
       "id": "16874",
       "number": "16874",
@@ -72,24 +36,6 @@
       "createdDate": "2026-06-02T12:24:49+03:00",
       "stageName": "Запустить в Производство (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16870/"
-    },
-    {
-      "id": "16860",
-      "number": "16860",
-      "title": "Гарантия 8632 Филиус",
-      "stageId": "4",
-      "stageCode": "launch",
-      "source": "Гарантия",
-      "type": "Монтажные работы",
-      "classification": "Гарантия",
-      "saleAmount": 0,
-      "installSaleAmount": 0,
-      "responsible": "Алексей Купоров",
-      "startDate": "2026-06-01T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-03T03:00:00+03:00",
-      "createdDate": "2026-06-01T15:22:20+03:00",
-      "stageName": "Запустить в Производство (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16860/"
     },
     {
       "id": "16774",
