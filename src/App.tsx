@@ -54,7 +54,7 @@ export default function App() {
       if (!canceled) setDeals(applyPendingStageMoves(dealsData.items));
     }
 
-    const intervalId = window.setInterval(refreshDeals, 30000);
+    const intervalId = window.setInterval(refreshDeals, 5000);
     window.addEventListener("focus", refreshDeals);
 
     return () => {

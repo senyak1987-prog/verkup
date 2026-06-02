@@ -1,5 +1,7 @@
 import type { AppData, CatalogItem, Deal, StoredCalculations } from "../types";
 
+const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim().replace(/\/+$/, "");
+
 const fallbackDeals: AppData<Deal> = {
   generatedAt: new Date().toISOString(),
   items: [],
@@ -54,13 +56,25 @@ export async function loadCatalogs() {
 }
 
 async function loadJson<T>(path: string, fallback: T): Promise<T> {
+  const normalizedPath = path.replace(/^\//, "");
+
+  if (configuredApiUrl) {
+    const apiData = await fetchJson<T>(`${configuredApiUrl}/${normalizedPath}`);
+    if (apiData) return apiData;
+  }
+
+  const staticData = await fetchJson<T>(`${import.meta.env.BASE_URL}${normalizedPath}`);
+  return staticData || fallback;
+}
+
+async function fetchJson<T>(url: string): Promise<T | undefined> {
   try {
-    const response = await fetch(`${import.meta.env.BASE_URL}${path.replace(/^\//, "")}`, {
+    const response = await fetch(`${url}${url.includes("?") ? "&" : "?"}t=${Date.now()}`, {
       cache: "no-store",
     });
-    if (!response.ok) return fallback;
+    if (!response.ok) return undefined;
     return (await response.json()) as T;
   } catch {
-    return fallback;
+    return undefined;
   }
 }

@@ -26,6 +26,14 @@ jobs:
         run: |
           printf "%s" "$WORKER_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN --config worker/wrangler.toml
 
+      - name: Put Worker Bitrix webhook secret
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BITRIX_WEBHOOK_URL: ${{ secrets.BITRIX_WEBHOOK_URL }}
+        run: |
+          printf "%s" "$BITRIX_WEBHOOK_URL" | npx wrangler secret put BITRIX_WEBHOOK_URL --config worker/wrangler.toml
+
       - name: Deploy Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

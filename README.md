@@ -104,7 +104,7 @@ Body:
 
 `GITHUB_TOKEN` для робота Bitrix должен быть fine-grained token с доступом к репозиторию и правом `Contents: Read and write` или классический token с `repo`. Этот token нужен только в настройках робота Bitrix и не вводится на сайте.
 
-Если робот не настроен, синхронизация все равно сработает по расписанию каждые 5 минут. Сайт периодически перечитывает опубликованный `deals.json`, поэтому откат сделки в Bitrix24 подтянется в открытую страницу после завершения GitHub Actions.
+Если робот не настроен, синхронизация все равно сработает по расписанию каждые 5 минут. При настроенном `VITE_SAVE_API_URL` сайт читает сделки через Cloudflare Worker напрямую из Bitrix24 каждые 5 секунд, поэтому ручной откат стадии в Bitrix24 отражается в открытой странице почти сразу.
 
 ## API сохранения без GitHub token на сайте
 
@@ -116,15 +116,17 @@ worker/
 
 GitHub token хранится в секретах Worker и не попадает в интерфейс. На сайте ничего дополнительно вводить не нужно.
 
-Для Worker нужен один секрет:
+Для Worker нужны секреты:
 
 - `GITHUB_TOKEN` - fine-grained token GitHub для репозитория `senyak1987-prog/verkup` с правами `Contents: Read and write` и `Actions: Read and write`.
+- `BITRIX_WEBHOOK_URL` - входящий webhook Bitrix24 для live-загрузки сделок.
 
 Деплой Worker:
 
 ```bash
 cd worker
 npx wrangler secret put GITHUB_TOKEN
+npx wrangler secret put BITRIX_WEBHOOK_URL
 npx wrangler deploy
 ```
 
@@ -140,7 +142,7 @@ https://verkup-save-api.<ваш-аккаунт>.workers.dev
 VITE_SAVE_API_URL = https://verkup-save-api.<ваш-аккаунт>.workers.dev
 ```
 
-После следующего деплоя поле адреса API исчезнет с сайта, а сохранение будет работать без дополнительных полей.
+После следующего деплоя поле адреса API исчезнет с сайта, сохранение будет работать без дополнительных полей, а сделки будут обновляться через Worker без ожидания деплоя GitHub Pages.
 
 Если приложение будет размещено не на GitHub Pages, а на вашем домене, добавьте этот домен в `ALLOWED_ORIGIN` в `worker/wrangler.toml`, например `https://ваш-сайт.ru`.
 
