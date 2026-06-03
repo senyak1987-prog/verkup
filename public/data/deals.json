@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-03T13:54:35.633Z",
+  "generatedAt": "2026-06-03T14:24:13.643Z",
   "items": [
     {
       "id": "16888",
@@ -18,24 +18,6 @@
       "createdDate": "2026-06-03T10:43:04+03:00",
       "stageName": "Запустить в Производство (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16888/"
-    },
-    {
-      "id": "16904",
-      "number": "16904",
-      "title": "Саша не делится",
-      "stageId": "10",
-      "stageCode": "production",
-      "source": "Повтор (уже заказывали)",
-      "type": "Изготовление + Монтаж",
-      "classification": "Буквы",
-      "saleAmount": 41850,
-      "installSaleAmount": 9000,
-      "responsible": "Сергей Кирсанов",
-      "startDate": "2026-06-03T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-10T03:00:00+03:00",
-      "createdDate": "2026-06-03T14:39:42+03:00",
-      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16904/"
     },
     {
       "id": "16900",
@@ -59,8 +41,8 @@
       "id": "16908",
       "number": "16908",
       "title": "Тебе идет",
-      "stageId": "4",
-      "stageCode": "launch",
+      "stageId": "10",
+      "stageCode": "production",
       "source": "Агент",
       "type": "Изготовление + Монтаж",
       "classification": "Буквы",
@@ -70,8 +52,26 @@
       "startDate": "2026-06-03T03:00:00+03:00",
       "expectedFinishDate": "2026-06-12T03:00:00+03:00",
       "createdDate": "2026-06-03T15:24:48+03:00",
-      "stageName": "Запустить в Производство (пр)",
+      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16908/"
+    },
+    {
+      "id": "16904",
+      "number": "16904",
+      "title": "Саша не делится",
+      "stageId": "10",
+      "stageCode": "production",
+      "source": "Повтор (уже заказывали)",
+      "type": "Изготовление + Монтаж",
+      "classification": "Буквы",
+      "saleAmount": 41850,
+      "installSaleAmount": 9000,
+      "responsible": "Сергей Кирсанов",
+      "startDate": "2026-06-03T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-10T03:00:00+03:00",
+      "createdDate": "2026-06-03T14:39:42+03:00",
+      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16904/"
     },
     {
       "id": "16902",
