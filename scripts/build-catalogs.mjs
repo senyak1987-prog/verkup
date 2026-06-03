@@ -79,18 +79,19 @@ async function readMaterials(file) {
   const header = rows[headerIndex].map(clean);
   const nameIdx = header.indexOf("Наименование");
   const unitIdx = header.indexOf("Ед. изм.");
-  const priceIdx = header.indexOf("Цена клиента") >= 0 ? header.indexOf("Цена клиента") : header.indexOf("Розница");
 
-  for (const row of rows.slice(headerIndex + 1)) {
+  for (const [index, row] of rows.slice(headerIndex + 1).entries()) {
     const title = clean(row[nameIdx]);
-    const price = toNumber(row[priceIdx]);
+    const priceInfo = materialPrice(row);
+    const price = priceInfo.price;
     if (!title || !price) continue;
+    const normalized = normalizeMaterialCost(title, clean(row[unitIdx]), price);
     addItem({
       section: "materials",
       title,
-      unit: clean(row[unitIdx]) || "шт",
-      unitCost: price,
-      source: path.basename(file),
+      unit: normalized.unit,
+      unitCost: normalized.unitCost,
+      source: `${path.basename(file)}; строка ${headerIndex + index + 2}; ${priceInfo.source}`,
     });
   }
 }
@@ -116,6 +117,97 @@ function clean(value) {
 function toNumber(value) {
   const number = Number(clean(value).replace(/[^\d,.-]/g, "").replace(",", "."));
   return Number.isFinite(number) ? number : 0;
+}
+
+function materialPrice(row) {
+  const columns = [
+    { index: 8, source: "столбец I" },
+    { index: 6, source: "столбец G" },
+    { index: 4, source: "столбец E" },
+  ];
+
+  for (const column of columns) {
+    const price = toNumber(row[column.index]);
+    if (price > 0) return { price, source: column.source };
+  }
+
+  return { price: 0, source: "цена не найдена" };
+}
+
+function normalizeMaterialCost(title, unit, price) {
+  const rawUnit = unit || "шт";
+  const normalizedUnit = rawUnit.toLowerCase();
+
+  if (normalizedUnit.includes("лист") || looksLikeSheetMaterial(title)) {
+    const area = extractSheetAreaSqm(title);
+    if (area) return { unit: "м2", unitCost: roundMoney(price / area) };
+  }
+
+  if (normalizedUnit.includes("пог") || normalizedUnit === "м") {
+    const width = extractRollWidthMeters(title);
+    if (width) return { unit: "м2", unitCost: roundMoney(price / width) };
+  }
+
+  if (normalizedUnit.includes("м²") || normalizedUnit.includes("м2")) {
+    return { unit: "м2", unitCost: roundMoney(price) };
+  }
+
+  return { unit: rawUnit, unitCost: roundMoney(price) };
+}
+
+function looksLikeSheetMaterial(title) {
+  const low = title.toLowerCase();
+  return /акп|пвх|акрил|полистирол|оргстекло|пластик|композит|лист/.test(low);
+}
+
+function extractSheetAreaSqm(title) {
+  return extractDimensionPairs(title)
+    .map(({ width, height }) => dimensionToMeters(width) * dimensionToMeters(height))
+    .filter((area) => area >= 0.1 && area <= 100)
+    .sort((a, b) => b - a)[0];
+}
+
+function extractRollWidthMeters(title) {
+  return extractDimensionPairs(title)
+    .map(({ width, height }) => ({
+      width: dimensionToMeters(width),
+      height: dimensionToMeters(height),
+    }))
+    .filter(({ width, height }) => width > 0 && width <= 10 && height >= 5)
+    .map(({ width }) => width)
+    .sort((a, b) => b - a)[0];
+}
+
+function extractDimensionPairs(title) {
+  const pairs = [];
+  const dimensionRuns = title.match(/\d+(?:[.,]\d+)?(?:\s*[хx×]\s*\d+(?:[.,]\d+)?)+/gi) || [];
+
+  for (const run of dimensionRuns) {
+    const values = run.split(/\s*[хx×]\s*/).map(toDecimal).filter(Number.isFinite);
+    if (values.length < 2) continue;
+
+    if (values.length >= 3 && values[0] <= 50 && values[1] > 100 && values[2] > 100) {
+      pairs.push({ width: values[1], height: values[2] });
+      continue;
+    }
+
+    pairs.push({ width: values[0], height: values[1] });
+  }
+
+  return pairs;
+}
+
+function toDecimal(value) {
+  return Number(String(value).replace(",", "."));
+}
+
+function dimensionToMeters(value) {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return value > 100 ? value / 1000 : value;
+}
+
+function roundMoney(value) {
+  return Math.round(value * 100) / 100;
 }
 
 function inferUnit(title) {
