@@ -1,4 +1,4 @@
-import { Database, ExternalLink, Pencil, RotateCcw, Search } from "lucide-react";
+import { Database, ExternalLink, FilterX, Pencil, RotateCcw, Search } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { Deal, DealCalculation, DealStageCode } from "../types";
@@ -18,10 +18,10 @@ const COLUMN_STORAGE_KEY = "verkupDealColumnWidths";
 
 const tableColumns = [
   { id: "deal", label: "Сделка", defaultWidth: 280, minWidth: 180 },
-  { id: "source", label: "Источник", defaultWidth: 110, minWidth: 90 },
+  { id: "source", label: "Источник", defaultWidth: 180, minWidth: 150 },
   { id: "type", label: "Тип", defaultWidth: 240, minWidth: 130 },
-  { id: "responsible", label: "Ответственный", defaultWidth: 160, minWidth: 110 },
-  { id: "dates", label: "Даты", defaultWidth: 120, minWidth: 100 },
+  { id: "responsible", label: "Ответственный", defaultWidth: 190, minWidth: 160 },
+  { id: "dates", label: "Даты", defaultWidth: 220, minWidth: 180 },
   { id: "sales", label: "Продажа / монтаж", defaultWidth: 230, minWidth: 150 },
   { id: "cost", label: "Себестоимость", defaultWidth: 190, minWidth: 150 },
   { id: "profit", label: "Прибыль", defaultWidth: 110, minWidth: 90 },
@@ -29,7 +29,22 @@ const tableColumns = [
 ] as const;
 
 type ColumnId = (typeof tableColumns)[number]["id"];
+type TableColumn = (typeof tableColumns)[number];
 type ColumnWidths = Record<ColumnId, number>;
+
+type ColumnFilters = {
+  source: string;
+  responsible: string;
+  dateFrom: string;
+  dateTo: string;
+};
+
+const emptyColumnFilters: ColumnFilters = {
+  source: "",
+  responsible: "",
+  dateFrom: "",
+  dateTo: "",
+};
 
 type DealTableProps = {
   deals: Deal[];
@@ -63,6 +78,7 @@ export function DealTable({
   expandedRow,
 }: DealTableProps) {
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(() => loadColumnWidths());
+  const [columnFilters, setColumnFilters] = useState<ColumnFilters>(emptyColumnFilters);
 
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnWidths));
@@ -73,7 +89,22 @@ export function DealTable({
     [columnWidths],
   );
 
-  const totals = deals.reduce(
+  const filterOptions = useMemo(
+    () => ({
+      sources: uniqueValues(deals.map((deal) => deal.source)),
+      responsibles: uniqueValues(deals.map((deal) => deal.responsible)),
+    }),
+    [deals],
+  );
+
+  const visibleDeals = useMemo(
+    () => deals.filter((deal) => matchesColumnFilters(deal, columnFilters)),
+    [columnFilters, deals],
+  );
+
+  const hasColumnFilters = Object.values(columnFilters).some(Boolean);
+
+  const totals = visibleDeals.reduce(
     (acc, deal) => {
       const calculation = calculations.get(deal.id);
       acc.sale += saleAmountForDeal(deal, calculation, agentRatio);
@@ -116,6 +147,14 @@ export function DealTable({
     setColumnWidths(defaultColumnWidths());
   }
 
+  function patchColumnFilters(patch: Partial<ColumnFilters>) {
+    setColumnFilters((current) => ({ ...current, ...patch }));
+  }
+
+  function resetColumnFilters() {
+    setColumnFilters(emptyColumnFilters);
+  }
+
   return (
     <main className="deal-list">
       <div className="toolbar">
@@ -134,7 +173,7 @@ export function DealTable({
               </button>
             ))}
           </div>
-          <p>{deals.length} сделок в текущей вкладке</p>
+          <p>{visibleDeals.length} сделок в текущей вкладке</p>
         </div>
         <div className="toolbar-actions">
           <label className="search">
@@ -151,6 +190,14 @@ export function DealTable({
             onClick={resetAllColumnWidths}
           >
             <RotateCcw size={18} />
+          </button>
+          <button
+            className={hasColumnFilters ? "icon-button active" : "icon-button"}
+            disabled={!hasColumnFilters}
+            title="Сбросить фильтры"
+            onClick={resetColumnFilters}
+          >
+            <FilterX size={18} />
           </button>
           <button className="secondary toolbar-catalog" onClick={onOpenCatalog}>
             <Database size={18} />
@@ -178,7 +225,12 @@ export function DealTable({
             <tr>
               {tableColumns.map((column) => (
                 <th key={column.id} className="resizable-th">
-                  {column.label}
+                  <ColumnHeader
+                    column={column}
+                    filters={columnFilters}
+                    options={filterOptions}
+                    onChange={patchColumnFilters}
+                  />
                   <span
                     aria-label={`Изменить ширину: ${column.label || "действия"}`}
                     className="column-resizer"
@@ -192,7 +244,7 @@ export function DealTable({
             </tr>
           </thead>
           <tbody>
-            {deals.map((deal) => {
+            {visibleDeals.map((deal) => {
               const calculation = calculations.get(deal.id);
               const sales = saleBreakdownForDeal(deal, calculation, agentRatio);
               const isSelected = selectedDealId === deal.id;
@@ -264,7 +316,7 @@ export function DealTable({
                 </Fragment>
               );
             })}
-            {!deals.length && (
+            {!visibleDeals.length && (
               <tr>
                 <td className="empty" colSpan={9}>
                   Сделки не найдены. Проверьте синхронизацию Bitrix24 или фильтр поиска.
@@ -275,6 +327,72 @@ export function DealTable({
         </table>
       </div>
     </main>
+  );
+}
+
+function ColumnHeader({
+  column,
+  filters,
+  options,
+  onChange,
+}: {
+  column: TableColumn;
+  filters: ColumnFilters;
+  options: { sources: string[]; responsibles: string[] };
+  onChange: (patch: Partial<ColumnFilters>) => void;
+}) {
+  return (
+    <div className="column-head">
+      <span className="column-label">{column.label}</span>
+      {column.id === "source" && (
+        <select
+          className="column-filter"
+          value={filters.source}
+          onChange={(event) => onChange({ source: event.target.value })}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <option value="">Все</option>
+          {options.sources.map((source) => (
+            <option key={source} value={source}>
+              {source}
+            </option>
+          ))}
+        </select>
+      )}
+      {column.id === "responsible" && (
+        <select
+          className="column-filter"
+          value={filters.responsible}
+          onChange={(event) => onChange({ responsible: event.target.value })}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <option value="">Все</option>
+          {options.responsibles.map((responsible) => (
+            <option key={responsible} value={responsible}>
+              {responsible}
+            </option>
+          ))}
+        </select>
+      )}
+      {column.id === "dates" && (
+        <div className="date-filter-grid" onClick={(event) => event.stopPropagation()}>
+          <input
+            aria-label="Дата с"
+            title="Дата с"
+            type="date"
+            value={filters.dateFrom}
+            onChange={(event) => onChange({ dateFrom: event.target.value })}
+          />
+          <input
+            aria-label="Дата по"
+            title="Дата по"
+            type="date"
+            value={filters.dateTo}
+            onChange={(event) => onChange({ dateTo: event.target.value })}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -323,4 +441,43 @@ function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("ru-RU").format(date);
+}
+
+function uniqueValues(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, "ru"),
+  );
+}
+
+function matchesColumnFilters(deal: Deal, filters: ColumnFilters) {
+  if (filters.source && deal.source !== filters.source) return false;
+  if (filters.responsible && deal.responsible !== filters.responsible) return false;
+  return matchesDateRange(deal, filters.dateFrom, filters.dateTo);
+}
+
+function matchesDateRange(deal: Deal, dateFrom: string, dateTo: string) {
+  if (!dateFrom && !dateTo) return true;
+
+  const from = dateFrom ? startOfDay(dateFrom) : undefined;
+  const to = dateTo ? endOfDay(dateTo) : undefined;
+  const dealDates = [deal.startDate, deal.expectedFinishDate]
+    .map((value) => Date.parse(value))
+    .filter((value) => Number.isFinite(value));
+
+  if (!dealDates.length) return false;
+
+  const dealStart = Math.min(...dealDates);
+  const dealFinish = Math.max(...dealDates);
+
+  if (from !== undefined && dealFinish < from) return false;
+  if (to !== undefined && dealStart > to) return false;
+  return true;
+}
+
+function startOfDay(value: string) {
+  return new Date(`${value}T00:00:00`).getTime();
+}
+
+function endOfDay(value: string) {
+  return new Date(`${value}T23:59:59.999`).getTime();
 }
