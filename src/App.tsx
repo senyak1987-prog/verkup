@@ -18,6 +18,7 @@ import type { CatalogItem, Deal, DealCalculation, DealStageCode, StoredCalculati
 import "./styles.css";
 
 const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
+const DEAL_REFRESH_INTERVAL_MS = 2000;
 
 type PendingStageMove = {
   stage: DealStageCode;
@@ -99,7 +100,7 @@ export default function App() {
       writeCachedCatalogs(catalogsData);
     }
 
-    const intervalId = window.setInterval(refreshDeals, 5000);
+    const intervalId = window.setInterval(refreshDeals, DEAL_REFRESH_INTERVAL_MS);
     window.addEventListener("focus", refreshAllData);
     window.addEventListener("online", refreshAllData);
 

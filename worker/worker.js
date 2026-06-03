@@ -3,8 +3,6 @@ const jsonHeaders = {
 };
 
 const liveCache = {
-  deals: undefined,
-  dealsExpiresAt: 0,
   dealsPromise: undefined,
   dictionaries: undefined,
   dictionariesExpiresAt: 0,
@@ -247,16 +245,9 @@ async function dispatchMoveWorkflow(env, dealId, targetStageId) {
 }
 
 async function loadLiveDeals(env) {
-  const now = Date.now();
-  if (liveCache.deals && liveCache.dealsExpiresAt > now) return liveCache.deals;
   if (liveCache.dealsPromise) return liveCache.dealsPromise;
 
   liveCache.dealsPromise = fetchLiveDeals(env)
-    .then((data) => {
-      liveCache.deals = data;
-      liveCache.dealsExpiresAt = Date.now() + 5000;
-      return data;
-    })
     .finally(() => {
       liveCache.dealsPromise = undefined;
     });
