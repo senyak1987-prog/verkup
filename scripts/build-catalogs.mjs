@@ -93,6 +93,7 @@ async function readMaterials(file) {
 
     if (!title || !price) continue;
     const normalized = normalizeMaterialCost(title, clean(row[unitIdx]), price);
+    const materialSubgroup = materialPath.slice(1).join(" / ") || undefined;
     addItem({
       section: "materials",
       title,
@@ -100,7 +101,8 @@ async function readMaterials(file) {
       unitCost: normalized.unitCost,
       source: `${path.basename(file)}; строка ${headerIndex + index + 2}; ${priceInfo.source}`,
       materialGroup: materialPath[0] || "Без группы",
-      materialSubgroup: materialPath.slice(1).join(" / ") || undefined,
+      materialFamily: materialFamilyFor(title, materialPath),
+      materialSubgroup,
       materialGroupPath: materialPath.join(" / ") || "Без группы",
       favorite: false,
     });
@@ -158,6 +160,41 @@ function materialPathParts(title) {
     .split("/")
     .map(clean)
     .filter(Boolean);
+}
+
+function materialFamilyFor(title, materialPath) {
+  const group = materialPath[0] || "";
+  const pathParts = materialPath.slice(1);
+  const pathText = pathParts.join(" ");
+  const text = `${pathText} ${title}`.toLowerCase();
+
+  if (group === "Листовые материалы") {
+    if (/акп|композит/.test(text)) return "АКП";
+    if (/пвх|pvc|сэндвич/.test(text)) return "ПВХ";
+    if (/пенокартон/.test(text)) return "Пенокартон";
+    if (/пластик для гравировки|гравиров/.test(text)) return "Пластик для гравировки";
+    if (/полиэфир|пэт|pet/.test(text)) return "ПЭТ";
+    if (/монолитн.*поликарбонат|поликарбонат.*монолитн/.test(text)) return "Поликарбонат монолитный";
+    if (/сотов.*поликарбонат|поликарбонат.*сотов/.test(text)) return "Поликарбонат сотовый";
+    if (/поликарбонат/.test(text)) return "Поликарбонат";
+    if (/вспененн.*полистирол/.test(text)) return "Полистирол вспененный";
+    if (/полистирол/.test(text)) {
+      if (/зерк/.test(text)) return "Полистирол зеркальный";
+      if (/молоч|опал|светор|светорас/.test(text)) return "Полистирол молочный";
+      return "Полистирол";
+    }
+    if (/оргстекло|акрил|plex|acry/.test(text)) {
+      if (/торцев/.test(text)) return "Акрил торцевой";
+      if (/день\s*\/\s*ночь|день-ночь/.test(text)) return "Акрил день/ночь";
+      if (/зерк/.test(text)) return "Акрил зеркальный";
+      if (/цветн|черн|красн|син|оранж|зелен|желт/.test(text)) return "Акрил цветной";
+      if (/молоч|опал|светор|светорас/.test(text)) return "Акрил молочный";
+      if (/прозр|transparent|clear/.test(text)) return "Акрил прозрачный";
+      return "Акрил";
+    }
+  }
+
+  return pathParts[0] || undefined;
 }
 
 function normalizeMaterialCost(title, unit, price) {

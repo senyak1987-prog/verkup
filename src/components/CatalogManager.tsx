@@ -4,6 +4,8 @@ import {
   catalogGroups,
   createEmptyCatalogItem,
   filterCatalogItems,
+  materialFamilyOptions,
+  materialFamilyValue,
   materialGroupLabel,
   materialGroupOptions,
   normalizeCatalogItem,
@@ -30,6 +32,7 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
   const [query, setQuery] = useState("");
   const [activeGroupId, setActiveGroupId] = useState<string>("materials");
   const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
+  const [activeMaterialFamily, setActiveMaterialFamily] = useState("");
   const [selectedId, setSelectedId] = useState(items[0]?.id || "");
   const [draft, setDraft] = useState<CatalogItem>(() =>
     items[0] ? { ...items[0] } : createEmptyCatalogItem(),
@@ -42,13 +45,20 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
   const activeGroup =
     catalogGroups.find((group) => group.id === activeGroupId) || catalogGroups[0];
   const materialGroups = useMemo(() => materialGroupOptions(items), [items]);
+  const materialFamilies = useMemo(
+    () => materialFamilyOptions(items, activeMaterialGroup),
+    [activeMaterialGroup, items],
+  );
   const groupItems = useMemo(() => {
     const sectionItems = items.filter((item) =>
       activeGroup.sections.some((section) => section === item.section),
     );
-    if (activeGroup.id !== "materials" || !activeMaterialGroup) return sectionItems;
-    return sectionItems.filter((item) => (item.materialGroup || "Без группы") === activeMaterialGroup);
-  }, [activeGroup.id, activeGroup.sections, activeMaterialGroup, items]);
+    if (activeGroup.id !== "materials") return sectionItems;
+
+    return sectionItems
+      .filter((item) => !activeMaterialGroup || (item.materialGroup || "Без группы") === activeMaterialGroup)
+      .filter((item) => !activeMaterialFamily || materialFamilyValue(item) === activeMaterialFamily);
+  }, [activeGroup.id, activeGroup.sections, activeMaterialFamily, activeMaterialGroup, items]);
   const filteredItems = useMemo(() => filterCatalogItems(groupItems, query, 300), [groupItems, query]);
 
   useEffect(() => {
@@ -68,7 +78,10 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
     const firstItem = items.find((item) => nextGroup.sections.some((section) => section === item.section));
 
     setActiveGroupId(groupId);
-    if (nextGroup.id !== "materials") setActiveMaterialGroup("");
+    if (nextGroup.id !== "materials") {
+      setActiveMaterialGroup("");
+      setActiveMaterialFamily("");
+    }
     setSelectedId(firstItem?.id || "");
     setDraft(firstItem ? { ...firstItem } : { ...createEmptyCatalogItem(), section: nextGroup.sections[0] });
     setSaveState("idle");
@@ -81,6 +94,7 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
       ...createEmptyCatalogItem(),
       section: activeGroup.sections[0],
       materialGroup: activeGroup.id === "materials" ? activeMaterialGroup : undefined,
+      materialFamily: activeGroup.id === "materials" ? activeMaterialFamily : undefined,
     });
     setSaveState("idle");
     setSaveError("");
@@ -202,20 +216,41 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
               })}
             </div>
             {activeGroup.id === "materials" && (
-              <label className="material-group-filter">
-                <span>Группа материалов</span>
-                <select
-                  value={activeMaterialGroup}
-                  onChange={(event) => setActiveMaterialGroup(event.target.value)}
-                >
-                  <option value="">Все группы</option>
-                  {materialGroups.map((group) => (
-                    <option key={group} value={group}>
-                      {group}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <>
+                <label className="material-group-filter">
+                  <span>Группа материалов</span>
+                  <select
+                    value={activeMaterialGroup}
+                    onChange={(event) => {
+                      setActiveMaterialGroup(event.target.value);
+                      setActiveMaterialFamily("");
+                    }}
+                  >
+                    <option value="">Все группы</option>
+                    {materialGroups.map((group) => (
+                      <option key={group} value={group}>
+                        {group}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {activeMaterialGroup && (
+                  <label className="material-group-filter">
+                    <span>Подгруппа</span>
+                    <select
+                      value={activeMaterialFamily}
+                      onChange={(event) => setActiveMaterialFamily(event.target.value)}
+                    >
+                      <option value="">Все подгруппы</option>
+                      {materialFamilies.map((family) => (
+                        <option key={family} value={family}>
+                          {family}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+              </>
             )}
             <div className="catalog-browser-list">
               {filteredItems.map((item) => (
@@ -305,7 +340,7 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
                   />
                 </label>
                 <label className="catalog-form-wide">
-                  <span>Подгруппа</span>
+                  <span>Путь в таблице</span>
                   <input
                     value={draft.materialSubgroup || ""}
                     onChange={(event) =>
@@ -317,6 +352,14 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
                       })
                     }
                     placeholder="Пленки / Пленка ORACAL-641"
+                  />
+                </label>
+                <label>
+                  <span>Подгруппа для фильтра</span>
+                  <input
+                    value={draft.materialFamily || ""}
+                    onChange={(event) => patchDraft({ materialFamily: event.target.value })}
+                    placeholder="ПВХ, АКП, Акрил молочный"
                   />
                 </label>
               </>

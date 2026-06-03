@@ -40,6 +40,8 @@ import {
 import {
   catalogGroups,
   filterCatalogItems,
+  materialFamilyOptions,
+  materialFamilyValue,
   materialGroupLabel,
   materialGroupOptions,
   sectionLabels,
@@ -362,6 +364,7 @@ export function CostDrawer({
   const [catalogQuery, setCatalogQuery] = useState("");
   const [activeCatalogGroupId, setActiveCatalogGroupId] = useState<string>("materials");
   const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
+  const [activeMaterialFamily, setActiveMaterialFamily] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
   const [moveState, setMoveState] = useState<"idle" | "moving" | "moved" | "error">("idle");
@@ -381,6 +384,10 @@ export function CostDrawer({
   const activeCatalogGroup =
     catalogGroups.find((group) => group.id === activeCatalogGroupId) || catalogGroups[0];
   const materialGroups = useMemo(() => materialGroupOptions(catalogItems), [catalogItems]);
+  const materialFamilies = useMemo(
+    () => materialFamilyOptions(catalogItems, activeMaterialGroup),
+    [activeMaterialGroup, catalogItems],
+  );
   const favoriteMaterials = catalogItems
     .filter((item) => item.section === "materials" && item.favorite)
     .slice(0, 12);
@@ -389,6 +396,10 @@ export function CostDrawer({
     .filter((item) => {
       if (activeCatalogGroup.id !== "materials" || !activeMaterialGroup) return true;
       return (item.materialGroup || "Без группы") === activeMaterialGroup;
+    })
+    .filter((item) => {
+      if (activeCatalogGroup.id !== "materials" || !activeMaterialFamily) return true;
+      return materialFamilyValue(item) === activeMaterialFamily;
     });
   const filteredCatalog = filterCatalogItems(groupCatalogItems, catalogQuery, 18);
 
@@ -585,7 +596,10 @@ export function CostDrawer({
                   key={group.id}
                   onClick={() => {
                     setActiveCatalogGroupId(group.id);
-                    if (group.id !== "materials") setActiveMaterialGroup("");
+                    if (group.id !== "materials") {
+                      setActiveMaterialGroup("");
+                      setActiveMaterialFamily("");
+                    }
                   }}
                 >
                   <span>{group.label}</span>
@@ -600,7 +614,10 @@ export function CostDrawer({
                 <span>Группа материалов</span>
                 <select
                   value={activeMaterialGroup}
-                  onChange={(event) => setActiveMaterialGroup(event.target.value)}
+                  onChange={(event) => {
+                    setActiveMaterialGroup(event.target.value);
+                    setActiveMaterialFamily("");
+                  }}
                 >
                   <option value="">Все группы</option>
                   {materialGroups.map((group) => (
@@ -610,6 +627,22 @@ export function CostDrawer({
                   ))}
                 </select>
               </label>
+              {activeMaterialGroup && (
+                <label className="material-group-filter">
+                  <span>Подгруппа</span>
+                  <select
+                    value={activeMaterialFamily}
+                    onChange={(event) => setActiveMaterialFamily(event.target.value)}
+                  >
+                    <option value="">Все подгруппы</option>
+                    {materialFamilies.map((family) => (
+                      <option key={family} value={family}>
+                        {family}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <div className="favorite-materials">
                 <div className="section-title compact">
                   <h3>Избранные материалы</h3>

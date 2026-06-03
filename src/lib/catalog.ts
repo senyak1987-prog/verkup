@@ -39,6 +39,7 @@ export function filterCatalogItems(items: CatalogItem[], query: string, limit: n
         item.source,
         item.unit,
         item.materialGroup,
+        item.materialFamily,
         item.materialSubgroup,
         item.materialGroupPath,
         sectionLabels[item.section],
@@ -67,6 +68,7 @@ export function normalizeCatalogItem(item: CatalogItem) {
   if (!title) return undefined;
 
   const materialGroup = item.materialGroup?.trim() || "";
+  const materialFamily = item.materialFamily?.trim() || "";
   const materialSubgroup = item.materialSubgroup?.trim() || "";
   const materialGroupPath =
     item.materialGroupPath?.trim() || [materialGroup, materialSubgroup].filter(Boolean).join(" / ");
@@ -79,6 +81,7 @@ export function normalizeCatalogItem(item: CatalogItem) {
     unitCost: Number.isFinite(item.unitCost) ? item.unitCost : 0,
     source: item.source.trim() || "Ручной справочник",
     materialGroup: materialGroup || undefined,
+    materialFamily: materialFamily || undefined,
     materialSubgroup: materialSubgroup || undefined,
     materialGroupPath: materialGroupPath || undefined,
     favorite: Boolean(item.favorite),
@@ -99,8 +102,28 @@ export function materialGroupOptions(items: CatalogItem[]) {
     .sort((a, b) => a.localeCompare(b, "ru"));
 }
 
+export function materialFamilyOptions(items: CatalogItem[], materialGroup?: string) {
+  return [...new Set(items
+    .filter((item) => item.section === "materials")
+    .filter((item) => !materialGroup || (item.materialGroup || "Без группы") === materialGroup)
+    .map(materialFamilyValue)
+    .filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+export function materialFamilyValue(item: CatalogItem) {
+  return item.materialFamily || item.materialSubgroup || "Без подгруппы";
+}
+
 export function materialGroupLabel(item: CatalogItem) {
-  return item.materialGroupPath || [item.materialGroup, item.materialSubgroup].filter(Boolean).join(" / ");
+  const family = item.materialFamily?.trim();
+  const subgroup = item.materialSubgroup?.trim();
+  const fullPath = item.materialGroupPath || [item.materialGroup, subgroup].filter(Boolean).join(" / ");
+
+  if (!family) return fullPath;
+  if (fullPath.toLowerCase().includes(family.toLowerCase())) return fullPath;
+
+  return [item.materialGroup, family, subgroup].filter(Boolean).join(" / ");
 }
 
 export function toggleCatalogFavorite(items: CatalogItem[], itemId: string) {

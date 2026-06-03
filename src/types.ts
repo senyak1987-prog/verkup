@@ -71,6 +71,7 @@ export type CatalogItem = {
   unitCost: number;
   source: string;
   materialGroup?: string;
+  materialFamily?: string;
   materialSubgroup?: string;
   materialGroupPath?: string;
   favorite?: boolean;
