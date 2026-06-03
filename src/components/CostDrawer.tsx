@@ -6,6 +6,7 @@ import {
   CirclePlus,
   Database,
   Save,
+  Star,
   Trash2,
   X,
 } from "lucide-react";
@@ -36,7 +37,14 @@ import {
   profit,
   saleBreakdownForDeal,
 } from "../lib/costing";
-import { catalogGroups, filterCatalogItems, sectionLabels } from "../lib/catalog";
+import {
+  catalogGroups,
+  filterCatalogItems,
+  materialGroupLabel,
+  materialGroupOptions,
+  sectionLabels,
+  toggleCatalogFavorite,
+} from "../lib/catalog";
 import {
   defaultSaveApiUrl,
   isSaveApiUrlConfigured,
@@ -353,6 +361,7 @@ export function CostDrawer({
 }: CostDrawerProps) {
   const [catalogQuery, setCatalogQuery] = useState("");
   const [activeCatalogGroupId, setActiveCatalogGroupId] = useState<string>("materials");
+  const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
   const [moveState, setMoveState] = useState<"idle" | "moving" | "moved" | "error">("idle");
@@ -371,9 +380,16 @@ export function CostDrawer({
 
   const activeCatalogGroup =
     catalogGroups.find((group) => group.id === activeCatalogGroupId) || catalogGroups[0];
-  const groupCatalogItems = catalogItems.filter((item) =>
-    activeCatalogGroup.sections.some((section) => section === item.section),
-  );
+  const materialGroups = useMemo(() => materialGroupOptions(catalogItems), [catalogItems]);
+  const favoriteMaterials = catalogItems
+    .filter((item) => item.section === "materials" && item.favorite)
+    .slice(0, 12);
+  const groupCatalogItems = catalogItems
+    .filter((item) => activeCatalogGroup.sections.some((section) => section === item.section))
+    .filter((item) => {
+      if (activeCatalogGroup.id !== "materials" || !activeMaterialGroup) return true;
+      return (item.materialGroup || "Без группы") === activeMaterialGroup;
+    });
   const filteredCatalog = filterCatalogItems(groupCatalogItems, catalogQuery, 18);
 
   if (!deal) {
@@ -425,6 +441,11 @@ export function CostDrawer({
       note: item.source,
       catalogId: item.id,
     });
+  }
+
+  function toggleFavorite(item: CatalogItem) {
+    onCatalogChange(toggleCatalogFavorite(catalogItems, item.id));
+    setSaveState("idle");
   }
 
   function patchPosition(id: string, patch: Partial<CostPosition>) {
@@ -562,7 +583,10 @@ export function CostDrawer({
                 <button
                   className={activeCatalogGroup.id === group.id ? "active" : ""}
                   key={group.id}
-                  onClick={() => setActiveCatalogGroupId(group.id)}
+                  onClick={() => {
+                    setActiveCatalogGroupId(group.id);
+                    if (group.id !== "materials") setActiveMaterialGroup("");
+                  }}
                 >
                   <span>{group.label}</span>
                   <small>{count}</small>
@@ -570,14 +594,61 @@ export function CostDrawer({
               );
             })}
           </div>
+          {activeCatalogGroup.id === "materials" && (
+            <>
+              <label className="material-group-filter">
+                <span>Группа материалов</span>
+                <select
+                  value={activeMaterialGroup}
+                  onChange={(event) => setActiveMaterialGroup(event.target.value)}
+                >
+                  <option value="">Все группы</option>
+                  {materialGroups.map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="favorite-materials">
+                <div className="section-title compact">
+                  <h3>Избранные материалы</h3>
+                  <span>{favoriteMaterials.length}</span>
+                </div>
+                <div className="favorite-material-list">
+                  {favoriteMaterials.map((item) => (
+                    <button key={item.id} onClick={() => addCatalogItem(item)}>
+                      <span>{item.title}</span>
+                      <small>{formatMoney(item.unitCost)} / {item.unit}</small>
+                    </button>
+                  ))}
+                  {!favoriteMaterials.length && (
+                    <p className="empty-state compact">Отметьте материалы звездой, чтобы они появились здесь.</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
           <div className="catalog-list">
             {filteredCatalog.map((item) => (
-              <button key={item.id} onClick={() => addCatalogItem(item)}>
-                <span>{item.title}</span>
-                <small>
-                  {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
-                </small>
-              </button>
+              <div className="catalog-item-card" key={item.id}>
+                <button className="catalog-item-main" onClick={() => addCatalogItem(item)}>
+                  <span>{item.title}</span>
+                  <small>
+                    {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                    {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
+                  </small>
+                </button>
+                {item.section === "materials" && (
+                  <button
+                    className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
+                    onClick={() => toggleFavorite(item)}
+                    title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+                  >
+                    <Star size={15} />
+                  </button>
+                )}
+              </div>
             ))}
             {!filteredCatalog.length && (
               <p className="calc-block-empty">В этом блоке справочника позиции не найдены.</p>

@@ -1,11 +1,14 @@
-import { Check, CirclePlus, Save, Search, Trash2, X } from "lucide-react";
+import { Check, CirclePlus, Save, Search, Star, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   catalogGroups,
   createEmptyCatalogItem,
   filterCatalogItems,
+  materialGroupLabel,
+  materialGroupOptions,
   normalizeCatalogItem,
   sectionLabels,
+  toggleCatalogFavorite,
   upsertCatalogItem,
 } from "../lib/catalog";
 import { formatMoney } from "../lib/costing";
@@ -26,6 +29,7 @@ type CatalogManagerProps = {
 export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps) {
   const [query, setQuery] = useState("");
   const [activeGroupId, setActiveGroupId] = useState<string>("materials");
+  const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
   const [selectedId, setSelectedId] = useState(items[0]?.id || "");
   const [draft, setDraft] = useState<CatalogItem>(() =>
     items[0] ? { ...items[0] } : createEmptyCatalogItem(),
@@ -37,10 +41,14 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
 
   const activeGroup =
     catalogGroups.find((group) => group.id === activeGroupId) || catalogGroups[0];
-  const groupItems = useMemo(
-    () => items.filter((item) => activeGroup.sections.some((section) => section === item.section)),
-    [activeGroup.sections, items],
-  );
+  const materialGroups = useMemo(() => materialGroupOptions(items), [items]);
+  const groupItems = useMemo(() => {
+    const sectionItems = items.filter((item) =>
+      activeGroup.sections.some((section) => section === item.section),
+    );
+    if (activeGroup.id !== "materials" || !activeMaterialGroup) return sectionItems;
+    return sectionItems.filter((item) => (item.materialGroup || "Без группы") === activeMaterialGroup);
+  }, [activeGroup.id, activeGroup.sections, activeMaterialGroup, items]);
   const filteredItems = useMemo(() => filterCatalogItems(groupItems, query, 300), [groupItems, query]);
 
   useEffect(() => {
@@ -60,6 +68,7 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
     const firstItem = items.find((item) => nextGroup.sections.some((section) => section === item.section));
 
     setActiveGroupId(groupId);
+    if (nextGroup.id !== "materials") setActiveMaterialGroup("");
     setSelectedId(firstItem?.id || "");
     setDraft(firstItem ? { ...firstItem } : { ...createEmptyCatalogItem(), section: nextGroup.sections[0] });
     setSaveState("idle");
@@ -71,6 +80,7 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
     setDraft({
       ...createEmptyCatalogItem(),
       section: activeGroup.sections[0],
+      materialGroup: activeGroup.id === "materials" ? activeMaterialGroup : undefined,
     });
     setSaveState("idle");
     setSaveError("");
@@ -101,6 +111,16 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
     if (!selectedId) return;
     onChange(items.filter((item) => item.id !== selectedId));
     startNewItem();
+  }
+
+  function toggleFavorite(itemId: string) {
+    const nextItems = toggleCatalogFavorite(items, itemId);
+    onChange(nextItems);
+    if (itemId === selectedId) {
+      const updated = nextItems.find((item) => item.id === itemId);
+      if (updated) setDraft({ ...updated });
+    }
+    setSaveState("idle");
   }
 
   async function saveCatalog() {
@@ -181,18 +201,40 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
                 );
               })}
             </div>
+            {activeGroup.id === "materials" && (
+              <label className="material-group-filter">
+                <span>Группа материалов</span>
+                <select
+                  value={activeMaterialGroup}
+                  onChange={(event) => setActiveMaterialGroup(event.target.value)}
+                >
+                  <option value="">Все группы</option>
+                  {materialGroups.map((group) => (
+                    <option key={group} value={group}>
+                      {group}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <div className="catalog-browser-list">
               {filteredItems.map((item) => (
-                <button
-                  className={item.id === selectedId ? "active" : ""}
-                  key={item.id}
-                  onClick={() => selectItem(item)}
-                >
-                  <span>{item.title}</span>
-                  <small>
-                    {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
-                  </small>
-                </button>
+                <div className={`catalog-item-card ${item.id === selectedId ? "active" : ""}`} key={item.id}>
+                  <button className="catalog-item-main" onClick={() => selectItem(item)}>
+                    <span>{item.title}</span>
+                    <small>
+                      {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                      {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
+                    </small>
+                  </button>
+                  <button
+                    className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
+                    onClick={() => toggleFavorite(item.id)}
+                    title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+                  >
+                    <Star size={15} />
+                  </button>
+                </div>
               ))}
               {!filteredItems.length && <p className="empty-state">Позиции не найдены.</p>}
             </div>
@@ -237,6 +279,48 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
                 placeholder="0"
               />
             </label>
+            <label className="catalog-form-check catalog-form-wide">
+              <input
+                checked={Boolean(draft.favorite)}
+                type="checkbox"
+                onChange={(event) => patchDraft({ favorite: event.target.checked })}
+              />
+              <span>Избранный материал для быстрого доступа</span>
+            </label>
+            {draft.section === "materials" && (
+              <>
+                <label>
+                  <span>Группа материалов</span>
+                  <input
+                    value={draft.materialGroup || ""}
+                    onChange={(event) =>
+                      patchDraft({
+                        materialGroup: event.target.value,
+                        materialGroupPath: [event.target.value, draft.materialSubgroup]
+                          .filter(Boolean)
+                          .join(" / "),
+                      })
+                    }
+                    placeholder="Пленки"
+                  />
+                </label>
+                <label className="catalog-form-wide">
+                  <span>Подгруппа</span>
+                  <input
+                    value={draft.materialSubgroup || ""}
+                    onChange={(event) =>
+                      patchDraft({
+                        materialSubgroup: event.target.value,
+                        materialGroupPath: [draft.materialGroup, event.target.value]
+                          .filter(Boolean)
+                          .join(" / "),
+                      })
+                    }
+                    placeholder="Пленки / Пленка ORACAL-641"
+                  />
+                </label>
+              </>
+            )}
             <label className="catalog-form-wide">
               <span>Источник</span>
               <input

@@ -70,6 +70,10 @@ export type CatalogItem = {
   unit: string;
   unitCost: number;
   source: string;
+  materialGroup?: string;
+  materialSubgroup?: string;
+  materialGroupPath?: string;
+  favorite?: boolean;
 };
 
 export type AppData<T> = {

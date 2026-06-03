@@ -34,7 +34,15 @@ export function filterCatalogItems(items: CatalogItem[], query: string, limit: n
   return items
     .filter((item) => {
       if (!needle) return true;
-      return [item.title, item.source, item.unit, sectionLabels[item.section]]
+      return [
+        item.title,
+        item.source,
+        item.unit,
+        item.materialGroup,
+        item.materialSubgroup,
+        item.materialGroupPath,
+        sectionLabels[item.section],
+      ]
         .join(" ")
         .toLowerCase()
         .includes(needle);
@@ -50,12 +58,18 @@ export function createEmptyCatalogItem(): CatalogItem {
     unit: "шт",
     unitCost: 0,
     source: "Ручной справочник",
+    favorite: false,
   };
 }
 
 export function normalizeCatalogItem(item: CatalogItem) {
   const title = item.title.trim();
   if (!title) return undefined;
+
+  const materialGroup = item.materialGroup?.trim() || "";
+  const materialSubgroup = item.materialSubgroup?.trim() || "";
+  const materialGroupPath =
+    item.materialGroupPath?.trim() || [materialGroup, materialSubgroup].filter(Boolean).join(" / ");
 
   return {
     ...item,
@@ -64,6 +78,10 @@ export function normalizeCatalogItem(item: CatalogItem) {
     unit: item.unit.trim() || "шт",
     unitCost: Number.isFinite(item.unitCost) ? item.unitCost : 0,
     source: item.source.trim() || "Ручной справочник",
+    materialGroup: materialGroup || undefined,
+    materialSubgroup: materialSubgroup || undefined,
+    materialGroupPath: materialGroupPath || undefined,
+    favorite: Boolean(item.favorite),
   };
 }
 
@@ -71,6 +89,24 @@ export function upsertCatalogItem(items: CatalogItem[], item: CatalogItem) {
   return items.some((current) => current.id === item.id)
     ? items.map((current) => (current.id === item.id ? item : current))
     : [...items, item];
+}
+
+export function materialGroupOptions(items: CatalogItem[]) {
+  return [...new Set(items
+    .filter((item) => item.section === "materials")
+    .map((item) => item.materialGroup || "Без группы")
+    .filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "ru"));
+}
+
+export function materialGroupLabel(item: CatalogItem) {
+  return item.materialGroupPath || [item.materialGroup, item.materialSubgroup].filter(Boolean).join(" / ");
+}
+
+export function toggleCatalogFavorite(items: CatalogItem[], itemId: string) {
+  return items.map((item) =>
+    item.id === itemId ? { ...item, favorite: !item.favorite } : item,
+  );
 }
 
 function createCatalogId(section: CostSection, title: string) {

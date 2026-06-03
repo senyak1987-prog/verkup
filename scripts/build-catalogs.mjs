@@ -79,11 +79,18 @@ async function readMaterials(file) {
   const header = rows[headerIndex].map(clean);
   const nameIdx = header.indexOf("Наименование");
   const unitIdx = header.indexOf("Ед. изм.");
+  let materialPath = [];
 
   for (const [index, row] of rows.slice(headerIndex + 1).entries()) {
     const title = clean(row[nameIdx]);
     const priceInfo = materialPrice(row);
     const price = priceInfo.price;
+
+    if (isMaterialGroupRow(row, nameIdx, unitIdx, title, price)) {
+      materialPath = materialPathParts(title);
+      continue;
+    }
+
     if (!title || !price) continue;
     const normalized = normalizeMaterialCost(title, clean(row[unitIdx]), price);
     addItem({
@@ -92,6 +99,10 @@ async function readMaterials(file) {
       unit: normalized.unit,
       unitCost: normalized.unitCost,
       source: `${path.basename(file)}; строка ${headerIndex + index + 2}; ${priceInfo.source}`,
+      materialGroup: materialPath[0] || "Без группы",
+      materialSubgroup: materialPath.slice(1).join(" / ") || undefined,
+      materialGroupPath: materialPath.join(" / ") || "Без группы",
+      favorite: false,
     });
   }
 }
@@ -132,6 +143,21 @@ function materialPrice(row) {
   }
 
   return { price: 0, source: "цена не найдена" };
+}
+
+function isMaterialGroupRow(row, nameIdx, unitIdx, title, price) {
+  if (!title || price) return false;
+  if (clean(row[unitIdx])) return false;
+  return row
+    .filter((_, index) => index !== nameIdx)
+    .every((cell) => !clean(cell));
+}
+
+function materialPathParts(title) {
+  return title
+    .split("/")
+    .map(clean)
+    .filter(Boolean);
 }
 
 function normalizeMaterialCost(title, unit, price) {
