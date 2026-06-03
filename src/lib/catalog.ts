@@ -2,8 +2,9 @@ import type { CatalogItem, CostSection } from "../types";
 
 export const sectionLabels: Record<CostSection, string> = {
   materials: "Материалы",
+  lighting: "Светотехника",
   assembly: "Сборка",
-  consumables: "Расходники",
+  consumables: "Расходники вручную",
   subcontract: "Подряд",
   milling: "Фрезеровка",
   print: "Печать",

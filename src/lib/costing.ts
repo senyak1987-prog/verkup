@@ -2,12 +2,35 @@ import type { CostPosition, Deal, DealCalculation } from "../types";
 
 const EXCLUDED_SECTIONS = new Set(["defects"]);
 const MOUNTING_SECTION = "mounting";
+const AUTO_CONSUMABLES_RATE = 0.07;
 
 export function positionTotal(position: CostPosition) {
-  return roundMoney((Number(position.qty) || 0) * (Number(position.unitCost) || 0));
+  return roundMoney(positionQuantity(position) * (Number(position.unitCost) || 0));
+}
+
+export function positionQuantity(position: CostPosition) {
+  const qty = Number(position.qty) || 0;
+
+  if (position.calcMode === "area") {
+    const width = Number(position.width) || 0;
+    const height = Number(position.height) || 0;
+    const area = width * height;
+    return roundMoney(area ? area * qty : qty);
+  }
+
+  if (position.calcMode === "linear") {
+    const length = Number(position.length) || 0;
+    return roundMoney(length ? length * qty : qty);
+  }
+
+  return roundMoney(qty);
 }
 
 export function cleanCost(calculation?: DealCalculation) {
+  return roundMoney(baseCleanCost(calculation) + autoConsumablesCost(calculation));
+}
+
+export function baseCleanCost(calculation?: DealCalculation) {
   if (!calculation) return 0;
   return roundMoney(
     calculation.positions
@@ -16,16 +39,19 @@ export function cleanCost(calculation?: DealCalculation) {
   );
 }
 
+export function autoConsumablesCost(calculation?: DealCalculation) {
+  return roundMoney(baseCleanCost(calculation) * AUTO_CONSUMABLES_RATE);
+}
+
 export function manufacturingCost(calculation?: DealCalculation) {
   if (!calculation) return 0;
-  return roundMoney(
-    calculation.positions
-      .filter(
-        (position) =>
-          !EXCLUDED_SECTIONS.has(position.section) && position.section !== MOUNTING_SECTION,
-      )
-      .reduce((sum, position) => sum + positionTotal(position), 0),
-  );
+  const positionsCost = calculation.positions
+    .filter(
+      (position) =>
+        !EXCLUDED_SECTIONS.has(position.section) && position.section !== MOUNTING_SECTION,
+    )
+    .reduce((sum, position) => sum + positionTotal(position), 0);
+  return roundMoney(positionsCost + autoConsumablesCost(calculation));
 }
 
 export function mountingCost(calculation?: DealCalculation) {

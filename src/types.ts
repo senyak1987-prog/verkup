@@ -21,6 +21,7 @@ export type DealStageCode = "launch" | "production";
 
 export type CostSection =
   | "materials"
+  | "lighting"
   | "assembly"
   | "consumables"
   | "subcontract"
@@ -31,6 +32,14 @@ export type CostSection =
   | "defects"
   | "other";
 
+export type CostCalcMode =
+  | "manual"
+  | "area"
+  | "linear"
+  | "pieces"
+  | "letterAssembly"
+  | "hourly";
+
 export type CostPosition = {
   id: string;
   section: CostSection;
@@ -39,6 +48,12 @@ export type CostPosition = {
   unit: string;
   unitCost: number;
   note?: string;
+  calcMode?: CostCalcMode;
+  width?: number;
+  height?: number;
+  length?: number;
+  thickness?: number;
+  addons?: string[];
 };
 
 export type DealCalculation = {

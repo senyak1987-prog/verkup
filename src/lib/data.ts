@@ -26,11 +26,11 @@ const fallbackCatalogs: AppData<CatalogItem> = {
     },
     {
       id: "consumables-power-100",
-      section: "consumables",
+      section: "lighting",
       title: "БП интерьер 100 Вт",
       unit: "шт",
       unitCost: 700,
-      source: "Расходники",
+      source: "Светотехника",
     },
     {
       id: "milling-material-4-5",

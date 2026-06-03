@@ -10,17 +10,29 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { CatalogItem, CostPosition, Deal, DealCalculation, StoredCalculations } from "../types";
+import type {
+  CatalogItem,
+  CostCalcMode,
+  CostPosition,
+  CostSection,
+  Deal,
+  DealCalculation,
+  StoredCalculations,
+} from "../types";
 import {
+  autoConsumablesCost,
+  baseCleanCost,
   cleanCost,
   defectsCost,
   finalCost,
   formatMoney,
   formatPercent,
   isAgentDeal,
-  margin,
   manufacturingCost,
+  margin,
   mountingCost,
+  positionQuantity,
+  positionTotal,
   profit,
   saleBreakdownForDeal,
 } from "../lib/costing";
@@ -44,6 +56,266 @@ type CostDrawerProps = {
   onChange: (calculation: DealCalculation) => void;
   onStageMoved: (dealId: string, stage: "launch" | "production") => void;
 };
+
+type BlockAction = {
+  label: string;
+  template: PositionTemplate;
+};
+
+type CostBlock = {
+  id: string;
+  title: string;
+  hint: string;
+  sections: CostSection[];
+  actions: BlockAction[];
+};
+
+type PositionTemplate = Omit<Partial<CostPosition>, "id"> & {
+  section: CostSection;
+  title: string;
+  calcMode: CostCalcMode;
+};
+
+const assemblyAddons = [
+  { id: "glue", label: "Склейка", unitCost: 250 },
+  { id: "face-film", label: "Накатка лица", unitCost: 50 },
+  { id: "side-film", label: "Накатка борта", unitCost: 50 },
+  { id: "leds", label: "Установка диодов", unitCost: 50 },
+  { id: "frame-install", label: "Установка на раму", unitCost: 100 },
+  { id: "backlight", label: "Контражур", unitCost: 50 },
+  { id: "light-sides", label: "Световые борта", unitCost: 350 },
+  { id: "acp-panel", label: "Сборка АКП панели", unitCost: 500 },
+  { id: "acp-film", label: "Накатка пленки на АКП", unitCost: 250 },
+  { id: "subframe", label: "Подрамник / усиление", unitCost: 350 },
+] as const;
+
+const costBlocks: CostBlock[] = [
+  {
+    id: "materials",
+    title: "1. Материалы / рама",
+    hint: "Листы считаются по м2, рама по погонным метрам.",
+    sections: ["materials"],
+    actions: [
+      {
+        label: "Материал м2",
+        template: {
+          section: "materials",
+          title: "Материал",
+          calcMode: "area",
+          unit: "м2",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Рама п/м",
+        template: {
+          section: "materials",
+          title: "Рама",
+          calcMode: "linear",
+          unit: "п/м",
+          unitCost: 0,
+        },
+      },
+    ],
+  },
+  {
+    id: "lighting",
+    title: "2. Светотехника",
+    hint: "Блоки, диоды и комплектующие по факту изготовления.",
+    sections: ["lighting", "consumables"],
+    actions: [
+      {
+        label: "Блок питания",
+        template: {
+          section: "lighting",
+          title: "Блок питания",
+          calcMode: "pieces",
+          unit: "шт",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Диоды",
+        template: {
+          section: "lighting",
+          title: "Диоды",
+          calcMode: "pieces",
+          unit: "шт",
+          unitCost: 0,
+        },
+      },
+    ],
+  },
+  {
+    id: "milling",
+    title: "3. Фрезеровка",
+    hint: "Материал, толщина и стоимость за погонный метр.",
+    sections: ["milling"],
+    actions: [
+      {
+        label: "Фрезеровка п/м",
+        template: {
+          section: "milling",
+          title: "Фрезеровка",
+          calcMode: "linear",
+          unit: "п/м",
+          unitCost: 0,
+        },
+      },
+    ],
+  },
+  {
+    id: "print",
+    title: "4. Пленки / баннеры / печать / плоттер",
+    hint: "Все позиции считаются по квадратным метрам.",
+    sections: ["print", "plotter"],
+    actions: [
+      {
+        label: "Печать м2",
+        template: {
+          section: "print",
+          title: "Печать",
+          calcMode: "area",
+          unit: "м2",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Пленка м2",
+        template: {
+          section: "print",
+          title: "Пленка",
+          calcMode: "area",
+          unit: "м2",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Плоттер м2",
+        template: {
+          section: "plotter",
+          title: "Плоттерная резка",
+          calcMode: "area",
+          unit: "м2",
+          unitCost: 0,
+        },
+      },
+    ],
+  },
+  {
+    id: "assembly",
+    title: "5. Сборка / работа",
+    hint: "Объемные буквы с наборами операций, АКП, монтаж и работа по часам.",
+    sections: ["assembly", "mounting", "subcontract", "other"],
+    actions: [
+      {
+        label: "Объемные буквы",
+        template: {
+          section: "assembly",
+          title: "Объемные буквы",
+          calcMode: "letterAssembly",
+          unit: "шт",
+          unitCost: 0,
+          addons: [],
+        },
+      },
+      {
+        label: "Сборка АКП",
+        template: {
+          section: "assembly",
+          title: "Сборка АКП панели",
+          calcMode: "letterAssembly",
+          unit: "шт",
+          unitCost: 0,
+          addons: ["acp-panel"],
+        },
+      },
+      {
+        label: "Работа/час",
+        template: {
+          section: "assembly",
+          title: "Работа",
+          calcMode: "hourly",
+          unit: "ч",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Монтаж",
+        template: {
+          section: "mounting",
+          title: "Монтаж",
+          calcMode: "pieces",
+          unit: "усл",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Подряд",
+        template: {
+          section: "subcontract",
+          title: "Подряд",
+          calcMode: "pieces",
+          unit: "усл",
+          unitCost: 0,
+        },
+      },
+    ],
+  },
+];
+
+const defectActions: BlockAction[] = [
+  {
+    label: "Материал",
+    template: {
+      section: "defects",
+      title: "Брак: материал",
+      calcMode: "area",
+      unit: "м2",
+      unitCost: 0,
+    },
+  },
+  {
+    label: "Свет",
+    template: {
+      section: "defects",
+      title: "Брак: светотехника",
+      calcMode: "pieces",
+      unit: "шт",
+      unitCost: 0,
+    },
+  },
+  {
+    label: "Фрезеровка",
+    template: {
+      section: "defects",
+      title: "Брак: фрезеровка",
+      calcMode: "linear",
+      unit: "п/м",
+      unitCost: 0,
+    },
+  },
+  {
+    label: "Печать",
+    template: {
+      section: "defects",
+      title: "Брак: печать",
+      calcMode: "area",
+      unit: "м2",
+      unitCost: 0,
+    },
+  },
+  {
+    label: "Работа/час",
+    template: {
+      section: "defects",
+      title: "Брак: работа",
+      calcMode: "hourly",
+      unit: "ч",
+      unitCost: 0,
+    },
+  },
+];
 
 export function CostDrawer({
   deal,
@@ -80,7 +352,6 @@ export function CostDrawer({
 
   const sales = saleBreakdownForDeal(deal, activeCalculation, storedCalculations.agentCostRatio);
   const isAgent = isAgentDeal(deal);
-  const dealCost = finalCost(activeCalculation);
   const currentStage = stageCodeForDeal(deal);
   const isLaunchDeal = currentStage === "launch";
   const isProductionDeal = currentStage === "production";
@@ -95,41 +366,38 @@ export function CostDrawer({
       updatedAt: new Date().toISOString(),
       positions,
     });
+    setSaveState("idle");
+    setMoveState("idle");
+  }
+
+  function addPosition(template: PositionTemplate) {
+    const position = normalizePosition({
+      id: crypto.randomUUID(),
+      qty: 1,
+      unit: "шт",
+      unitCost: 0,
+      ...template,
+    });
+
+    updatePositions([...activeCalculation.positions, position]);
   }
 
   function addCatalogItem(item: CatalogItem) {
-    updatePositions([
-      ...activeCalculation.positions,
-      {
-        id: crypto.randomUUID(),
-        section: item.section,
-        title: item.title,
-        qty: 1,
-        unit: item.unit,
-        unitCost: item.unitCost,
-        note: item.source,
-      },
-    ]);
-  }
-
-  function addEmptyPosition(section: CostPosition["section"]) {
-    updatePositions([
-      ...activeCalculation.positions,
-      {
-        id: crypto.randomUUID(),
-        section,
-        title: "",
-        qty: 1,
-        unit: "шт",
-        unitCost: 0,
-      },
-    ]);
+    addPosition({
+      section: item.section,
+      title: item.title,
+      calcMode: modeForCatalogItem(item),
+      qty: 1,
+      unit: item.unit,
+      unitCost: item.unitCost,
+      note: item.source,
+    });
   }
 
   function patchPosition(id: string, patch: Partial<CostPosition>) {
     updatePositions(
       activeCalculation.positions.map((position) =>
-        position.id === id ? { ...position, ...patch } : position,
+        position.id === id ? normalizePosition({ ...position, ...patch }) : position,
       ),
     );
   }
@@ -203,6 +471,8 @@ export function CostDrawer({
         <Summary label="Продажа всего" value={formatMoney(sales.totalSale)} />
         <Summary label="Изготовление" value={formatMoney(sales.productionSale)} />
         <Summary label="Монтаж" value={formatMoney(sales.installSale)} />
+        <Summary label="База без расходников" value={formatMoney(baseCleanCost(activeCalculation))} />
+        <Summary label="Расходники 7%" value={formatMoney(autoConsumablesCost(activeCalculation))} />
         <Summary label="Чистый себес" value={formatMoney(cleanCost(activeCalculation))} />
         <Summary label="Себес изделия" value={formatMoney(manufacturingCost(activeCalculation))} />
         <Summary label="Себес монтажа" value={formatMoney(mountingCost(activeCalculation))} />
@@ -249,81 +519,58 @@ export function CostDrawer({
           </button>
         </section>
 
-        <section className="positions">
-          <div className="section-title">
-            <h3>Позиции расчета</h3>
-            <div className="quick-add">
-              <button onClick={() => addEmptyPosition("materials")}>
-                <CirclePlus size={16} /> Материал
-              </button>
-              <button onClick={() => addEmptyPosition("assembly")}>
-                <CirclePlus size={16} /> Сборка
-              </button>
-              <button onClick={() => addEmptyPosition("print")}>
-                <CirclePlus size={16} /> Печать
-              </button>
-              <button onClick={() => addEmptyPosition("mounting")}>
-                <CirclePlus size={16} /> Монтаж
-              </button>
-              <button onClick={() => addEmptyPosition("subcontract")}>
-                <CirclePlus size={16} /> Подряд
-              </button>
-              <button onClick={() => addEmptyPosition("defects")}>
-                <CirclePlus size={16} /> Косяк
-              </button>
-            </div>
-          </div>
-
-          {activeCalculation.positions.map((position) => (
-            <div className="position-row" key={position.id}>
-              <select
-                value={position.section}
-                onChange={(event) =>
-                  patchPosition(position.id, { section: event.target.value as CostPosition["section"] })
-                }
-              >
-                {Object.entries(sectionLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="position-title"
-                value={position.title}
-                onChange={(event) => patchPosition(position.id, { title: event.target.value })}
-                placeholder="Позиция"
-              />
-              <input
-                type="number"
-                value={position.qty}
-                onChange={(event) => patchPosition(position.id, { qty: Number(event.target.value) })}
-              />
-              <input
-                value={position.unit}
-                onChange={(event) => patchPosition(position.id, { unit: event.target.value })}
-              />
-              <input
-                type="number"
-                value={position.unitCost}
-                onChange={(event) => patchPosition(position.id, { unitCost: Number(event.target.value) })}
-              />
-              <strong>{formatMoney(position.qty * position.unitCost)}</strong>
-              <button title="Удалить" onClick={() => deletePosition(position.id)}>
-                <Trash2 size={16} />
-              </button>
-              <input
-                className="position-note"
-                value={position.note || ""}
-                onChange={(event) => patchPosition(position.id, { note: event.target.value })}
-                placeholder="Комментарий / источник"
-              />
-            </div>
+        <section className="cost-builder">
+          {costBlocks.map((block) => (
+            <CostBlockView
+              block={block}
+              key={block.id}
+              positions={activeCalculation.positions.filter((position) =>
+                block.sections.includes(position.section),
+              )}
+              onAdd={addPosition}
+              onPatch={patchPosition}
+              onDelete={deletePosition}
+            />
           ))}
 
-          {!activeCalculation.positions.length && (
-            <p className="empty-state">Добавьте первую позицию из справочника или вручную.</p>
-          )}
+          <section className="calc-block auto-consumables">
+            <div className="calc-block-head">
+              <div>
+                <h3>6. Расходники</h3>
+                <p>Автоматически 7% от чистой базы без брака.</p>
+              </div>
+              <strong>{formatMoney(autoConsumablesCost(activeCalculation))}</strong>
+            </div>
+            <div className="auto-consumables-row">
+              <span>База: {formatMoney(baseCleanCost(activeCalculation))}</span>
+              <span>Коэффициент: 7%</span>
+              <span>Сумма: {formatMoney(autoConsumablesCost(activeCalculation))}</span>
+            </div>
+          </section>
+
+          <section className="calc-block defect-block">
+            <div className="calc-block-head">
+              <div>
+                <h3>7. Косяки / брак</h3>
+                <p>Учет исправлений отдельно от чистого себеса.</p>
+              </div>
+              <strong>{formatMoney(defectsCost(activeCalculation))}</strong>
+            </div>
+            <div className="calc-block-actions">
+              {defectActions.map((action) => (
+                <button key={action.label} onClick={() => addPosition(action.template)}>
+                  <CirclePlus size={16} />
+                  {action.label}
+                </button>
+              ))}
+            </div>
+            <PositionList
+              emptyText="Добавьте брак или переделку."
+              positions={activeCalculation.positions.filter((position) => position.section === "defects")}
+              onDelete={deletePosition}
+              onPatch={patchPosition}
+            />
+          </section>
         </section>
 
         <section className="github-save">
@@ -387,6 +634,228 @@ export function CostDrawer({
   );
 }
 
+function CostBlockView({
+  block,
+  positions,
+  onAdd,
+  onPatch,
+  onDelete,
+}: {
+  block: CostBlock;
+  positions: CostPosition[];
+  onAdd: (template: PositionTemplate) => void;
+  onPatch: (id: string, patch: Partial<CostPosition>) => void;
+  onDelete: (id: string) => void;
+}) {
+  const total = positions.reduce((sum, position) => sum + positionTotal(position), 0);
+
+  return (
+    <section className="calc-block">
+      <div className="calc-block-head">
+        <div>
+          <h3>{block.title}</h3>
+          <p>{block.hint}</p>
+        </div>
+        <strong>{formatMoney(total)}</strong>
+      </div>
+      <div className="calc-block-actions">
+        {block.actions.map((action) => (
+          <button key={action.label} onClick={() => onAdd(action.template)}>
+            <CirclePlus size={16} />
+            {action.label}
+          </button>
+        ))}
+      </div>
+      <PositionList
+        emptyText="Пока нет позиций в этом блоке."
+        positions={positions}
+        onDelete={onDelete}
+        onPatch={onPatch}
+      />
+    </section>
+  );
+}
+
+function PositionList({
+  emptyText,
+  positions,
+  onPatch,
+  onDelete,
+}: {
+  emptyText: string;
+  positions: CostPosition[];
+  onPatch: (id: string, patch: Partial<CostPosition>) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (!positions.length) {
+    return <p className="calc-block-empty">{emptyText}</p>;
+  }
+
+  return (
+    <div className="calc-lines">
+      {positions.map((position) => (
+        <PositionEditor
+          key={position.id}
+          position={position}
+          onDelete={() => onDelete(position.id)}
+          onPatch={(patch) => onPatch(position.id, patch)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function PositionEditor({
+  position,
+  onPatch,
+  onDelete,
+}: {
+  position: CostPosition;
+  onPatch: (patch: Partial<CostPosition>) => void;
+  onDelete: () => void;
+}) {
+  const quantity = positionQuantity(position);
+  const total = positionTotal(position);
+
+  function patchNumber(field: keyof CostPosition, value: string) {
+    onPatch({ [field]: Number(value) } as Partial<CostPosition>);
+  }
+
+  function toggleAddon(addonId: string) {
+    const current = new Set(position.addons || []);
+    if (current.has(addonId)) current.delete(addonId);
+    else current.add(addonId);
+
+    const addons = [...current];
+    onPatch({
+      addons,
+      unitCost: assemblyAddonsTotal(addons),
+    });
+  }
+
+  return (
+    <div className="calc-position">
+      <div className="position-main">
+        <input
+          className="position-title"
+          value={position.title}
+          onChange={(event) => onPatch({ title: event.target.value })}
+          placeholder="Позиция"
+        />
+        <button title="Удалить" onClick={onDelete}>
+          <Trash2 size={16} />
+        </button>
+      </div>
+
+      {position.calcMode === "area" && (
+        <div className="field-grid">
+          <NumberField label="Ширина, м" value={position.width} onChange={(value) => patchNumber("width", value)} />
+          <NumberField label="Высота, м" value={position.height} onChange={(value) => patchNumber("height", value)} />
+          <NumberField label="Кол-во" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+          <NumberField label="Цена / м2" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+        </div>
+      )}
+
+      {position.calcMode === "linear" && (
+        <div className="field-grid">
+          <NumberField label="Длина, м" value={position.length} onChange={(value) => patchNumber("length", value)} />
+          <NumberField label="Кол-во" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+          <NumberField
+            label={position.section === "milling" || position.title.toLowerCase().includes("фрез") ? "Толщина, мм" : "Толщина / профиль"}
+            value={position.thickness}
+            onChange={(value) => patchNumber("thickness", value)}
+          />
+          <NumberField label="Цена / п.м" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+        </div>
+      )}
+
+      {(position.calcMode === "pieces" || position.calcMode === "manual" || !position.calcMode) && (
+        <div className="field-grid">
+          <NumberField label="Кол-во" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+          <TextField label="Ед." value={position.unit} onChange={(value) => onPatch({ unit: value })} />
+          <NumberField label="Цена / ед." value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+        </div>
+      )}
+
+      {position.calcMode === "hourly" && (
+        <div className="field-grid">
+          <NumberField label="Часы" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+          <NumberField label="Ставка / час" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+        </div>
+      )}
+
+      {position.calcMode === "letterAssembly" && (
+        <>
+          <div className="field-grid">
+            <NumberField label="Кол-во ед." value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+            <NumberField label="Цена / ед." value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+          </div>
+          <div className="addons-grid">
+            {assemblyAddons.map((addon) => (
+              <label key={addon.id}>
+                <input
+                  checked={(position.addons || []).includes(addon.id)}
+                  type="checkbox"
+                  onChange={() => toggleAddon(addon.id)}
+                />
+                <span>{addon.label}</span>
+                <small>{formatMoney(addon.unitCost)}</small>
+              </label>
+            ))}
+          </div>
+        </>
+      )}
+
+      <input
+        className="position-note"
+        value={position.note || ""}
+        onChange={(event) => onPatch({ note: event.target.value })}
+        placeholder="Комментарий / источник"
+      />
+      <div className="position-total-row">
+        <span>
+          {formatQuantity(quantity)} {position.unit}
+        </span>
+        <strong>{formatMoney(total)}</strong>
+      </div>
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value?: number;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input type="number" value={value ?? ""} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="field">
+      <span>{label}</span>
+      <input value={value ?? ""} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
 function Summary({ label, value }: { label: string; value: string }) {
   return (
     <div className="summary">
@@ -394,6 +863,63 @@ function Summary({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function normalizePosition(position: CostPosition): CostPosition {
+  const calcMode = position.calcMode || modeForUnit(position.unit);
+  const unit = unitForMode(calcMode, position.unit);
+  const addons = position.addons || [];
+
+  return {
+    ...position,
+    calcMode,
+    unit,
+    qty: Number.isFinite(Number(position.qty)) ? Number(position.qty) : 1,
+    unitCost:
+      calcMode === "letterAssembly" && addons.length
+        ? assemblyAddonsTotal(addons)
+        : Number.isFinite(Number(position.unitCost))
+          ? Number(position.unitCost)
+          : 0,
+  };
+}
+
+function modeForCatalogItem(item: CatalogItem): CostCalcMode {
+  if (item.section === "materials") return modeForUnit(item.unit);
+  if (item.section === "milling") return "linear";
+  if (item.section === "print" || item.section === "plotter") return "area";
+  if (item.section === "assembly") return "pieces";
+  if (item.section === "lighting") return "pieces";
+  if (item.section === "mounting") return "pieces";
+  if (item.section === "defects") return modeForUnit(item.unit);
+  return modeForUnit(item.unit);
+}
+
+function modeForUnit(unit?: string): CostCalcMode {
+  const normalized = (unit || "").toLowerCase();
+  if (normalized.includes("м2") || normalized.includes("м²") || normalized.includes("кв")) return "area";
+  if (normalized.includes("п/м") || normalized.includes("п.м") || normalized.includes("пог")) return "linear";
+  if (normalized.includes("ч")) return "hourly";
+  return "pieces";
+}
+
+function unitForMode(mode: CostCalcMode, fallback?: string) {
+  if (mode === "area") return "м2";
+  if (mode === "linear") return "п/м";
+  if (mode === "hourly") return "ч";
+  return fallback || "шт";
+}
+
+function assemblyAddonsTotal(addons: string[]) {
+  return assemblyAddons
+    .filter((addon) => addons.includes(addon.id))
+    .reduce((sum, addon) => sum + addon.unitCost, 0);
+}
+
+function formatQuantity(value: number) {
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(value) ? value : 0);
 }
 
 function upsertCalculation(stored: StoredCalculations, calculation: DealCalculation) {
