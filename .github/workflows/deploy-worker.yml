@@ -31,7 +31,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           WORKER_GITHUB_TOKEN: ${{ secrets.WORKER_GITHUB_TOKEN }}
         run: |
-          printf "%s" "$WORKER_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN --config worker/wrangler.toml
+          if [ -n "$WORKER_GITHUB_TOKEN" ]; then
+            printf "%s" "$WORKER_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN --config worker/wrangler.toml
+          else
+            echo "WORKER_GITHUB_TOKEN is empty; keeping existing Worker secret."
+          fi
 
       - name: Put Worker Bitrix webhook secret
         env:
@@ -39,7 +43,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           BITRIX_WEBHOOK_URL: ${{ secrets.BITRIX_WEBHOOK_URL }}
         run: |
-          printf "%s" "$BITRIX_WEBHOOK_URL" | npx wrangler secret put BITRIX_WEBHOOK_URL --config worker/wrangler.toml
+          if [ -n "$BITRIX_WEBHOOK_URL" ]; then
+            printf "%s" "$BITRIX_WEBHOOK_URL" | npx wrangler secret put BITRIX_WEBHOOK_URL --config worker/wrangler.toml
+          else
+            echo "BITRIX_WEBHOOK_URL is empty; keeping existing Worker secret."
+          fi
 
       - name: Deploy Worker
         env:
