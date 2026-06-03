@@ -1,4 +1,4 @@
-import { Database, ExternalLink, FilterX, Pencil, RotateCcw, Search } from "lucide-react";
+import { ArrowDownUp, Database, ExternalLink, FilterX, Pencil, RotateCcw, Search } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { Deal, DealCalculation, DealStageCode } from "../types";
@@ -17,14 +17,15 @@ import { stageLabels } from "../lib/stages";
 const COLUMN_STORAGE_KEY = "verkupDealColumnWidths";
 
 const tableColumns = [
-  { id: "deal", label: "Сделка", defaultWidth: 280, minWidth: 180 },
-  { id: "source", label: "Источник", defaultWidth: 180, minWidth: 150 },
-  { id: "type", label: "Тип", defaultWidth: 240, minWidth: 130 },
-  { id: "responsible", label: "Ответственный", defaultWidth: 190, minWidth: 160 },
-  { id: "dates", label: "Даты", defaultWidth: 220, minWidth: 180 },
-  { id: "sales", label: "Продажа / монтаж", defaultWidth: 230, minWidth: 150 },
-  { id: "cost", label: "Себестоимость", defaultWidth: 190, minWidth: 150 },
-  { id: "profit", label: "Прибыль", defaultWidth: 110, minWidth: 90 },
+  { id: "deal", label: "Сделка", defaultWidth: 250, minWidth: 170 },
+  { id: "source", label: "Источник", defaultWidth: 150, minWidth: 120 },
+  { id: "type", label: "Тип", defaultWidth: 200, minWidth: 130 },
+  { id: "responsible", label: "Ответственный", defaultWidth: 165, minWidth: 130 },
+  { id: "startDate", label: "Дата запуска", defaultWidth: 125, minWidth: 110 },
+  { id: "finishDate", label: "Предп. закрытия", defaultWidth: 145, minWidth: 125 },
+  { id: "sales", label: "Продажа / монтаж", defaultWidth: 195, minWidth: 145 },
+  { id: "cost", label: "Себестоимость", defaultWidth: 170, minWidth: 140 },
+  { id: "profit", label: "Прибыль", defaultWidth: 105, minWidth: 85 },
   { id: "actions", label: "", defaultWidth: 80, minWidth: 72 },
 ] as const;
 
@@ -35,16 +36,18 @@ type ColumnWidths = Record<ColumnId, number>;
 type ColumnFilters = {
   source: string;
   responsible: string;
-  dateFrom: string;
-  dateTo: string;
 };
 
 const emptyColumnFilters: ColumnFilters = {
   source: "",
   responsible: "",
-  dateFrom: "",
-  dateTo: "",
 };
+
+type SortColumnId = Extract<ColumnId, "startDate" | "finishDate">;
+type DateSort = {
+  column: SortColumnId;
+  direction: "asc" | "desc";
+} | null;
 
 type DealTableProps = {
   deals: Deal[];
@@ -79,6 +82,7 @@ export function DealTable({
 }: DealTableProps) {
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(() => loadColumnWidths());
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>(emptyColumnFilters);
+  const [dateSort, setDateSort] = useState<DateSort>(null);
 
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnWidths));
@@ -97,10 +101,11 @@ export function DealTable({
     [deals],
   );
 
-  const visibleDeals = useMemo(
-    () => deals.filter((deal) => matchesColumnFilters(deal, columnFilters)),
-    [columnFilters, deals],
-  );
+  const visibleDeals = useMemo(() => {
+    const filteredDeals = deals.filter((deal) => matchesColumnFilters(deal, columnFilters));
+    if (!dateSort) return filteredDeals;
+    return [...filteredDeals].sort((first, second) => compareDealsByDate(first, second, dateSort));
+  }, [columnFilters, dateSort, deals]);
 
   const hasColumnFilters = Object.values(columnFilters).some(Boolean);
 
@@ -153,6 +158,15 @@ export function DealTable({
 
   function resetColumnFilters() {
     setColumnFilters(emptyColumnFilters);
+  }
+
+  function toggleDateSort(column: SortColumnId) {
+    setDateSort((current) => {
+      if (!current || current.column !== column) {
+        return { column, direction: "asc" };
+      }
+      return { column, direction: current.direction === "asc" ? "desc" : "asc" };
+    });
   }
 
   return (
@@ -228,8 +242,10 @@ export function DealTable({
                   <ColumnHeader
                     column={column}
                     filters={columnFilters}
+                    sort={dateSort}
                     options={filterOptions}
                     onChange={patchColumnFilters}
+                    onSort={toggleDateSort}
                   />
                   <span
                     aria-label={`Изменить ширину: ${column.label || "действия"}`}
@@ -270,10 +286,8 @@ export function DealTable({
                     <td>{deal.source || "-"}</td>
                     <td>{deal.type || "-"}</td>
                     <td>{deal.responsible || "-"}</td>
-                    <td>
-                      <span>{formatDate(deal.startDate) || "запуск не указан"}</span>
-                      <small>{formatDate(deal.expectedFinishDate) || "финиш не указан"}</small>
-                    </td>
+                    <td>{formatDate(deal.startDate) || "Не указана"}</td>
+                    <td>{formatDate(deal.expectedFinishDate) || "Не указана"}</td>
                     <td>
                       {formatMoney(sales.totalSale)}
                       <small>
@@ -318,7 +332,7 @@ export function DealTable({
             })}
             {!visibleDeals.length && (
               <tr>
-                <td className="empty" colSpan={9}>
+                <td className="empty" colSpan={tableColumns.length}>
                   Сделки не найдены. Проверьте синхронизацию Bitrix24 или фильтр поиска.
                 </td>
               </tr>
@@ -333,17 +347,36 @@ export function DealTable({
 function ColumnHeader({
   column,
   filters,
+  sort,
   options,
   onChange,
+  onSort,
 }: {
   column: TableColumn;
   filters: ColumnFilters;
+  sort: DateSort;
   options: { sources: string[]; responsibles: string[] };
   onChange: (patch: Partial<ColumnFilters>) => void;
+  onSort: (column: SortColumnId) => void;
 }) {
+  const isDateColumn = column.id === "startDate" || column.id === "finishDate";
+  const isActiveSort = isDateColumn && sort?.column === column.id;
+
   return (
     <div className="column-head">
-      <span className="column-label">{column.label}</span>
+      {isDateColumn ? (
+        <button
+          className={isActiveSort ? "sort-button active" : "sort-button"}
+          onClick={() => onSort(column.id)}
+          title={`Сортировать: ${column.label}`}
+          type="button"
+        >
+          <span>{column.label}</span>
+          {isActiveSort ? (sort.direction === "asc" ? "↑" : "↓") : <ArrowDownUp size={13} />}
+        </button>
+      ) : (
+        <span className="column-label">{column.label}</span>
+      )}
       {column.id === "source" && (
         <select
           className="column-filter"
@@ -373,24 +406,6 @@ function ColumnHeader({
             </option>
           ))}
         </select>
-      )}
-      {column.id === "dates" && (
-        <div className="date-filter-grid" onClick={(event) => event.stopPropagation()}>
-          <input
-            aria-label="Дата с"
-            title="Дата с"
-            type="date"
-            value={filters.dateFrom}
-            onChange={(event) => onChange({ dateFrom: event.target.value })}
-          />
-          <input
-            aria-label="Дата по"
-            title="Дата по"
-            type="date"
-            value={filters.dateTo}
-            onChange={(event) => onChange({ dateTo: event.target.value })}
-          />
-        </div>
       )}
     </div>
   );
@@ -452,32 +467,22 @@ function uniqueValues(values: string[]) {
 function matchesColumnFilters(deal: Deal, filters: ColumnFilters) {
   if (filters.source && deal.source !== filters.source) return false;
   if (filters.responsible && deal.responsible !== filters.responsible) return false;
-  return matchesDateRange(deal, filters.dateFrom, filters.dateTo);
-}
-
-function matchesDateRange(deal: Deal, dateFrom: string, dateTo: string) {
-  if (!dateFrom && !dateTo) return true;
-
-  const from = dateFrom ? startOfDay(dateFrom) : undefined;
-  const to = dateTo ? endOfDay(dateTo) : undefined;
-  const dealDates = [deal.startDate, deal.expectedFinishDate]
-    .map((value) => Date.parse(value))
-    .filter((value) => Number.isFinite(value));
-
-  if (!dealDates.length) return false;
-
-  const dealStart = Math.min(...dealDates);
-  const dealFinish = Math.max(...dealDates);
-
-  if (from !== undefined && dealFinish < from) return false;
-  if (to !== undefined && dealStart > to) return false;
   return true;
 }
 
-function startOfDay(value: string) {
-  return new Date(`${value}T00:00:00`).getTime();
+function compareDealsByDate(first: Deal, second: Deal, sort: NonNullable<DateSort>) {
+  const firstValue = dealDateValue(first, sort.column);
+  const secondValue = dealDateValue(second, sort.column);
+
+  if (firstValue === secondValue) return Number(first.number) - Number(second.number);
+  if (!Number.isFinite(firstValue)) return 1;
+  if (!Number.isFinite(secondValue)) return -1;
+
+  const result = firstValue - secondValue;
+  return sort.direction === "asc" ? result : -result;
 }
 
-function endOfDay(value: string) {
-  return new Date(`${value}T23:59:59.999`).getTime();
+function dealDateValue(deal: Deal, column: SortColumnId) {
+  const value = column === "startDate" ? deal.startDate : deal.expectedFinishDate;
+  return value ? Date.parse(value) : Number.NaN;
 }
