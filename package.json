@@ -12,7 +12,7 @@
     "bitrix:fields": "node scripts/inspect-bitrix-fields.mjs",
     "bitrix:stages": "node scripts/inspect-bitrix-stages.mjs",
     "catalogs:build": "node scripts/build-catalogs.mjs",
-    "worker:deploy": "npx wrangler deploy --config worker/wrangler.toml"
+    "worker:deploy": "wrangler deploy --config worker/wrangler.toml"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -25,6 +25,7 @@
     "@types/react-dom": "^18.3.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
+    "wrangler": "^4.97.0",
     "xlsx": "^0.18.5"
   }
 }
