@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-06-02T22:12:55.916Z",
+  "generatedAt": "2026-06-03T06:45:47.152Z",
   "items": [
     {
       "id": "16874",
       "number": "16874",
       "title": "Тест",
-      "stageId": "4",
-      "stageCode": "launch",
+      "stageId": "10",
+      "stageCode": "production",
       "source": "Повтор (уже заказывали)",
       "type": "Изготовление + Монтаж",
       "classification": "Буквы",
@@ -16,7 +16,7 @@
       "startDate": "2026-06-02T03:00:00+03:00",
       "expectedFinishDate": "2026-06-09T03:00:00+03:00",
       "createdDate": "2026-06-02T13:01:31+03:00",
-      "stageName": "Запустить в Производство (пр)",
+      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16874/"
     },
     {
@@ -180,24 +180,6 @@
       "createdDate": "2026-06-01T18:07:51+03:00",
       "stageName": "В ПРОИЗВОДСТВЕ (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16862/"
-    },
-    {
-      "id": "16760",
-      "number": "16760",
-      "title": "Шеф порт Серпухов",
-      "stageId": "10",
-      "stageCode": "production",
-      "source": "Повтор (уже заказывали)",
-      "type": "Изготовление + Монтаж",
-      "classification": "Буквы",
-      "saleAmount": 130660,
-      "installSaleAmount": 20000,
-      "responsible": "Антон Исаков",
-      "startDate": "2026-05-24T03:00:00+03:00",
-      "expectedFinishDate": "2026-05-31T03:00:00+03:00",
-      "createdDate": "2026-05-24T13:29:29+03:00",
-      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16760/"
     },
     {
       "id": "16844",
