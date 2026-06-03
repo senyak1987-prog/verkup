@@ -3,6 +3,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
+  ChevronRight,
   CirclePlus,
   Database,
   Save,
@@ -38,7 +40,6 @@ import {
   saleBreakdownForDeal,
 } from "../lib/costing";
 import {
-  catalogGroups,
   filterCatalogItems,
   materialFamilyOptions,
   materialFamilyValue,
@@ -81,6 +82,8 @@ type CostBlock = {
   sections: CostSection[];
   actions: BlockAction[];
   isOther?: boolean;
+  catalogSections?: CostSection[];
+  catalogTargetSection?: CostSection;
 };
 
 type PositionTemplate = Omit<Partial<CostPosition>, "id"> & {
@@ -350,6 +353,16 @@ const defectActions: BlockAction[] = [
   },
 ];
 
+const defectBlock: CostBlock = {
+  id: "defects",
+  title: "8. Косяки / брак",
+  hint: "Учет исправлений отдельно от чистого себеса.",
+  sections: ["defects"],
+  catalogSections: ["materials", "lighting", "milling", "print", "plotter", "assembly", "mounting", "subcontract"],
+  catalogTargetSection: "defects",
+  actions: defectActions,
+};
+
 export function CostDrawer({
   deal,
   calculation,
@@ -361,10 +374,7 @@ export function CostDrawer({
   onCatalogChange,
   onStageMoved,
 }: CostDrawerProps) {
-  const [catalogQuery, setCatalogQuery] = useState("");
-  const [activeCatalogGroupId, setActiveCatalogGroupId] = useState<string>("materials");
-  const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
-  const [activeMaterialFamily, setActiveMaterialFamily] = useState("");
+  const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
   const [moveState, setMoveState] = useState<"idle" | "moving" | "moved" | "error">("idle");
@@ -380,28 +390,6 @@ export function CostDrawer({
       }
     );
   }, [calculation, deal?.id]);
-
-  const activeCatalogGroup =
-    catalogGroups.find((group) => group.id === activeCatalogGroupId) || catalogGroups[0];
-  const materialGroups = useMemo(() => materialGroupOptions(catalogItems), [catalogItems]);
-  const materialFamilies = useMemo(
-    () => materialFamilyOptions(catalogItems, activeMaterialGroup),
-    [activeMaterialGroup, catalogItems],
-  );
-  const favoriteMaterials = catalogItems
-    .filter((item) => item.section === "materials" && item.favorite)
-    .slice(0, 12);
-  const groupCatalogItems = catalogItems
-    .filter((item) => activeCatalogGroup.sections.some((section) => section === item.section))
-    .filter((item) => {
-      if (activeCatalogGroup.id !== "materials" || !activeMaterialGroup) return true;
-      return (item.materialGroup || "Без группы") === activeMaterialGroup;
-    })
-    .filter((item) => {
-      if (activeCatalogGroup.id !== "materials" || !activeMaterialFamily) return true;
-      return materialFamilyValue(item) === activeMaterialFamily;
-    });
-  const filteredCatalog = filterCatalogItems(groupCatalogItems, catalogQuery, 18);
 
   if (!deal) {
     return null;
@@ -441,10 +429,11 @@ export function CostDrawer({
     updatePositions([...activeCalculation.positions, position]);
   }
 
-  function addCatalogItem(item: CatalogItem) {
+  function addCatalogItem(item: CatalogItem, targetSection?: CostSection) {
+    const section = targetSection || item.section;
     addPosition({
-      section: item.section,
-      title: item.title,
+      section,
+      title: section === "defects" ? `Брак: ${item.title}` : item.title,
       calcMode: modeForCatalogItem(item),
       qty: 1,
       unit: item.unit,
@@ -546,9 +535,15 @@ export function CostDrawer({
           <h2>{deal.title}</h2>
           <p>{deal.responsible || "Ответственный не указан"}</p>
         </div>
-        <button title="Закрыть" onClick={onClose}>
-          <X size={20} />
-        </button>
+        <div className="drawer-actions">
+          <button className="secondary compact" onClick={onOpenCatalog}>
+            <Database size={16} />
+            Справочник
+          </button>
+          <button title="Закрыть" onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
       </div>
 
       <section className="summary-grid">
@@ -577,131 +572,20 @@ export function CostDrawer({
       )}
 
       <div className="cost-popover-grid">
-        <section className="catalog-panel">
-          <div className="section-title">
-            <h3>Добавить из справочника</h3>
-            <span>{catalogItems.length} позиций</span>
-          </div>
-          <input
-            value={catalogQuery}
-            onChange={(event) => setCatalogQuery(event.target.value)}
-            placeholder="Материал, сборка, фрезеровка..."
-          />
-          <div className="catalog-group-tabs">
-            {catalogGroups.map((group) => {
-              const count = catalogItems.filter((item) => group.sections.some((section) => section === item.section)).length;
-              return (
-                <button
-                  className={activeCatalogGroup.id === group.id ? "active" : ""}
-                  key={group.id}
-                  onClick={() => {
-                    setActiveCatalogGroupId(group.id);
-                    if (group.id !== "materials") {
-                      setActiveMaterialGroup("");
-                      setActiveMaterialFamily("");
-                    }
-                  }}
-                >
-                  <span>{group.label}</span>
-                  <small>{count}</small>
-                </button>
-              );
-            })}
-          </div>
-          {activeCatalogGroup.id === "materials" && (
-            <>
-              <label className="material-group-filter">
-                <span>Группа материалов</span>
-                <select
-                  value={activeMaterialGroup}
-                  onChange={(event) => {
-                    setActiveMaterialGroup(event.target.value);
-                    setActiveMaterialFamily("");
-                  }}
-                >
-                  <option value="">Все группы</option>
-                  {materialGroups.map((group) => (
-                    <option key={group} value={group}>
-                      {group}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {activeMaterialGroup && (
-                <label className="material-group-filter">
-                  <span>Подгруппа</span>
-                  <select
-                    value={activeMaterialFamily}
-                    onChange={(event) => setActiveMaterialFamily(event.target.value)}
-                  >
-                    <option value="">Все подгруппы</option>
-                    {materialFamilies.map((family) => (
-                      <option key={family} value={family}>
-                        {family}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <div className="favorite-materials">
-                <div className="section-title compact">
-                  <h3>Избранные материалы</h3>
-                  <span>{favoriteMaterials.length}</span>
-                </div>
-                <div className="favorite-material-list">
-                  {favoriteMaterials.map((item) => (
-                    <button key={item.id} onClick={() => addCatalogItem(item)}>
-                      <span>{item.title}</span>
-                      <small>{formatMoney(item.unitCost)} / {item.unit}</small>
-                    </button>
-                  ))}
-                  {!favoriteMaterials.length && (
-                    <p className="empty-state compact">Отметьте материалы звездой, чтобы они появились здесь.</p>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-          <div className="catalog-list">
-            {filteredCatalog.map((item) => (
-              <div className="catalog-item-card" key={item.id}>
-                <button className="catalog-item-main" onClick={() => addCatalogItem(item)}>
-                  <span>{item.title}</span>
-                  <small>
-                    {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
-                    {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
-                  </small>
-                </button>
-                {item.section === "materials" && (
-                  <button
-                    className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
-                    onClick={() => toggleFavorite(item)}
-                    title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
-                  >
-                    <Star size={15} />
-                  </button>
-                )}
-              </div>
-            ))}
-            {!filteredCatalog.length && (
-              <p className="calc-block-empty">В этом блоке справочника позиции не найдены.</p>
-            )}
-          </div>
-          <button className="secondary full" onClick={onOpenCatalog}>
-            <Database size={16} />
-            Открыть справочник
-          </button>
-        </section>
-
         <section className="cost-builder">
           {costBlocks.map((block) => (
             <CostBlockView
               block={block}
+              catalogItems={catalogItems}
+              isOpen={expandedBlockId === block.id}
               key={block.id}
               positions={activeCalculation.positions.filter((position) =>
                 block.sections.includes(position.section),
               )}
               onAdd={addPosition}
+              onAddCatalog={addCatalogItem}
+              onToggle={() => setExpandedBlockId((current) => current === block.id ? null : block.id)}
+              onToggleFavorite={toggleFavorite}
               onPatch={patchPosition}
               onDelete={deletePosition}
             />
@@ -722,29 +606,18 @@ export function CostDrawer({
             </div>
           </section>
 
-          <section className="calc-block defect-block">
-            <div className="calc-block-head">
-              <div>
-                <h3>8. Косяки / брак</h3>
-                <p>Учет исправлений отдельно от чистого себеса.</p>
-              </div>
-              <strong>{formatMoney(defectsCost(activeCalculation))}</strong>
-            </div>
-            <div className="calc-block-actions">
-              {defectActions.map((action) => (
-                <button key={action.label} onClick={() => addPosition(action.template)}>
-                  <CirclePlus size={16} />
-                  {action.label}
-                </button>
-              ))}
-            </div>
-            <PositionList
-              emptyText="Добавьте брак или переделку."
-              positions={activeCalculation.positions.filter((position) => position.section === "defects")}
-              onDelete={deletePosition}
-              onPatch={patchPosition}
+          <CostBlockView
+            block={defectBlock}
+            catalogItems={catalogItems}
+            isOpen={expandedBlockId === defectBlock.id}
+            positions={activeCalculation.positions.filter((position) => position.section === "defects")}
+            onAdd={addPosition}
+            onAddCatalog={addCatalogItem}
+            onDelete={deletePosition}
+            onPatch={patchPosition}
+            onToggle={() => setExpandedBlockId((current) => current === defectBlock.id ? null : defectBlock.id)}
+            onToggleFavorite={toggleFavorite}
             />
-          </section>
         </section>
 
         <section className="github-save">
@@ -810,43 +683,209 @@ export function CostDrawer({
 
 function CostBlockView({
   block,
+  catalogItems,
+  isOpen,
   positions,
   onAdd,
+  onAddCatalog,
+  onToggle,
+  onToggleFavorite,
   onPatch,
   onDelete,
 }: {
   block: CostBlock;
+  catalogItems: CatalogItem[];
+  isOpen: boolean;
   positions: CostPosition[];
   onAdd: (template: PositionTemplate) => void;
+  onAddCatalog: (item: CatalogItem, targetSection?: CostSection) => void;
+  onToggle: () => void;
+  onToggleFavorite: (item: CatalogItem) => void;
   onPatch: (id: string, patch: Partial<CostPosition>) => void;
   onDelete: (id: string) => void;
 }) {
   const total = positions.reduce((sum, position) => sum + positionTotal(position), 0);
 
   return (
-    <section className="calc-block">
-      <div className="calc-block-head">
+    <section className={`calc-block ${isOpen ? "open" : "collapsed"}`}>
+      <button className="calc-block-row" onClick={onToggle}>
         <div>
           <h3>{block.title}</h3>
           <p>{block.hint}</p>
         </div>
-        <strong>{formatMoney(total)}</strong>
-      </div>
-      <div className="calc-block-actions">
-        {block.actions.map((action) => (
-          <button key={action.label} onClick={() => onAdd(action.template)}>
-            <CirclePlus size={16} />
-            {action.label}
-          </button>
-        ))}
-      </div>
-      <PositionList
-        emptyText="Пока нет позиций в этом блоке."
-        positions={positions}
-        onDelete={onDelete}
-        onPatch={onPatch}
-      />
+        <span className="calc-block-row-meta">
+          <small>{positions.length} поз.</small>
+          <strong>{formatMoney(total)}</strong>
+          {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+        </span>
+      </button>
+      {isOpen && (
+        <div className="calc-block-body">
+          <BlockCatalogPicker
+            block={block}
+            catalogItems={catalogItems}
+            onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
+            onToggleFavorite={onToggleFavorite}
+          />
+          <div className="calc-block-actions">
+            {block.actions.map((action) => (
+              <button key={action.label} onClick={() => onAdd(action.template)}>
+                <CirclePlus size={16} />
+                {action.label}
+              </button>
+            ))}
+          </div>
+          <PositionList
+            emptyText="Пока нет позиций в этом блоке."
+            positions={positions}
+            onDelete={onDelete}
+            onPatch={onPatch}
+          />
+        </div>
+      )}
     </section>
+  );
+}
+
+function BlockCatalogPicker({
+  block,
+  catalogItems,
+  onAdd,
+  onToggleFavorite,
+}: {
+  block: CostBlock;
+  catalogItems: CatalogItem[];
+  onAdd: (item: CatalogItem) => void;
+  onToggleFavorite: (item: CatalogItem) => void;
+}) {
+  const catalogSections = block.catalogSections || block.sections;
+  const [query, setQuery] = useState("");
+  const [activeSection, setActiveSection] = useState<CostSection | "">("");
+  const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
+  const [activeMaterialFamily, setActiveMaterialFamily] = useState("");
+  const sectionItems = catalogItems.filter((item) =>
+    catalogSections.some((section) => section === item.section),
+  );
+  const materialGroups = useMemo(() => materialGroupOptions(sectionItems), [sectionItems]);
+  const materialFamilies = useMemo(
+    () => materialFamilyOptions(sectionItems, activeMaterialGroup),
+    [activeMaterialGroup, sectionItems],
+  );
+  const showSectionFilter = catalogSections.length > 1;
+  const showMaterialFilters =
+    catalogSections.includes("materials") && (!activeSection || activeSection === "materials");
+  const filteredItems = filterCatalogItems(
+    sectionItems
+      .filter((item) => !activeSection || item.section === activeSection)
+      .filter((item) => !activeMaterialGroup || (item.materialGroup || "Без группы") === activeMaterialGroup)
+      .filter((item) => !activeMaterialFamily || materialFamilyValue(item) === activeMaterialFamily),
+    query,
+    24,
+  );
+
+  function changeSection(value: CostSection | "") {
+    setActiveSection(value);
+    setActiveMaterialGroup("");
+    setActiveMaterialFamily("");
+  }
+
+  return (
+    <div className="block-catalog">
+      <div className="block-catalog-head">
+        <div className="catalog-search compact">
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Найти позицию в этом блоке..."
+          />
+        </div>
+        {showSectionFilter && (
+          <label className="material-group-filter compact">
+            <span>Раздел</span>
+            <select
+              value={activeSection}
+              onChange={(event) => changeSection(event.target.value as CostSection | "")}
+            >
+              <option value="">Все разделы</option>
+              {catalogSections.map((section) => (
+                <option key={section} value={section}>
+                  {sectionLabels[section]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {showMaterialFilters && (
+          <>
+            <label className="material-group-filter compact">
+              <span>Группа материалов</span>
+              <select
+                value={activeMaterialGroup}
+                onChange={(event) => {
+                  setActiveMaterialGroup(event.target.value);
+                  setActiveMaterialFamily("");
+                }}
+              >
+                <option value="">Все группы</option>
+                {materialGroups.map((group) => (
+                  <option key={group} value={group}>
+                    {group}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {activeMaterialGroup && (
+              <label className="material-group-filter compact">
+                <span>Подгруппа</span>
+                <select
+                  value={activeMaterialFamily}
+                  onChange={(event) => setActiveMaterialFamily(event.target.value)}
+                >
+                  <option value="">Все подгруппы</option>
+                  {materialFamilies.map((family) => (
+                    <option key={family} value={family}>
+                      {family}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="block-catalog-list">
+        {filteredItems.map((item) => (
+          <div
+            className={`catalog-item-card block-catalog-item ${item.section === "materials" ? "has-favorite" : ""}`}
+            key={item.id}
+          >
+            <div className="catalog-item-main">
+              <span>{item.title}</span>
+              <small>
+                {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
+              </small>
+            </div>
+            {item.section === "materials" && (
+              <button
+                className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
+                onClick={() => onToggleFavorite(item)}
+                title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+              >
+                <Star size={15} />
+              </button>
+            )}
+            <button className="catalog-add-toggle" onClick={() => onAdd(item)} title="Добавить в расчет">
+              <CirclePlus size={16} />
+            </button>
+          </div>
+        ))}
+        {!filteredItems.length && (
+          <p className="calc-block-empty">В этом разделе справочника позиции не найдены.</p>
+        )}
+      </div>
+    </div>
   );
 }
 
