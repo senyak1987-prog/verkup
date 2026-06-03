@@ -11,8 +11,22 @@ export const sectionLabels: Record<CostSection, string> = {
   plotter: "Плоттер",
   mounting: "Монтаж",
   defects: "Косяки",
-  other: "Разное",
+  other: "Прочие",
 };
+
+export const catalogGroups = [
+  { id: "materials", label: "Материалы", sections: ["materials"] },
+  { id: "lighting", label: "Светотехника", sections: ["lighting", "consumables"] },
+  { id: "milling", label: "Фрезеровка", sections: ["milling"] },
+  { id: "print", label: "Пленки / печать", sections: ["print", "plotter"] },
+  { id: "assembly", label: "Сборка / работа", sections: ["assembly", "mounting", "subcontract"] },
+  { id: "other", label: "Прочие", sections: ["other"] },
+  { id: "defects", label: "Косяки", sections: ["defects"] },
+] as const satisfies ReadonlyArray<{
+  id: string;
+  label: string;
+  sections: ReadonlyArray<CostSection>;
+}>;
 
 export function filterCatalogItems(items: CatalogItem[], query: string, limit: number) {
   const needle = query.trim().toLowerCase();

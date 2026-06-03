@@ -36,12 +36,13 @@ import {
   profit,
   saleBreakdownForDeal,
 } from "../lib/costing";
-import { filterCatalogItems, sectionLabels } from "../lib/catalog";
+import { catalogGroups, filterCatalogItems, sectionLabels } from "../lib/catalog";
 import {
   defaultSaveApiUrl,
   isSaveApiUrlConfigured,
   moveDealToStage,
   persistSaveApiSettings,
+  saveCatalogs,
   saveCalculations,
 } from "../lib/saveApi";
 import { stageCodeForDeal } from "../lib/stages";
@@ -54,6 +55,7 @@ type CostDrawerProps = {
   onClose: () => void;
   onOpenCatalog: () => void;
   onChange: (calculation: DealCalculation) => void;
+  onCatalogChange: (items: CatalogItem[]) => void;
   onStageMoved: (dealId: string, stage: "launch" | "production") => void;
 };
 
@@ -68,6 +70,7 @@ type CostBlock = {
   hint: string;
   sections: CostSection[];
   actions: BlockAction[];
+  isOther?: boolean;
 };
 
 type PositionTemplate = Omit<Partial<CostPosition>, "id"> & {
@@ -206,7 +209,7 @@ const costBlocks: CostBlock[] = [
     id: "assembly",
     title: "5. Сборка / работа",
     hint: "Объемные буквы с наборами операций, АКП, монтаж и работа по часам.",
-    sections: ["assembly", "mounting", "subcontract", "other"],
+    sections: ["assembly", "mounting", "subcontract"],
     actions: [
       {
         label: "Объемные буквы",
@@ -258,6 +261,26 @@ const costBlocks: CostBlock[] = [
           calcMode: "pieces",
           unit: "усл",
           unitCost: 0,
+        },
+      },
+    ],
+  },
+  {
+    id: "other",
+    title: "6. Прочие",
+    hint: "Ручной ввод: название, единица, количество и цена. Заполненные позиции сохраняются в справочнике.",
+    sections: ["other"],
+    isOther: true,
+    actions: [
+      {
+        label: "Прочая позиция",
+        template: {
+          section: "other",
+          title: "",
+          calcMode: "pieces",
+          unit: "шт",
+          unitCost: 0,
+          note: "Прочие",
         },
       },
     ],
@@ -325,9 +348,11 @@ export function CostDrawer({
   onClose,
   onOpenCatalog,
   onChange,
+  onCatalogChange,
   onStageMoved,
 }: CostDrawerProps) {
   const [catalogQuery, setCatalogQuery] = useState("");
+  const [activeCatalogGroupId, setActiveCatalogGroupId] = useState<string>("materials");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
   const [moveState, setMoveState] = useState<"idle" | "moving" | "moved" | "error">("idle");
@@ -344,7 +369,12 @@ export function CostDrawer({
     );
   }, [calculation, deal?.id]);
 
-  const filteredCatalog = filterCatalogItems(catalogItems, catalogQuery, 16);
+  const activeCatalogGroup =
+    catalogGroups.find((group) => group.id === activeCatalogGroupId) || catalogGroups[0];
+  const groupCatalogItems = catalogItems.filter((item) =>
+    activeCatalogGroup.sections.some((section) => section === item.section),
+  );
+  const filteredCatalog = filterCatalogItems(groupCatalogItems, catalogQuery, 18);
 
   if (!deal) {
     return null;
@@ -371,8 +401,10 @@ export function CostDrawer({
   }
 
   function addPosition(template: PositionTemplate) {
+    const id = crypto.randomUUID();
     const position = normalizePosition({
-      id: crypto.randomUUID(),
+      id,
+      catalogId: template.section === "other" ? `other-manual-${id}` : template.catalogId,
       qty: 1,
       unit: "шт",
       unitCost: 0,
@@ -391,15 +423,23 @@ export function CostDrawer({
       unit: item.unit,
       unitCost: item.unitCost,
       note: item.source,
+      catalogId: item.id,
     });
   }
 
   function patchPosition(id: string, patch: Partial<CostPosition>) {
-    updatePositions(
-      activeCalculation.positions.map((position) =>
-        position.id === id ? normalizePosition({ ...position, ...patch }) : position,
-      ),
-    );
+    let patchedPosition: CostPosition | undefined;
+    const nextPositions = activeCalculation.positions.map((position) => {
+      if (position.id !== id) return position;
+      patchedPosition = normalizePosition({ ...position, ...patch });
+      return patchedPosition;
+    });
+
+    updatePositions(nextPositions);
+
+    if (patchedPosition?.section === "other") {
+      onCatalogChange(catalogWithOtherPositions(catalogItems, nextPositions));
+    }
   }
 
   function deletePosition(id: string) {
@@ -422,7 +462,13 @@ export function CostDrawer({
     setSaveError("");
     persistSaveApiSettings(settings);
     try {
+      const nextCatalogItems = catalogWithOtherPositions(catalogItems, activeCalculation.positions);
+      onCatalogChange(nextCatalogItems);
       await saveCalculations(settings, calculationPayload());
+      await saveCatalogs(settings, {
+        generatedAt: new Date().toISOString(),
+        items: nextCatalogItems,
+      });
       setSaveState("saved");
     } catch (error) {
       setSaveState("error");
@@ -443,7 +489,13 @@ export function CostDrawer({
     persistSaveApiSettings(settings);
 
     try {
+      const nextCatalogItems = catalogWithOtherPositions(catalogItems, activeCalculation.positions);
+      onCatalogChange(nextCatalogItems);
       await saveCalculations(settings, calculationPayload());
+      await saveCatalogs(settings, {
+        generatedAt: new Date().toISOString(),
+        items: nextCatalogItems,
+      });
       await moveDealToStage(settings, activeDeal.id, targetStage);
       setSaveState("saved");
       setMoveState("moved");
@@ -503,6 +555,21 @@ export function CostDrawer({
             onChange={(event) => setCatalogQuery(event.target.value)}
             placeholder="Материал, сборка, фрезеровка..."
           />
+          <div className="catalog-group-tabs">
+            {catalogGroups.map((group) => {
+              const count = catalogItems.filter((item) => group.sections.some((section) => section === item.section)).length;
+              return (
+                <button
+                  className={activeCatalogGroup.id === group.id ? "active" : ""}
+                  key={group.id}
+                  onClick={() => setActiveCatalogGroupId(group.id)}
+                >
+                  <span>{group.label}</span>
+                  <small>{count}</small>
+                </button>
+              );
+            })}
+          </div>
           <div className="catalog-list">
             {filteredCatalog.map((item) => (
               <button key={item.id} onClick={() => addCatalogItem(item)}>
@@ -512,6 +579,9 @@ export function CostDrawer({
                 </small>
               </button>
             ))}
+            {!filteredCatalog.length && (
+              <p className="calc-block-empty">В этом блоке справочника позиции не найдены.</p>
+            )}
           </div>
           <button className="secondary full" onClick={onOpenCatalog}>
             <Database size={16} />
@@ -536,7 +606,7 @@ export function CostDrawer({
           <section className="calc-block auto-consumables">
             <div className="calc-block-head">
               <div>
-                <h3>6. Расходники</h3>
+                <h3>7. Расходники</h3>
                 <p>Автоматически 7% от чистой базы без брака.</p>
               </div>
               <strong>{formatMoney(autoConsumablesCost(activeCalculation))}</strong>
@@ -551,7 +621,7 @@ export function CostDrawer({
           <section className="calc-block defect-block">
             <div className="calc-block-head">
               <div>
-                <h3>7. Косяки / брак</h3>
+                <h3>8. Косяки / брак</h3>
                 <p>Учет исправлений отдельно от чистого себеса.</p>
               </div>
               <strong>{formatMoney(defectsCost(activeCalculation))}</strong>
@@ -920,6 +990,41 @@ function formatQuantity(value: number) {
   return new Intl.NumberFormat("ru-RU", {
     maximumFractionDigits: 2,
   }).format(Number.isFinite(value) ? value : 0);
+}
+
+function catalogWithOtherPositions(items: CatalogItem[], positions: CostPosition[]) {
+  return positions
+    .filter((position) => position.section === "other" && position.title.trim())
+    .reduce((currentItems, position) => {
+      const item = catalogItemFromOtherPosition(position);
+      if (!item) return currentItems;
+      return currentItems.some((current) => current.id === item.id)
+        ? currentItems.map((current) => (current.id === item.id ? item : current))
+        : [...currentItems, item];
+    }, items);
+}
+
+function catalogItemFromOtherPosition(position: CostPosition): CatalogItem | undefined {
+  const title = position.title.trim();
+  if (!title) return undefined;
+
+  return {
+    id: position.catalogId || `other-manual-${slugify(title)}`,
+    section: "other",
+    title,
+    unit: position.unit || unitForMode(position.calcMode || "pieces"),
+    unitCost: Number.isFinite(Number(position.unitCost)) ? Number(position.unitCost) : 0,
+    source: "Прочие из расчетов",
+  };
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-zа-я0-9]+/gi, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 64) || crypto.randomUUID().slice(0, 8);
 }
 
 function upsertCalculation(stored: StoredCalculations, calculation: DealCalculation) {

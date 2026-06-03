@@ -1,6 +1,7 @@
 import { Check, CirclePlus, Save, Search, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  catalogGroups,
   createEmptyCatalogItem,
   filterCatalogItems,
   normalizeCatalogItem,
@@ -24,6 +25,7 @@ type CatalogManagerProps = {
 
 export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps) {
   const [query, setQuery] = useState("");
+  const [activeGroupId, setActiveGroupId] = useState<string>("materials");
   const [selectedId, setSelectedId] = useState(items[0]?.id || "");
   const [draft, setDraft] = useState<CatalogItem>(() =>
     items[0] ? { ...items[0] } : createEmptyCatalogItem(),
@@ -33,7 +35,13 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
   const [saveApiUrl, setSaveApiUrl] = useState(() => defaultSaveApiUrl());
   const canSave = saveApiUrl.trim().length > 0;
 
-  const filteredItems = useMemo(() => filterCatalogItems(items, query, 300), [items, query]);
+  const activeGroup =
+    catalogGroups.find((group) => group.id === activeGroupId) || catalogGroups[0];
+  const groupItems = useMemo(
+    () => items.filter((item) => activeGroup.sections.some((section) => section === item.section)),
+    [activeGroup.sections, items],
+  );
+  const filteredItems = useMemo(() => filterCatalogItems(groupItems, query, 300), [groupItems, query]);
 
   useEffect(() => {
     document.body.classList.add("modal-open");
@@ -47,9 +55,23 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
     setSaveError("");
   }
 
+  function selectGroup(groupId: string) {
+    const nextGroup = catalogGroups.find((group) => group.id === groupId) || catalogGroups[0];
+    const firstItem = items.find((item) => nextGroup.sections.some((section) => section === item.section));
+
+    setActiveGroupId(groupId);
+    setSelectedId(firstItem?.id || "");
+    setDraft(firstItem ? { ...firstItem } : { ...createEmptyCatalogItem(), section: nextGroup.sections[0] });
+    setSaveState("idle");
+    setSaveError("");
+  }
+
   function startNewItem() {
     setSelectedId("");
-    setDraft(createEmptyCatalogItem());
+    setDraft({
+      ...createEmptyCatalogItem(),
+      section: activeGroup.sections[0],
+    });
     setSaveState("idle");
     setSaveError("");
   }
@@ -143,6 +165,21 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
                 <CirclePlus size={16} /> Новая позиция
               </button>
               <span>{filteredItems.length} найдено</span>
+            </div>
+            <div className="catalog-group-tabs">
+              {catalogGroups.map((group) => {
+                const count = items.filter((item) => group.sections.some((section) => section === item.section)).length;
+                return (
+                  <button
+                    className={activeGroup.id === group.id ? "active" : ""}
+                    key={group.id}
+                    onClick={() => selectGroup(group.id)}
+                  >
+                    <span>{group.label}</span>
+                    <small>{count}</small>
+                  </button>
+                );
+              })}
             </div>
             <div className="catalog-browser-list">
               {filteredItems.map((item) => (

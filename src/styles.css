@@ -466,6 +466,46 @@ td small {
   overflow: auto;
 }
 
+.catalog-group-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.catalog-group-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid #d6dee9;
+  border-radius: 7px;
+  background: #fff;
+  padding: 8px 9px;
+  color: #334155;
+}
+
+.catalog-group-tabs button.active {
+  border-color: #0f766e;
+  background: #e7f4f1;
+  color: #0f4f49;
+}
+
+.catalog-group-tabs span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.catalog-group-tabs small {
+  margin: 0;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .catalog-list button {
   display: grid;
   gap: 3px;
@@ -734,7 +774,7 @@ td small {
 
 .catalog-sidebar {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
   min-width: 0;

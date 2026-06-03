@@ -48,6 +48,7 @@ export type CostPosition = {
   unit: string;
   unitCost: number;
   note?: string;
+  catalogId?: string;
   calcMode?: CostCalcMode;
   width?: number;
   height?: number;

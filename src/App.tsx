@@ -182,6 +182,7 @@ export default function App() {
               storedCalculations={storedCalculations}
               onOpenCatalog={() => setCatalogOpen(true)}
               onChange={handleCalculationChange}
+              onCatalogChange={setCatalogItems}
               onClose={() => setSelectedDealId(undefined)}
               onStageMoved={handleDealStageChanged}
             />
