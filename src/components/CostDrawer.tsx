@@ -75,13 +75,7 @@ export function CostDrawer({
   const filteredCatalog = filterCatalogItems(catalogItems, catalogQuery, 16);
 
   if (!deal) {
-    return (
-      <aside className="drawer placeholder">
-        <Database size={28} />
-        <h2>Выберите сделку</h2>
-        <p>Расчет откроется здесь.</p>
-      </aside>
-    );
+    return null;
   }
 
   const sales = saleBreakdownForDeal(deal, activeCalculation, storedCalculations.agentCostRatio);
@@ -193,7 +187,7 @@ export function CostDrawer({
   }
 
   return (
-    <aside className="drawer">
+    <section className="cost-popover">
       <div className="drawer-head">
         <div>
           <span className="eyebrow">#{deal.number}</span>
@@ -228,166 +222,168 @@ export function CostDrawer({
         </div>
       )}
 
-      <section className="catalog-panel">
-        <div className="section-title">
-          <h3>Добавить из справочника</h3>
-          <span>{catalogItems.length} позиций</span>
-        </div>
-        <input
-          value={catalogQuery}
-          onChange={(event) => setCatalogQuery(event.target.value)}
-          placeholder="Материал, сборка, фрезеровка..."
-        />
-        <div className="catalog-list">
-          {filteredCatalog.map((item) => (
-            <button key={item.id} onClick={() => addCatalogItem(item)}>
-              <span>{item.title}</span>
-              <small>
-                {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
-              </small>
-            </button>
-          ))}
-        </div>
-        <button className="secondary full" onClick={onOpenCatalog}>
-          <Database size={16} />
-          Открыть справочник
-        </button>
-      </section>
-
-      <section className="positions">
-        <div className="section-title">
-          <h3>Позиции расчета</h3>
-          <div className="quick-add">
-            <button onClick={() => addEmptyPosition("materials")}>
-              <CirclePlus size={16} /> Материал
-            </button>
-            <button onClick={() => addEmptyPosition("assembly")}>
-              <CirclePlus size={16} /> Сборка
-            </button>
-            <button onClick={() => addEmptyPosition("print")}>
-              <CirclePlus size={16} /> Печать
-            </button>
-            <button onClick={() => addEmptyPosition("mounting")}>
-              <CirclePlus size={16} /> Монтаж
-            </button>
-            <button onClick={() => addEmptyPosition("subcontract")}>
-              <CirclePlus size={16} /> Подряд
-            </button>
-            <button onClick={() => addEmptyPosition("defects")}>
-              <CirclePlus size={16} /> Косяк
-            </button>
+      <div className="cost-popover-grid">
+        <section className="catalog-panel">
+          <div className="section-title">
+            <h3>Добавить из справочника</h3>
+            <span>{catalogItems.length} позиций</span>
           </div>
-        </div>
+          <input
+            value={catalogQuery}
+            onChange={(event) => setCatalogQuery(event.target.value)}
+            placeholder="Материал, сборка, фрезеровка..."
+          />
+          <div className="catalog-list">
+            {filteredCatalog.map((item) => (
+              <button key={item.id} onClick={() => addCatalogItem(item)}>
+                <span>{item.title}</span>
+                <small>
+                  {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                </small>
+              </button>
+            ))}
+          </div>
+          <button className="secondary full" onClick={onOpenCatalog}>
+            <Database size={16} />
+            Открыть справочник
+          </button>
+        </section>
 
-        {activeCalculation.positions.map((position) => (
-          <div className="position-row" key={position.id}>
-            <select
-              value={position.section}
-              onChange={(event) =>
-                patchPosition(position.id, { section: event.target.value as CostPosition["section"] })
+        <section className="positions">
+          <div className="section-title">
+            <h3>Позиции расчета</h3>
+            <div className="quick-add">
+              <button onClick={() => addEmptyPosition("materials")}>
+                <CirclePlus size={16} /> Материал
+              </button>
+              <button onClick={() => addEmptyPosition("assembly")}>
+                <CirclePlus size={16} /> Сборка
+              </button>
+              <button onClick={() => addEmptyPosition("print")}>
+                <CirclePlus size={16} /> Печать
+              </button>
+              <button onClick={() => addEmptyPosition("mounting")}>
+                <CirclePlus size={16} /> Монтаж
+              </button>
+              <button onClick={() => addEmptyPosition("subcontract")}>
+                <CirclePlus size={16} /> Подряд
+              </button>
+              <button onClick={() => addEmptyPosition("defects")}>
+                <CirclePlus size={16} /> Косяк
+              </button>
+            </div>
+          </div>
+
+          {activeCalculation.positions.map((position) => (
+            <div className="position-row" key={position.id}>
+              <select
+                value={position.section}
+                onChange={(event) =>
+                  patchPosition(position.id, { section: event.target.value as CostPosition["section"] })
+                }
+              >
+                {Object.entries(sectionLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="position-title"
+                value={position.title}
+                onChange={(event) => patchPosition(position.id, { title: event.target.value })}
+                placeholder="Позиция"
+              />
+              <input
+                type="number"
+                value={position.qty}
+                onChange={(event) => patchPosition(position.id, { qty: Number(event.target.value) })}
+              />
+              <input
+                value={position.unit}
+                onChange={(event) => patchPosition(position.id, { unit: event.target.value })}
+              />
+              <input
+                type="number"
+                value={position.unitCost}
+                onChange={(event) => patchPosition(position.id, { unitCost: Number(event.target.value) })}
+              />
+              <strong>{formatMoney(position.qty * position.unitCost)}</strong>
+              <button title="Удалить" onClick={() => deletePosition(position.id)}>
+                <Trash2 size={16} />
+              </button>
+              <input
+                className="position-note"
+                value={position.note || ""}
+                onChange={(event) => patchPosition(position.id, { note: event.target.value })}
+                placeholder="Комментарий / источник"
+              />
+            </div>
+          ))}
+
+          {!activeCalculation.positions.length && (
+            <p className="empty-state">Добавьте первую позицию из справочника или вручную.</p>
+          )}
+        </section>
+
+        <section className="github-save">
+          <div className="section-title">
+            <h3>Сохранение</h3>
+            <Save size={18} />
+          </div>
+          {!isSaveApiUrlConfigured() && (
+            <input
+              value={saveApiUrl}
+              onChange={(event) => setSaveApiUrl(event.target.value)}
+              placeholder="Адрес API сохранения, например https://verkup-save-api...workers.dev"
+            />
+          )}
+          <button className="primary" disabled={!canSave || saveState === "saving"} onClick={saveCalculation}>
+            {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
+            {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет"}
+          </button>
+          {isLaunchDeal && (
+            <button
+              className="production-button"
+              disabled={!canMoveStage || moveState === "moving"}
+              onClick={() => moveToStage("production")}
+              title={
+                !moveHints.length
+                  ? "Сохранить расчет и перевести сделку в стадию В производстве"
+                  : moveHints.join(" ")
               }
             >
-              {Object.entries(sectionLabels).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-            <input
-              className="position-title"
-              value={position.title}
-              onChange={(event) => patchPosition(position.id, { title: event.target.value })}
-              placeholder="Позиция"
-            />
-            <input
-              type="number"
-              value={position.qty}
-              onChange={(event) => patchPosition(position.id, { qty: Number(event.target.value) })}
-            />
-            <input
-              value={position.unit}
-              onChange={(event) => patchPosition(position.id, { unit: event.target.value })}
-            />
-            <input
-              type="number"
-              value={position.unitCost}
-              onChange={(event) => patchPosition(position.id, { unitCost: Number(event.target.value) })}
-            />
-            <strong>{formatMoney(position.qty * position.unitCost)}</strong>
-            <button title="Удалить" onClick={() => deletePosition(position.id)}>
-              <Trash2 size={16} />
+              {moveState === "moved" ? <Check size={18} /> : <ArrowRight size={18} />}
+              {moveState === "moving" ? "Перевожу..." : "Перевести в производство"}
             </button>
-            <input
-              className="position-note"
-              value={position.note || ""}
-              onChange={(event) => patchPosition(position.id, { note: event.target.value })}
-              placeholder="Комментарий / источник"
-            />
-          </div>
-        ))}
-
-        {!activeCalculation.positions.length && (
-          <p className="empty-state">Добавьте первую позицию из справочника или вручную.</p>
-        )}
-      </section>
-
-      <section className="github-save">
-        <div className="section-title">
-          <h3>Сохранение</h3>
-          <Save size={18} />
-        </div>
-        {!isSaveApiUrlConfigured() && (
-          <input
-            value={saveApiUrl}
-            onChange={(event) => setSaveApiUrl(event.target.value)}
-            placeholder="Адрес API сохранения, например https://verkup-save-api...workers.dev"
-          />
-        )}
-        <button className="primary" disabled={!canSave || saveState === "saving"} onClick={saveCalculation}>
-          {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
-          {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет"}
-        </button>
-        {isLaunchDeal && (
-          <button
-            className="production-button"
-            disabled={!canMoveStage || moveState === "moving"}
-            onClick={() => moveToStage("production")}
-            title={
-              !moveHints.length
-                ? "Сохранить расчет и перевести сделку в стадию В производстве"
-                : moveHints.join(" ")
-            }
-          >
-            {moveState === "moved" ? <Check size={18} /> : <ArrowRight size={18} />}
-            {moveState === "moving" ? "Перевожу..." : "Перевести в производство"}
-          </button>
-        )}
-        {isProductionDeal && (
-          <button
-            className="production-button rollback"
-            disabled={!canMoveStage || moveState === "moving"}
-            onClick={() => moveToStage("launch")}
-            title={
-              !moveHints.length
-                ? "Сохранить расчет и вернуть сделку в стадию Запустить в производство"
-                : moveHints.join(" ")
-            }
-          >
-            {moveState === "moved" ? <Check size={18} /> : <ArrowLeft size={18} />}
-            {moveState === "moving" ? "Откатываю..." : "Откатить в запуск"}
-          </button>
-        )}
-        {(isLaunchDeal || isProductionDeal) && moveState !== "moved" && !!moveHints.length && (
-          <p className="hint">{moveHints.join(" ")}</p>
-        )}
-        {saveState === "error" && <p className="error">{saveError}</p>}
-        {saveState === "saved" && <p className="ok">Расчет записан в GitHub через API.</p>}
-        {moveState === "error" && <p className="error">{moveError}</p>}
-        {moveState === "moved" && (
-          <p className="ok">Запущено изменение стадии в Bitrix24. Обновление подтянется после Actions.</p>
-        )}
-      </section>
-    </aside>
+          )}
+          {isProductionDeal && (
+            <button
+              className="production-button rollback"
+              disabled={!canMoveStage || moveState === "moving"}
+              onClick={() => moveToStage("launch")}
+              title={
+                !moveHints.length
+                  ? "Сохранить расчет и вернуть сделку в стадию Запустить в производство"
+                  : moveHints.join(" ")
+              }
+            >
+              {moveState === "moved" ? <Check size={18} /> : <ArrowLeft size={18} />}
+              {moveState === "moving" ? "Откатываю..." : "Откатить в запуск"}
+            </button>
+          )}
+          {(isLaunchDeal || isProductionDeal) && moveState !== "moved" && !!moveHints.length && (
+            <p className="hint">{moveHints.join(" ")}</p>
+          )}
+          {saveState === "error" && <p className="error">{saveError}</p>}
+          {saveState === "saved" && <p className="ok">Расчет записан в GitHub через API.</p>}
+          {moveState === "error" && <p className="error">{moveError}</p>}
+          {moveState === "moved" && (
+            <p className="ok">Запущено изменение стадии в Bitrix24. Обновление подтянется после Actions.</p>
+          )}
+        </section>
+      </div>
+    </section>
   );
 }
 

@@ -33,8 +33,6 @@ a {
 }
 
 .app {
-  display: grid;
-  grid-template-columns: minmax(720px, 1fr) 12px minmax(420px, var(--drawer-width, 520px));
   min-height: 100vh;
 }
 
@@ -300,6 +298,12 @@ tr.selected td {
   background: #eef8f5;
 }
 
+.calculation-panel-row td {
+  padding: 0;
+  border-right: 0;
+  background: #f6faf9;
+}
+
 .deal-title {
   display: grid;
   gap: 3px;
@@ -360,55 +364,12 @@ td small {
   text-decoration: none;
 }
 
-.drawer {
-  position: sticky;
-  top: 0;
-  overflow: auto;
-  height: 100vh;
-  padding: 22px;
+.cost-popover {
+  margin: 0;
+  border-top: 1px solid #dce6ef;
   background: #fff;
-}
-
-.drawer-resizer {
-  position: sticky;
-  top: 0;
-  z-index: 4;
-  height: 100vh;
-  cursor: ew-resize;
-  background: #eef3f8;
-  border-left: 1px solid #d8dee8;
-  border-right: 1px solid #d8dee8;
-  touch-action: none;
-}
-
-.drawer-resizer::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 3px;
-  transform: translateX(-50%);
-  border-radius: 3px;
-  background: #cbd5e1;
-  content: "";
-}
-
-.drawer-resizer:hover::before,
-.is-resizing-drawer .drawer-resizer::before {
-  background: #0f766e;
-}
-
-.is-resizing-drawer {
-  cursor: ew-resize;
-  user-select: none;
-}
-
-.drawer.placeholder {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  color: #667085;
-  text-align: center;
+  padding: 18px;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.12);
 }
 
 .drawer-head {
@@ -437,6 +398,28 @@ td small {
 .catalog-panel,
 .positions {
   margin-top: 16px;
+}
+
+.cost-popover .summary-grid {
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+}
+
+.cost-popover-grid {
+  display: grid;
+  grid-template-columns: minmax(270px, 330px) minmax(560px, 1fr) minmax(260px, 320px);
+  gap: 16px;
+  align-items: start;
+}
+
+.cost-popover .catalog-panel,
+.cost-popover .positions,
+.cost-popover .github-save {
+  min-width: 0;
+  margin-top: 0;
+}
+
+.cost-popover .catalog-list {
+  max-height: 360px;
 }
 
 .notice {
@@ -859,21 +842,6 @@ td small {
 }
 
 @media (max-width: 1180px) {
-  .app {
-    grid-template-columns: 1fr;
-  }
-
-  .drawer-resizer {
-    display: none;
-  }
-
-  .drawer {
-    position: static;
-    height: auto;
-    border-left: 0;
-    border-top: 1px solid #d8dee8;
-  }
-
   .toolbar {
     align-items: stretch;
     flex-direction: column;
@@ -913,16 +881,29 @@ td small {
   .catalog-form {
     overflow: visible;
   }
+
+  .cost-popover .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .cost-popover-grid {
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  }
+
+  .cost-popover .github-save {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 720px) {
   .deal-list,
-  .drawer {
+  .cost-popover {
     padding: 14px;
   }
 
   .kpis,
-  .summary-grid {
+  .summary-grid,
+  .cost-popover .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -948,6 +929,14 @@ td small {
 
   .position-row {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .cost-popover-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cost-popover .github-save {
+    grid-column: auto;
   }
 
   .editor-actions {

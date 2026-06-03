@@ -1,5 +1,6 @@
 import { Database, ExternalLink, Pencil, RotateCcw, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import type { Deal, DealCalculation, DealStageCode } from "../types";
 import {
   cleanCost,
@@ -43,6 +44,7 @@ type DealTableProps = {
   catalogCount: number;
   query: string;
   onQueryChange: (value: string) => void;
+  expandedRow?: ReactNode;
 };
 
 export function DealTable({
@@ -58,6 +60,7 @@ export function DealTable({
   catalogCount,
   query,
   onQueryChange,
+  expandedRow,
 }: DealTableProps) {
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(() => loadColumnWidths());
 
@@ -194,49 +197,56 @@ export function DealTable({
               const sales = saleBreakdownForDeal(deal, calculation, agentRatio);
               const isSelected = selectedDealId === deal.id;
               return (
-                <tr key={deal.id} className={isSelected ? "selected" : ""}>
-                  <td>
-                    <button className="deal-title" onClick={() => onSelect(deal)}>
-                      <strong>#{deal.number}</strong>
-                      <span>{deal.title}</span>
-                    </button>
-                    <small>{deal.classification || "Без классификации"}</small>
-                  </td>
-                  <td>{deal.source || "-"}</td>
-                  <td>{deal.type || "-"}</td>
-                  <td>{deal.responsible || "-"}</td>
-                  <td>
-                    <span>{formatDate(deal.startDate) || "запуск не указан"}</span>
-                    <small>{formatDate(deal.expectedFinishDate) || "финиш не указан"}</small>
-                  </td>
-                  <td>
-                    {formatMoney(sales.totalSale)}
-                    <small>
-                      изготовление {formatMoney(sales.productionSale)} · монтаж{" "}
-                      {formatMoney(sales.installSale)}
-                    </small>
-                  </td>
-                  <td>
-                    <button className="cost-chip" onClick={() => onSelect(deal)}>
-                      <span>{formatMoney(finalCost(calculation))}</span>
+                <Fragment key={deal.id}>
+                  <tr className={isSelected ? "selected" : ""}>
+                    <td>
+                      <button className="deal-title" onClick={() => onSelect(deal)}>
+                        <strong>#{deal.number}</strong>
+                        <span>{deal.title}</span>
+                      </button>
+                      <small>{deal.classification || "Без классификации"}</small>
+                    </td>
+                    <td>{deal.source || "-"}</td>
+                    <td>{deal.type || "-"}</td>
+                    <td>{deal.responsible || "-"}</td>
+                    <td>
+                      <span>{formatDate(deal.startDate) || "запуск не указан"}</span>
+                      <small>{formatDate(deal.expectedFinishDate) || "финиш не указан"}</small>
+                    </td>
+                    <td>
+                      {formatMoney(sales.totalSale)}
                       <small>
-                        чистый {formatMoney(cleanCost(calculation))} ·{" "}
-                        {formatPercent(margin(deal, calculation, agentRatio))}
+                        изготовление {formatMoney(sales.productionSale)} · монтаж{" "}
+                        {formatMoney(sales.installSale)}
                       </small>
-                    </button>
-                  </td>
-                  <td className={profit(deal, calculation, agentRatio) < 0 ? "negative" : ""}>
-                    {formatMoney(profit(deal, calculation, agentRatio))}
-                  </td>
-                  <td className="row-actions">
-                    <button title="Открыть расчет" onClick={() => onSelect(deal)}>
-                      <Pencil size={17} />
-                    </button>
-                    <a title="Открыть в Битрикс24" href={deal.bitrixUrl} target="_blank">
-                      <ExternalLink size={17} />
-                    </a>
-                  </td>
-                </tr>
+                    </td>
+                    <td>
+                      <button className="cost-chip" onClick={() => onSelect(deal)}>
+                        <span>{formatMoney(finalCost(calculation))}</span>
+                        <small>
+                          чистый {formatMoney(cleanCost(calculation))} ·{" "}
+                          {formatPercent(margin(deal, calculation, agentRatio))}
+                        </small>
+                      </button>
+                    </td>
+                    <td className={profit(deal, calculation, agentRatio) < 0 ? "negative" : ""}>
+                      {formatMoney(profit(deal, calculation, agentRatio))}
+                    </td>
+                    <td className="row-actions">
+                      <button title="Открыть расчет" onClick={() => onSelect(deal)}>
+                        <Pencil size={17} />
+                      </button>
+                      <a title="Открыть в Битрикс24" href={deal.bitrixUrl} target="_blank">
+                        <ExternalLink size={17} />
+                      </a>
+                    </td>
+                  </tr>
+                  {isSelected && expandedRow && (
+                    <tr className="calculation-panel-row">
+                      <td colSpan={tableColumns.length}>{expandedRow}</td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
             {!deals.length && (
