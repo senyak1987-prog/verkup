@@ -198,9 +198,18 @@ export function DealTable({
               const isSelected = selectedDealId === deal.id;
               return (
                 <Fragment key={deal.id}>
-                  <tr className={isSelected ? "selected" : ""}>
+                  <tr
+                    className={isSelected ? "selected clickable-row" : "clickable-row"}
+                    onClick={() => onSelect(deal)}
+                  >
                     <td>
-                      <button className="deal-title" onClick={() => onSelect(deal)}>
+                      <button
+                        className="deal-title"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelect(deal);
+                        }}
+                      >
                         <strong>#{deal.number}</strong>
                         <span>{deal.title}</span>
                       </button>
@@ -221,7 +230,13 @@ export function DealTable({
                       </small>
                     </td>
                     <td>
-                      <button className="cost-chip" onClick={() => onSelect(deal)}>
+                      <button
+                        className="cost-chip"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelect(deal);
+                        }}
+                      >
                         <span>{formatMoney(finalCost(calculation))}</span>
                         <small>
                           чистый {formatMoney(cleanCost(calculation))} ·{" "}
@@ -232,7 +247,7 @@ export function DealTable({
                     <td className={profit(deal, calculation, agentRatio) < 0 ? "negative" : ""}>
                       {formatMoney(profit(deal, calculation, agentRatio))}
                     </td>
-                    <td className="row-actions">
+                    <td className="row-actions" onClick={(event) => event.stopPropagation()}>
                       <button title="Открыть расчет" onClick={() => onSelect(deal)}>
                         <Pencil size={17} />
                       </button>

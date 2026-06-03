@@ -39,7 +39,6 @@ export default function App() {
 
         setDeals(applyPendingStageMoves(dealsData.items));
         setStoredCalculations(calculationsData);
-        setSelectedDealId(dealsData.items[0]?.id);
       } finally {
         if (!canceled) setLoading(false);
       }
@@ -104,9 +103,13 @@ export default function App() {
 
   useEffect(() => {
     if (selectedDealId && !filteredDeals.some((deal) => deal.id === selectedDealId)) {
-      setSelectedDealId(filteredDeals[0]?.id);
+      setSelectedDealId(undefined);
     }
   }, [filteredDeals, selectedDealId]);
+
+  function handleDealToggle(deal: Deal) {
+    setSelectedDealId((current) => (current === deal.id ? undefined : deal.id));
+  }
 
   function handleCalculationChange(calculation: DealCalculation) {
     setStoredCalculations((current) => ({
@@ -164,7 +167,7 @@ export default function App() {
         activeStage={activeStage}
         stageCounts={stageCounts}
         selectedDealId={selectedDealId}
-        onSelect={(deal) => setSelectedDealId(deal.id)}
+        onSelect={handleDealToggle}
         onStageChange={setActiveStage}
         onOpenCatalog={() => setCatalogOpen(true)}
         catalogCount={catalogItems.length}

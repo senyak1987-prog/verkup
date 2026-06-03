@@ -298,6 +298,10 @@ tr.selected td {
   background: #eef8f5;
 }
 
+.clickable-row {
+  cursor: pointer;
+}
+
 .calculation-panel-row td {
   padding: 0;
   border-right: 0;
