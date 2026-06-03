@@ -2,7 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
 import { DealTable } from "./components/DealTable";
-import { loadCalculations, loadCatalogs, loadDeals } from "./lib/data";
+import {
+  loadCalculations,
+  loadCatalogs,
+  loadDeals,
+  readCachedCalculations,
+  readCachedCatalogs,
+  readCachedDeals,
+  writeCachedCalculations,
+  writeCachedCatalogs,
+  writeCachedDeals,
+} from "./lib/data";
 import { stageCodeForDeal } from "./lib/stages";
 import type { CatalogItem, Deal, DealCalculation, DealStageCode, StoredCalculations } from "./types";
 import "./styles.css";
@@ -15,16 +25,16 @@ type PendingStageMove = {
 };
 
 export default function App() {
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
-  const [storedCalculations, setStoredCalculations] = useState<StoredCalculations>({
-    generatedAt: new Date().toISOString(),
-    agentCostRatio: 0.58,
-    calculations: [],
-  });
+  const [deals, setDeals] = useState<Deal[]>(() => readCachedDeals()?.items || []);
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>(
+    () => readCachedCatalogs()?.items || [],
+  );
+  const [storedCalculations, setStoredCalculations] = useState<StoredCalculations>(
+    () => readCachedCalculations() || createEmptyStoredCalculations(),
+  );
   const [selectedDealId, setSelectedDealId] = useState<string>();
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !hasCachedStartupData());
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
@@ -34,17 +44,23 @@ export default function App() {
 
     async function loadInitialData() {
       try {
-        const [dealsData, calculationsData] = await Promise.all([loadDeals(), loadCalculations()]);
+        const [dealsData, calculationsData, catalogsData] = await Promise.all([
+          loadDeals(),
+          loadCalculations(),
+          loadCatalogs(),
+        ]);
         if (canceled) return;
 
-        setDeals(applyPendingStageMoves(dealsData.items));
+        const nextDeals = applyPendingStageMoves(dealsData.items);
+        setDeals(nextDeals);
         setStoredCalculations(calculationsData);
+        setCatalogItems(catalogsData.items);
+        writeCachedDeals({ ...dealsData, items: nextDeals });
+        writeCachedCalculations(calculationsData);
+        writeCachedCatalogs(catalogsData);
       } finally {
         if (!canceled) setLoading(false);
       }
-
-      const catalogsData = await loadCatalogs();
-      if (!canceled) setCatalogItems(catalogsData.items);
     }
 
     loadInitialData();
@@ -59,16 +75,39 @@ export default function App() {
 
     async function refreshDeals() {
       const dealsData = await loadDeals();
-      if (!canceled) setDeals(applyPendingStageMoves(dealsData.items));
+      if (!canceled) {
+        const nextDeals = applyPendingStageMoves(dealsData.items);
+        setDeals(nextDeals);
+        writeCachedDeals({ ...dealsData, items: nextDeals });
+      }
+    }
+
+    async function refreshAllData() {
+      const [dealsData, calculationsData, catalogsData] = await Promise.all([
+        loadDeals(),
+        loadCalculations(),
+        loadCatalogs(),
+      ]);
+      if (canceled) return;
+
+      const nextDeals = applyPendingStageMoves(dealsData.items);
+      setDeals(nextDeals);
+      setStoredCalculations(calculationsData);
+      setCatalogItems(catalogsData.items);
+      writeCachedDeals({ ...dealsData, items: nextDeals });
+      writeCachedCalculations(calculationsData);
+      writeCachedCatalogs(catalogsData);
     }
 
     const intervalId = window.setInterval(refreshDeals, 5000);
-    window.addEventListener("focus", refreshDeals);
+    window.addEventListener("focus", refreshAllData);
+    window.addEventListener("online", refreshAllData);
 
     return () => {
       canceled = true;
       window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshDeals);
+      window.removeEventListener("focus", refreshAllData);
+      window.removeEventListener("online", refreshAllData);
     };
   }, []);
 
@@ -112,14 +151,26 @@ export default function App() {
   }
 
   function handleCalculationChange(calculation: DealCalculation) {
-    setStoredCalculations((current) => ({
-      ...current,
+    setStoredCalculations((current) => {
+      const next = {
+        ...current,
+        generatedAt: new Date().toISOString(),
+        calculations: [
+          ...current.calculations.filter((item) => item.dealId !== calculation.dealId),
+          calculation,
+        ],
+      };
+      writeCachedCalculations(next);
+      return next;
+    });
+  }
+
+  function handleCatalogChange(items: CatalogItem[]) {
+    setCatalogItems(items);
+    writeCachedCatalogs({
       generatedAt: new Date().toISOString(),
-      calculations: [
-        ...current.calculations.filter((item) => item.dealId !== calculation.dealId),
-        calculation,
-      ],
-    }));
+      items,
+    });
   }
 
   function handleDealStageChanged(dealId: string, stage: DealStageCode) {
@@ -128,11 +179,16 @@ export default function App() {
       expiresAt: Date.now() + PENDING_STAGE_MOVE_TTL,
     });
 
-    setDeals((current) =>
-      current.map((deal) =>
+    setDeals((current) => {
+      const next = current.map((deal) =>
         deal.id === dealId ? withStage(deal, stage) : deal,
-      ),
-    );
+      );
+      writeCachedDeals({
+        generatedAt: new Date().toISOString(),
+        items: next,
+      });
+      return next;
+    });
     setActiveStage(stage);
   }
 
@@ -182,7 +238,7 @@ export default function App() {
               storedCalculations={storedCalculations}
               onOpenCatalog={() => setCatalogOpen(true)}
               onChange={handleCalculationChange}
-              onCatalogChange={setCatalogItems}
+              onCatalogChange={handleCatalogChange}
               onClose={() => setSelectedDealId(undefined)}
               onStageMoved={handleDealStageChanged}
             />
@@ -192,7 +248,7 @@ export default function App() {
       {catalogOpen && (
         <CatalogManager
           items={catalogItems}
-          onChange={setCatalogItems}
+          onChange={handleCatalogChange}
           onClose={() => setCatalogOpen(false)}
         />
       )}
@@ -206,4 +262,16 @@ function withStage(deal: Deal, stage: DealStageCode): Deal {
     stageCode: stage,
     stageName: stage === "production" ? "В производстве" : "Запустить в производство",
   };
+}
+
+function createEmptyStoredCalculations(): StoredCalculations {
+  return {
+    generatedAt: new Date().toISOString(),
+    agentCostRatio: 0.58,
+    calculations: [],
+  };
+}
+
+function hasCachedStartupData() {
+  return Boolean(readCachedDeals() || readCachedCalculations() || readCachedCatalogs());
 }
