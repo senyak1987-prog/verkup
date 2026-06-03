@@ -3,6 +3,12 @@ import type { AppData, CatalogItem, Deal, StoredCalculations } from "../types";
 const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim().replace(/\/+$/, "");
 const CACHE_PREFIX = "verkup:data:";
 const REQUEST_TIMEOUT_MS = 6000;
+const DEAL_CACHE_RETAIN_MS = 24 * 60 * 60 * 1000;
+
+type CacheRecord<T> = {
+  savedAt?: string;
+  data?: T;
+};
 
 const fallbackDeals: AppData<Deal> = {
   generatedAt: new Date().toISOString(),
@@ -89,7 +95,8 @@ async function loadJson<T>(
   options: { preferApi?: boolean } = {},
 ): Promise<T> {
   const normalizedPath = path.replace(/^\//, "");
-  const cachedData = readCache<T>(normalizedPath);
+  const cachedRecord = readCacheRecord<T>(normalizedPath);
+  const cachedData = cachedRecord?.data;
 
   if (isBrowserOffline() && cachedData) {
     return cachedData;
@@ -98,17 +105,33 @@ async function loadJson<T>(
   if (configuredApiUrl && options.preferApi) {
     const apiData = await fetchJson<T>(`${configuredApiUrl}/${normalizedPath}`);
     if (apiData) {
-      if (shouldKeepCachedData(apiData, cachedData)) return cachedData;
-      writeCacheIfUseful(normalizedPath, apiData, cachedData);
-      return apiData;
+      const resolvedApiData = reconcileFetchedData(
+        normalizedPath,
+        apiData,
+        cachedData,
+        cachedRecord?.savedAt,
+      );
+      if (shouldKeepCachedData(resolvedApiData, cachedData)) return cachedData;
+      writeCacheIfUseful(normalizedPath, resolvedApiData, cachedData);
+      return resolvedApiData;
+    }
+
+    if (cachedData && shouldPreferCachedDeals(normalizedPath)) {
+      return cachedData;
     }
   }
 
   const staticData = await fetchJson<T>(`${import.meta.env.BASE_URL}${normalizedPath}`);
   if (staticData) {
-    if (shouldKeepCachedData(staticData, cachedData)) return cachedData;
-    writeCacheIfUseful(normalizedPath, staticData, cachedData);
-    return staticData;
+    const resolvedStaticData = reconcileFetchedData(
+      normalizedPath,
+      staticData,
+      cachedData,
+      cachedRecord?.savedAt,
+    );
+    if (shouldKeepCachedData(resolvedStaticData, cachedData)) return cachedData;
+    writeCacheIfUseful(normalizedPath, resolvedStaticData, cachedData);
+    return resolvedStaticData;
   }
 
   return cachedData || fallback;
@@ -137,11 +160,16 @@ function cacheKey(path: string) {
 }
 
 function readCache<T>(path: string): T | undefined {
+  return readCacheRecord<T>(path)?.data;
+}
+
+function readCacheRecord<T>(path: string): CacheRecord<T> | undefined {
   try {
     const raw = localStorage.getItem(cacheKey(path));
     if (!raw) return undefined;
-    const record = JSON.parse(raw) as { data?: T };
-    return record.data;
+    const record = JSON.parse(raw) as CacheRecord<T>;
+    if (!record || typeof record !== "object" || !("data" in record)) return undefined;
+    return record;
   } catch {
     return undefined;
   }
@@ -167,6 +195,49 @@ function writeCacheIfUseful<T>(path: string, data: T, cachedData?: T) {
   writeCache(path, data);
 }
 
+function shouldPreferCachedDeals(path: string) {
+  return path === "data/deals.json";
+}
+
+function reconcileFetchedData<T>(
+  path: string,
+  data: T,
+  cachedData?: T,
+  cachedSavedAt?: string,
+): T {
+  if (path !== "data/deals.json") return data;
+  if (!isAppData<Deal>(data) || !isAppData<Deal>(cachedData)) return data;
+  if (!cachedData.items.length || isCacheTooOld(cachedSavedAt)) return data;
+  if (!shouldMergeCachedDeals(data, cachedData)) return data;
+
+  const fetchedIds = new Set(data.items.map((deal) => String(deal.id)));
+  const missingCachedDeals = cachedData.items.filter((deal) => !fetchedIds.has(String(deal.id)));
+
+  if (!missingCachedDeals.length) return data;
+
+  return {
+    ...data,
+    items: [...data.items, ...missingCachedDeals],
+  } as T;
+}
+
+function shouldMergeCachedDeals(data: AppData<Deal>, cachedData: AppData<Deal>) {
+  const fetchedAt = Date.parse(data.generatedAt || "");
+  const cachedAt = Date.parse(cachedData.generatedAt || "");
+
+  if (Number.isFinite(fetchedAt) && Number.isFinite(cachedAt)) {
+    return fetchedAt < cachedAt;
+  }
+
+  return data.items.length < cachedData.items.length;
+}
+
+function isCacheTooOld(savedAt?: string) {
+  if (!savedAt) return false;
+  const savedAtMs = Date.parse(savedAt);
+  return Number.isFinite(savedAtMs) && Date.now() - savedAtMs > DEAL_CACHE_RETAIN_MS;
+}
+
 function shouldKeepCachedData<T>(data: T, cachedData?: T): cachedData is T {
   return isEmptyAppData(data) && isNonEmptyAppData(cachedData);
 }
@@ -176,19 +247,17 @@ function isBrowserOffline() {
 }
 
 function isEmptyAppData(value: unknown): value is AppData<unknown> {
-  return Boolean(
-    value &&
-      typeof value === "object" &&
-      Array.isArray((value as AppData<unknown>).items) &&
-      !(value as AppData<unknown>).items.length,
-  );
+  return isAppData(value) && !value.items.length;
 }
 
 function isNonEmptyAppData(value: unknown): value is AppData<unknown> {
+  return isAppData(value) && value.items.length > 0;
+}
+
+function isAppData<T>(value: unknown): value is AppData<T> {
   return Boolean(
     value &&
       typeof value === "object" &&
-      Array.isArray((value as AppData<unknown>).items) &&
-      (value as AppData<unknown>).items.length > 0,
+      Array.isArray((value as AppData<unknown>).items),
   );
 }
