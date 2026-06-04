@@ -1,6 +1,24 @@
 {
-  "generatedAt": "2026-06-04T09:56:21.190Z",
+  "generatedAt": "2026-06-04T10:51:44.265Z",
   "items": [
+    {
+      "id": "16912",
+      "number": "16912",
+      "title": "CyberPoin376 вывеска неон",
+      "stageId": "10",
+      "stageCode": "production",
+      "source": "Директ",
+      "type": "Изготовление + Монтаж",
+      "classification": "Неон",
+      "saleAmount": 16900,
+      "installSaleAmount": 0,
+      "responsible": "Айк Ахвердян",
+      "startDate": "2026-06-03T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-12T03:00:00+03:00",
+      "createdDate": "2026-06-03T17:03:33+03:00",
+      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16912/"
+    },
     {
       "id": "16888",
       "number": "16888",
@@ -36,24 +54,6 @@
       "createdDate": "2026-06-04T11:48:26+03:00",
       "stageName": "Запустить в Производство (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16914/"
-    },
-    {
-      "id": "16912",
-      "number": "16912",
-      "title": "CyberPoin376 вывеска неон",
-      "stageId": "4",
-      "stageCode": "launch",
-      "source": "Директ",
-      "type": "Изготовление + Монтаж",
-      "classification": "Неон",
-      "saleAmount": 16900,
-      "installSaleAmount": 0,
-      "responsible": "Айк Ахвердян",
-      "startDate": "2026-06-03T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-12T03:00:00+03:00",
-      "createdDate": "2026-06-03T17:03:33+03:00",
-      "stageName": "Запустить в Производство (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16912/"
     },
     {
       "id": "16900",
@@ -252,24 +252,6 @@
       "createdDate": "2026-06-02T09:12:20+03:00",
       "stageName": "В ПРОИЗВОДСТВЕ (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16864/"
-    },
-    {
-      "id": "16832",
-      "number": "16832",
-      "title": "Орхан 4",
-      "stageId": "10",
-      "stageCode": "production",
-      "source": "Повтор (уже заказывали)",
-      "type": "Изготовление + Монтаж",
-      "classification": "Неон",
-      "saleAmount": 29800,
-      "installSaleAmount": 7000,
-      "responsible": "Сергей Кирсанов",
-      "startDate": "2026-05-28T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-08T03:00:00+03:00",
-      "createdDate": "2026-05-28T09:35:33+03:00",
-      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16832/"
     },
     {
       "id": "16856",
