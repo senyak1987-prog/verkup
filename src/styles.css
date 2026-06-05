@@ -1019,6 +1019,12 @@ td small {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 26px;
   gap: 3px;
+  cursor: pointer;
+}
+
+.block-favorite-item:focus-visible {
+  outline: 2px solid #5dbbb2;
+  outline-offset: 2px;
 }
 
 .block-favorite-main {

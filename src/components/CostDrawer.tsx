@@ -161,6 +161,7 @@ const costBlocks: CostBlock[] = [
     sections: ["lighting", "consumables"],
     catalogSections: ["lighting", "consumables", "materials"],
     catalogMaterialGroups: lightingMaterialGroups,
+    catalogTargetSection: "lighting",
     actions: [
       {
         label: "Блок питания",
@@ -209,6 +210,7 @@ const costBlocks: CostBlock[] = [
     sections: ["print", "plotter"],
     catalogSections: ["print", "plotter", "materials"],
     catalogMaterialGroups: printMaterialGroups,
+    catalogTargetSection: "print",
     actions: [
       {
         label: "Печать м2",
@@ -249,6 +251,7 @@ const costBlocks: CostBlock[] = [
     sections: ["assembly", "mounting", "subcontract"],
     catalogSections: ["assembly", "mounting", "subcontract", "materials"],
     catalogMaterialGroups: workMaterialGroups,
+    catalogTargetSection: "assembly",
     actions: [
       {
         label: "Объемные буквы",
@@ -979,15 +982,31 @@ function BlockFavorites({
       </div>
       <div className="block-favorite-list">
         {favoriteItems.map((item) => (
-          <div className="block-favorite-item" key={item.id}>
-            <button className="block-favorite-main" onClick={() => onAdd(item)}>
+          <div
+            className="block-favorite-item"
+            key={item.id}
+            onClick={() => onAdd(item)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onAdd(item);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="block-favorite-main">
               <span>{item.title}</span>
               <small>{formatMoney(item.unitCost)} / {item.unit}</small>
-            </button>
+            </div>
             <button
               className="favorite-toggle active"
-              onClick={() => onToggleFavorite(item)}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleFavorite(item);
+              }}
               title="Убрать из избранного"
+              type="button"
             >
               <Star size={15} />
             </button>
