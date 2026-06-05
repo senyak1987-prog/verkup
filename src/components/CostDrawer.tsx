@@ -40,7 +40,6 @@ import {
   saleBreakdownForDeal,
 } from "../lib/costing";
 import {
-  filterCatalogItems,
   materialFamilyOptions,
   materialFamilyValue,
   materialGroupLabel,
@@ -363,6 +362,16 @@ const defectBlock: CostBlock = {
   actions: defectActions,
 };
 
+const blockAddLabels: Record<string, string> = {
+  materials: "материал",
+  lighting: "светотехнику",
+  milling: "фрезеровку",
+  print: "печать / пленку",
+  assembly: "работу",
+  other: "прочее",
+  defects: "косяк",
+};
+
 export function CostDrawer({
   deal,
   calculation,
@@ -426,7 +435,7 @@ export function CostDrawer({
       ...template,
     });
 
-    updatePositions([...activeCalculation.positions, position]);
+    updatePositions([position, ...activeCalculation.positions]);
   }
 
   function addCatalogItem(item: CatalogItem, targetSection?: CostSection) {
@@ -727,6 +736,12 @@ function CostBlockView({
             onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
             onToggleFavorite={onToggleFavorite}
           />
+          <PositionList
+            emptyText="Пока нет позиций в этом блоке."
+            positions={positions}
+            onDelete={onDelete}
+            onPatch={onPatch}
+          />
           <div className="calc-block-actions">
             {block.actions.map((action) => (
               <button key={action.label} onClick={() => onAdd(action.template)}>
@@ -735,12 +750,6 @@ function CostBlockView({
               </button>
             ))}
           </div>
-          <PositionList
-            emptyText="Пока нет позиций в этом блоке."
-            positions={positions}
-            onDelete={onDelete}
-            onPatch={onPatch}
-          />
         </div>
       )}
     </section>
@@ -763,6 +772,7 @@ function BlockCatalogPicker({
   const [activeSection, setActiveSection] = useState<CostSection | "">("");
   const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
   const [activeMaterialFamily, setActiveMaterialFamily] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState("");
   const sectionItems = catalogItems.filter((item) =>
     catalogSections.some((section) => section === item.section),
   );
@@ -772,118 +782,195 @@ function BlockCatalogPicker({
     [activeMaterialGroup, sectionItems],
   );
   const showSectionFilter = catalogSections.length > 1;
+  const isMaterialOnlyBlock = catalogSections.length === 1 && catalogSections[0] === "materials";
   const showMaterialFilters =
-    catalogSections.includes("materials") && (!activeSection || activeSection === "materials");
-  const filteredItems = filterCatalogItems(
-    sectionItems
-      .filter((item) => !activeSection || item.section === activeSection)
-      .filter((item) => !activeMaterialGroup || (item.materialGroup || "Без группы") === activeMaterialGroup)
-      .filter((item) => !activeMaterialFamily || materialFamilyValue(item) === activeMaterialFamily),
-    query,
-    24,
-  );
+    catalogSections.includes("materials") && (isMaterialOnlyBlock || activeSection === "materials");
+  const addLabel = blockAddLabels[block.id] || "позицию";
+  const baseItems = sectionItems
+    .filter((item) => !activeSection || item.section === activeSection)
+    .filter((item) => !activeMaterialGroup || (item.materialGroup || "Без группы") === activeMaterialGroup)
+    .filter((item) => !activeMaterialFamily || materialFamilyValue(item) === activeMaterialFamily);
+  const itemOptions = baseItems
+    .filter((item) => {
+      const needle = query.trim().toLowerCase();
+      if (!needle) return true;
+
+      return [
+        item.title,
+        item.source,
+        item.unit,
+        item.materialGroup,
+        item.materialFamily,
+        item.materialSubgroup,
+        item.materialGroupPath,
+        sectionLabels[item.section],
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
+    })
+    .slice(0, 500);
+  const selectedItem =
+    itemOptions.find((item) => item.id === selectedItemId) ||
+    baseItems.find((item) => item.id === selectedItemId);
+  const favoriteItems = sectionItems
+    .filter((item) => item.favorite)
+    .slice(0, 12);
+  const materialSelectDisabled = showMaterialFilters && !activeMaterialGroup;
 
   function changeSection(value: CostSection | "") {
     setActiveSection(value);
     setActiveMaterialGroup("");
     setActiveMaterialFamily("");
+    setSelectedItemId("");
   }
 
   return (
     <div className="block-catalog">
-      <div className="block-catalog-head">
-        <div className="catalog-search compact">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Найти позицию в этом блоке..."
-          />
-        </div>
-        {showSectionFilter && (
-          <label className="material-group-filter compact">
-            <span>Раздел</span>
-            <select
-              value={activeSection}
-              onChange={(event) => changeSection(event.target.value as CostSection | "")}
-            >
-              <option value="">Все разделы</option>
-              {catalogSections.map((section) => (
-                <option key={section} value={section}>
-                  {sectionLabels[section]}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {showMaterialFilters && (
-          <>
-            <label className="material-group-filter compact">
-              <span>Группа материалов</span>
-              <select
-                value={activeMaterialGroup}
-                onChange={(event) => {
-                  setActiveMaterialGroup(event.target.value);
-                  setActiveMaterialFamily("");
-                }}
-              >
-                <option value="">Все группы</option>
-                {materialGroups.map((group) => (
-                  <option key={group} value={group}>
-                    {group}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {activeMaterialGroup && (
-              <label className="material-group-filter compact">
-                <span>Подгруппа</span>
+      <div className="block-add-layout">
+        <div className="block-add-card">
+          <div className="block-add-tab">
+            <CirclePlus size={16} />
+            <span>Добавить {addLabel}</span>
+          </div>
+          <div className="catalog-cascade">
+            {showSectionFilter && (
+              <label className="catalog-field">
+                <span>Группа</span>
                 <select
-                  value={activeMaterialFamily}
-                  onChange={(event) => setActiveMaterialFamily(event.target.value)}
+                  value={activeSection}
+                  onChange={(event) => changeSection(event.target.value as CostSection | "")}
                 >
-                  <option value="">Все подгруппы</option>
-                  {materialFamilies.map((family) => (
-                    <option key={family} value={family}>
-                      {family}
+                  <option value="">Все разделы</option>
+                  {catalogSections.map((section) => (
+                    <option key={section} value={section}>
+                      {sectionLabels[section]}
                     </option>
                   ))}
                 </select>
               </label>
             )}
-          </>
-        )}
-      </div>
-
-      <div className="block-catalog-list">
-        {filteredItems.map((item) => (
-          <div
-            className={`catalog-item-card block-catalog-item ${item.section === "materials" ? "has-favorite" : ""}`}
-            key={item.id}
-          >
-            <div className="catalog-item-main">
-              <span>{item.title}</span>
-              <small>
-                {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
-                {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
-              </small>
-            </div>
-            {item.section === "materials" && (
-              <button
-                className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
-                onClick={() => onToggleFavorite(item)}
-                title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
-              >
-                <Star size={15} />
-              </button>
+            {showMaterialFilters && (
+              <>
+                <label className="catalog-field">
+                  <span>Группа</span>
+                  <select
+                    value={activeMaterialGroup}
+                    onChange={(event) => {
+                      setActiveMaterialGroup(event.target.value);
+                      setActiveMaterialFamily("");
+                      setSelectedItemId("");
+                    }}
+                  >
+                    <option value="">Выберите группу</option>
+                    {materialGroups.map((group) => (
+                      <option key={group} value={group}>
+                        {group}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="catalog-field">
+                  <span>Подгруппа</span>
+                  <select
+                    disabled={!activeMaterialGroup}
+                    value={activeMaterialFamily}
+                    onChange={(event) => {
+                      setActiveMaterialFamily(event.target.value);
+                      setSelectedItemId("");
+                    }}
+                  >
+                    <option value="">Все подгруппы</option>
+                    {materialFamilies.map((family) => (
+                      <option key={family} value={family}>
+                        {family}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
             )}
-            <button className="catalog-add-toggle" onClick={() => onAdd(item)} title="Добавить в расчет">
-              <CirclePlus size={16} />
-            </button>
+            <label className="catalog-field wide">
+              <span>{showMaterialFilters ? "Материал" : "Позиция"}</span>
+              <select
+                disabled={materialSelectDisabled}
+                value={selectedItemId}
+                onChange={(event) => setSelectedItemId(event.target.value)}
+              >
+                <option value="">
+                  {materialSelectDisabled ? "Сначала выберите группу" : "Выберите позицию"}
+                </option>
+                {itemOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title} · {formatMoney(item.unitCost)} / {item.unit}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="catalog-field wide">
+              <span>Быстрый поиск</span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Название, толщина, источник..."
+              />
+            </label>
           </div>
-        ))}
-        {!filteredItems.length && (
-          <p className="calc-block-empty">В этом разделе справочника позиции не найдены.</p>
-        )}
+
+          <div className="selected-catalog-item">
+            {selectedItem ? (
+              <>
+                <div>
+                  <strong>{selectedItem.title}</strong>
+                  <small>
+                    {sectionLabels[selectedItem.section]} · {formatMoney(selectedItem.unitCost)} / {selectedItem.unit}
+                    {materialGroupLabel(selectedItem) ? ` · ${materialGroupLabel(selectedItem)}` : ""}
+                  </small>
+                </div>
+                <button
+                  className={selectedItem.favorite ? "favorite-toggle active" : "favorite-toggle"}
+                  onClick={() => onToggleFavorite(selectedItem)}
+                  title={selectedItem.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+                >
+                  <Star size={15} />
+                </button>
+                <button className="catalog-add-toggle with-text" onClick={() => onAdd(selectedItem)}>
+                  <CirclePlus size={16} />
+                  Добавить
+                </button>
+              </>
+            ) : (
+              <p>Выберите позицию из списка выше.</p>
+            )}
+          </div>
+        </div>
+
+        <aside className="block-favorites">
+          <div className="section-title compact">
+            <h3>Избранное</h3>
+            <span>{favoriteItems.length}</span>
+          </div>
+          <div className="block-favorite-list">
+            {favoriteItems.map((item) => (
+              <div className="block-favorite-item" key={item.id}>
+                <button className="block-favorite-main" onClick={() => onAdd(item)}>
+                  <span>{item.title}</span>
+                  <small>{formatMoney(item.unitCost)} / {item.unit}</small>
+                </button>
+                <button
+                  className="favorite-toggle active"
+                  onClick={() => onToggleFavorite(item)}
+                  title="Убрать из избранного"
+                >
+                  <Star size={15} />
+                </button>
+              </div>
+            ))}
+            {!favoriteItems.length && (
+              <p className="empty-state compact">Отметьте позицию звездой, и она будет здесь во всех сделках.</p>
+            )}
+          </div>
+        </aside>
       </div>
     </div>
   );
