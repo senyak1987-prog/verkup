@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T18:25:24.729Z",
+  "generatedAt": "2026-06-05T18:25:52.838Z",
   "items": [
     {
       "id": "assembly-буква-объемная-12-50-см-склейка-0",
@@ -6346,7 +6346,7 @@
       "materialFamily": "Пленка \"ORACAL-641\" (1 м)",
       "materialSubgroup": "Пленка \"ORACAL-641\" (1 м)",
       "materialGroupPath": "Пленки / Пленка \"ORACAL-641\" (1 м)",
-      "favorite": false
+      "favorite": true
     },
     {
       "id": "materials-пленка-oracal-641-1-м-20м-641-1х50-789",
