@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:31:06.187Z",
+  "generatedAt": "2026-06-05T19:32:08.388Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:30:56.297Z",
+      "updatedAt": "2026-06-05T19:32:07.529Z",
       "positions": [
+        {
+          "id": "35ffade2-aece-454b-872d-0cebb8f687ef",
+          "catalogId": "materials-акп-1220х4000-3-0-21-черный-9005-grossbond-1-22х-1809",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 1521.93,
+          "section": "materials",
+          "title": "АКП 1220х4000 3/0,21 черный 9005 Grossbond 1,22х4 3/0,21",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 1146; столбец G"
+        },
         {
           "id": "63139469-862c-4f53-ada6-4248d9d8d50b",
           "catalogId": "materials-пленка-oracal-641-1-м-70-641-1х50-858",
