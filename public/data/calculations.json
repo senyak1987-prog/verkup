@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T17:18:49.220Z",
+  "generatedAt": "2026-06-05T17:18:54.374Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T17:18:48.348Z",
+      "updatedAt": "2026-06-05T17:18:53.502Z",
       "positions": [
         {
           "id": "bdaed8d6-b8fa-4ea5-97ba-99cbcf8d7f89",
@@ -21,7 +21,7 @@
           "title": "[*] АКП 1220х4000 3/0,21 сигнально серый 7004 Grossbond 1,22х4 3/0,21",
           "calcMode": "area",
           "note": "Прайс по материалам.xlsx; строка 1153; столбец G",
-          "height": 3,
+          "height": 4,
           "width": 1
         },
         {
