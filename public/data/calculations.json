@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:47:53.830Z",
+  "generatedAt": "2026-06-05T19:48:00.610Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:47:52.961Z",
+      "updatedAt": "2026-06-05T19:47:59.756Z",
       "positions": [
         {
           "id": "9c4bbcca-273d-46d7-aba1-ee87896fc583",
@@ -91,7 +91,7 @@
         {
           "id": "ad809b0a-de01-4f33-8c1a-86ca76cbc78b",
           "catalogId": "materials-пвх-белый-3мм-3050х1560х3-unext-str-1545",
-          "qty": 0,
+          "qty": 1,
           "unit": "м2",
           "unitCost": 716.06,
           "section": "materials",
