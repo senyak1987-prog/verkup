@@ -835,6 +835,19 @@ function BlockCatalogPicker({
     setSelectedItemId("");
   }
 
+  function addSelectedCatalogItem(item: CatalogItem) {
+    setSelectedItemId(item.id);
+    onAdd(item);
+  }
+
+  function selectCatalogItem(itemId: string) {
+    setSelectedItemId(itemId);
+    const item = itemOptions.find((option) => option.id === itemId);
+    if (item) {
+      onAdd(item);
+    }
+  }
+
   return (
     <div className="block-catalog">
       <div className="block-add-layout">
@@ -859,7 +872,7 @@ function BlockCatalogPicker({
               <div className="catalog-search-results">
                 {quickSearchItems.map((item) => (
                   <div className="catalog-search-result" key={item.id}>
-                    <button className="catalog-search-result-main" onClick={() => setSelectedItemId(item.id)}>
+                    <button className="catalog-search-result-main" onClick={() => addSelectedCatalogItem(item)}>
                       <span>{item.title}</span>
                       <small>
                         {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
@@ -875,10 +888,7 @@ function BlockCatalogPicker({
                     </button>
                     <button
                       className="catalog-add-toggle"
-                      onClick={() => {
-                        setSelectedItemId(item.id);
-                        onAdd(item);
-                      }}
+                      onClick={() => addSelectedCatalogItem(item)}
                       title="Добавить"
                     >
                       <CirclePlus size={16} />
@@ -951,7 +961,7 @@ function BlockCatalogPicker({
               <select
                 disabled={materialSelectDisabled}
                 value={selectedItemId}
-                onChange={(event) => setSelectedItemId(event.target.value)}
+                onChange={(event) => selectCatalogItem(event.target.value)}
               >
                 <option value="">
                   {materialSelectDisabled ? "Сначала выберите группу" : "Выберите позицию"}
@@ -981,10 +991,6 @@ function BlockCatalogPicker({
                   title={selectedItem.favorite ? "Убрать из избранного" : "Добавить в избранное"}
                 >
                   <Star size={15} />
-                </button>
-                <button className="catalog-add-toggle with-text" onClick={() => onAdd(selectedItem)}>
-                  <CirclePlus size={16} />
-                  Добавить
                 </button>
               </>
             ) : (

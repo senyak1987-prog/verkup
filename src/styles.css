@@ -981,7 +981,7 @@ td small {
 
 .selected-catalog-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 34px auto;
+  grid-template-columns: minmax(0, 1fr) 34px;
   gap: 8px;
   align-items: center;
   margin-top: 10px;
@@ -1044,13 +1044,6 @@ td small {
   border-radius: 8px;
   background: #effaf8;
   color: #0f766e;
-}
-
-.catalog-add-toggle.with-text {
-  width: auto;
-  padding: 0 10px;
-  gap: 6px;
-  font-weight: 700;
 }
 
 .empty-state.compact {
