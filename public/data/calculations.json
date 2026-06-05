@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T17:18:58.947Z",
+  "generatedAt": "2026-06-05T17:33:05.317Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,30 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T17:18:53.502Z",
+      "updatedAt": "2026-06-05T17:33:04.455Z",
       "positions": [
+        {
+          "id": "49be4186-719a-4900-a118-3eea4a01c127",
+          "catalogId": "materials-оргстекло-2мм-3050х2050х2-молочный-20-30-acryma--1607",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 1190.56,
+          "section": "materials",
+          "title": "Оргстекло 2мм 3050х2050х2 молочный 20-30% ACRYMA 72 XT",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 915; столбец G"
+        },
+        {
+          "id": "dd19d724-5cfe-4a4f-98fc-4dbae2ed3056",
+          "catalogId": "materials-акп-1220х4000-3-0-21-сигнально-серый-7004-grossb-1816",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 1794.47,
+          "section": "materials",
+          "title": "[*] АКП 1220х4000 3/0,21 сигнально серый 7004 Grossbond 1,22х4 3/0,21",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 1153; столбец G"
+        },
         {
           "id": "bdaed8d6-b8fa-4ea5-97ba-99cbcf8d7f89",
           "catalogId": "materials-акп-1220х4000-3-0-21-сигнально-серый-7004-grossb-1816",
