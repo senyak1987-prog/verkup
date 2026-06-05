@@ -29,28 +29,21 @@ export const catalogGroups = [
 }>;
 
 export function filterCatalogItems(items: CatalogItem[], query: string, limit: number) {
-  const needle = query.trim().toLowerCase();
+  return smartCatalogSearch(items, query).slice(0, limit);
+}
+
+export function smartCatalogSearch(items: CatalogItem[], query: string) {
+  const tokens = searchTokens(query);
+  if (!tokens.length) return items;
 
   return items
-    .filter((item) => {
-      if (!needle) return true;
-      return [
-        item.title,
-        item.source,
-        item.unit,
-        item.materialGroup,
-        item.materialFamily,
-        item.materialSubgroup,
-        item.materialGroupPath,
-        item.productCode,
-        item.productUrl,
-        sectionLabels[item.section],
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    })
-    .slice(0, limit);
+    .map((item) => ({
+      item,
+      score: catalogSearchScore(item, tokens),
+    }))
+    .filter((match) => match.score > 0)
+    .sort((first, second) => second.score - first.score || first.item.title.localeCompare(second.item.title, "ru"))
+    .map((match) => match.item);
 }
 
 export function createEmptyCatalogItem(): CatalogItem {
@@ -145,4 +138,80 @@ function createCatalogId(section: CostSection, title: string) {
     .slice(0, 48);
 
   return `${section}-${slug || "position"}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+function catalogSearchScore(item: CatalogItem, tokens: string[]) {
+  const title = normalizeSearchText(item.title);
+  const titleWords = title.split(" ").filter(Boolean);
+  const haystack = normalizeSearchText(
+    [
+      item.title,
+      item.source,
+      item.unit,
+      item.materialGroup,
+      item.materialFamily,
+      item.materialSubgroup,
+      item.materialGroupPath,
+      item.productCode,
+      item.productUrl,
+      sectionLabels[item.section],
+    ].join(" "),
+  );
+
+  return tokens.reduce((score, token) => {
+    if (haystack.includes(token)) {
+      const startsTitle = titleWords[0]?.startsWith(token);
+      const exactTitleWord = titleWords.some((word) => word === token);
+      return (
+        score +
+        (title.includes(token) ? 90 : 55) +
+        (startsTitle ? 75 : 0) +
+        (exactTitleWord ? 25 : 0) +
+        Math.max(0, 18 - token.length)
+      );
+    }
+
+    const closeWordScore = haystack
+      .split(" ")
+      .reduce((best, word) => Math.max(best, fuzzyTokenScore(word, token)), 0);
+
+    return closeWordScore ? score + closeWordScore : -1000;
+  }, 0);
+}
+
+function fuzzyTokenScore(word: string, token: string) {
+  if (token.length < 2 || word.length < 2) return 0;
+  if (word.startsWith(token.slice(0, Math.min(3, token.length)))) return 44;
+
+  let tokenIndex = 0;
+  let gaps = 0;
+  let lastMatchIndex = -1;
+
+  for (let wordIndex = 0; wordIndex < word.length && tokenIndex < token.length; wordIndex += 1) {
+    if (word[wordIndex] !== token[tokenIndex]) continue;
+    if (lastMatchIndex >= 0) gaps += wordIndex - lastMatchIndex - 1;
+    lastMatchIndex = wordIndex;
+    tokenIndex += 1;
+  }
+
+  if (tokenIndex !== token.length) return 0;
+
+  return Math.max(12, 42 - gaps - Math.max(0, word.length - token.length));
+}
+
+function searchTokens(value: string) {
+  return normalizeSearchText(value)
+    .split(" ")
+    .filter((token) => token.length > 0);
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[×х]/g, "x")
+    .replace(/м²/g, "м2")
+    .replace(/[^a-zа-я0-9]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
