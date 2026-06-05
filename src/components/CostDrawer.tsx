@@ -761,11 +761,13 @@ function CostBlockView({
               onToggleFavorite={onToggleFavorite}
             />
             <PositionList
+              catalogItems={catalogItems}
               emptyText="Пока нет позиций в этом блоке."
               newPositionId={newPositionId}
               positions={positions}
               onDelete={onDelete}
               onPatch={onPatch}
+              onToggleFavorite={onToggleFavorite}
             />
             <div className="calc-block-actions">
               {block.actions.map((action) => (
@@ -1033,17 +1035,21 @@ function BlockCatalogPicker({
 }
 
 function PositionList({
+  catalogItems,
   emptyText,
   newPositionId,
   positions,
   onPatch,
   onDelete,
+  onToggleFavorite,
 }: {
+  catalogItems: CatalogItem[];
   emptyText: string;
   newPositionId: string;
   positions: CostPosition[];
   onPatch: (id: string, patch: Partial<CostPosition>) => void;
   onDelete: (id: string) => void;
+  onToggleFavorite: (item: CatalogItem) => void;
 }) {
   if (!positions.length) {
     return <p className="calc-block-empty">{emptyText}</p>;
@@ -1057,9 +1063,11 @@ function PositionList({
           key={position.id}
         >
           <PositionEditor
+            catalogItem={catalogItems.find((item) => item.id === position.catalogId)}
             position={position}
             onDelete={() => onDelete(position.id)}
             onPatch={(patch) => onPatch(position.id, patch)}
+            onToggleFavorite={onToggleFavorite}
           />
         </div>
       ))}
@@ -1068,16 +1076,21 @@ function PositionList({
 }
 
 function PositionEditor({
+  catalogItem,
   position,
   onPatch,
   onDelete,
+  onToggleFavorite,
 }: {
+  catalogItem?: CatalogItem;
   position: CostPosition;
   onPatch: (patch: Partial<CostPosition>) => void;
   onDelete: () => void;
+  onToggleFavorite: (item: CatalogItem) => void;
 }) {
   const quantity = positionQuantity(position);
   const total = positionTotal(position);
+  const areaInputValue = position.calcMode === "area" ? areaFieldValue(position) : position.qty;
 
   function patchNumber(field: keyof CostPosition, value: string) {
     onPatch({ [field]: Number(value) } as Partial<CostPosition>);
@@ -1095,15 +1108,32 @@ function PositionEditor({
     });
   }
 
+  function patchAreaQuantity(value: string) {
+    onPatch({
+      height: undefined,
+      qty: Number(value),
+      width: undefined,
+    });
+  }
+
   return (
     <div className="calc-position">
-      <div className="position-main">
+      <div className={catalogItem ? "position-main with-favorite" : "position-main"}>
         <input
           className="position-title"
           value={position.title}
           onChange={(event) => onPatch({ title: event.target.value })}
           placeholder="Позиция"
         />
+        {catalogItem && (
+          <button
+            className={catalogItem.favorite ? "favorite-toggle active" : "favorite-toggle"}
+            title={catalogItem.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+            onClick={() => onToggleFavorite(catalogItem)}
+          >
+            <Star size={16} />
+          </button>
+        )}
         <button title="Удалить" onClick={onDelete}>
           <Trash2 size={16} />
         </button>
@@ -1113,7 +1143,7 @@ function PositionEditor({
         <div className="field-grid">
           <NumberField label="Ширина, м" value={position.width} onChange={(value) => patchNumber("width", value)} />
           <NumberField label="Высота, м" value={position.height} onChange={(value) => patchNumber("height", value)} />
-          <NumberField label="Кол-во" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+          <NumberField label="м/кв" value={areaInputValue} onChange={patchAreaQuantity} />
           <NumberField label="Цена / м2" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
         </div>
       )}
@@ -1182,6 +1212,16 @@ function PositionEditor({
       </div>
     </div>
   );
+}
+
+function areaFieldValue(position: CostPosition) {
+  const width = Number(position.width) || 0;
+  const height = Number(position.height) || 0;
+  if (width && height) {
+    return Math.round((width * height + Number.EPSILON) * 100) / 100;
+  }
+
+  return position.qty;
 }
 
 function NumberField({

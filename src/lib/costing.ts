@@ -15,7 +15,7 @@ export function positionQuantity(position: CostPosition) {
     const width = Number(position.width) || 0;
     const height = Number(position.height) || 0;
     const area = width * height;
-    return roundMoney(area ? area * qty : qty);
+    return roundMoney(area ? area : qty);
   }
 
   if (position.calcMode === "linear") {

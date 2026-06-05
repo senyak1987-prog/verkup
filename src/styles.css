@@ -833,9 +833,9 @@ td small {
 
 .calc-block-body {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   min-height: 0;
-  padding: 12px;
+  padding: 10px;
 }
 
 .block-catalog {
@@ -843,13 +843,13 @@ td small {
   border: 1px solid #dce4ee;
   border-radius: 8px;
   background: #fbfcfe;
-  padding: 10px;
+  padding: 8px;
 }
 
 .block-add-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(230px, 280px);
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 250px);
+  gap: 8px;
   align-items: stretch;
 }
 
@@ -859,7 +859,7 @@ td small {
   border: 1px solid #dce4ee;
   border-radius: 8px;
   background: #fff;
-  padding: 10px;
+  padding: 8px;
 }
 
 .block-add-tab {
@@ -870,16 +870,17 @@ td small {
   border: 1px solid #99d5cf;
   border-radius: 8px 8px 0 0;
   background: #effaf8;
-  padding: 7px 10px;
+  padding: 5px 9px;
   color: #0f766e;
+  font-size: 14px;
   font-weight: 800;
 }
 
 .catalog-cascade {
   display: grid;
   grid-template-columns: repeat(3, minmax(160px, 1fr));
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .catalog-field {
@@ -899,20 +900,20 @@ td small {
 .catalog-search-results {
   display: grid;
   grid-column: 1 / -1;
-  gap: 6px;
-  max-height: 245px;
+  gap: 4px;
+  max-height: 180px;
   overflow: auto;
   border: 1px solid #dce4ee;
   border-radius: 8px;
   background: #f8fafc;
-  padding: 7px;
+  padding: 5px;
   animation: searchResultsEnter 160ms ease-out both;
 }
 
 .catalog-search-result {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 34px 34px;
-  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 30px 30px;
+  gap: 4px;
 }
 
 .catalog-search-result-main {
@@ -920,9 +921,9 @@ td small {
   gap: 3px;
   min-width: 0;
   border: 1px solid #dde3ec;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #fff;
-  padding: 8px 9px;
+  padding: 6px 8px;
   text-align: left;
 }
 
@@ -933,13 +934,23 @@ td small {
 
 .catalog-search-result-main span {
   overflow-wrap: anywhere;
+  font-size: 13px;
   font-weight: 700;
+  line-height: 1.25;
 }
 
 .catalog-search-result-main small,
 .catalog-search-empty {
   color: #667085;
-  font-size: 12px;
+  font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.catalog-search-result .favorite-toggle,
+.catalog-search-result .catalog-add-toggle {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
 }
 
 .catalog-search-empty {
@@ -971,7 +982,7 @@ td small {
   border: 1px solid #d8dee8;
   border-radius: 7px;
   background: #fff;
-  padding: 9px 10px;
+  padding: 7px 9px;
 }
 
 .catalog-field select:disabled {
@@ -982,13 +993,13 @@ td small {
 .selected-catalog-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 34px;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  margin-top: 10px;
+  margin-top: 8px;
   border: 1px solid #e1e7ef;
   border-radius: 8px;
   background: #f9fafb;
-  padding: 9px;
+  padding: 7px;
 }
 
 .selected-catalog-item strong,
@@ -1012,8 +1023,8 @@ td small {
 .block-favorite-list {
   display: grid;
   align-content: start;
-  gap: 7px;
-  max-height: 250px;
+  gap: 5px;
+  max-height: 210px;
   overflow: auto;
   padding-right: 4px;
 }
@@ -1028,9 +1039,9 @@ td small {
   display: grid;
   gap: 3px;
   border: 1px solid #dde3ec;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #f9fafb;
-  padding: 8px 9px;
+  padding: 6px 8px;
   text-align: left;
 }
 
@@ -1059,7 +1070,7 @@ td small {
 
 .calc-lines {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .calc-line-item {
@@ -1079,12 +1090,12 @@ td small {
 
 .calc-position {
   display: grid;
-  gap: 9px;
+  gap: 7px;
   min-height: 0;
   border: 1px solid #e1e7ef;
   border-radius: 8px;
   background: #f9fafb;
-  padding: 10px;
+  padding: 8px;
 }
 
 @keyframes calcBlockExpand {
@@ -1150,8 +1161,12 @@ td small {
 .position-main {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) 34px;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+}
+
+.position-main.with-favorite {
+  grid-template-columns: minmax(180px, 1fr) 34px 34px;
 }
 
 .position-main button {
@@ -1166,15 +1181,23 @@ td small {
   color: #b42318;
 }
 
+.position-main .favorite-toggle {
+  color: #94a3b8;
+}
+
+.position-main .favorite-toggle.active {
+  color: #b45309;
+}
+
 .field-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(96px, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .field {
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .field span {
@@ -1190,7 +1213,7 @@ td small {
   border: 1px solid #d8dee8;
   border-radius: 7px;
   background: #fff;
-  padding: 9px;
+  padding: 7px 8px;
 }
 
 .addons-grid {
