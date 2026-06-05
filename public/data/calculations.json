@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T18:26:48.919Z",
+  "generatedAt": "2026-06-05T18:27:29.042Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,25 +9,38 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T18:25:22.958Z",
+      "updatedAt": "2026-06-05T18:26:23.342Z",
       "positions": [
         {
-          "id": "df17e7f9-ad99-4aa9-afc9-cc6667f3645c",
+          "id": "b678f53e-52d8-4f10-bd39-4504f992b3c6",
           "qty": 0,
           "unit": "м2",
           "unitCost": 0,
-          "section": "materials",
-          "title": "Материал",
+          "section": "print",
+          "title": "Пленка",
           "calcMode": "area"
         },
         {
-          "id": "b67b0fd6-2f85-4142-8b6b-b144c6a2544a",
-          "qty": 1,
-          "unit": "п/м",
-          "unitCost": 0,
+          "id": "f6bb09f9-0fbb-434b-aed8-8b27c0054d54",
+          "catalogId": "materials-пленка-oracal-641-1-м-20-641-1х50-788",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 304.35,
           "section": "materials",
-          "title": "Рама",
-          "calcMode": "linear"
+          "title": "Пленка \"ORACAL-641\" (1 м) 20 (641 1х50)",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 19; столбец G"
+        },
+        {
+          "id": "82d584f9-88d7-4f39-a02a-571bc8d78144",
+          "catalogId": "materials-пленка-oracal-641-1-м-20-641-1х50-788",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 304.35,
+          "section": "materials",
+          "title": "Пленка \"ORACAL-641\" (1 м) 20 (641 1х50)",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 19; столбец G"
         }
       ]
     }
