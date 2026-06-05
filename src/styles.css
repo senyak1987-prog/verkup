@@ -896,6 +896,69 @@ td small {
   grid-column: 1 / -1;
 }
 
+.catalog-search-results {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 6px;
+  max-height: 245px;
+  overflow: auto;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 7px;
+  animation: searchResultsEnter 160ms ease-out both;
+}
+
+.catalog-search-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px 34px;
+  gap: 6px;
+}
+
+.catalog-search-result-main {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border: 1px solid #dde3ec;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 9px;
+  text-align: left;
+}
+
+.catalog-search-result-main:hover {
+  border-color: #99d5cf;
+  background: #f2fbf9;
+}
+
+.catalog-search-result-main span {
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.catalog-search-result-main small,
+.catalog-search-empty {
+  color: #667085;
+  font-size: 12px;
+}
+
+.catalog-search-empty {
+  padding: 10px;
+  text-align: center;
+}
+
+@keyframes searchResultsEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .catalog-field span {
   color: #667085;
   font-size: 12px;

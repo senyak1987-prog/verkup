@@ -812,37 +812,21 @@ function BlockCatalogPicker({
   const showMaterialFilters =
     catalogSections.includes("materials") && (isMaterialOnlyBlock || activeSection === "materials");
   const addLabel = blockAddLabels[block.id] || "позицию";
+  const quickSearchItems = useMemo(() => smartCatalogSearch(sectionItems, query).slice(0, 8), [query, sectionItems]);
+  const hasQuickSearch = query.trim().length > 0;
   const baseItems = sectionItems
     .filter((item) => !activeSection || item.section === activeSection)
     .filter((item) => !activeMaterialGroup || (item.materialGroup || "Без группы") === activeMaterialGroup)
     .filter((item) => !activeMaterialFamily || materialFamilyValue(item) === activeMaterialFamily);
-  const itemOptions = baseItems
-    .filter((item) => {
-      const needle = query.trim().toLowerCase();
-      if (!needle) return true;
-
-      return [
-        item.title,
-        item.source,
-        item.unit,
-        item.materialGroup,
-        item.materialFamily,
-        item.materialSubgroup,
-        item.materialGroupPath,
-        sectionLabels[item.section],
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    })
-    .slice(0, 500);
+  const itemOptions = (hasQuickSearch ? smartCatalogSearch(baseItems, query) : baseItems).slice(0, 500);
   const selectedItem =
     itemOptions.find((item) => item.id === selectedItemId) ||
-    baseItems.find((item) => item.id === selectedItemId);
+    baseItems.find((item) => item.id === selectedItemId) ||
+    sectionItems.find((item) => item.id === selectedItemId);
   const favoriteItems = sectionItems
     .filter((item) => item.favorite)
     .slice(0, 12);
-  const materialSelectDisabled = showMaterialFilters && !activeMaterialGroup;
+  const materialSelectDisabled = showMaterialFilters && !activeMaterialGroup && !hasQuickSearch;
 
   function changeSection(value: CostSection | "") {
     setActiveSection(value);
@@ -864,10 +848,48 @@ function BlockCatalogPicker({
               <span>Быстрый поиск</span>
               <input
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setSelectedItemId("");
+                }}
                 placeholder="Название, толщина, источник..."
               />
             </label>
+            {hasQuickSearch && (
+              <div className="catalog-search-results">
+                {quickSearchItems.map((item) => (
+                  <div className="catalog-search-result" key={item.id}>
+                    <button className="catalog-search-result-main" onClick={() => setSelectedItemId(item.id)}>
+                      <span>{item.title}</span>
+                      <small>
+                        {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                        {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
+                      </small>
+                    </button>
+                    <button
+                      className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
+                      onClick={() => onToggleFavorite(item)}
+                      title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+                    >
+                      <Star size={15} />
+                    </button>
+                    <button
+                      className="catalog-add-toggle"
+                      onClick={() => {
+                        setSelectedItemId(item.id);
+                        onAdd(item);
+                      }}
+                      title="Добавить"
+                    >
+                      <CirclePlus size={16} />
+                    </button>
+                  </div>
+                ))}
+                {!quickSearchItems.length && (
+                  <p className="catalog-search-empty">Ничего не найдено. Попробуйте меньше слов или часть названия.</p>
+                )}
+              </div>
+            )}
             {showSectionFilter && (
               <label className="catalog-field">
                 <span>Группа</span>
@@ -1240,6 +1262,94 @@ function unitForMode(mode: CostCalcMode, fallback?: string) {
   if (mode === "linear") return "п/м";
   if (mode === "hourly") return "ч";
   return fallback || "шт";
+}
+
+function smartCatalogSearch(items: CatalogItem[], query: string) {
+  const tokens = searchTokens(query);
+  if (!tokens.length) return items;
+
+  return items
+    .map((item) => ({
+      item,
+      score: catalogSearchScore(item, tokens),
+    }))
+    .filter((match) => match.score > 0)
+    .sort((first, second) => second.score - first.score || first.item.title.localeCompare(second.item.title, "ru"))
+    .map((match) => match.item);
+}
+
+function catalogSearchScore(item: CatalogItem, tokens: string[]) {
+  const title = normalizeSearchText(item.title);
+  const titleWords = title.split(" ").filter(Boolean);
+  const haystack = normalizeSearchText(
+    [
+      item.title,
+      item.source,
+      item.unit,
+      item.materialGroup,
+      item.materialFamily,
+      item.materialSubgroup,
+      item.materialGroupPath,
+      sectionLabels[item.section],
+    ].join(" "),
+  );
+
+  return tokens.reduce((score, token) => {
+    if (haystack.includes(token)) {
+      const startsTitle = titleWords[0]?.startsWith(token);
+      const exactTitleWord = titleWords.some((word) => word === token);
+      return (
+        score +
+        (title.includes(token) ? 90 : 55) +
+        (startsTitle ? 75 : 0) +
+        (exactTitleWord ? 25 : 0) +
+        Math.max(0, 18 - token.length)
+      );
+    }
+
+    const closeWordScore = haystack
+      .split(" ")
+      .reduce((best, word) => Math.max(best, fuzzyTokenScore(word, token)), 0);
+
+    return closeWordScore ? score + closeWordScore : -1000;
+  }, 0);
+}
+
+function fuzzyTokenScore(word: string, token: string) {
+  if (token.length < 2 || word.length < 2) return 0;
+  if (word.startsWith(token.slice(0, Math.min(3, token.length)))) return 44;
+
+  let tokenIndex = 0;
+  let gaps = 0;
+  let lastMatchIndex = -1;
+
+  for (let wordIndex = 0; wordIndex < word.length && tokenIndex < token.length; wordIndex += 1) {
+    if (word[wordIndex] !== token[tokenIndex]) continue;
+    if (lastMatchIndex >= 0) gaps += wordIndex - lastMatchIndex - 1;
+    lastMatchIndex = wordIndex;
+    tokenIndex += 1;
+  }
+
+  if (tokenIndex !== token.length) return 0;
+
+  return Math.max(12, 42 - gaps - Math.max(0, word.length - token.length));
+}
+
+function searchTokens(value: string) {
+  return normalizeSearchText(value)
+    .split(" ")
+    .filter((token) => token.length > 0);
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[×х]/g, "x")
+    .replace(/м²/g, "м2")
+    .replace(/[^a-zа-я0-9]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function assemblyAddonsTotal(addons: string[]) {
