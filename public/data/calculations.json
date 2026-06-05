@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:23:02.349Z",
+  "generatedAt": "2026-06-05T19:23:19.958Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:23:01.483Z",
+      "updatedAt": "2026-06-05T18:26:23.342Z",
       "positions": [
         {
           "id": "b678f53e-52d8-4f10-bd39-4504f992b3c6",
