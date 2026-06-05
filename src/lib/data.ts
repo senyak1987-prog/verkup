@@ -2,6 +2,7 @@ import type { AppData, CatalogItem, Deal, StoredCalculations } from "../types";
 
 const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim().replace(/\/+$/, "");
 const CACHE_PREFIX = "verkup:data:";
+const CATALOG_FAVORITES_KEY = `${CACHE_PREFIX}catalog:favorites`;
 const REQUEST_TIMEOUT_MS = 6000;
 const DEAL_CACHE_RETAIN_MS = 24 * 60 * 60 * 1000;
 
@@ -62,7 +63,9 @@ export async function loadCalculations() {
 }
 
 export async function loadCatalogs() {
-  return loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs);
+  return withCatalogFavoriteOverrides(
+    await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs),
+  );
 }
 
 export function readCachedDeals() {
@@ -74,7 +77,8 @@ export function readCachedCalculations() {
 }
 
 export function readCachedCatalogs() {
-  return readCache<AppData<CatalogItem>>("data/catalogs.json");
+  const data = readCache<AppData<CatalogItem>>("data/catalogs.json");
+  return data ? withCatalogFavoriteOverrides(data) : undefined;
 }
 
 export function writeCachedDeals(data: AppData<Deal>) {
@@ -87,6 +91,33 @@ export function writeCachedCalculations(data: StoredCalculations) {
 
 export function writeCachedCatalogs(data: AppData<CatalogItem>) {
   writeCache("data/catalogs.json", data);
+}
+
+export function rememberCatalogFavoriteChanges(previousItems: CatalogItem[], nextItems: CatalogItem[]) {
+  const previousById = new Map(previousItems.map((item) => [item.id, Boolean(item.favorite)]));
+  const overrides = readCatalogFavoriteOverrides();
+  let changed = false;
+
+  for (const item of nextItems) {
+    const nextFavorite = Boolean(item.favorite);
+    const previousFavorite = previousById.get(item.id);
+
+    if (previousFavorite === undefined) {
+      if (!nextFavorite) continue;
+      overrides[item.id] = true;
+      changed = true;
+      continue;
+    }
+
+    if (previousFavorite !== nextFavorite) {
+      overrides[item.id] = nextFavorite;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    writeCatalogFavoriteOverrides(overrides);
+  }
 }
 
 async function loadJson<T>(
@@ -186,6 +217,44 @@ function writeCache<T>(path: string, data: T) {
     );
   } catch {
     // Кэш не критичен: если браузер запретил запись, приложение продолжит работать онлайн.
+  }
+}
+
+function withCatalogFavoriteOverrides(data: AppData<CatalogItem>): AppData<CatalogItem> {
+  const overrides = readCatalogFavoriteOverrides();
+  const overrideIds = Object.keys(overrides);
+
+  if (!overrideIds.length) return data;
+
+  return {
+    ...data,
+    items: data.items.map((item) =>
+      Object.prototype.hasOwnProperty.call(overrides, item.id)
+        ? { ...item, favorite: overrides[item.id] }
+        : item,
+    ),
+  };
+}
+
+function readCatalogFavoriteOverrides() {
+  try {
+    const raw = localStorage.getItem(CATALOG_FAVORITES_KEY);
+    if (!raw) return {} as Record<string, boolean>;
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).map(([id, favorite]) => [id, Boolean(favorite)]),
+    );
+  } catch {
+    return {};
+  }
+}
+
+function writeCatalogFavoriteOverrides(overrides: Record<string, boolean>) {
+  try {
+    localStorage.setItem(CATALOG_FAVORITES_KEY, JSON.stringify(overrides));
+  } catch {
+    // Избранное останется в текущем состоянии приложения, даже если браузер запретил localStorage.
   }
 }
 

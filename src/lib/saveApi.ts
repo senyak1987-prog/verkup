@@ -48,13 +48,19 @@ async function postToSaveApi(settings: SaveApiSettings, path: string, payload: u
     throw new Error("Не указан адрес API сохранения.");
   }
 
-  const response = await fetch(`${apiUrl}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiUrl}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    throw new Error("Не удалось подключиться к API сохранения. Проверьте Worker/доступ к сети.");
+  }
 
   if (!response.ok) {
     const error = await readApiError(response);

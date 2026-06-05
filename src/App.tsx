@@ -9,6 +9,7 @@ import {
   readCachedCalculations,
   readCachedCatalogs,
   readCachedDeals,
+  rememberCatalogFavoriteChanges,
   writeCachedCalculations,
   writeCachedCatalogs,
   writeCachedDeals,
@@ -167,10 +168,13 @@ export default function App() {
   }
 
   function handleCatalogChange(items: CatalogItem[]) {
-    setCatalogItems(items);
-    writeCachedCatalogs({
-      generatedAt: new Date().toISOString(),
-      items,
+    setCatalogItems((current) => {
+      rememberCatalogFavoriteChanges(current, items);
+      writeCachedCatalogs({
+        generatedAt: new Date().toISOString(),
+        items,
+      });
+      return items;
     });
   }
 

@@ -82,6 +82,7 @@ type CostBlock = {
   actions: BlockAction[];
   isOther?: boolean;
   catalogSections?: CostSection[];
+  catalogMaterialGroups?: string[];
   catalogTargetSection?: CostSection;
 };
 
@@ -104,12 +105,35 @@ const assemblyAddons = [
   { id: "subframe", label: "Подрамник / усиление", unitCost: 350 },
 ] as const;
 
+const materialFrameGroups = [
+  "Листовые материалы",
+  "Профили",
+  "Моб.стенды, стойки, штендеры",
+];
+
+const lightingMaterialGroups = [
+  "Светодиоды и аксессуары",
+];
+
+const printMaterialGroups = [
+  "Пленки",
+  "Баннер, холст и ткани",
+  "Бумага",
+];
+
+const workMaterialGroups = [
+  "Клеи, скотчи, очистители",
+  "Крепежи, упаковка, инструменты",
+  "Услуги",
+];
+
 const costBlocks: CostBlock[] = [
   {
     id: "materials",
     title: "1. Материалы / рама",
     hint: "Листы считаются по м2, рама по погонным метрам.",
     sections: ["materials"],
+    catalogMaterialGroups: materialFrameGroups,
     actions: [
       {
         label: "Материал м2",
@@ -138,6 +162,8 @@ const costBlocks: CostBlock[] = [
     title: "2. Светотехника",
     hint: "Блоки, диоды и комплектующие по факту изготовления.",
     sections: ["lighting", "consumables"],
+    catalogSections: ["lighting", "consumables", "materials"],
+    catalogMaterialGroups: lightingMaterialGroups,
     actions: [
       {
         label: "Блок питания",
@@ -184,6 +210,8 @@ const costBlocks: CostBlock[] = [
     title: "4. Пленки / баннеры / печать / плоттер",
     hint: "Все позиции считаются по квадратным метрам.",
     sections: ["print", "plotter"],
+    catalogSections: ["print", "plotter", "materials"],
+    catalogMaterialGroups: printMaterialGroups,
     actions: [
       {
         label: "Печать м2",
@@ -222,6 +250,8 @@ const costBlocks: CostBlock[] = [
     title: "5. Сборка / работа",
     hint: "Объемные буквы с наборами операций, АКП, монтаж и работа по часам.",
     sections: ["assembly", "mounting", "subcontract"],
+    catalogSections: ["assembly", "mounting", "subcontract", "materials"],
+    catalogMaterialGroups: workMaterialGroups,
     actions: [
       {
         label: "Объемные буквы",
@@ -840,8 +870,9 @@ function BlockCatalogPicker({
   const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
   const [activeMaterialFamily, setActiveMaterialFamily] = useState("");
   const [selectedItemId, setSelectedItemId] = useState("");
-  const sectionItems = catalogItems.filter((item) =>
-    catalogSections.some((section) => section === item.section),
+  const sectionItems = useMemo(
+    () => filterBlockCatalogItems(catalogItems, catalogSections, block.catalogMaterialGroups),
+    [block.catalogMaterialGroups, catalogItems, catalogSections],
   );
   const materialGroups = useMemo(() => materialGroupOptions(sectionItems), [sectionItems]);
   const materialFamilies = useMemo(
@@ -850,8 +881,10 @@ function BlockCatalogPicker({
   );
   const showSectionFilter = catalogSections.length > 1;
   const isMaterialOnlyBlock = catalogSections.length === 1 && catalogSections[0] === "materials";
+  const hasMaterialGroupRules = Boolean(block.catalogMaterialGroups?.length);
   const showMaterialFilters =
-    catalogSections.includes("materials") && (isMaterialOnlyBlock || activeSection === "materials");
+    catalogSections.includes("materials") &&
+    (isMaterialOnlyBlock || activeSection === "materials" || (!activeSection && hasMaterialGroupRules));
   const addLabel = blockAddLabels[block.id] || "позицию";
   const quickSearchItems = useMemo(() => smartCatalogSearch(sectionItems, query).slice(0, 8), [query, sectionItems]);
   const hasQuickSearch = query.trim().length > 0;
@@ -867,7 +900,7 @@ function BlockCatalogPicker({
   const favoriteItems = sectionItems
     .filter((item) => item.favorite)
     .slice(0, 12);
-  const materialSelectDisabled = showMaterialFilters && !activeMaterialGroup && !hasQuickSearch;
+  const materialSelectDisabled = isMaterialOnlyBlock && showMaterialFilters && !activeMaterialGroup && !hasQuickSearch;
 
   function changeSection(value: CostSection | "") {
     setActiveSection(value);
@@ -945,7 +978,7 @@ function BlockCatalogPicker({
             )}
             {showSectionFilter && (
               <label className="catalog-field">
-                <span>Группа</span>
+                <span>{showMaterialFilters ? "Раздел" : "Группа"}</span>
                 <select
                   value={activeSection}
                   onChange={(event) => changeSection(event.target.value as CostSection | "")}
@@ -971,7 +1004,9 @@ function BlockCatalogPicker({
                       setSelectedItemId("");
                     }}
                   >
-                    <option value="">Выберите группу</option>
+                    <option value="" disabled hidden>
+                      Выберите группу
+                    </option>
                     {materialGroups.map((group) => (
                       <option key={group} value={group}>
                         {group}
@@ -1339,6 +1374,20 @@ function modeForCatalogItem(item: CatalogItem): CostCalcMode {
   if (item.section === "mounting") return "pieces";
   if (item.section === "defects") return modeForUnit(item.unit);
   return modeForUnit(item.unit);
+}
+
+function filterBlockCatalogItems(
+  items: CatalogItem[],
+  sections: ReadonlyArray<CostSection>,
+  materialGroups?: ReadonlyArray<string>,
+) {
+  const allowedMaterialGroups = materialGroups?.length ? new Set(materialGroups) : undefined;
+
+  return items.filter((item) => {
+    if (!sections.some((section) => section === item.section)) return false;
+    if (item.section !== "materials" || !allowedMaterialGroups) return true;
+    return allowedMaterialGroups.has(item.materialGroup || "Без группы");
+  });
 }
 
 function modeForUnit(unit?: string): CostCalcMode {
