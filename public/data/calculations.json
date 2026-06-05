@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T17:34:18.750Z",
+  "generatedAt": "2026-06-05T18:24:48.053Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,77 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T17:33:04.455Z",
-      "positions": [
-        {
-          "id": "49be4186-719a-4900-a118-3eea4a01c127",
-          "catalogId": "materials-оргстекло-2мм-3050х2050х2-молочный-20-30-acryma--1607",
-          "qty": 0,
-          "unit": "м2",
-          "unitCost": 1190.56,
-          "section": "materials",
-          "title": "Оргстекло 2мм 3050х2050х2 молочный 20-30% ACRYMA 72 XT",
-          "calcMode": "area",
-          "note": "Прайс по материалам.xlsx; строка 915; столбец G"
-        },
-        {
-          "id": "dd19d724-5cfe-4a4f-98fc-4dbae2ed3056",
-          "catalogId": "materials-акп-1220х4000-3-0-21-сигнально-серый-7004-grossb-1816",
-          "qty": 0,
-          "unit": "м2",
-          "unitCost": 1794.47,
-          "section": "materials",
-          "title": "[*] АКП 1220х4000 3/0,21 сигнально серый 7004 Grossbond 1,22х4 3/0,21",
-          "calcMode": "area",
-          "note": "Прайс по материалам.xlsx; строка 1153; столбец G"
-        },
-        {
-          "id": "bdaed8d6-b8fa-4ea5-97ba-99cbcf8d7f89",
-          "catalogId": "materials-акп-1220х4000-3-0-21-сигнально-серый-7004-grossb-1816",
-          "qty": 2,
-          "unit": "м2",
-          "unitCost": 1794.47,
-          "section": "materials",
-          "title": "[*] АКП 1220х4000 3/0,21 сигнально серый 7004 Grossbond 1,22х4 3/0,21",
-          "calcMode": "area",
-          "note": "Прайс по материалам.xlsx; строка 1153; столбец G",
-          "height": 4,
-          "width": 1
-        },
-        {
-          "id": "8138f242-ede0-43f4-a315-098b9e99ffab",
-          "catalogId": "materials-клеи-очистители-космофен-са-12-50-гр-cosmo-ca-50-2058",
-          "qty": 3,
-          "unit": "шт",
-          "unitCost": 438.87,
-          "section": "materials",
-          "title": "Клеи, очистители Космофен СА-12 50 гр. (Cosmo CA-500.200)",
-          "calcMode": "pieces",
-          "note": "Прайс по материалам.xlsx; строка 1436; столбец G"
-        },
-        {
-          "id": "85de400a-3bec-4e52-b85f-b476fe2a4ebe",
-          "catalogId": "materials-клеи-очистители-очиститель-космофен-5-cosmo-cl-3-2068",
-          "qty": 2,
-          "unit": "шт",
-          "unitCost": 1443,
-          "section": "materials",
-          "title": "Клеи, очистители Очиститель Космофен 5 (Cosmo CL-300.110) 1 литр",
-          "calcMode": "pieces",
-          "note": "Прайс по материалам.xlsx; строка 1446; столбец G"
-        },
-        {
-          "id": "f2cd1d73-0cb2-4a4e-ae91-29681c3ad51d",
-          "catalogId": "materials-бумага-транслюцентная-vilaseca-skylight-150-1-29-1934",
-          "qty": 2,
-          "unit": "м2",
-          "unitCost": 75.67,
-          "section": "materials",
-          "title": "Бумага транслюцентная Vilaseca Skylight 150 (1,29х100)",
-          "calcMode": "area",
-          "note": "Прайс по материалам.xlsx; строка 1283; столбец G"
-        }
-      ]
+      "updatedAt": "2026-06-05T18:24:47.197Z",
+      "positions": []
     }
   ]
 }
