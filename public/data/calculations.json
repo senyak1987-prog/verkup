@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T16:35:34.325Z",
+  "generatedAt": "2026-06-05T16:36:09.030Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,20 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T16:35:33.457Z",
-      "positions": [
-        {
-          "id": "3a62d7d7-f2fc-49a8-8655-cbf94a90625b",
-          "catalogId": "materials-пвх-белый-3мм-3050х2030х3-patriot-1549",
-          "qty": 2,
-          "unit": "м2",
-          "unitCost": 387.63,
-          "section": "materials",
-          "title": "ПВХ белый 3мм 3050х2030х3 \"PATRIOT\"",
-          "calcMode": "area",
-          "note": "Прайс по материалам.xlsx; строка 844; столбец G"
-        }
-      ]
+      "updatedAt": "2026-06-03T13:54:05.633Z",
+      "positions": []
     }
   ]
 }
