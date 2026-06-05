@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:54:09.438Z",
+  "generatedAt": "2026-06-05T19:54:15.188Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,17 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:54:08.580Z",
+      "updatedAt": "2026-06-05T19:54:14.328Z",
       "positions": [
-        {
-          "id": "56f23729-a5ee-4d95-a2f8-7bf876ed9106",
-          "qty": 0,
-          "unit": "м2",
-          "unitCost": 0,
-          "section": "plotter",
-          "title": "Плоттерная резка",
-          "calcMode": "area"
-        },
         {
           "id": "9c4bbcca-273d-46d7-aba1-ee87896fc583",
           "catalogId": "other-manual-9c4bbcca-273d-46d7-aba1-ee87896fc583",
