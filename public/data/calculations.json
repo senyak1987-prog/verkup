@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:54:54.215Z",
+  "generatedAt": "2026-06-05T19:54:55.405Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:54:53.348Z",
+      "updatedAt": "2026-06-05T19:54:54.546Z",
       "positions": [
         {
           "id": "9c4bbcca-273d-46d7-aba1-ee87896fc583",
@@ -32,16 +32,6 @@
           "title": "",
           "calcMode": "pieces",
           "note": "Прочие"
-        },
-        {
-          "id": "6da91809-9874-4a2b-a13c-8dbb20f9c0a3",
-          "qty": 1,
-          "unit": "шт",
-          "unitCost": 0,
-          "section": "assembly",
-          "title": "Объемные буквы",
-          "calcMode": "letterAssembly",
-          "addons": []
         },
         {
           "id": "35ffade2-aece-454b-872d-0cebb8f687ef",
