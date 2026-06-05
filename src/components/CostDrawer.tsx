@@ -384,6 +384,7 @@ export function CostDrawer({
   onStageMoved,
 }: CostDrawerProps) {
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
+  const [lastAddedPositionId, setLastAddedPositionId] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
   const [moveState, setMoveState] = useState<"idle" | "moving" | "moved" | "error">("idle");
@@ -435,6 +436,7 @@ export function CostDrawer({
       ...template,
     });
 
+    setLastAddedPositionId(id);
     updatePositions([position, ...activeCalculation.positions]);
   }
 
@@ -588,6 +590,7 @@ export function CostDrawer({
               catalogItems={catalogItems}
               isOpen={expandedBlockId === block.id}
               key={block.id}
+              newPositionId={lastAddedPositionId}
               positions={activeCalculation.positions.filter((position) =>
                 block.sections.includes(position.section),
               )}
@@ -619,6 +622,7 @@ export function CostDrawer({
             block={defectBlock}
             catalogItems={catalogItems}
             isOpen={expandedBlockId === defectBlock.id}
+            newPositionId={lastAddedPositionId}
             positions={activeCalculation.positions.filter((position) => position.section === "defects")}
             onAdd={addPosition}
             onAddCatalog={addCatalogItem}
@@ -694,6 +698,7 @@ function CostBlockView({
   block,
   catalogItems,
   isOpen,
+  newPositionId,
   positions,
   onAdd,
   onAddCatalog,
@@ -705,6 +710,7 @@ function CostBlockView({
   block: CostBlock;
   catalogItems: CatalogItem[];
   isOpen: boolean;
+  newPositionId: string;
   positions: CostPosition[];
   onAdd: (template: PositionTemplate) => void;
   onAddCatalog: (item: CatalogItem, targetSection?: CostSection) => void;
@@ -738,6 +744,7 @@ function CostBlockView({
           />
           <PositionList
             emptyText="Пока нет позиций в этом блоке."
+            newPositionId={newPositionId}
             positions={positions}
             onDelete={onDelete}
             onPatch={onPatch}
@@ -978,11 +985,13 @@ function BlockCatalogPicker({
 
 function PositionList({
   emptyText,
+  newPositionId,
   positions,
   onPatch,
   onDelete,
 }: {
   emptyText: string;
+  newPositionId: string;
   positions: CostPosition[];
   onPatch: (id: string, patch: Partial<CostPosition>) => void;
   onDelete: (id: string) => void;
@@ -994,12 +1003,16 @@ function PositionList({
   return (
     <div className="calc-lines">
       {positions.map((position) => (
-        <PositionEditor
+        <div
+          className={position.id === newPositionId ? "calc-line-item newest" : "calc-line-item"}
           key={position.id}
-          position={position}
-          onDelete={() => onDelete(position.id)}
-          onPatch={(patch) => onPatch(position.id, patch)}
-        />
+        >
+          <PositionEditor
+            position={position}
+            onDelete={() => onDelete(position.id)}
+            onPatch={(patch) => onPatch(position.id, patch)}
+          />
+        </div>
       ))}
     </div>
   );
