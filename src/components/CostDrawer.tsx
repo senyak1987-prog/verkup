@@ -910,12 +910,18 @@ function BlockCatalogPicker({
             <div className="catalog-search-results">
               {quickSearchItems.map((item) => (
                 <div className="catalog-search-result" key={item.id}>
-                  <button className="catalog-search-result-main" onClick={() => addSelectedCatalogItem(item)}>
-                    <span>{item.title}</span>
-                    <small>
-                      {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
-                      {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
-                    </small>
+                  <button
+                    className={item.imageUrl ? "catalog-search-result-main with-thumb" : "catalog-search-result-main"}
+                    onClick={() => addSelectedCatalogItem(item)}
+                  >
+                    {item.imageUrl && <img className="catalog-thumb" src={item.imageUrl} alt="" loading="lazy" />}
+                    <div className="catalog-item-text">
+                      <span>{item.title}</span>
+                      <small>
+                        {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                        {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
+                      </small>
+                    </div>
                   </button>
                   <button
                     className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
@@ -995,9 +1001,12 @@ function BlockFavorites({
             role="button"
             tabIndex={0}
           >
-            <div className="block-favorite-main">
-              <span>{item.title}</span>
-              <small>{formatMoney(item.unitCost)} / {item.unit}</small>
+            <div className={item.imageUrl ? "block-favorite-main with-thumb" : "block-favorite-main"}>
+              {item.imageUrl && <img className="catalog-thumb" src={item.imageUrl} alt="" loading="lazy" />}
+              <div className="catalog-item-text">
+                <span>{item.title}</span>
+                <small>{formatMoney(item.unitCost)} / {item.unit}</small>
+              </div>
             </div>
             <button
               className="favorite-toggle active"
@@ -1357,6 +1366,8 @@ function catalogSearchScore(item: CatalogItem, tokens: string[]) {
       item.materialFamily,
       item.materialSubgroup,
       item.materialGroupPath,
+      item.productCode,
+      item.productUrl,
       sectionLabels[item.section],
     ].join(" "),
   );

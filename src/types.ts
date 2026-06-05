@@ -74,6 +74,9 @@ export type CatalogItem = {
   materialFamily?: string;
   materialSubgroup?: string;
   materialGroupPath?: string;
+  productCode?: string;
+  productUrl?: string;
+  imageUrl?: string;
   favorite?: boolean;
 };
 

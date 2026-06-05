@@ -12,6 +12,7 @@
     "bitrix:fields": "node scripts/inspect-bitrix-fields.mjs",
     "bitrix:stages": "node scripts/inspect-bitrix-stages.mjs",
     "catalogs:build": "node scripts/build-catalogs.mjs",
+    "catalogs:remex-images": "node scripts/enrich-remex-images.mjs",
     "worker:deploy": "wrangler deploy --config worker/wrangler.toml"
   },
   "dependencies": {

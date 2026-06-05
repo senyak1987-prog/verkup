@@ -42,6 +42,8 @@ export function filterCatalogItems(items: CatalogItem[], query: string, limit: n
         item.materialFamily,
         item.materialSubgroup,
         item.materialGroupPath,
+        item.productCode,
+        item.productUrl,
         sectionLabels[item.section],
       ]
         .join(" ")
@@ -84,6 +86,9 @@ export function normalizeCatalogItem(item: CatalogItem) {
     materialFamily: materialFamily || undefined,
     materialSubgroup: materialSubgroup || undefined,
     materialGroupPath: materialGroupPath || undefined,
+    productCode: item.productCode?.trim() || undefined,
+    productUrl: item.productUrl?.trim() || undefined,
+    imageUrl: item.imageUrl?.trim() || undefined,
     favorite: Boolean(item.favorite),
   };
 }

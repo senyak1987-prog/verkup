@@ -255,12 +255,18 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
             <div className="catalog-browser-list">
               {filteredItems.map((item) => (
                 <div className={`catalog-item-card ${item.id === selectedId ? "active" : ""}`} key={item.id}>
-                  <button className="catalog-item-main" onClick={() => selectItem(item)}>
-                    <span>{item.title}</span>
-                    <small>
-                      {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
-                      {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
-                    </small>
+                  <button
+                    className={item.imageUrl ? "catalog-item-main with-thumb" : "catalog-item-main"}
+                    onClick={() => selectItem(item)}
+                  >
+                    {item.imageUrl && <img className="catalog-thumb" src={item.imageUrl} alt="" loading="lazy" />}
+                    <div className="catalog-item-text">
+                      <span>{item.title}</span>
+                      <small>
+                        {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                        {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
+                      </small>
+                    </div>
                   </button>
                   <button
                     className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
@@ -322,6 +328,36 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
               />
               <span>Избранный материал для быстрого доступа</span>
             </label>
+            <label>
+              <span>Код товара</span>
+              <input
+                value={draft.productCode || ""}
+                onChange={(event) => patchDraft({ productCode: event.target.value })}
+                placeholder="10010700"
+              />
+            </label>
+            <label className="catalog-form-wide">
+              <span>Ссылка на товар</span>
+              <input
+                value={draft.productUrl || ""}
+                onChange={(event) => patchDraft({ productUrl: event.target.value })}
+                placeholder="https://www.remex.ru/product/..."
+              />
+            </label>
+            <label className="catalog-form-wide">
+              <span>Картинка</span>
+              <input
+                value={draft.imageUrl || ""}
+                onChange={(event) => patchDraft({ imageUrl: event.target.value })}
+                placeholder="https://www.remex.ru/storage/..."
+              />
+            </label>
+            {draft.imageUrl && (
+              <div className="catalog-image-preview catalog-form-wide">
+                <img src={draft.imageUrl} alt="" loading="lazy" />
+                <span>{draft.productUrl ? "Картинка из карточки товара" : "Картинка справочника"}</span>
+              </div>
+            )}
             {draft.section === "materials" && (
               <>
                 <label>

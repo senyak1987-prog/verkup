@@ -9,6 +9,8 @@ const files = {
     "O:/Производство/Таблицы/ПРАЙС ФРЕЗЕРОВКА ПЕЧАТЬ ПЛОТТЕР.xlsx",
   materials: process.env.MATERIALS_PRICE_PATH || "C:/Users/Семен/Desktop/Прайс по материалам.xlsx",
 };
+const remexImageCacheFile = process.env.REMEX_IMAGE_CACHE || "public/data/remex-images.json";
+const remexImageCache = await readJson(remexImageCacheFile, { items: {} });
 
 const items = [];
 await readAssembly(files.assembly);
@@ -71,17 +73,19 @@ async function readMilling(file) {
 
 async function readMaterials(file) {
   if (!(await exists(file))) return;
-  const workbook = XLSX.readFile(file, { cellDates: false });
+  const workbook = XLSX.readFile(file, { cellDates: false, cellStyles: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
   const headerIndex = rows.findIndex((row) => row.some((cell) => clean(cell) === "Наименование"));
   if (headerIndex < 0) return;
   const header = rows[headerIndex].map(clean);
+  const codeIdx = header.indexOf("Код");
   const nameIdx = header.indexOf("Наименование");
   const unitIdx = header.indexOf("Ед. изм.");
   let materialPath = [];
 
   for (const [index, row] of rows.slice(headerIndex + 1).entries()) {
+    const sourceRow = headerIndex + index + 2;
     const title = clean(row[nameIdx]);
     const priceInfo = materialPrice(row);
     const price = priceInfo.price;
@@ -94,16 +98,21 @@ async function readMaterials(file) {
     if (!title || !price) continue;
     const normalized = normalizeMaterialCost(title, clean(row[unitIdx]), price);
     const materialSubgroup = materialPath.slice(1).join(" / ") || undefined;
+    const productUrl = productUrlFromCell(sheet, sourceRow, nameIdx);
+    const cachedImage = productUrl ? remexImageCache.items?.[productUrl]?.imageUrl : "";
     addItem({
       section: "materials",
       title,
       unit: normalized.unit,
       unitCost: normalized.unitCost,
-      source: `${path.basename(file)}; строка ${headerIndex + index + 2}; ${priceInfo.source}`,
+      source: `${path.basename(file)}; строка ${sourceRow}; ${priceInfo.source}`,
       materialGroup: materialPath[0] || "Без группы",
       materialFamily: materialFamilyFor(title, materialPath),
       materialSubgroup,
       materialGroupPath: materialPath.join(" / ") || "Без группы",
+      productCode: clean(row[codeIdx]) || productCodeFromUrl(productUrl),
+      productUrl: productUrl || undefined,
+      imageUrl: cachedImage || undefined,
       favorite: false,
     });
   }
@@ -123,8 +132,27 @@ async function exists(file) {
   }
 }
 
+async function readJson(file, fallback) {
+  try {
+    return JSON.parse(await fs.readFile(file, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
 function clean(value) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function productUrlFromCell(sheet, oneBasedRow, zeroBasedColumn) {
+  const address = XLSX.utils.encode_cell({ r: oneBasedRow - 1, c: zeroBasedColumn });
+  const target = sheet[address]?.l?.Target;
+  if (!target || !/^https?:\/\//i.test(target)) return "";
+  return target.replace(/\/$/, "");
+}
+
+function productCodeFromUrl(productUrl) {
+  return productUrl?.match(/\/product\/([^/?#]+)/)?.[1] || "";
 }
 
 function toNumber(value) {
