@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:32:59.680Z",
+  "generatedAt": "2026-06-05T19:46:49.978Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,18 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:32:07.529Z",
+      "updatedAt": "2026-06-05T19:46:49.123Z",
       "positions": [
+        {
+          "id": "6da91809-9874-4a2b-a13c-8dbb20f9c0a3",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 0,
+          "section": "assembly",
+          "title": "Объемные буквы",
+          "calcMode": "letterAssembly",
+          "addons": []
+        },
         {
           "id": "35ffade2-aece-454b-872d-0cebb8f687ef",
           "catalogId": "materials-акп-1220х4000-3-0-21-черный-9005-grossbond-1-22х-1809",
