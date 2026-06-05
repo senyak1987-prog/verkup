@@ -823,26 +823,36 @@ function CostBlockView({
             <BlockCatalogPicker
               block={block}
               catalogItems={catalogItems}
-              positions={positions}
               onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
               onToggleFavorite={onToggleFavorite}
             />
-            <PositionList
-              catalogItems={catalogItems}
-              emptyText="Пока нет позиций в этом блоке."
-              newPositionId={newPositionId}
-              positions={positions}
-              onDelete={onDelete}
-              onPatch={onPatch}
-              onToggleFavorite={onToggleFavorite}
-            />
-            <div className="calc-block-actions">
-              {block.actions.map((action) => (
-                <button key={action.label} onClick={() => onAdd(action.template)}>
-                  <CirclePlus size={16} />
-                  {action.label}
-                </button>
-              ))}
+            <div className="calc-block-workspace">
+              <div className="calc-lines-column">
+                <PositionList
+                  catalogItems={catalogItems}
+                  emptyText="Пока нет позиций в этом блоке."
+                  newPositionId={newPositionId}
+                  positions={positions}
+                  onDelete={onDelete}
+                  onPatch={onPatch}
+                  onToggleFavorite={onToggleFavorite}
+                />
+                <div className="calc-block-actions">
+                  {block.actions.map((action) => (
+                    <button key={action.label} onClick={() => onAdd(action.template)}>
+                      <CirclePlus size={16} />
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <BlockFavorites
+                block={block}
+                catalogItems={catalogItems}
+                positions={positions}
+                onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
+                onToggleFavorite={onToggleFavorite}
+              />
             </div>
           </div>
         </div>
@@ -852,6 +862,86 @@ function CostBlockView({
 }
 
 function BlockCatalogPicker({
+  block,
+  catalogItems,
+  onAdd,
+  onToggleFavorite,
+}: {
+  block: CostBlock;
+  catalogItems: CatalogItem[];
+  onAdd: (item: CatalogItem) => void;
+  onToggleFavorite: (item: CatalogItem) => void;
+}) {
+  const catalogSections = block.catalogSections || block.sections;
+  const [query, setQuery] = useState("");
+  const sectionItems = useMemo(
+    () => filterBlockCatalogItems(catalogItems, catalogSections, block.catalogMaterialGroups),
+    [block.catalogMaterialGroups, catalogItems, catalogSections],
+  );
+  const addLabel = blockAddLabels[block.id] || "позицию";
+  const quickSearchItems = useMemo(() => smartCatalogSearch(sectionItems, query).slice(0, 8), [query, sectionItems]);
+  const hasQuickSearch = query.trim().length > 0;
+
+  function addSelectedCatalogItem(item: CatalogItem) {
+    setQuery("");
+    onAdd(item);
+  }
+
+  return (
+    <div className="block-catalog">
+      <div className="block-add-card">
+        <div className="block-add-tab">
+          <CirclePlus size={16} />
+          <span>Добавить {addLabel}</span>
+        </div>
+        <div className="catalog-cascade">
+          <label className="catalog-field catalog-search-field">
+            <span>Быстрый поиск</span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Название, толщина, источник..."
+            />
+          </label>
+          {hasQuickSearch && (
+            <div className="catalog-search-results">
+              {quickSearchItems.map((item) => (
+                <div className="catalog-search-result" key={item.id}>
+                  <button className="catalog-search-result-main" onClick={() => addSelectedCatalogItem(item)}>
+                    <span>{item.title}</span>
+                    <small>
+                      {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                      {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
+                    </small>
+                  </button>
+                  <button
+                    className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
+                    onClick={() => onToggleFavorite(item)}
+                    title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+                  >
+                    <Star size={15} />
+                  </button>
+                  <button
+                    className="catalog-add-toggle"
+                    onClick={() => addSelectedCatalogItem(item)}
+                    title="Добавить"
+                  >
+                    <CirclePlus size={16} />
+                  </button>
+                </div>
+              ))}
+              {!quickSearchItems.length && (
+                <p className="catalog-search-empty">Ничего не найдено. Попробуйте меньше слов или часть названия.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BlockFavorites({
   block,
   catalogItems,
   positions,
@@ -865,111 +955,49 @@ function BlockCatalogPicker({
   onToggleFavorite: (item: CatalogItem) => void;
 }) {
   const catalogSections = block.catalogSections || block.sections;
-  const [query, setQuery] = useState("");
   const sectionItems = useMemo(
     () => filterBlockCatalogItems(catalogItems, catalogSections, block.catalogMaterialGroups),
     [block.catalogMaterialGroups, catalogItems, catalogSections],
   );
-  const addLabel = blockAddLabels[block.id] || "позицию";
-  const quickSearchItems = useMemo(() => smartCatalogSearch(sectionItems, query).slice(0, 8), [query, sectionItems]);
-  const hasQuickSearch = query.trim().length > 0;
   const catalogItemsById = useMemo(
     () => new Map(catalogItems.map((item) => [item.id, item])),
     [catalogItems],
   );
   const positionFavoriteItems = positions
-    .map((position) => position.catalogId ? catalogItemsById.get(position.catalogId) : undefined)
+    .map((position) => (position.catalogId ? catalogItemsById.get(position.catalogId) : undefined))
     .filter((item): item is CatalogItem => Boolean(item?.favorite));
   const favoriteItems = uniqueCatalogItems([
     ...sectionItems.filter((item) => item.favorite),
     ...positionFavoriteItems,
-  ]).slice(0, 12);
-
-  function addSelectedCatalogItem(item: CatalogItem) {
-    setQuery("");
-    onAdd(item);
-  }
+  ]).slice(0, 24);
 
   return (
-    <div className="block-catalog">
-      <div className="block-add-layout">
-        <div className="block-add-card">
-          <div className="block-add-tab">
-            <CirclePlus size={16} />
-            <span>Добавить {addLabel}</span>
-          </div>
-          <div className="catalog-cascade">
-            <label className="catalog-field catalog-search-field">
-              <span>Быстрый поиск</span>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Название, толщина, источник..."
-              />
-            </label>
-            {hasQuickSearch && (
-              <div className="catalog-search-results">
-                {quickSearchItems.map((item) => (
-                  <div className="catalog-search-result" key={item.id}>
-                    <button className="catalog-search-result-main" onClick={() => addSelectedCatalogItem(item)}>
-                      <span>{item.title}</span>
-                      <small>
-                        {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
-                        {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
-                      </small>
-                    </button>
-                    <button
-                      className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
-                      onClick={() => onToggleFavorite(item)}
-                      title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
-                    >
-                      <Star size={15} />
-                    </button>
-                    <button
-                      className="catalog-add-toggle"
-                      onClick={() => addSelectedCatalogItem(item)}
-                      title="Добавить"
-                    >
-                      <CirclePlus size={16} />
-                    </button>
-                  </div>
-                ))}
-                {!quickSearchItems.length && (
-                  <p className="catalog-search-empty">Ничего не найдено. Попробуйте меньше слов или часть названия.</p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <aside className="block-favorites">
-          <div className="section-title compact">
-            <h3>Избранное</h3>
-            <span>{favoriteItems.length}</span>
-          </div>
-          <div className="block-favorite-list">
-            {favoriteItems.map((item) => (
-              <div className="block-favorite-item" key={item.id}>
-                <button className="block-favorite-main" onClick={() => onAdd(item)}>
-                  <span>{item.title}</span>
-                  <small>{formatMoney(item.unitCost)} / {item.unit}</small>
-                </button>
-                <button
-                  className="favorite-toggle active"
-                  onClick={() => onToggleFavorite(item)}
-                  title="Убрать из избранного"
-                >
-                  <Star size={15} />
-                </button>
-              </div>
-            ))}
-            {!favoriteItems.length && (
-              <p className="empty-state compact">Отметьте позицию звездой, и она будет здесь во всех сделках.</p>
-            )}
-          </div>
-        </aside>
+    <aside className="block-favorites">
+      <div className="section-title compact">
+        <h3>Избранное</h3>
+        <span>{favoriteItems.length}</span>
       </div>
-    </div>
+      <div className="block-favorite-list">
+        {favoriteItems.map((item) => (
+          <div className="block-favorite-item" key={item.id}>
+            <button className="block-favorite-main" onClick={() => onAdd(item)}>
+              <span>{item.title}</span>
+              <small>{formatMoney(item.unitCost)} / {item.unit}</small>
+            </button>
+            <button
+              className="favorite-toggle active"
+              onClick={() => onToggleFavorite(item)}
+              title="Убрать из избранного"
+            >
+              <Star size={15} />
+            </button>
+          </div>
+        ))}
+        {!favoriteItems.length && (
+          <p className="empty-state compact">Отметьте позицию звездой, и она будет здесь во всех сделках.</p>
+        )}
+      </div>
+    </aside>
   );
 }
 
