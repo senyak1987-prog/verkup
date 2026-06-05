@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:56:40.262Z",
+  "generatedAt": "2026-06-05T19:56:46.517Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:56:39.407Z",
+      "updatedAt": "2026-06-05T19:56:45.662Z",
       "positions": [
         {
           "id": "9c4bbcca-273d-46d7-aba1-ee87896fc583",
@@ -67,15 +67,6 @@
           "title": "ПВХ белый 3мм 3050х1560х3 \"UNEXT\" STR",
           "calcMode": "area",
           "note": "Прайс по материалам.xlsx; строка 840; столбец G"
-        },
-        {
-          "id": "b678f53e-52d8-4f10-bd39-4504f992b3c6",
-          "qty": 2,
-          "unit": "м2",
-          "unitCost": 0,
-          "section": "print",
-          "title": "Пленка",
-          "calcMode": "area"
         }
       ]
     }
