@@ -539,7 +539,29 @@ td small {
 }
 
 .cost-popover .summary-grid {
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cost-popover .summary {
+  min-width: 0;
+  padding: 7px 9px;
+}
+
+.cost-popover .summary span {
+  overflow: hidden;
+  margin-bottom: 3px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cost-popover .summary strong {
+  display: block;
+  overflow: hidden;
+  font-size: 16px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cost-popover-grid {
@@ -1715,7 +1737,7 @@ td small {
 
 @media (max-width: 1360px) {
   .cost-popover .summary-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(12, minmax(0, 1fr));
   }
 
   .cost-popover-grid {
@@ -1770,7 +1792,7 @@ td small {
   }
 
   .cost-popover .summary-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .cost-popover-grid {
