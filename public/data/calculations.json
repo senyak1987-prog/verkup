@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T17:07:49.184Z",
+  "generatedAt": "2026-06-05T17:18:41.802Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T16:36:57.721Z",
+      "updatedAt": "2026-06-05T17:18:40.934Z",
       "positions": [
+        {
+          "id": "bdaed8d6-b8fa-4ea5-97ba-99cbcf8d7f89",
+          "catalogId": "materials-акп-1220х4000-3-0-21-сигнально-серый-7004-grossb-1816",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 1794.47,
+          "section": "materials",
+          "title": "[*] АКП 1220х4000 3/0,21 сигнально серый 7004 Grossbond 1,22х4 3/0,21",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 1153; столбец G"
+        },
         {
           "id": "8138f242-ede0-43f4-a315-098b9e99ffab",
           "catalogId": "materials-клеи-очистители-космофен-са-12-50-гр-cosmo-ca-50-2058",
