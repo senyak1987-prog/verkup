@@ -973,9 +973,13 @@ function BlockFavorites({
     () => new Map(catalogItems.map((item) => [item.id, item])),
     [catalogItems],
   );
+  const sectionItemIds = useMemo(
+    () => new Set(sectionItems.map((item) => item.id)),
+    [sectionItems],
+  );
   const positionFavoriteItems = positions
     .map((position) => (position.catalogId ? catalogItemsById.get(position.catalogId) : undefined))
-    .filter((item): item is CatalogItem => Boolean(item?.favorite));
+    .filter((item): item is CatalogItem => Boolean(item?.favorite && sectionItemIds.has(item.id)));
   const favoriteItems = uniqueCatalogItems([
     ...sectionItems.filter((item) => item.favorite),
     ...positionFavoriteItems,
