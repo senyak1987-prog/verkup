@@ -1,5 +1,5 @@
 import { ArrowDownUp, Database, ExternalLink, FilterX, Pencil, RotateCcw, Search } from "lucide-react";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Deal, DealCalculation, DealStageCode } from "../types";
 import {
@@ -49,6 +49,12 @@ type DateSort = {
   direction: "asc" | "desc";
 } | null;
 
+type AnimatedExpandedRow = {
+  dealId: string;
+  status: "opening" | "closing";
+  content?: ReactNode;
+};
+
 type DealTableProps = {
   deals: Deal[];
   calculations: Map<string, DealCalculation>;
@@ -83,10 +89,52 @@ export function DealTable({
   const [columnWidths, setColumnWidths] = useState<ColumnWidths>(() => loadColumnWidths());
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>(emptyColumnFilters);
   const [dateSort, setDateSort] = useState<DateSort>(null);
+  const [animatedExpandedRows, setAnimatedExpandedRows] = useState<AnimatedExpandedRow[]>([]);
+  const expandedRowCacheRef = useRef(new Map<string, ReactNode>());
 
   useEffect(() => {
     localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnWidths));
   }, [columnWidths]);
+
+  useEffect(() => {
+    if (selectedDealId && expandedRow) {
+      expandedRowCacheRef.current.set(selectedDealId, expandedRow);
+    }
+  }, [expandedRow, selectedDealId]);
+
+  useEffect(() => {
+    setAnimatedExpandedRows((rows) => {
+      const nextRows = rows
+        .map((row) => {
+          if (selectedDealId && row.dealId === selectedDealId) {
+            return { dealId: row.dealId, status: "opening" as const };
+          }
+
+          return {
+            dealId: row.dealId,
+            status: "closing" as const,
+            content: row.content || expandedRowCacheRef.current.get(row.dealId),
+          };
+        })
+        .filter((row) => row.dealId === selectedDealId || row.status === "closing");
+
+      if (selectedDealId && !nextRows.some((row) => row.dealId === selectedDealId)) {
+        nextRows.push({ dealId: selectedDealId, status: "opening" });
+      }
+
+      return nextRows;
+    });
+  }, [selectedDealId]);
+
+  useEffect(() => {
+    if (!animatedExpandedRows.some((row) => row.status === "closing")) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setAnimatedExpandedRows((rows) => rows.filter((row) => row.status !== "closing"));
+    }, 230);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [animatedExpandedRows]);
 
   const tableWidth = useMemo(
     () => tableColumns.reduce((sum, column) => sum + columnWidths[column.id], 0),
@@ -108,6 +156,10 @@ export function DealTable({
   }, [columnFilters, dateSort, deals]);
 
   const hasColumnFilters = Object.values(columnFilters).some(Boolean);
+  const animatedExpandedRowsByDeal = useMemo(
+    () => new Map(animatedExpandedRows.map((row) => [row.dealId, row])),
+    [animatedExpandedRows],
+  );
 
   const totals = visibleDeals.reduce(
     (acc, deal) => {
@@ -264,6 +316,11 @@ export function DealTable({
               const calculation = calculations.get(deal.id);
               const sales = saleBreakdownForDeal(deal, calculation, agentRatio);
               const isSelected = selectedDealId === deal.id;
+              const animatedExpandedRow = animatedExpandedRowsByDeal.get(deal.id);
+              const animatedExpandedContent =
+                animatedExpandedRow && isSelected
+                  ? expandedRow
+                  : animatedExpandedRow?.content || expandedRowCacheRef.current.get(deal.id);
               return (
                 <Fragment key={deal.id}>
                   <tr
@@ -322,9 +379,13 @@ export function DealTable({
                       </a>
                     </td>
                   </tr>
-                  {isSelected && expandedRow && (
-                    <tr className="calculation-panel-row">
-                      <td colSpan={tableColumns.length}>{expandedRow}</td>
+                  {animatedExpandedRow && animatedExpandedContent && (
+                    <tr className={`calculation-panel-row ${animatedExpandedRow.status}`}>
+                      <td colSpan={tableColumns.length}>
+                        <div className="deal-expand-shell">
+                          <div className="deal-expand-inner">{animatedExpandedContent}</div>
+                        </div>
+                      </td>
                     </tr>
                   )}
                 </Fragment>

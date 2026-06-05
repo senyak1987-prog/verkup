@@ -374,10 +374,60 @@ tr.selected td {
   cursor: pointer;
 }
 
+.clickable-row td {
+  transition: background-color 170ms ease;
+}
+
 .calculation-panel-row td {
   padding: 0;
   border-right: 0;
   background: #f6faf9;
+}
+
+.deal-expand-shell {
+  display: grid;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+  transform-origin: top center;
+  animation: dealPanelExpand 220ms cubic-bezier(0.2, 0.78, 0.24, 1) both;
+}
+
+.calculation-panel-row.closing .deal-expand-shell {
+  pointer-events: none;
+  animation: dealPanelCollapse 200ms ease-in both;
+}
+
+.deal-expand-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@keyframes dealPanelExpand {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dealPanelCollapse {
+  from {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-8px);
+  }
 }
 
 .deal-title {
