@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T16:36:09.030Z",
+  "generatedAt": "2026-06-05T16:36:13.426Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,20 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-03T13:54:05.633Z",
-      "positions": []
+      "updatedAt": "2026-06-05T16:36:12.561Z",
+      "positions": [
+        {
+          "id": "f2cd1d73-0cb2-4a4e-ae91-29681c3ad51d",
+          "catalogId": "materials-бумага-транслюцентная-vilaseca-skylight-150-1-29-1934",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 75.67,
+          "section": "materials",
+          "title": "Бумага транслюцентная Vilaseca Skylight 150 (1,29х100)",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 1283; столбец G"
+        }
+      ]
     }
   ]
 }
