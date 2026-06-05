@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:26:51.927Z",
+  "generatedAt": "2026-06-05T19:26:57.916Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:26:50.234Z",
+      "updatedAt": "2026-06-05T19:26:57.061Z",
       "positions": [
         {
           "id": "388e60c9-6445-4278-8353-57d917234ea3",
@@ -84,7 +84,9 @@
           "section": "materials",
           "title": "Пленка \"ORACAL-641\" (1 м) 20 (641 1х50)",
           "calcMode": "area",
-          "note": "Прайс по материалам.xlsx; строка 19; столбец G"
+          "note": "Прайс по материалам.xlsx; строка 19; столбец G",
+          "width": 1,
+          "height": 2
         }
       ]
     }
