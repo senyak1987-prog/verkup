@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   CatalogItem,
   CostCalcMode,
@@ -720,9 +720,26 @@ function CostBlockView({
   onDelete: (id: string) => void;
 }) {
   const total = positions.reduce((sum, position) => sum + positionTotal(position), 0);
+  const [shouldRenderBody, setShouldRenderBody] = useState(isOpen);
+  const isBodyClosing = !isOpen && shouldRenderBody;
+
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRenderBody(true);
+      return;
+    }
+
+    if (!shouldRenderBody) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setShouldRenderBody(false);
+    }, 190);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isOpen, shouldRenderBody]);
 
   return (
-    <section className={`calc-block ${isOpen ? "open" : "collapsed"}`}>
+    <section className={`calc-block ${isOpen || shouldRenderBody ? "open" : "collapsed"}`}>
       <button className="calc-block-row" onClick={onToggle}>
         <div>
           <h3>{block.title}</h3>
@@ -734,28 +751,30 @@ function CostBlockView({
           {isOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
         </span>
       </button>
-      {isOpen && (
-        <div className="calc-block-body">
-          <BlockCatalogPicker
-            block={block}
-            catalogItems={catalogItems}
-            onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
-            onToggleFavorite={onToggleFavorite}
-          />
-          <PositionList
-            emptyText="Пока нет позиций в этом блоке."
-            newPositionId={newPositionId}
-            positions={positions}
-            onDelete={onDelete}
-            onPatch={onPatch}
-          />
-          <div className="calc-block-actions">
-            {block.actions.map((action) => (
-              <button key={action.label} onClick={() => onAdd(action.template)}>
-                <CirclePlus size={16} />
-                {action.label}
-              </button>
-            ))}
+      {shouldRenderBody && (
+        <div className={`calc-block-body-shell ${isBodyClosing ? "closing" : "opening"}`}>
+          <div className="calc-block-body">
+            <BlockCatalogPicker
+              block={block}
+              catalogItems={catalogItems}
+              onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
+              onToggleFavorite={onToggleFavorite}
+            />
+            <PositionList
+              emptyText="Пока нет позиций в этом блоке."
+              newPositionId={newPositionId}
+              positions={positions}
+              onDelete={onDelete}
+              onPatch={onPatch}
+            />
+            <div className="calc-block-actions">
+              {block.actions.map((action) => (
+                <button key={action.label} onClick={() => onAdd(action.template)}>
+                  <CirclePlus size={16} />
+                  {action.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
