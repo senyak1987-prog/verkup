@@ -40,10 +40,7 @@ import {
   saleBreakdownForDeal,
 } from "../lib/costing";
 import {
-  materialFamilyOptions,
-  materialFamilyValue,
   materialGroupLabel,
-  materialGroupOptions,
   sectionLabels,
   toggleCatalogFavorite,
 } from "../lib/catalog";
@@ -869,37 +866,13 @@ function BlockCatalogPicker({
 }) {
   const catalogSections = block.catalogSections || block.sections;
   const [query, setQuery] = useState("");
-  const [activeSection, setActiveSection] = useState<CostSection | "">("");
-  const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
-  const [activeMaterialFamily, setActiveMaterialFamily] = useState("");
-  const [selectedItemId, setSelectedItemId] = useState("");
   const sectionItems = useMemo(
     () => filterBlockCatalogItems(catalogItems, catalogSections, block.catalogMaterialGroups),
     [block.catalogMaterialGroups, catalogItems, catalogSections],
   );
-  const materialGroups = useMemo(() => materialGroupOptions(sectionItems), [sectionItems]);
-  const materialFamilies = useMemo(
-    () => materialFamilyOptions(sectionItems, activeMaterialGroup),
-    [activeMaterialGroup, sectionItems],
-  );
-  const showSectionFilter = catalogSections.length > 1;
-  const isMaterialOnlyBlock = catalogSections.length === 1 && catalogSections[0] === "materials";
-  const hasMaterialGroupRules = Boolean(block.catalogMaterialGroups?.length);
-  const showMaterialFilters =
-    catalogSections.includes("materials") &&
-    (isMaterialOnlyBlock || activeSection === "materials" || (!activeSection && hasMaterialGroupRules));
   const addLabel = blockAddLabels[block.id] || "позицию";
   const quickSearchItems = useMemo(() => smartCatalogSearch(sectionItems, query).slice(0, 8), [query, sectionItems]);
   const hasQuickSearch = query.trim().length > 0;
-  const baseItems = sectionItems
-    .filter((item) => !activeSection || item.section === activeSection)
-    .filter((item) => !activeMaterialGroup || (item.materialGroup || "Без группы") === activeMaterialGroup)
-    .filter((item) => !activeMaterialFamily || materialFamilyValue(item) === activeMaterialFamily);
-  const itemOptions = (hasQuickSearch ? smartCatalogSearch(baseItems, query) : baseItems).slice(0, 500);
-  const selectedItem =
-    itemOptions.find((item) => item.id === selectedItemId) ||
-    baseItems.find((item) => item.id === selectedItemId) ||
-    sectionItems.find((item) => item.id === selectedItemId);
   const catalogItemsById = useMemo(
     () => new Map(catalogItems.map((item) => [item.id, item])),
     [catalogItems],
@@ -911,28 +884,10 @@ function BlockCatalogPicker({
     ...sectionItems.filter((item) => item.favorite),
     ...positionFavoriteItems,
   ]).slice(0, 12);
-  const materialSelectDisabled = isMaterialOnlyBlock && showMaterialFilters && !activeMaterialGroup && !hasQuickSearch;
-
-  function changeSection(value: CostSection | "") {
-    setActiveSection(value);
-    setActiveMaterialGroup("");
-    setActiveMaterialFamily("");
-    setSelectedItemId("");
-  }
 
   function addSelectedCatalogItem(item: CatalogItem) {
-    setSelectedItemId(item.id);
     setQuery("");
     onAdd(item);
-  }
-
-  function selectCatalogItem(itemId: string) {
-    setSelectedItemId(itemId);
-    const item = itemOptions.find((option) => option.id === itemId);
-    if (item) {
-      setQuery("");
-      onAdd(item);
-    }
   }
 
   return (
@@ -948,10 +903,7 @@ function BlockCatalogPicker({
               <span>Быстрый поиск</span>
               <input
                 value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setSelectedItemId("");
-                }}
+                onChange={(event) => setQuery(event.target.value)}
                 placeholder="Название, толщина, источник..."
               />
             </label>
@@ -986,104 +938,6 @@ function BlockCatalogPicker({
                   <p className="catalog-search-empty">Ничего не найдено. Попробуйте меньше слов или часть названия.</p>
                 )}
               </div>
-            )}
-            {showSectionFilter && (
-              <label className="catalog-field">
-                <span>{showMaterialFilters ? "Раздел" : "Группа"}</span>
-                <select
-                  value={activeSection}
-                  onChange={(event) => changeSection(event.target.value as CostSection | "")}
-                >
-                  <option value="">Все разделы</option>
-                  {catalogSections.map((section) => (
-                    <option key={section} value={section}>
-                      {sectionLabels[section]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {showMaterialFilters && (
-              <>
-                <label className="catalog-field">
-                  <span>Группа</span>
-                  <select
-                    value={activeMaterialGroup}
-                    onChange={(event) => {
-                      setActiveMaterialGroup(event.target.value);
-                      setActiveMaterialFamily("");
-                      setSelectedItemId("");
-                    }}
-                  >
-                    <option value="" disabled hidden>
-                      Выберите группу
-                    </option>
-                    {materialGroups.map((group) => (
-                      <option key={group} value={group}>
-                        {group}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="catalog-field">
-                  <span>Подгруппа</span>
-                  <select
-                    disabled={!activeMaterialGroup}
-                    value={activeMaterialFamily}
-                    onChange={(event) => {
-                      setActiveMaterialFamily(event.target.value);
-                      setSelectedItemId("");
-                    }}
-                  >
-                    <option value="">Все подгруппы</option>
-                    {materialFamilies.map((family) => (
-                      <option key={family} value={family}>
-                        {family}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </>
-            )}
-            <label className="catalog-field wide">
-              <span>{showMaterialFilters ? "Материал" : "Позиция"}</span>
-              <select
-                disabled={materialSelectDisabled}
-                value={selectedItemId}
-                onChange={(event) => selectCatalogItem(event.target.value)}
-              >
-                <option value="">
-                  {materialSelectDisabled ? "Сначала выберите группу" : "Выберите позицию"}
-                </option>
-                {itemOptions.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.title} · {formatMoney(item.unitCost)} / {item.unit}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="selected-catalog-item">
-            {selectedItem ? (
-              <>
-                <div>
-                  <strong>{selectedItem.title}</strong>
-                  <small>
-                    {sectionLabels[selectedItem.section]} · {formatMoney(selectedItem.unitCost)} / {selectedItem.unit}
-                    {materialGroupLabel(selectedItem) ? ` · ${materialGroupLabel(selectedItem)}` : ""}
-                  </small>
-                </div>
-                <button
-                  className={selectedItem.favorite ? "favorite-toggle active" : "favorite-toggle"}
-                  onClick={() => onToggleFavorite(selectedItem)}
-                  title={selectedItem.favorite ? "Убрать из избранного" : "Добавить в избранное"}
-                >
-                  <Star size={15} />
-                </button>
-              </>
-            ) : (
-              <p>Выберите позицию из списка выше.</p>
             )}
           </div>
         </div>
