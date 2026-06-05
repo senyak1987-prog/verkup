@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:47:29.434Z",
+  "generatedAt": "2026-06-05T19:47:37.921Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,14 +9,14 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:47:28.577Z",
+      "updatedAt": "2026-06-05T19:47:37.052Z",
       "positions": [
         {
           "id": "b99ebb5c-0060-4bdc-94a8-6e5b953ce18a",
           "catalogId": "other-manual-b99ebb5c-0060-4bdc-94a8-6e5b953ce18a",
           "qty": 1,
           "unit": "шт",
-          "unitCost": 0,
+          "unitCost": 100,
           "section": "other",
           "title": "",
           "calcMode": "pieces",
