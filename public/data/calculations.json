@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T16:36:50.790Z",
+  "generatedAt": "2026-06-05T16:36:58.584Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,12 +9,12 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T16:36:49.930Z",
+      "updatedAt": "2026-06-05T16:36:57.721Z",
       "positions": [
         {
           "id": "8138f242-ede0-43f4-a315-098b9e99ffab",
           "catalogId": "materials-клеи-очистители-космофен-са-12-50-гр-cosmo-ca-50-2058",
-          "qty": 1,
+          "qty": 3,
           "unit": "шт",
           "unitCost": 438.87,
           "section": "materials",
@@ -36,7 +36,7 @@
         {
           "id": "f2cd1d73-0cb2-4a4e-ae91-29681c3ad51d",
           "catalogId": "materials-бумага-транслюцентная-vilaseca-skylight-150-1-29-1934",
-          "qty": 0,
+          "qty": 2,
           "unit": "м2",
           "unitCost": 75.67,
           "section": "materials",
