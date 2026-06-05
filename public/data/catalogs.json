@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T16:36:59.670Z",
+  "generatedAt": "2026-06-05T16:43:17.056Z",
   "items": [
     {
       "id": "assembly-буква-объемная-12-50-см-склейка-0",
@@ -16174,7 +16174,7 @@
       "materialFamily": "ПВХ",
       "materialSubgroup": "Пластик ПВХ / ПВХ белый 3мм",
       "materialGroupPath": "Листовые материалы / Пластик ПВХ / ПВХ белый 3мм",
-      "favorite": false
+      "favorite": true
     },
     {
       "id": "materials-пвх-белый-3мм-3050х1560х3-unext-str-1545",
