@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:23:19.958Z",
+  "generatedAt": "2026-06-05T19:26:41.099Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,30 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T18:26:23.342Z",
+      "updatedAt": "2026-06-05T19:26:40.240Z",
       "positions": [
+        {
+          "id": "ad809b0a-de01-4f33-8c1a-86ca76cbc78b",
+          "catalogId": "materials-пвх-белый-3мм-3050х1560х3-unext-str-1545",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 716.06,
+          "section": "materials",
+          "title": "ПВХ белый 3мм 3050х1560х3 \"UNEXT\" STR",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 840; столбец G"
+        },
+        {
+          "id": "9c24b538-ddb4-40ac-90af-75ca4dbd5af0",
+          "catalogId": "materials-пленка-oracal-641-1-м-20-641-1х50-788",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 304.35,
+          "section": "materials",
+          "title": "Пленка \"ORACAL-641\" (1 м) 20 (641 1х50)",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 19; столбец G"
+        },
         {
           "id": "b678f53e-52d8-4f10-bd39-4504f992b3c6",
           "qty": 0,
