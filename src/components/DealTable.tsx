@@ -1,7 +1,7 @@
 import { ArrowDownUp, Database, ExternalLink, FilterX, Pencil, RotateCcw, Search } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import type { Deal, DealCalculation, DealStageCode } from "../types";
+import type { Deal, DealCalculation } from "../types";
 import {
   cleanCost,
   finalCost,
@@ -12,7 +12,6 @@ import {
   saleBreakdownForDeal,
   saleAmountForDeal,
 } from "../lib/costing";
-import { stageLabels } from "../lib/stages";
 
 const COLUMN_STORAGE_KEY = "verkupDealColumnWidths";
 
@@ -59,11 +58,9 @@ type DealTableProps = {
   deals: Deal[];
   calculations: Map<string, DealCalculation>;
   agentRatio: number;
-  activeStage: DealStageCode;
-  stageCounts: Record<DealStageCode, number>;
   selectedDealId?: string;
+  topTabs: ReactNode;
   onSelect: (deal: Deal) => void;
-  onStageChange: (stage: DealStageCode) => void;
   onOpenCatalog: () => void;
   catalogCount: number;
   query: string;
@@ -75,11 +72,9 @@ export function DealTable({
   deals,
   calculations,
   agentRatio,
-  activeStage,
-  stageCounts,
   selectedDealId,
+  topTabs,
   onSelect,
-  onStageChange,
   onOpenCatalog,
   catalogCount,
   query,
@@ -225,20 +220,7 @@ export function DealTable({
     <main className="deal-list">
       <div className="toolbar">
         <div>
-          <div className="stage-tabs" role="tablist" aria-label="Стадии сделок">
-            {(["launch", "production"] as const).map((stage) => (
-              <button
-                aria-selected={activeStage === stage}
-                className={activeStage === stage ? "active" : ""}
-                key={stage}
-                onClick={() => onStageChange(stage)}
-                role="tab"
-              >
-                {stageLabels[stage]}
-                <span>{stageCounts[stage]}</span>
-              </button>
-            ))}
-          </div>
+          {topTabs}
           <p>{visibleDeals.length} сделок в текущей вкладке</p>
         </div>
         <div className="toolbar-actions">

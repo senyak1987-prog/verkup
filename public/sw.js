@@ -1,5 +1,12 @@
-const CACHE_NAME = "verkup-offline-v1";
-const APP_SHELL = ["./", "./data/catalogs.json", "./data/calculations.json", "./data/deals.json"];
+const CACHE_NAME = "verkup-offline-v2";
+const APP_SHELL = [
+  "./",
+  "./data/catalogs.json",
+  "./data/calculations.json",
+  "./data/deals.json",
+  "./vendor/pdfjs/pdf.mjs",
+  "./vendor/pdfjs/pdf.worker.mjs",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(cacheAppShell().then(() => self.skipWaiting()));

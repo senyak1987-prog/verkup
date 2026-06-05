@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
 import { DealTable } from "./components/DealTable";
+import { PdfCalculator } from "./components/PdfCalculator";
 import {
   loadCalculations,
   loadCatalogs,
@@ -14,7 +15,7 @@ import {
   writeCachedCatalogs,
   writeCachedDeals,
 } from "./lib/data";
-import { stageCodeForDeal } from "./lib/stages";
+import { stageCodeForDeal, stageLabels } from "./lib/stages";
 import type { CatalogItem, Deal, DealCalculation, DealStageCode, StoredCalculations } from "./types";
 import "./styles.css";
 
@@ -25,6 +26,8 @@ type PendingStageMove = {
   stage: DealStageCode;
   expiresAt: number;
 };
+
+type AppTab = DealStageCode | "calculator";
 
 export default function App() {
   const [deals, setDeals] = useState<Deal[]>(() => readCachedDeals()?.items || []);
@@ -39,6 +42,7 @@ export default function App() {
   const [loading, setLoading] = useState(() => !hasCachedStartupData());
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
+  const [activeScreen, setActiveScreen] = useState<"deals" | "calculator">("deals");
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
 
   useEffect(() => {
@@ -195,6 +199,18 @@ export default function App() {
       return next;
     });
     setActiveStage(stage);
+    setActiveScreen("deals");
+  }
+
+  function handleTabChange(tab: AppTab) {
+    if (tab === "calculator") {
+      setSelectedDealId(undefined);
+      setActiveScreen("calculator");
+      return;
+    }
+
+    setActiveStage(tab);
+    setActiveScreen("deals");
   }
 
   function applyPendingStageMoves(items: Deal[]) {
@@ -221,35 +237,51 @@ export default function App() {
   return (
     <div className="app">
       {loading && <div className="loading">Загружаю данные...</div>}
-      <DealTable
-        deals={filteredDeals}
-        calculations={calculationsMap}
-        agentRatio={storedCalculations.agentCostRatio}
-        activeStage={activeStage}
-        stageCounts={stageCounts}
-        selectedDealId={selectedDealId}
-        onSelect={handleDealToggle}
-        onStageChange={setActiveStage}
-        onOpenCatalog={() => setCatalogOpen(true)}
-        catalogCount={catalogItems.length}
-        query={query}
-        onQueryChange={setQuery}
-        expandedRow={
-          selectedDeal ? (
-            <CostDrawer
-              deal={selectedDeal}
-              calculation={selectedCalculation}
-              catalogItems={catalogItems}
-              storedCalculations={storedCalculations}
-              onOpenCatalog={() => setCatalogOpen(true)}
-              onChange={handleCalculationChange}
-              onCatalogChange={handleCatalogChange}
-              onClose={() => setSelectedDealId(undefined)}
-              onStageMoved={handleDealStageChanged}
+      {activeScreen === "calculator" ? (
+        <PdfCalculator
+          topTabs={
+            <AppTopTabs
+              activeTab="calculator"
+              stageCounts={stageCounts}
+              onChange={handleTabChange}
             />
-          ) : undefined
-        }
-      />
+          }
+        />
+      ) : (
+        <DealTable
+          deals={filteredDeals}
+          calculations={calculationsMap}
+          agentRatio={storedCalculations.agentCostRatio}
+          selectedDealId={selectedDealId}
+          topTabs={
+            <AppTopTabs
+              activeTab={activeStage}
+              stageCounts={stageCounts}
+              onChange={handleTabChange}
+            />
+          }
+          onSelect={handleDealToggle}
+          onOpenCatalog={() => setCatalogOpen(true)}
+          catalogCount={catalogItems.length}
+          query={query}
+          onQueryChange={setQuery}
+          expandedRow={
+            selectedDeal ? (
+              <CostDrawer
+                deal={selectedDeal}
+                calculation={selectedCalculation}
+                catalogItems={catalogItems}
+                storedCalculations={storedCalculations}
+                onOpenCatalog={() => setCatalogOpen(true)}
+                onChange={handleCalculationChange}
+                onCatalogChange={handleCatalogChange}
+                onClose={() => setSelectedDealId(undefined)}
+                onStageMoved={handleDealStageChanged}
+              />
+            ) : undefined
+          }
+        />
+      )}
       {catalogOpen && (
         <CatalogManager
           items={catalogItems}
@@ -257,6 +289,43 @@ export default function App() {
           onClose={() => setCatalogOpen(false)}
         />
       )}
+    </div>
+  );
+}
+
+function AppTopTabs({
+  activeTab,
+  stageCounts,
+  onChange,
+}: {
+  activeTab: AppTab;
+  stageCounts: Record<DealStageCode, number>;
+  onChange: (tab: AppTab) => void;
+}) {
+  return (
+    <div className="stage-tabs" role="tablist" aria-label="Разделы">
+      {(["launch", "production"] as const).map((stage) => (
+        <button
+          aria-selected={activeTab === stage}
+          className={activeTab === stage ? "active" : ""}
+          key={stage}
+          onClick={() => onChange(stage)}
+          role="tab"
+          type="button"
+        >
+          {stageLabels[stage]}
+          <span>{stageCounts[stage]}</span>
+        </button>
+      ))}
+      <button
+        aria-selected={activeTab === "calculator"}
+        className={activeTab === "calculator" ? "active app-tab-offset" : "app-tab-offset"}
+        onClick={() => onChange("calculator")}
+        role="tab"
+        type="button"
+      >
+        Калькулятор
+      </button>
     </div>
   );
 }
