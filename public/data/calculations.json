@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:29:16.980Z",
+  "generatedAt": "2026-06-05T19:30:57.154Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:26:40.240Z",
+      "updatedAt": "2026-06-05T19:30:56.297Z",
       "positions": [
+        {
+          "id": "63139469-862c-4f53-ada6-4248d9d8d50b",
+          "catalogId": "materials-пленка-oracal-641-1-м-70-641-1х50-858",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 304.35,
+          "section": "print",
+          "title": "Пленка \"ORACAL-641\" (1 м) 70 (641 1х50)",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 89; столбец G"
+        },
         {
           "id": "ad809b0a-de01-4f33-8c1a-86ca76cbc78b",
           "catalogId": "materials-пвх-белый-3мм-3050х1560х3-unext-str-1545",
