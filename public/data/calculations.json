@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T16:36:13.426Z",
+  "generatedAt": "2026-06-05T16:36:33.342Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T16:36:12.561Z",
+      "updatedAt": "2026-06-05T16:36:32.481Z",
       "positions": [
+        {
+          "id": "85de400a-3bec-4e52-b85f-b476fe2a4ebe",
+          "catalogId": "materials-клеи-очистители-очиститель-космофен-5-cosmo-cl-3-2068",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 1443,
+          "section": "materials",
+          "title": "Клеи, очистители Очиститель Космофен 5 (Cosmo CL-300.110) 1 литр",
+          "calcMode": "pieces",
+          "note": "Прайс по материалам.xlsx; строка 1446; столбец G"
+        },
         {
           "id": "f2cd1d73-0cb2-4a4e-ae91-29681c3ad51d",
           "catalogId": "materials-бумага-транслюцентная-vilaseca-skylight-150-1-29-1934",
