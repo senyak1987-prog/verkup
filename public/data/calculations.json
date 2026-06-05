@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T18:24:52.963Z",
+  "generatedAt": "2026-06-05T18:25:22.042Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,18 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T18:24:47.197Z",
-      "positions": []
+      "updatedAt": "2026-06-05T18:25:21.187Z",
+      "positions": [
+        {
+          "id": "b67b0fd6-2f85-4142-8b6b-b144c6a2544a",
+          "qty": 1,
+          "unit": "п/м",
+          "unitCost": 0,
+          "section": "materials",
+          "title": "Рама",
+          "calcMode": "linear"
+        }
+      ]
     }
   ]
 }
