@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   CatalogItem,
   CostCalcMode,
@@ -400,6 +400,45 @@ export function CostDrawer({
       }
     );
   }, [calculation, deal?.id]);
+  const hasSaveApiUrl = saveApiUrl.trim().length > 0;
+  const autoSaveSignature = useMemo(
+    () => JSON.stringify({
+      catalogItems,
+      dealId: activeCalculation.dealId,
+      positions: activeCalculation.positions,
+    }),
+    [activeCalculation.dealId, activeCalculation.positions, catalogItems],
+  );
+  const autoSaveBaselineRef = useRef({ dealId: "", signature: "" });
+
+  useEffect(() => {
+    if (!deal?.id) return;
+    autoSaveBaselineRef.current = {
+      dealId: deal.id,
+      signature: autoSaveSignature,
+    };
+    setSaveState("idle");
+    setSaveError("");
+  }, [deal?.id]);
+
+  useEffect(() => {
+    if (!deal?.id || !hasSaveApiUrl) return;
+
+    const baseline = autoSaveBaselineRef.current;
+    if (baseline.dealId !== deal.id || baseline.signature === autoSaveSignature) return;
+
+    const timeoutId = window.setTimeout(async () => {
+      const saved = await saveCalculation();
+      if (saved) {
+        autoSaveBaselineRef.current = {
+          dealId: deal.id,
+          signature: autoSaveSignature,
+        };
+      }
+    }, 850);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [autoSaveSignature, deal?.id, hasSaveApiUrl, saveApiUrl]);
 
   if (!deal) {
     return null;
@@ -410,9 +449,7 @@ export function CostDrawer({
   const currentStage = stageCodeForDeal(deal);
   const isLaunchDeal = currentStage === "launch";
   const isProductionDeal = currentStage === "production";
-  const hasSaveApiUrl = saveApiUrl.trim().length > 0;
-  const canSave = hasSaveApiUrl;
-  const canMoveStage = canSave;
+  const canMoveStage = hasSaveApiUrl;
   const moveHints = [!hasSaveApiUrl ? "Укажите адрес API сохранения." : ""].filter(Boolean);
 
   function updatePositions(positions: CostPosition[]) {
@@ -427,10 +464,11 @@ export function CostDrawer({
 
   function addPosition(template: PositionTemplate) {
     const id = crypto.randomUUID();
+    const calcMode = template.calcMode || modeForUnit(template.unit);
     const position = normalizePosition({
       id,
       catalogId: template.section === "other" ? `other-manual-${id}` : template.catalogId,
-      qty: 1,
+      qty: defaultQuantityForMode(calcMode),
       unit: "шт",
       unitCost: 0,
       ...template,
@@ -442,11 +480,12 @@ export function CostDrawer({
 
   function addCatalogItem(item: CatalogItem, targetSection?: CostSection) {
     const section = targetSection || item.section;
+    const calcMode = modeForCatalogItem(item);
     addPosition({
       section,
       title: section === "defects" ? `Брак: ${item.title}` : item.title,
-      calcMode: modeForCatalogItem(item),
-      qty: 1,
+      calcMode,
+      qty: defaultQuantityForMode(calcMode),
       unit: item.unit,
       unitCost: item.unitCost,
       note: item.source,
@@ -502,9 +541,11 @@ export function CostDrawer({
         items: nextCatalogItems,
       });
       setSaveState("saved");
+      return true;
     } catch (error) {
       setSaveState("error");
       setSaveError(error instanceof Error ? error.message : "Не удалось сохранить расчет");
+      return false;
     }
   }
 
@@ -630,64 +671,62 @@ export function CostDrawer({
             onPatch={patchPosition}
             onToggle={() => setExpandedBlockId((current) => current === defectBlock.id ? null : defectBlock.id)}
             onToggleFavorite={toggleFavorite}
-            />
-        </section>
+          />
 
-        <section className="github-save">
-          <div className="section-title">
-            <h3>Сохранение</h3>
-            <Save size={18} />
-          </div>
-          {!isSaveApiUrlConfigured() && (
-            <input
-              value={saveApiUrl}
-              onChange={(event) => setSaveApiUrl(event.target.value)}
-              placeholder="Адрес API сохранения, например https://verkup-save-api...workers.dev"
-            />
-          )}
-          <button className="primary" disabled={!canSave || saveState === "saving"} onClick={saveCalculation}>
-            {saveState === "saved" ? <Check size={18} /> : <Save size={18} />}
-            {saveState === "saving" ? "Сохраняю..." : "Сохранить расчет"}
-          </button>
-          {isLaunchDeal && (
-            <button
-              className="production-button"
-              disabled={!canMoveStage || moveState === "moving"}
-              onClick={() => moveToStage("production")}
-              title={
-                !moveHints.length
-                  ? "Сохранить расчет и перевести сделку в стадию В производстве"
-                  : moveHints.join(" ")
-              }
-            >
-              {moveState === "moved" ? <Check size={18} /> : <ArrowRight size={18} />}
-              {moveState === "moving" ? "Перевожу..." : "Перевести в производство"}
-            </button>
-          )}
-          {isProductionDeal && (
-            <button
-              className="production-button rollback"
-              disabled={!canMoveStage || moveState === "moving"}
-              onClick={() => moveToStage("launch")}
-              title={
-                !moveHints.length
-                  ? "Сохранить расчет и вернуть сделку в стадию Запустить в производство"
-                  : moveHints.join(" ")
-              }
-            >
-              {moveState === "moved" ? <Check size={18} /> : <ArrowLeft size={18} />}
-              {moveState === "moving" ? "Откатываю..." : "Откатить в запуск"}
-            </button>
-          )}
-          {(isLaunchDeal || isProductionDeal) && moveState !== "moved" && !!moveHints.length && (
-            <p className="hint">{moveHints.join(" ")}</p>
-          )}
-          {saveState === "error" && <p className="error">{saveError}</p>}
-          {saveState === "saved" && <p className="ok">Расчет записан в GitHub через API.</p>}
-          {moveState === "error" && <p className="error">{moveError}</p>}
-          {moveState === "moved" && (
-            <p className="ok">Запущено изменение стадии в Bitrix24. Обновление подтянется после Actions.</p>
-          )}
+          <section className="drawer-bottom-actions">
+            <div className="autosave-status">
+              {saveState === "saved" ? <Check size={16} /> : <Save size={16} />}
+              <span>
+                {!hasSaveApiUrl
+                  ? "Автосохранение не настроено"
+                  : saveState === "saving"
+                    ? "Автосохраняю..."
+                    : saveState === "saved"
+                      ? "Изменения сохранены"
+                      : "Автосохранение включено"}
+              </span>
+            </div>
+            {!isSaveApiUrlConfigured() && (
+              <input
+                className="autosave-input"
+                value={saveApiUrl}
+                onChange={(event) => setSaveApiUrl(event.target.value)}
+                placeholder="Адрес API сохранения, например https://verkup-save-api...workers.dev"
+              />
+            )}
+            <div className="stage-action-row">
+              {isLaunchDeal && (
+                <button
+                  className="production-button"
+                  disabled={!canMoveStage || moveState === "moving"}
+                  onClick={() => moveToStage("production")}
+                  title={!moveHints.length ? "Перевести сделку в стадию В производстве" : moveHints.join(" ")}
+                >
+                  {moveState === "moved" ? <Check size={18} /> : <ArrowRight size={18} />}
+                  {moveState === "moving" ? "Перевожу..." : "Перевести в производство"}
+                </button>
+              )}
+              {isProductionDeal && (
+                <button
+                  className="production-button rollback"
+                  disabled={!canMoveStage || moveState === "moving"}
+                  onClick={() => moveToStage("launch")}
+                  title={!moveHints.length ? "Вернуть сделку в стадию Запустить в производство" : moveHints.join(" ")}
+                >
+                  {moveState === "moved" ? <Check size={18} /> : <ArrowLeft size={18} />}
+                  {moveState === "moving" ? "Откатываю..." : "Откатить в запуск"}
+                </button>
+              )}
+            </div>
+            {(isLaunchDeal || isProductionDeal) && moveState !== "moved" && !!moveHints.length && (
+              <p className="hint">{moveHints.join(" ")}</p>
+            )}
+            {saveState === "error" && <p className="error">{saveError}</p>}
+            {moveState === "error" && <p className="error">{moveError}</p>}
+            {moveState === "moved" && (
+              <p className="ok">Запущено изменение стадии в Bitrix24. Обновление подтянется после Actions.</p>
+            )}
+          </section>
         </section>
       </div>
     </section>
@@ -1093,7 +1132,7 @@ function PositionEditor({
   const areaInputValue = position.calcMode === "area" ? areaFieldValue(position) : position.qty;
 
   function patchNumber(field: keyof CostPosition, value: string) {
-    onPatch({ [field]: Number(value) } as Partial<CostPosition>);
+    onPatch({ [field]: inputNumber(value) } as Partial<CostPosition>);
   }
 
   function toggleAddon(addonId: string) {
@@ -1111,7 +1150,7 @@ function PositionEditor({
   function patchAreaQuantity(value: string) {
     onPatch({
       height: undefined,
-      qty: Number(value),
+      qty: inputNumber(value),
       width: undefined,
     });
   }
@@ -1221,7 +1260,12 @@ function areaFieldValue(position: CostPosition) {
     return Math.round((width * height + Number.EPSILON) * 100) / 100;
   }
 
-  return position.qty;
+  const qty = Number(position.qty) || 0;
+  return qty || undefined;
+}
+
+function inputNumber(value: string) {
+  return value.trim() === "" ? undefined : Number(value);
 }
 
 function NumberField({
@@ -1276,7 +1320,7 @@ function normalizePosition(position: CostPosition): CostPosition {
     ...position,
     calcMode,
     unit,
-    qty: Number.isFinite(Number(position.qty)) ? Number(position.qty) : 1,
+    qty: Number.isFinite(Number(position.qty)) ? Number(position.qty) : defaultQuantityForMode(calcMode),
     unitCost:
       calcMode === "letterAssembly" && addons.length
         ? assemblyAddonsTotal(addons)
@@ -1310,6 +1354,10 @@ function unitForMode(mode: CostCalcMode, fallback?: string) {
   if (mode === "linear") return "п/м";
   if (mode === "hourly") return "ч";
   return fallback || "шт";
+}
+
+function defaultQuantityForMode(mode: CostCalcMode) {
+  return mode === "area" ? 0 : 1;
 }
 
 function smartCatalogSearch(items: CatalogItem[], query: string) {
