@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T17:18:41.802Z",
+  "generatedAt": "2026-06-05T17:18:46.794Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,12 +9,12 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T17:18:40.934Z",
+      "updatedAt": "2026-06-05T17:18:45.934Z",
       "positions": [
         {
           "id": "bdaed8d6-b8fa-4ea5-97ba-99cbcf8d7f89",
           "catalogId": "materials-акп-1220х4000-3-0-21-сигнально-серый-7004-grossb-1816",
-          "qty": 0,
+          "qty": 2,
           "unit": "м2",
           "unitCost": 1794.47,
           "section": "materials",
