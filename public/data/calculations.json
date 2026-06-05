@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:47:37.921Z",
+  "generatedAt": "2026-06-05T19:47:40.380Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:47:37.052Z",
+      "updatedAt": "2026-06-05T19:47:39.524Z",
       "positions": [
+        {
+          "id": "9c4bbcca-273d-46d7-aba1-ee87896fc583",
+          "catalogId": "other-manual-9c4bbcca-273d-46d7-aba1-ee87896fc583",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 0,
+          "section": "other",
+          "title": "",
+          "calcMode": "pieces",
+          "note": "Прочие"
+        },
         {
           "id": "b99ebb5c-0060-4bdc-94a8-6e5b953ce18a",
           "catalogId": "other-manual-b99ebb5c-0060-4bdc-94a8-6e5b953ce18a",
