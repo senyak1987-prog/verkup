@@ -860,6 +860,14 @@ function BlockCatalogPicker({
             <span>Добавить {addLabel}</span>
           </div>
           <div className="catalog-cascade">
+            <label className="catalog-field catalog-search-field">
+              <span>Быстрый поиск</span>
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Название, толщина, источник..."
+              />
+            </label>
             {showSectionFilter && (
               <label className="catalog-field">
                 <span>Группа</span>
@@ -932,14 +940,6 @@ function BlockCatalogPicker({
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="catalog-field wide">
-              <span>Быстрый поиск</span>
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Название, толщина, источник..."
-              />
             </label>
           </div>
 

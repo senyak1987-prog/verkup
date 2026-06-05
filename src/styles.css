@@ -892,6 +892,10 @@ td small {
   grid-column: span 2;
 }
 
+.catalog-search-field {
+  grid-column: 1 / -1;
+}
+
 .catalog-field span {
   color: #667085;
   font-size: 12px;
