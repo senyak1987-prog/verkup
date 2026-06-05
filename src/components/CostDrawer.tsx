@@ -826,6 +826,7 @@ function CostBlockView({
             <BlockCatalogPicker
               block={block}
               catalogItems={catalogItems}
+              positions={positions}
               onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
               onToggleFavorite={onToggleFavorite}
             />
@@ -856,11 +857,13 @@ function CostBlockView({
 function BlockCatalogPicker({
   block,
   catalogItems,
+  positions,
   onAdd,
   onToggleFavorite,
 }: {
   block: CostBlock;
   catalogItems: CatalogItem[];
+  positions: CostPosition[];
   onAdd: (item: CatalogItem) => void;
   onToggleFavorite: (item: CatalogItem) => void;
 }) {
@@ -897,9 +900,17 @@ function BlockCatalogPicker({
     itemOptions.find((item) => item.id === selectedItemId) ||
     baseItems.find((item) => item.id === selectedItemId) ||
     sectionItems.find((item) => item.id === selectedItemId);
-  const favoriteItems = sectionItems
-    .filter((item) => item.favorite)
-    .slice(0, 12);
+  const catalogItemsById = useMemo(
+    () => new Map(catalogItems.map((item) => [item.id, item])),
+    [catalogItems],
+  );
+  const positionFavoriteItems = positions
+    .map((position) => position.catalogId ? catalogItemsById.get(position.catalogId) : undefined)
+    .filter((item): item is CatalogItem => Boolean(item?.favorite));
+  const favoriteItems = uniqueCatalogItems([
+    ...sectionItems.filter((item) => item.favorite),
+    ...positionFavoriteItems,
+  ]).slice(0, 12);
   const materialSelectDisabled = isMaterialOnlyBlock && showMaterialFilters && !activeMaterialGroup && !hasQuickSearch;
 
   function changeSection(value: CostSection | "") {
@@ -1387,6 +1398,16 @@ function filterBlockCatalogItems(
     if (!sections.some((section) => section === item.section)) return false;
     if (item.section !== "materials" || !allowedMaterialGroups) return true;
     return allowedMaterialGroups.has(item.materialGroup || "Без группы");
+  });
+}
+
+function uniqueCatalogItems(items: CatalogItem[]) {
+  const seen = new Set<string>();
+
+  return items.filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
   });
 }
 
