@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:46:49.978Z",
+  "generatedAt": "2026-06-05T19:46:54.441Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,20 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:46:49.123Z",
+      "updatedAt": "2026-06-05T19:46:53.585Z",
       "positions": [
+        {
+          "id": "ec6d0c24-b2fc-405b-97b5-b0a8e75367d6",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 500,
+          "section": "assembly",
+          "title": "Сборка АКП панели",
+          "calcMode": "letterAssembly",
+          "addons": [
+            "acp-panel"
+          ]
+        },
         {
           "id": "6da91809-9874-4a2b-a13c-8dbb20f9c0a3",
           "qty": 1,
