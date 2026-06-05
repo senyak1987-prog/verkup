@@ -837,6 +837,7 @@ function BlockCatalogPicker({
 
   function addSelectedCatalogItem(item: CatalogItem) {
     setSelectedItemId(item.id);
+    setQuery("");
     onAdd(item);
   }
 
@@ -844,6 +845,7 @@ function BlockCatalogPicker({
     setSelectedItemId(itemId);
     const item = itemOptions.find((option) => option.id === itemId);
     if (item) {
+      setQuery("");
       onAdd(item);
     }
   }
