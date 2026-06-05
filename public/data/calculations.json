@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-05T19:47:40.380Z",
+  "generatedAt": "2026-06-05T19:47:50.823Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-05T19:47:39.524Z",
+      "updatedAt": "2026-06-05T19:47:49.968Z",
       "positions": [
         {
           "id": "9c4bbcca-273d-46d7-aba1-ee87896fc583",
@@ -73,7 +73,9 @@
           "section": "materials",
           "title": "АКП 1220х4000 3/0,21 черный 9005 Grossbond 1,22х4 3/0,21",
           "calcMode": "area",
-          "note": "Прайс по материалам.xlsx; строка 1146; столбец G"
+          "note": "Прайс по материалам.xlsx; строка 1146; столбец G",
+          "width": 1,
+          "height": 1
         },
         {
           "id": "63139469-862c-4f53-ada6-4248d9d8d50b",
