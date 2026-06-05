@@ -33,7 +33,7 @@ jobs:
           WORKER_GITHUB_TOKEN: ${{ secrets.WORKER_GITHUB_TOKEN }}
         run: |
           if [ -n "$WORKER_GITHUB_TOKEN" ]; then
-            printf "%s" "$WORKER_GITHUB_TOKEN" | npx wrangler secret put GITHUB_TOKEN --config worker/wrangler.toml
+            printf "%s" "$WORKER_GITHUB_TOKEN" | npx --yes wrangler@4.97.0 secret put GITHUB_TOKEN --config worker/wrangler.toml
           else
             echo "WORKER_GITHUB_TOKEN is empty; keeping existing Worker secret."
           fi
@@ -46,7 +46,7 @@ jobs:
           BITRIX_WEBHOOK_URL: ${{ secrets.BITRIX_WEBHOOK_URL }}
         run: |
           if [ -n "$BITRIX_WEBHOOK_URL" ]; then
-            printf "%s" "$BITRIX_WEBHOOK_URL" | npx wrangler secret put BITRIX_WEBHOOK_URL --config worker/wrangler.toml
+            printf "%s" "$BITRIX_WEBHOOK_URL" | npx --yes wrangler@4.97.0 secret put BITRIX_WEBHOOK_URL --config worker/wrangler.toml
           else
             echo "BITRIX_WEBHOOK_URL is empty; keeping existing Worker secret."
           fi
