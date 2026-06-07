@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T19:28:31.864Z",
+  "generatedAt": "2026-06-07T19:28:56.785Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,21 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-07T19:28:31.009Z",
+      "updatedAt": "2026-06-07T19:28:55.928Z",
       "positions": [
+        {
+          "id": "bbfce817-ffb2-431c-8a81-35cf3e6c2fce",
+          "catalogId": "assembly-сборка-до-1-2м-высотой-м-п-215",
+          "qty": 1,
+          "unit": "м.п.",
+          "unitCost": 220,
+          "section": "assembly",
+          "title": "Сборка до 1,2м высотой, м.п.",
+          "calcMode": "letterAssembly",
+          "note": "Прайс сборка.xlsx / Композит",
+          "addons": [],
+          "baseUnitCost": 220
+        },
         {
           "id": "99d091dd-59b0-4302-812d-6bb89ae9caa9",
           "catalogId": "assembly-буква-60-69см-склейка-83",
