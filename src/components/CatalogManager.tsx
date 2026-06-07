@@ -217,6 +217,22 @@ export function CatalogManager({
           </button>
         </div>
 
+        <div className="catalog-group-tabs">
+          {catalogGroups.map((group) => {
+            const count = items.filter((item) => catalogItemInGroup(item, group)).length;
+            return (
+              <button
+                className={activeGroup.id === group.id ? "active" : ""}
+                key={group.id}
+                onClick={() => selectGroup(group.id)}
+              >
+                <span>{group.label}</span>
+                <small>{count}</small>
+              </button>
+            );
+          })}
+        </div>
+
         <div className="catalog-manager">
           <aside className="catalog-sidebar">
             <div className="catalog-search">
@@ -232,21 +248,6 @@ export function CatalogManager({
                 <CirclePlus size={16} /> Новая позиция
               </button>
               <span>{filteredItems.length} найдено</span>
-            </div>
-            <div className="catalog-group-tabs">
-              {catalogGroups.map((group) => {
-                const count = items.filter((item) => catalogItemInGroup(item, group)).length;
-                return (
-                  <button
-                    className={activeGroup.id === group.id ? "active" : ""}
-                    key={group.id}
-                    onClick={() => selectGroup(group.id)}
-                  >
-                    <span>{group.label}</span>
-                    <small>{count}</small>
-                  </button>
-                );
-              })}
             </div>
             {primarySubgroups.length > 0 && (
               <label className="material-group-filter">

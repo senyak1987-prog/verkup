@@ -636,9 +636,11 @@ td small {
   display: flex;
   align-items: flex-end;
   gap: 0;
-  margin-top: 10px;
+  margin-top: 0;
+  padding: 12px 20px 0;
   overflow-x: auto;
   border-bottom: 1px solid #d6dee9;
+  background: #fff;
 }
 
 .catalog-group-tabs button {
@@ -1424,7 +1426,7 @@ td small {
 
 .catalog-modal {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   width: min(1280px, calc(100vw - 48px));
   height: calc(100dvh - 48px);
   min-height: 0;
@@ -1463,7 +1465,7 @@ td small {
 
 .catalog-sidebar {
   display: grid;
-  grid-template-rows: auto auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   gap: 12px;
   min-height: 0;
   min-width: 0;
