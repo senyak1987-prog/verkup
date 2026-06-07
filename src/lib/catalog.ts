@@ -37,9 +37,10 @@ export const catalogGroups: ReadonlyArray<CatalogGroup> = [
     sections: ["lighting", "consumables", "materials"],
     materialGroups: lightingLegacyMaterialGroups,
   },
+  { id: "assembly", label: "Сборка", sections: ["assembly"] },
   { id: "milling", label: "Фрезеровка", sections: ["milling"] },
   { id: "print", label: "Печать / Плоттер", sections: ["print", "plotter"] },
-  { id: "other", label: "Прочие", sections: ["other", "assembly", "mounting", "subcontract", "defects"] },
+  { id: "other", label: "Прочие", sections: ["other", "mounting", "subcontract", "defects"] },
 ];
 
 export function filterCatalogItems(items: CatalogItem[], query: string, limit: number) {
@@ -65,11 +66,13 @@ export function catalogItemInGroup(item: CatalogItem, group: CatalogGroup) {
 
 export function catalogPrimarySubgroupValue(item: CatalogItem) {
   if (item.section === "materials") return item.materialGroup || "Без группы";
+  if (item.section === "assembly") return assemblySheetValue(item);
   return sectionLabels[item.section] || "Без раздела";
 }
 
 export function catalogSecondarySubgroupValue(item: CatalogItem) {
   if (item.section === "materials") return materialFamilyValue(item);
+  if (item.section === "assembly") return assemblyWorkGroupValue(item);
 
   const sourceParts = item.source
     .split("/")
@@ -77,6 +80,23 @@ export function catalogSecondarySubgroupValue(item: CatalogItem) {
     .filter(Boolean);
 
   return sourceParts[1] || item.materialSubgroup || "Без подгруппы";
+}
+
+function assemblySheetValue(item: CatalogItem) {
+  return sourcePart(item, 1) || "Без листа";
+}
+
+function assemblyWorkGroupValue(item: CatalogItem) {
+  const prefix = item.title.split(":")[0]?.trim();
+  if (prefix && prefix !== item.title) return prefix;
+  return item.unit || "Без подгруппы";
+}
+
+function sourcePart(item: CatalogItem, index: number) {
+  return item.source
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean)[index];
 }
 
 export function smartCatalogSearch(items: CatalogItem[], query: string) {

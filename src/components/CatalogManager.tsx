@@ -63,17 +63,18 @@ export function CatalogManager({
     [activeGroup, items],
   );
   const primarySubgroups = useMemo(
-    () => uniqueSorted(pageItems.map(catalogPrimarySubgroupValue)),
-    [pageItems],
+    () => uniqueSubgroups(pageItems.map(catalogPrimarySubgroupValue), activeGroup.id),
+    [activeGroup.id, pageItems],
   );
   const secondarySubgroups = useMemo(
     () =>
-      uniqueSorted(
+      uniqueSubgroups(
         pageItems
           .filter((item) => !activePrimarySubgroup || catalogPrimarySubgroupValue(item) === activePrimarySubgroup)
           .map(catalogSecondarySubgroupValue),
+        activeGroup.id,
       ),
-    [activePrimarySubgroup, pageItems],
+    [activeGroup.id, activePrimarySubgroup, pageItems],
   );
   const groupItems = useMemo(() => {
     return pageItems
@@ -486,10 +487,13 @@ function groupIdForSection(section: CostSection) {
   return catalogGroups.find((group) => group.sections.some((groupSection) => groupSection === section))?.id || "materials";
 }
 
-function uniqueSorted(values: string[]) {
-  return [...new Set(values.filter(Boolean))].sort((first, second) => first.localeCompare(second, "ru"));
+function uniqueSubgroups(values: string[], groupId: string) {
+  const uniqueValues = [...new Set(values.filter(Boolean))];
+  if (groupId === "assembly") return uniqueValues;
+  return uniqueValues.sort((first, second) => first.localeCompare(second, "ru"));
 }
 
 function primarySubgroupLabel(groupId: string) {
+  if (groupId === "assembly") return "Лист таблицы";
   return groupId === "materials" ? "Группа материалов" : "Подраздел";
 }
