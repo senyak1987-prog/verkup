@@ -24,18 +24,28 @@ import type { CatalogItem, CostSection } from "../types";
 
 type CatalogManagerProps = {
   items: CatalogItem[];
+  initialDraft?: CatalogItem;
+  onApplyAndReturn?: (item: CatalogItem) => void;
   onChange: (items: CatalogItem[]) => void;
   onClose: () => void;
 };
 
-export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps) {
+export function CatalogManager({
+  items,
+  initialDraft,
+  onApplyAndReturn,
+  onChange,
+  onClose,
+}: CatalogManagerProps) {
   const [query, setQuery] = useState("");
-  const [activeGroupId, setActiveGroupId] = useState<string>("materials");
-  const [activeMaterialGroup, setActiveMaterialGroup] = useState("");
-  const [activeMaterialFamily, setActiveMaterialFamily] = useState("");
-  const [selectedId, setSelectedId] = useState(items[0]?.id || "");
+  const [activeGroupId, setActiveGroupId] = useState<string>(() =>
+    initialDraft ? groupIdForSection(initialDraft.section) : "materials",
+  );
+  const [activeMaterialGroup, setActiveMaterialGroup] = useState(initialDraft?.materialGroup || "");
+  const [activeMaterialFamily, setActiveMaterialFamily] = useState(initialDraft?.materialFamily || "");
+  const [selectedId, setSelectedId] = useState(initialDraft ? "" : items[0]?.id || "");
   const [draft, setDraft] = useState<CatalogItem>(() =>
-    items[0] ? { ...items[0] } : createEmptyCatalogItem(),
+    initialDraft ? { ...initialDraft } : items[0] ? { ...items[0] } : createEmptyCatalogItem(),
   );
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
@@ -65,6 +75,18 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
     document.body.classList.add("modal-open");
     return () => document.body.classList.remove("modal-open");
   }, []);
+
+  useEffect(() => {
+    if (!initialDraft) return;
+
+    setActiveGroupId(groupIdForSection(initialDraft.section));
+    setActiveMaterialGroup(initialDraft.materialGroup || "");
+    setActiveMaterialFamily(initialDraft.materialFamily || "");
+    setSelectedId(items.some((item) => item.id === initialDraft.id) ? initialDraft.id : "");
+    setDraft({ ...initialDraft });
+    setSaveState("idle");
+    setSaveError("");
+  }, [initialDraft, items]);
 
   function selectItem(item: CatalogItem) {
     setSelectedId(item.id);
@@ -119,6 +141,7 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
     setDraft(normalized);
     setSaveState("idle");
     setSaveError("");
+    onApplyAndReturn?.(normalized);
   }
 
   function deleteDraft() {
@@ -411,7 +434,7 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
 
             <div className="catalog-form-actions">
               <button className="primary" onClick={applyDraft}>
-                <Check size={16} /> Применить
+                <Check size={16} /> {onApplyAndReturn ? "Добавить в расчет" : "Применить"}
               </button>
               <button className="danger" disabled={!selectedId} onClick={deleteDraft}>
                 <Trash2 size={16} /> Удалить
@@ -446,4 +469,8 @@ export function CatalogManager({ items, onChange, onClose }: CatalogManagerProps
       </section>
     </div>
   );
+}
+
+function groupIdForSection(section: CostSection) {
+  return catalogGroups.find((group) => group.sections.some((groupSection) => groupSection === section))?.id || "materials";
 }

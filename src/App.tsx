@@ -16,7 +16,16 @@ import {
   writeCachedDeals,
 } from "./lib/data";
 import { stageCodeForDeal, stageLabels } from "./lib/stages";
-import type { CatalogItem, Deal, DealCalculation, DealStageCode, StoredCalculations } from "./types";
+import type {
+  CatalogItem,
+  CostCalcMode,
+  CostPosition,
+  CostSection,
+  Deal,
+  DealCalculation,
+  DealStageCode,
+  StoredCalculations,
+} from "./types";
 import "./styles.css";
 
 const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
@@ -28,6 +37,12 @@ type PendingStageMove = {
 };
 
 type AppTab = DealStageCode | "calculator";
+
+type PendingCatalogInsert = {
+  dealId: string;
+  item: CatalogItem;
+  targetSection?: CostSection;
+};
 
 export default function App() {
   const [deals, setDeals] = useState<Deal[]>(() => readCachedDeals()?.items || []);
@@ -41,6 +56,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(() => !hasCachedStartupData());
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [pendingCatalogInsert, setPendingCatalogInsert] = useState<PendingCatalogInsert>();
   const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
   const [activeScreen, setActiveScreen] = useState<"deals" | "calculator">("deals");
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
@@ -202,6 +218,60 @@ export default function App() {
     setActiveScreen("deals");
   }
 
+  function openCatalog() {
+    setPendingCatalogInsert(undefined);
+    setCatalogOpen(true);
+  }
+
+  function handleCreateCatalogItemFromCalculation(item: CatalogItem, targetSection?: CostSection) {
+    if (!selectedDealId) return;
+
+    setPendingCatalogInsert({
+      dealId: selectedDealId,
+      item,
+      targetSection,
+    });
+    setCatalogOpen(true);
+  }
+
+  function handleCatalogInsertApplied(item: CatalogItem) {
+    const request = pendingCatalogInsert;
+    if (!request) return;
+
+    const position = costPositionFromCatalogItem(item, request.targetSection);
+
+    setStoredCalculations((current) => {
+      const existing = current.calculations.find((calculation) => calculation.dealId === request.dealId) || {
+        dealId: request.dealId,
+        positions: [],
+        updatedAt: new Date().toISOString(),
+      };
+      const nextCalculation = {
+        ...existing,
+        updatedAt: new Date().toISOString(),
+        positions: [position, ...existing.positions],
+      };
+      const next = {
+        ...current,
+        generatedAt: new Date().toISOString(),
+        calculations: [
+          ...current.calculations.filter((calculation) => calculation.dealId !== request.dealId),
+          nextCalculation,
+        ],
+      };
+      writeCachedCalculations(next);
+      return next;
+    });
+
+    setCatalogOpen(false);
+    setPendingCatalogInsert(undefined);
+  }
+
+  function handleCatalogClose() {
+    setCatalogOpen(false);
+    setPendingCatalogInsert(undefined);
+  }
+
   function handleTabChange(tab: AppTab) {
     if (tab === "calculator") {
       setSelectedDealId(undefined);
@@ -261,7 +331,7 @@ export default function App() {
             />
           }
           onSelect={handleDealToggle}
-          onOpenCatalog={() => setCatalogOpen(true)}
+          onOpenCatalog={openCatalog}
           catalogCount={catalogItems.length}
           query={query}
           onQueryChange={setQuery}
@@ -272,7 +342,8 @@ export default function App() {
                 calculation={selectedCalculation}
                 catalogItems={catalogItems}
                 storedCalculations={storedCalculations}
-                onOpenCatalog={() => setCatalogOpen(true)}
+                onOpenCatalog={openCatalog}
+                onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
                 onChange={handleCalculationChange}
                 onCatalogChange={handleCatalogChange}
                 onClose={() => setSelectedDealId(undefined)}
@@ -285,12 +356,49 @@ export default function App() {
       {catalogOpen && (
         <CatalogManager
           items={catalogItems}
+          initialDraft={pendingCatalogInsert?.item}
+          onApplyAndReturn={pendingCatalogInsert ? handleCatalogInsertApplied : undefined}
           onChange={handleCatalogChange}
-          onClose={() => setCatalogOpen(false)}
+          onClose={handleCatalogClose}
         />
       )}
     </div>
   );
+}
+
+function costPositionFromCatalogItem(item: CatalogItem, targetSection?: CostSection): CostPosition {
+  const section = targetSection || item.section;
+  const calcMode = modeForCatalogItem(item);
+
+  return {
+    id: crypto.randomUUID(),
+    catalogId: item.id,
+    section,
+    title: section === "defects" ? `Брак: ${item.title}` : item.title,
+    calcMode,
+    qty: defaultQuantityForMode(calcMode),
+    unit: item.unit,
+    unitCost: item.unitCost,
+    note: item.source,
+  };
+}
+
+function modeForCatalogItem(item: CatalogItem): CostCalcMode {
+  const title = item.title.toLowerCase();
+  if (item.section === "assembly" && title.includes("букв")) return "letterAssembly";
+  return modeForUnit(item.unit);
+}
+
+function modeForUnit(unit?: string): CostCalcMode {
+  const normalized = (unit || "").toLowerCase();
+  if (normalized.includes("м2") || normalized.includes("м²") || normalized.includes("кв")) return "area";
+  if (normalized.includes("п/м") || normalized.includes("п.м") || normalized.includes("пог")) return "linear";
+  if (normalized.includes("ч")) return "hourly";
+  return "pieces";
+}
+
+function defaultQuantityForMode(mode: CostCalcMode) {
+  return mode === "area" ? 0 : 1;
 }
 
 function AppTopTabs({

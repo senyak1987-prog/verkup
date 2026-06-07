@@ -44,7 +44,6 @@ import {
   sectionLabels,
   smartCatalogSearch,
   toggleCatalogFavorite,
-  upsertCatalogItem,
 } from "../lib/catalog";
 import {
   defaultSaveApiUrl,
@@ -63,6 +62,7 @@ type CostDrawerProps = {
   storedCalculations: StoredCalculations;
   onClose: () => void;
   onOpenCatalog: () => void;
+  onCreateCatalogItem: (item: CatalogItem, targetSection?: CostSection) => void;
   onChange: (calculation: DealCalculation) => void;
   onCatalogChange: (items: CatalogItem[]) => void;
   onStageMoved: (dealId: string, stage: "launch" | "production") => void;
@@ -422,6 +422,7 @@ export function CostDrawer({
   storedCalculations,
   onClose,
   onOpenCatalog,
+  onCreateCatalogItem,
   onChange,
   onCatalogChange,
   onStageMoved,
@@ -538,8 +539,7 @@ export function CostDrawer({
 
   function addManualCatalogItem(block: CostBlock) {
     const manualCatalogItem = createManualCatalogItem(block);
-    onCatalogChange(upsertCatalogItem(catalogItems, manualCatalogItem));
-    addCatalogItem(manualCatalogItem, block.catalogTargetSection);
+    onCreateCatalogItem(manualCatalogItem, block.catalogTargetSection);
   }
 
   function toggleFavorite(item: CatalogItem) {
@@ -1140,12 +1140,21 @@ function PositionEditor({
   return (
     <div className="calc-position">
       <div className={catalogItem ? "position-main with-favorite" : "position-main"}>
-        <input
-          className="position-title"
-          value={position.title}
-          onChange={(event) => onPatch({ title: event.target.value })}
-          placeholder="Позиция"
-        />
+        {catalogItem ? (
+          <div
+            className="position-title position-title-readonly"
+            title="Название меняется только в справочнике"
+          >
+            {catalogItem.title}
+          </div>
+        ) : (
+          <input
+            className="position-title"
+            value={position.title}
+            onChange={(event) => onPatch({ title: event.target.value })}
+            placeholder="Позиция"
+          />
+        )}
         {catalogItem && (
           <button
             className={catalogItem.favorite ? "favorite-toggle active" : "favorite-toggle"}

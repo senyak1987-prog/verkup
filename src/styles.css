@@ -1310,6 +1310,15 @@ td small {
   padding: 7px 8px;
 }
 
+.calc-position .position-title-readonly {
+  overflow: hidden;
+  background: #f8fafc;
+  color: #101828;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .addons-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(150px, 1fr));
