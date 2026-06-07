@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T17:06:47.809Z",
+  "generatedAt": "2026-06-07T17:06:58.202Z",
   "items": [
     {
       "id": "assembly-буква-объемная-12-50-см-склейка-0",
@@ -37984,6 +37984,19 @@
     },
     {
       "id": "manual-block-materials-3316064c",
+      "section": "materials",
+      "title": "Новый материал",
+      "unit": "м2",
+      "unitCost": 0,
+      "source": "Добавлено из блока: Материалы / рама",
+      "materialGroup": "Листовые материалы",
+      "materialFamily": "Ручной ввод",
+      "materialSubgroup": "Ручной ввод",
+      "materialGroupPath": "Листовые материалы / Ручной ввод",
+      "favorite": false
+    },
+    {
+      "id": "manual-block-materials-ce7d99aa",
       "section": "materials",
       "title": "Новый материал",
       "unit": "м2",
