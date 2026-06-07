@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T17:08:27.488Z",
+  "generatedAt": "2026-06-07T17:08:41.843Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,19 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-07T17:08:26.629Z",
+      "updatedAt": "2026-06-07T17:07:03.370Z",
       "positions": [
-        {
-          "id": "4dccb5c2-3863-4567-8915-fd7f207ca1b5",
-          "catalogId": "metall-dk-труба-профильная-труба-15х15-труба-профильная-15х15х1",
-          "qty": 25,
-          "unit": "шт",
-          "unitCost": 29.96,
-          "section": "materials",
-          "title": "Труба профильная 20х20",
-          "calcMode": "pieces",
-          "note": "Металл-ДК; price_metal_dk.pdf от 07.06.2026; страница PDF 2"
-        },
         {
           "id": "9c4bbcca-273d-46d7-aba1-ee87896fc583",
           "catalogId": "other-manual-9c4bbcca-273d-46d7-aba1-ee87896fc583",
