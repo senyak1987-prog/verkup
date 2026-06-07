@@ -136,6 +136,10 @@ export function normalizeCatalogItem(item: CatalogItem) {
   const materialSubgroup = item.materialSubgroup?.trim() || "";
   const materialGroupPath =
     item.materialGroupPath?.trim() || [materialGroup, materialSubgroup].filter(Boolean).join(" / ");
+  const assemblySheet = item.assemblySheet?.trim() || "";
+  const assemblyGroup = item.assemblyGroup?.trim() || "";
+  const assemblyOperation = item.assemblyOperation?.trim() || "";
+  const assemblyMinCost = Number(item.assemblyMinCost) || 0;
 
   return {
     ...item,
@@ -151,6 +155,10 @@ export function normalizeCatalogItem(item: CatalogItem) {
     productCode: item.productCode?.trim() || undefined,
     productUrl: item.productUrl?.trim() || undefined,
     imageUrl: item.imageUrl?.trim() || undefined,
+    assemblySheet: assemblySheet || undefined,
+    assemblyGroup: assemblyGroup || undefined,
+    assemblyOperation: assemblyOperation || undefined,
+    assemblyMinCost: assemblyMinCost || undefined,
     favorite: Boolean(item.favorite),
   };
 }

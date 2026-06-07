@@ -1616,6 +1616,94 @@ td small {
   opacity: 0.55;
 }
 
+.assembly-catalog-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d8e2ef;
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 12px;
+}
+
+.assembly-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.assembly-catalog-preview {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e4e9f1;
+  padding-top: 10px;
+}
+
+.assembly-base-row,
+.assembly-preview-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #dce4ee;
+  border-radius: 7px;
+  background: #fff;
+  padding: 9px 11px;
+}
+
+.assembly-base-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.assembly-preview-qty {
+  max-width: 180px;
+}
+
+.assembly-addon-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.assembly-addon-checks label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: start;
+  border: 1px solid #dce4ee;
+  border-radius: 7px;
+  background: #fff;
+  padding: 8px;
+}
+
+.assembly-addon-checks input {
+  width: auto;
+  margin-top: 2px;
+}
+
+.assembly-addon-checks span,
+.assembly-addon-checks small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.assembly-addon-checks small {
+  grid-column: 2;
+  color: #667085;
+}
+
+.assembly-preview-total strong {
+  white-space: nowrap;
+}
+
+.assembly-preview-total small {
+  margin-left: 8px;
+  color: #8a5b05;
+  font-weight: 700;
+}
+
 .catalog-editor {
   margin-top: 16px;
   border: 1px solid #dde3ec;

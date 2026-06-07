@@ -54,6 +54,8 @@ export function CatalogManager({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
   const [saveApiUrl, setSaveApiUrl] = useState(() => defaultSaveApiUrl());
+  const [assemblyPreviewQty, setAssemblyPreviewQty] = useState(1);
+  const [assemblyPreviewAddons, setAssemblyPreviewAddons] = useState<string[]>([]);
   const canSave = saveApiUrl.trim().length > 0;
 
   const activeGroup =
@@ -103,6 +105,8 @@ export function CatalogManager({
   function selectItem(item: CatalogItem) {
     setSelectedId(item.id);
     setDraft({ ...item });
+    setAssemblyPreviewAddons([]);
+    setAssemblyPreviewQty(1);
     setSaveState("idle");
     setSaveError("");
   }
@@ -116,6 +120,8 @@ export function CatalogManager({
     setActiveSecondarySubgroup("");
     setSelectedId(firstItem?.id || "");
     setDraft(firstItem ? { ...firstItem } : { ...createEmptyCatalogItem(), section: nextGroup.sections[0] });
+    setAssemblyPreviewAddons([]);
+    setAssemblyPreviewQty(1);
     setSaveState("idle");
     setSaveError("");
   }
@@ -127,7 +133,13 @@ export function CatalogManager({
       section: activeGroup.sections[0],
       materialGroup: activeGroup.id === "materials" ? activePrimarySubgroup : undefined,
       materialFamily: activeGroup.id === "materials" ? activeSecondarySubgroup : undefined,
+      unit: activeGroup.id === "assembly" ? "шт" : createEmptyCatalogItem().unit,
+      source: activeGroup.id === "assembly" ? "Ручной справочник / Сборка" : createEmptyCatalogItem().source,
+      assemblySheet: activeGroup.id === "assembly" ? activePrimarySubgroup || undefined : undefined,
+      assemblyGroup: activeGroup.id === "assembly" ? activeSecondarySubgroup || undefined : undefined,
     });
+    setAssemblyPreviewAddons([]);
+    setAssemblyPreviewQty(1);
     setSaveState("idle");
     setSaveError("");
   }
@@ -135,6 +147,39 @@ export function CatalogManager({
   function patchDraft(patch: Partial<CatalogItem>) {
     setDraft((current) => ({ ...current, ...patch }));
     setSaveState("idle");
+  }
+
+  function patchAssemblyDraft(patch: Partial<CatalogItem>) {
+    setDraft((current) => {
+      const next = { ...current, ...patch, section: "assembly" as CostSection };
+      const operation = next.assemblyOperation?.trim() || "";
+      const group = next.assemblyGroup?.trim() || "";
+      const previousOperation = current.assemblyOperation?.trim() || "";
+      const previousGroup = current.assemblyGroup?.trim() || "";
+      const previousGroupTitle =
+        previousGroup && previousOperation ? `${previousGroup}: ${previousOperation}` : "";
+      const titleWasDerived =
+        !current.title.trim() ||
+        current.title.trim() === previousOperation ||
+        current.title.trim() === previousGroupTitle;
+
+      if (("assemblyOperation" in patch || "assemblyGroup" in patch) && operation) {
+        next.title = titleWasDerived && current.title.trim() === previousGroupTitle && group
+          ? `${group}: ${operation}`
+          : titleWasDerived
+            ? operation
+            : next.title;
+      }
+
+      return next;
+    });
+    setSaveState("idle");
+  }
+
+  function toggleAssemblyPreviewAddon(itemId: string) {
+    setAssemblyPreviewAddons((current) =>
+      current.includes(itemId) ? current.filter((id) => id !== itemId) : [...current, itemId],
+    );
   }
 
   function applyDraft() {
@@ -419,6 +464,17 @@ export function CatalogManager({
                 </label>
               </>
             )}
+            {draft.section === "assembly" && (
+              <AssemblyCatalogPanel
+                draft={draft}
+                items={items}
+                previewAddons={assemblyPreviewAddons}
+                previewQty={assemblyPreviewQty}
+                onPatchDraft={patchAssemblyDraft}
+                onSetPreviewQty={setAssemblyPreviewQty}
+                onTogglePreviewAddon={toggleAssemblyPreviewAddon}
+              />
+            )}
             <label className="catalog-form-wide">
               <span>Источник</span>
               <input
@@ -464,6 +520,127 @@ export function CatalogManager({
         </div>
       </section>
     </div>
+  );
+}
+
+function AssemblyCatalogPanel({
+  draft,
+  items,
+  previewAddons,
+  previewQty,
+  onPatchDraft,
+  onSetPreviewQty,
+  onTogglePreviewAddon,
+}: {
+  draft: CatalogItem;
+  items: CatalogItem[];
+  previewAddons: string[];
+  previewQty: number;
+  onPatchDraft: (patch: Partial<CatalogItem>) => void;
+  onSetPreviewQty: (qty: number) => void;
+  onTogglePreviewAddon: (itemId: string) => void;
+}) {
+  const groupItems = useMemo(() => {
+    const sheet = draft.assemblySheet?.trim() || "";
+    const group = draft.assemblyGroup?.trim() || "";
+    if (!sheet || !group) return [];
+
+    return items
+      .filter((item) => item.section === "assembly")
+      .filter((item) => item.assemblySheet === sheet)
+      .filter((item) => item.assemblyGroup === group);
+  }, [draft.assemblyGroup, draft.assemblySheet, items]);
+  const addonItems = groupItems.filter((item) => item.id !== draft.id);
+  const selectedAddonItems = addonItems.filter((item) => previewAddons.includes(item.id));
+  const qty = Math.max(0, Number(previewQty) || 0);
+  const baseUnitCost = Number(draft.unitCost) || 0;
+  const addonUnitCost = selectedAddonItems.reduce((sum, item) => sum + (Number(item.unitCost) || 0), 0);
+  const unitCost = baseUnitCost + addonUnitCost;
+  const minCost =
+    (Number(draft.assemblyMinCost) || 0) +
+    selectedAddonItems.reduce((sum, item) => sum + (Number(item.assemblyMinCost) || 0), 0);
+  const total = Math.max(unitCost * qty, minCost);
+
+  return (
+    <section className="assembly-catalog-panel catalog-form-wide">
+      <div className="section-title compact">
+        <h3>Набор сборки</h3>
+        <span>{addonItems.length} доп.</span>
+      </div>
+      <div className="assembly-meta-grid">
+        <label>
+          <span>Лист таблицы</span>
+          <input
+            value={draft.assemblySheet || ""}
+            onChange={(event) => onPatchDraft({ assemblySheet: event.target.value })}
+            placeholder="Буквы"
+          />
+        </label>
+        <label>
+          <span>Группа</span>
+          <input
+            value={draft.assemblyGroup || ""}
+            onChange={(event) => onPatchDraft({ assemblyGroup: event.target.value })}
+            placeholder="Буква объемная 12-50 см"
+          />
+        </label>
+        <label>
+          <span>Операция</span>
+          <input
+            value={draft.assemblyOperation || ""}
+            onChange={(event) => onPatchDraft({ assemblyOperation: event.target.value })}
+            placeholder="Склейка"
+          />
+        </label>
+        <label>
+          <span>Минимум</span>
+          <input
+            type="number"
+            value={draft.assemblyMinCost || ""}
+            onChange={(event) => onPatchDraft({ assemblyMinCost: Number(event.target.value) || undefined })}
+            placeholder="0"
+          />
+        </label>
+      </div>
+      <div className="assembly-catalog-preview">
+        <div className="assembly-base-row">
+          <span>{draft.assemblyOperation || draft.title || "База"}</span>
+          <strong>{formatMoney(baseUnitCost)} / {draft.unit || "шт"}</strong>
+        </div>
+        <label className="assembly-preview-qty">
+          <span>Кол-во</span>
+          <input
+            type="number"
+            value={previewQty}
+            onChange={(event) => onSetPreviewQty(Number(event.target.value) || 0)}
+          />
+        </label>
+        <div className="assembly-addon-checks">
+          {addonItems.map((item) => (
+            <label key={item.id}>
+              <input
+                checked={previewAddons.includes(item.id)}
+                type="checkbox"
+                onChange={() => onTogglePreviewAddon(item.id)}
+              />
+              <span>{item.assemblyOperation || item.title}</span>
+              <small>
+                {formatMoney(item.unitCost)} / {item.unit}
+                {item.assemblyMinCost ? ` · мин. ${formatMoney(item.assemblyMinCost)}` : ""}
+              </small>
+            </label>
+          ))}
+          {!addonItems.length && <p className="empty-state compact">Допы в этой группе не найдены.</p>}
+        </div>
+        <div className="assembly-preview-total">
+          <span>
+            {formatMoney(unitCost)} / {draft.unit || "шт"}
+            {minCost ? <small>мин. {formatMoney(minCost)}</small> : null}
+          </span>
+          <strong>{formatMoney(total)}</strong>
+        </div>
+      </div>
+    </section>
   );
 }
 
