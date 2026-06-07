@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T18:53:24.322Z",
+  "generatedAt": "2026-06-07T18:53:36.463Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,19 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-07T18:53:23.462Z",
+      "updatedAt": "2026-06-07T18:53:35.605Z",
       "positions": [
-        {
-          "id": "ae86fadb-848d-4cb4-be61-100a5faf82cf",
-          "catalogId": "assembly-буква-51-59см-склейка-62",
-          "qty": 1,
-          "unit": "шт",
-          "unitCost": 300,
-          "section": "assembly",
-          "title": "Буква 51-59см: Склейка",
-          "calcMode": "pieces",
-          "note": "Прайс сборка.xlsx / Буквы"
-        },
         {
           "id": "05b47674-e10c-4061-af98-277587c37831",
           "catalogId": "materials-2-диодный-модуль-белый-instatica-2д-2835-0-8w-80-2011",
