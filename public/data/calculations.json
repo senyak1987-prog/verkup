@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T19:28:21.646Z",
+  "generatedAt": "2026-06-07T19:28:23.853Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,20 +9,24 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-07T19:28:20.789Z",
+      "updatedAt": "2026-06-07T19:28:22.991Z",
       "positions": [
         {
           "id": "99d091dd-59b0-4302-812d-6bb89ae9caa9",
           "catalogId": "assembly-буква-60-69см-склейка-83",
           "qty": 1,
           "unit": "шт",
-          "unitCost": 425,
+          "unitCost": 1225,
           "section": "assembly",
           "title": "Буква 60-69см: Склейка",
           "calcMode": "letterAssembly",
           "note": "Прайс сборка.xlsx / Буквы",
           "addons": [
-            "assembly-закатка-лица-86"
+            "assembly-закатка-лица-86",
+            "assembly-задник-с-бортом-88",
+            "assembly-световые-борта-90",
+            "assembly-сложный-спаренный-92",
+            "assembly-ргб-лента-диоды-94"
           ],
           "baseUnitCost": 350
         },
