@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T19:28:27.076Z",
+  "generatedAt": "2026-06-07T19:28:31.864Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,12 +9,12 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-07T19:28:26.214Z",
+      "updatedAt": "2026-06-07T19:28:31.009Z",
       "positions": [
         {
           "id": "99d091dd-59b0-4302-812d-6bb89ae9caa9",
           "catalogId": "assembly-буква-60-69см-склейка-83",
-          "qty": 1,
+          "qty": 5,
           "unit": "шт",
           "unitCost": 1675,
           "section": "assembly",
