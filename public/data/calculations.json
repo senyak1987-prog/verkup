@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T17:07:02.601Z",
+  "generatedAt": "2026-06-07T17:07:04.228Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,19 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-07T17:07:01.734Z",
+      "updatedAt": "2026-06-07T17:07:03.370Z",
       "positions": [
-        {
-          "id": "35bdf2d1-d02d-43fb-82ff-c7b6e1dcbac2",
-          "catalogId": "manual-block-materials-ce7d99aa",
-          "qty": 0,
-          "unit": "м2",
-          "unitCost": 0,
-          "section": "materials",
-          "title": "",
-          "calcMode": "area",
-          "note": "Добавлено из блока: Материалы / рама"
-        },
         {
           "id": "9c4bbcca-273d-46d7-aba1-ee87896fc583",
           "catalogId": "other-manual-9c4bbcca-273d-46d7-aba1-ee87896fc583",
