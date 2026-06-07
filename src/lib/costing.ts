@@ -5,7 +5,9 @@ const MOUNTING_SECTION = "mounting";
 const AUTO_CONSUMABLES_RATE = 0.07;
 
 export function positionTotal(position: CostPosition) {
-  return roundMoney(positionQuantity(position) * (Number(position.unitCost) || 0));
+  const total = roundMoney(positionQuantity(position) * (Number(position.unitCost) || 0));
+  const minCost = Number(position.minCost) || 0;
+  return minCost ? Math.max(total, minCost) : total;
 }
 
 export function positionQuantity(position: CostPosition) {

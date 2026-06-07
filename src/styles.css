@@ -1299,6 +1299,20 @@ td small {
   gap: 6px;
 }
 
+.assembly-set-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #475467;
+  font-size: 12px;
+}
+
+.assembly-set-summary small {
+  color: #8a5b05;
+  font-weight: 700;
+}
+
 .field {
   display: grid;
   gap: 3px;
@@ -1358,6 +1372,17 @@ td small {
   gap: 12px;
   color: #667085;
   font-size: 13px;
+}
+
+.position-total-row span {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.position-total-row small {
+  color: #8a5b05;
+  font-weight: 700;
 }
 
 .position-total-row strong {

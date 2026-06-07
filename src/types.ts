@@ -47,9 +47,12 @@ export type CostPosition = {
   qty: number;
   unit: string;
   unitCost: number;
+  minCost?: number;
   note?: string;
   catalogId?: string;
   calcMode?: CostCalcMode;
+  baseUnitCost?: number;
+  baseMinCost?: number;
   width?: number;
   height?: number;
   length?: number;
@@ -77,6 +80,10 @@ export type CatalogItem = {
   productCode?: string;
   productUrl?: string;
   imageUrl?: string;
+  assemblySheet?: string;
+  assemblyGroup?: string;
+  assemblyOperation?: string;
+  assemblyMinCost?: number;
   favorite?: boolean;
 };
 

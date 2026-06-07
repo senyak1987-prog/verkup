@@ -121,12 +121,6 @@ const printMaterialGroups = [
   "Бумага",
 ];
 
-const workMaterialGroups = [
-  "Клеи, скотчи, очистители",
-  "Крепежи, упаковка, инструменты",
-  "Услуги",
-];
-
 const costBlocks: CostBlock[] = [
   {
     id: "materials",
@@ -252,8 +246,7 @@ const costBlocks: CostBlock[] = [
     title: "5. Сборка / работа",
     hint: "Объемные буквы с наборами операций, АКП, монтаж и работа по часам.",
     sections: ["assembly", "mounting", "subcontract"],
-    catalogSections: ["assembly", "mounting", "subcontract", "materials"],
-    catalogMaterialGroups: workMaterialGroups,
+    catalogSections: ["assembly"],
     catalogTargetSection: "assembly",
     actions: [
       {
@@ -525,6 +518,7 @@ export function CostDrawer({
   function addCatalogItem(item: CatalogItem, targetSection?: CostSection) {
     const section = targetSection || item.section;
     const calcMode = modeForCatalogItem(item);
+    const isAssemblySet = item.section === "assembly" && Boolean(item.assemblyGroup);
     addPosition({
       section,
       title: section === "defects" ? `Брак: ${item.title}` : item.title,
@@ -532,8 +526,12 @@ export function CostDrawer({
       qty: defaultQuantityForMode(calcMode),
       unit: item.unit,
       unitCost: item.unitCost,
+      minCost: item.assemblyMinCost,
       note: item.source,
       catalogId: item.id,
+      addons: isAssemblySet ? [] : undefined,
+      baseMinCost: isAssemblySet ? item.assemblyMinCost : undefined,
+      baseUnitCost: isAssemblySet ? item.unitCost : undefined,
     });
   }
 
@@ -1085,6 +1083,7 @@ function PositionList({
         >
           <PositionEditor
             catalogItem={catalogItems.find((item) => item.id === position.catalogId)}
+            catalogItems={catalogItems}
             position={position}
             onDelete={() => onDelete(position.id)}
             onPatch={(patch) => onPatch(position.id, patch)}
@@ -1098,12 +1097,14 @@ function PositionList({
 
 function PositionEditor({
   catalogItem,
+  catalogItems,
   position,
   onPatch,
   onDelete,
   onToggleFavorite,
 }: {
   catalogItem?: CatalogItem;
+  catalogItems: CatalogItem[];
   position: CostPosition;
   onPatch: (patch: Partial<CostPosition>) => void;
   onDelete: () => void;
@@ -1112,6 +1113,17 @@ function PositionEditor({
   const quantity = positionQuantity(position);
   const total = positionTotal(position);
   const areaInputValue = position.calcMode === "area" ? areaFieldValue(position) : position.qty;
+  const assemblyOptions = assemblyCatalogAddonOptions(position, catalogItems);
+  const hasCatalogAssemblyOptions = assemblyOptions.length > 0;
+  const assemblyAddonsToShow = hasCatalogAssemblyOptions
+    ? assemblyOptions
+    : assemblyAddons.map((addon) => ({
+        id: addon.id,
+        label: addon.label,
+        minCost: 0,
+        unit: position.unit,
+        unitCost: addon.unitCost,
+      }));
 
   function patchNumber(field: keyof CostPosition, value: string) {
     onPatch({ [field]: inputNumber(value) } as Partial<CostPosition>);
@@ -1123,10 +1135,7 @@ function PositionEditor({
     else current.add(addonId);
 
     const addons = [...current];
-    onPatch({
-      addons,
-      unitCost: assemblyAddonsTotal(addons),
-    });
+    onPatch(assemblyPatchForAddons(position, addons, catalogItems));
   }
 
   function patchAreaQuantity(value: string) {
@@ -1208,12 +1217,21 @@ function PositionEditor({
 
       {position.calcMode === "letterAssembly" && (
         <>
+          {catalogItem?.assemblyGroup && (
+            <div className="assembly-set-summary">
+              <span>
+                База: {catalogItem.assemblyOperation || catalogItem.title} ·{" "}
+                {formatMoney(position.baseUnitCost ?? catalogItem.unitCost)} / {position.unit}
+              </span>
+              {position.minCost ? <small>Минимум: {formatMoney(position.minCost)}</small> : null}
+            </div>
+          )}
           <div className="field-grid">
-            <NumberField label="Кол-во ед." value={position.qty} onChange={(value) => patchNumber("qty", value)} />
-            <NumberField label="Цена / ед." value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+            <NumberField label={`Кол-во, ${position.unit}`} value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+            <NumberField label={`Сумма / ${position.unit}`} value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
           </div>
           <div className="addons-grid">
-            {assemblyAddons.map((addon) => (
+            {assemblyAddonsToShow.map((addon) => (
               <label key={addon.id}>
                 <input
                   checked={(position.addons || []).includes(addon.id)}
@@ -1221,7 +1239,10 @@ function PositionEditor({
                   onChange={() => toggleAddon(addon.id)}
                 />
                 <span>{addon.label}</span>
-                <small>{formatMoney(addon.unitCost)}</small>
+                <small>
+                  {formatMoney(addon.unitCost)}
+                  {addon.minCost ? ` · мин. ${formatMoney(addon.minCost)}` : ""}
+                </small>
               </label>
             ))}
           </div>
@@ -1237,6 +1258,7 @@ function PositionEditor({
       <div className="position-total-row">
         <span>
           {formatQuantity(quantity)} {position.unit}
+          {position.minCost ? <small>мин. {formatMoney(position.minCost)}</small> : null}
         </span>
         <strong>{formatMoney(total)}</strong>
       </div>
@@ -1313,7 +1335,7 @@ function normalizePosition(position: CostPosition): CostPosition {
     unit,
     qty: Number.isFinite(Number(position.qty)) ? Number(position.qty) : defaultQuantityForMode(calcMode),
     unitCost:
-      calcMode === "letterAssembly" && addons.length
+      calcMode === "letterAssembly" && addons.length && assemblyAddonsTotal(addons) > 0 && !position.baseUnitCost
         ? assemblyAddonsTotal(addons)
         : Number.isFinite(Number(position.unitCost))
           ? Number(position.unitCost)
@@ -1325,7 +1347,7 @@ function modeForCatalogItem(item: CatalogItem): CostCalcMode {
   if (item.section === "materials") return modeForUnit(item.unit);
   if (item.section === "milling") return "linear";
   if (item.section === "print" || item.section === "plotter") return "area";
-  if (item.section === "assembly") return "pieces";
+  if (item.section === "assembly") return item.assemblyGroup ? "letterAssembly" : modeForUnit(item.unit);
   if (item.section === "lighting") return "pieces";
   if (item.section === "mounting") return "pieces";
   if (item.section === "defects") return modeForUnit(item.unit);
@@ -1427,6 +1449,58 @@ function syncManualCatalogPosition(items: CatalogItem[], catalogItem: CatalogIte
       unitCost: Number.isFinite(Number(position.unitCost)) ? Number(position.unitCost) : item.unitCost,
     };
   });
+}
+
+function assemblyCatalogAddonOptions(position: CostPosition, catalogItems: CatalogItem[]) {
+  const baseItem = position.catalogId
+    ? catalogItems.find((item) => item.id === position.catalogId)
+    : undefined;
+  if (!baseItem?.assemblyGroup) return [];
+
+  return catalogItems
+    .filter((item) => item.section === "assembly")
+    .filter((item) => item.id !== baseItem.id)
+    .filter((item) => item.assemblySheet === baseItem.assemblySheet)
+    .filter((item) => item.assemblyGroup === baseItem.assemblyGroup)
+    .map((item) => ({
+      id: item.id,
+      label: item.assemblyOperation || item.title,
+      minCost: item.assemblyMinCost || 0,
+      unit: item.unit,
+      unitCost: item.unitCost,
+    }));
+}
+
+function assemblyPatchForAddons(
+  position: CostPosition,
+  addons: string[],
+  catalogItems: CatalogItem[],
+): Partial<CostPosition> {
+  const catalogOptions = assemblyCatalogAddonOptions(position, catalogItems);
+  if (!catalogOptions.length) {
+    return {
+      addons,
+      minCost: undefined,
+      unitCost: assemblyAddonsTotal(addons),
+    };
+  }
+
+  const selected = new Set(addons);
+  const baseCost = Number(position.baseUnitCost) || 0;
+  const baseMinCost = Number(position.baseMinCost) || 0;
+  const addonCost = catalogOptions
+    .filter((option) => selected.has(option.id))
+    .reduce((sum, option) => sum + option.unitCost, 0);
+  const addonMinCost = catalogOptions
+    .filter((option) => selected.has(option.id))
+    .reduce((sum, option) => sum + option.minCost, 0);
+  const minCost = baseMinCost + addonMinCost;
+
+  return {
+    addons,
+    minCost: minCost || undefined,
+    unitCost: baseCost + addonCost,
+  };
 }
 
 function assemblyAddonsTotal(addons: string[]) {

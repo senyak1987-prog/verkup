@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T18:53:37.601Z",
+  "generatedAt": "2026-06-07T19:21:51.466Z",
   "items": [
     {
       "id": "assembly-буква-объемная-12-50-см-склейка-0",
@@ -7,7 +7,10 @@
       "title": "Буква объемная 12-50 см: Склейка",
       "unit": "шт",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-буква-объемная-алюминиевый-борт-12-50-см-склейка-1",
@@ -15,7 +18,10 @@
       "title": "Буква объемная Алюминиевый борт 12-50 см: Склейка",
       "unit": "шт",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-2",
@@ -23,7 +29,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-диодов-3",
@@ -31,7 +40,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-4",
@@ -39,7 +51,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-установка-на-раму-5",
@@ -47,7 +62,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-6",
@@ -55,7 +73,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-лица-7",
@@ -63,7 +84,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-8",
@@ -71,7 +95,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-закатка-борта-9",
@@ -79,7 +106,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-контражур-10",
@@ -87,7 +117,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-контражур-11",
@@ -95,7 +128,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-световые-борта-12",
@@ -103,7 +139,10 @@
       "title": "Световые борта",
       "unit": "шт",
       "unitCost": 350,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Световые борта"
     },
     {
       "id": "assembly-сложный-шрифт-13",
@@ -111,7 +150,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-шрифт-14",
@@ -119,7 +161,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-15",
@@ -127,7 +172,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-сложный-спаренный-16",
@@ -135,7 +183,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-17",
@@ -143,7 +194,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-составные-буквы-18",
@@ -151,7 +205,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-19",
@@ -159,7 +216,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная 12-50 см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-ргб-лента-диоды-20",
@@ -167,7 +227,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква объемная Алюминиевый борт 12-50 см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-буква-менее-12-см-склейка-21",
@@ -175,7 +238,10 @@
       "title": "Буква менее 12 см: Склейка",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-буква-менее-алюминиевый-борт-12-см-склейка-22",
@@ -183,7 +249,10 @@
       "title": "Буква менее Алюминиевый борт 12 см: Склейка",
       "unit": "шт",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-23",
@@ -191,7 +260,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-диодов-24",
@@ -199,7 +271,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-25",
@@ -207,7 +282,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-установка-на-раму-26",
@@ -215,7 +293,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-27",
@@ -223,7 +304,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-лица-28",
@@ -231,7 +315,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-29",
@@ -239,7 +326,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-закатка-борта-30",
@@ -247,7 +337,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-контражур-31",
@@ -255,7 +348,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-контражур-32",
@@ -263,7 +359,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-световые-борта-33",
@@ -271,7 +370,10 @@
       "title": "Световые борта",
       "unit": "шт",
       "unitCost": 400,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Световые борта"
     },
     {
       "id": "assembly-сложный-шрифт-34",
@@ -279,7 +381,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-шрифт-35",
@@ -287,7 +392,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-36",
@@ -295,7 +403,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-сложный-спаренный-37",
@@ -303,7 +414,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-38",
@@ -311,7 +425,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-составные-буквы-39",
@@ -319,7 +436,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-40",
@@ -327,7 +447,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее 12 см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-ргб-лента-диоды-41",
@@ -335,7 +458,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква менее Алюминиевый борт 12 см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-буква-6-7-см-склейка-42",
@@ -343,7 +469,10 @@
       "title": "Буква 6-7 см: Склейка",
       "unit": "шт",
       "unitCost": 350,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-буква-алюминиевый-борт-6-7-см-склейка-43",
@@ -351,7 +480,10 @@
       "title": "Буква Алюминиевый борт 6-7 см: Склейка",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-44",
@@ -359,7 +491,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-диодов-45",
@@ -367,7 +502,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-46",
@@ -375,7 +513,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-установка-на-раму-47",
@@ -383,7 +524,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-48",
@@ -391,7 +535,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-лица-49",
@@ -399,7 +546,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-50",
@@ -407,7 +557,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-закатка-борта-51",
@@ -415,7 +568,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-контражур-52",
@@ -423,7 +579,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-контражур-53",
@@ -431,7 +590,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-сложный-шрифт-54",
@@ -439,7 +601,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-шрифт-55",
@@ -447,7 +612,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-56",
@@ -455,7 +623,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-сложный-спаренный-57",
@@ -463,7 +634,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-58",
@@ -471,7 +645,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-составные-буквы-59",
@@ -479,7 +656,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-60",
@@ -487,7 +667,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 6-7 см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-ргб-лента-диоды-61",
@@ -495,7 +678,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 6-7 см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-буква-51-59см-склейка-62",
@@ -503,7 +689,10 @@
       "title": "Буква 51-59см: Склейка",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-буква-алюминиевый-борт-51-59см-склейка-63",
@@ -511,7 +700,10 @@
       "title": "Буква Алюминиевый борт 51-59см: Склейка",
       "unit": "шт",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-64",
@@ -519,7 +711,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-диодов-65",
@@ -527,7 +722,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-66",
@@ -535,7 +733,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-установка-на-раму-67",
@@ -543,7 +744,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-68",
@@ -551,7 +755,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-лица-69",
@@ -559,7 +766,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-70",
@@ -567,7 +777,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-закатка-борта-71",
@@ -575,7 +788,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-контражур-72",
@@ -583,7 +799,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-контражур-73",
@@ -591,7 +810,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-световые-борта-74",
@@ -599,7 +821,10 @@
       "title": "Световые борта",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Световые борта"
     },
     {
       "id": "assembly-сложный-шрифт-75",
@@ -607,7 +832,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-шрифт-76",
@@ -615,7 +843,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-77",
@@ -623,7 +854,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 125,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-сложный-спаренный-78",
@@ -631,7 +865,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 125,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-79",
@@ -639,7 +876,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-составные-буквы-80",
@@ -647,7 +887,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-81",
@@ -655,7 +898,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 51-59см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-ргб-лента-диоды-82",
@@ -663,7 +909,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква Алюминиевый борт 51-59см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-буква-60-69см-склейка-83",
@@ -671,7 +920,10 @@
       "title": "Буква 60-69см: Склейка",
       "unit": "шт",
       "unitCost": 350,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-84",
@@ -679,7 +931,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-85",
@@ -687,7 +942,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-86",
@@ -695,7 +953,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-87",
@@ -703,7 +964,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-задник-с-бортом-88",
@@ -711,7 +975,10 @@
       "title": "Задник с бортом",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Задник с бортом"
     },
     {
       "id": "assembly-контражур-89",
@@ -719,7 +986,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-световые-борта-90",
@@ -727,7 +997,10 @@
       "title": "Световые борта",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Световые борта"
     },
     {
       "id": "assembly-сложный-шрифт-91",
@@ -735,7 +1008,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-92",
@@ -743,7 +1019,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 125,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-93",
@@ -751,7 +1030,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-94",
@@ -759,7 +1041,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 60-69см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-буква-70-79см-склейка-95",
@@ -767,7 +1052,10 @@
       "title": "Буква 70-79см: Склейка",
       "unit": "шт",
       "unitCost": 400,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-96",
@@ -775,7 +1063,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-97",
@@ -783,7 +1074,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-98",
@@ -791,7 +1085,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-99",
@@ -799,7 +1096,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-задник-с-бортом-100",
@@ -807,7 +1107,10 @@
       "title": "Задник с бортом",
       "unit": "шт",
       "unitCost": 350,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Задник с бортом"
     },
     {
       "id": "assembly-контражур-101",
@@ -815,7 +1118,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-световые-борта-102",
@@ -823,7 +1129,10 @@
       "title": "Световые борта",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Световые борта"
     },
     {
       "id": "assembly-сложный-шрифт-103",
@@ -831,7 +1140,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-104",
@@ -839,7 +1151,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 125,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-105",
@@ -847,7 +1162,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-106",
@@ -855,7 +1173,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 70-79см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-буква-80-89см-склейка-107",
@@ -863,7 +1184,10 @@
       "title": "Буква 80-89см: Склейка",
       "unit": "шт",
       "unitCost": 450,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-108",
@@ -871,7 +1195,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-109",
@@ -879,7 +1206,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-110",
@@ -887,7 +1217,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-111",
@@ -895,7 +1228,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-задник-с-бортом-112",
@@ -903,7 +1239,10 @@
       "title": "Задник с бортом",
       "unit": "шт",
       "unitCost": 400,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Задник с бортом"
     },
     {
       "id": "assembly-контражур-113",
@@ -911,7 +1250,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-световые-борта-114",
@@ -919,7 +1261,10 @@
       "title": "Световые борта",
       "unit": "шт",
       "unitCost": 350,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Световые борта"
     },
     {
       "id": "assembly-сложный-шрифт-115",
@@ -927,7 +1272,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-116",
@@ -935,7 +1283,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-117",
@@ -943,7 +1294,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-118",
@@ -951,7 +1305,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 80-89см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-буква-90-99см-склейка-119",
@@ -959,7 +1316,10 @@
       "title": "Буква 90-99см: Склейка",
       "unit": "шт",
       "unitCost": 500,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-120",
@@ -967,7 +1327,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-121",
@@ -975,7 +1338,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-122",
@@ -983,7 +1349,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-123",
@@ -991,7 +1360,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-задник-с-бортом-124",
@@ -999,7 +1371,10 @@
       "title": "Задник с бортом",
       "unit": "шт",
       "unitCost": 450,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Задник с бортом"
     },
     {
       "id": "assembly-контражур-125",
@@ -1007,7 +1382,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-световые-борта-126",
@@ -1015,7 +1393,10 @@
       "title": "Световые борта",
       "unit": "шт",
       "unitCost": 350,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Световые борта"
     },
     {
       "id": "assembly-сложный-шрифт-127",
@@ -1023,7 +1404,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-128",
@@ -1031,7 +1415,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-129",
@@ -1039,7 +1426,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-130",
@@ -1047,7 +1437,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 90-99см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-буква-100-109см-склейка-131",
@@ -1055,7 +1448,10 @@
       "title": "Буква 100-109см: Склейка",
       "unit": "шт",
       "unitCost": 550,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-132",
@@ -1063,7 +1459,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-133",
@@ -1071,7 +1470,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-134",
@@ -1079,7 +1481,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-135",
@@ -1087,7 +1492,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-задник-с-бортом-136",
@@ -1095,7 +1503,10 @@
       "title": "Задник с бортом",
       "unit": "шт",
       "unitCost": 500,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Задник с бортом"
     },
     {
       "id": "assembly-контражур-137",
@@ -1103,7 +1514,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-световые-борта-138",
@@ -1111,7 +1525,10 @@
       "title": "Световые борта",
       "unit": "шт",
       "unitCost": 350,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Световые борта"
     },
     {
       "id": "assembly-сложный-шрифт-139",
@@ -1119,7 +1536,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-140",
@@ -1127,7 +1547,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-141",
@@ -1135,7 +1558,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-142",
@@ -1143,7 +1569,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 100-109см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-буква-110-119см-склейка-143",
@@ -1151,7 +1580,10 @@
       "title": "Буква 110-119см: Склейка",
       "unit": "шт",
       "unitCost": 600,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-144",
@@ -1159,7 +1591,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-установка-на-раму-145",
@@ -1167,7 +1602,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-закатка-лица-146",
@@ -1175,7 +1613,10 @@
       "title": "Закатка лица",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Закатка лица"
     },
     {
       "id": "assembly-закатка-борта-147",
@@ -1183,7 +1624,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-задник-с-бортом-148",
@@ -1191,7 +1635,10 @@
       "title": "Задник с бортом",
       "unit": "шт",
       "unitCost": 550,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Задник с бортом"
     },
     {
       "id": "assembly-контражур-149",
@@ -1199,7 +1646,10 @@
       "title": "Контражур",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Контражур"
     },
     {
       "id": "assembly-световые-борта-150",
@@ -1207,7 +1657,10 @@
       "title": "Световые борта",
       "unit": "шт",
       "unitCost": 350,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Световые борта"
     },
     {
       "id": "assembly-сложный-шрифт-151",
@@ -1215,7 +1668,10 @@
       "title": "Сложный шрифт",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Сложный шрифт"
     },
     {
       "id": "assembly-сложный-спаренный-152",
@@ -1223,7 +1679,10 @@
       "title": "Сложный спаренный",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Сложный спаренный"
     },
     {
       "id": "assembly-составные-буквы-153",
@@ -1231,7 +1690,10 @@
       "title": "Составные буквы",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "Составные буквы"
     },
     {
       "id": "assembly-ргб-лента-диоды-154",
@@ -1239,7 +1701,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Буквы"
+      "source": "Прайс сборка.xlsx / Буквы",
+      "assemblySheet": "Буквы",
+      "assemblyGroup": "Буква 110-119см",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-плоская-буква-до-40-см-закатка-материала-под-рез-155",
@@ -1247,7 +1712,11 @@
       "title": "Плоская буква до 40 см: Закатка материала под резку, м2",
       "unit": "м2",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "Закатка материала под резку, м2",
+      "assemblyMinCost": 150
     },
     {
       "id": "assembly-закатка-лица-кант-шт-156",
@@ -1255,7 +1724,11 @@
       "title": "Закатка лица (кант), шт",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "Закатка лица (кант), шт",
+      "assemblyMinCost": 75
     },
     {
       "id": "assembly-склейка-элементов-шт-157",
@@ -1263,7 +1736,11 @@
       "title": "Склейка элементов, шт",
       "unit": "шт",
       "unitCost": 30,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "Склейка элементов, шт",
+      "assemblyMinCost": 30
     },
     {
       "id": "assembly-наклейка-скотча-158",
@@ -1271,7 +1748,11 @@
       "title": "Наклейка скотча",
       "unit": "шт",
       "unitCost": 20,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "Наклейка скотча",
+      "assemblyMinCost": 20
     },
     {
       "id": "assembly-зинковка-159",
@@ -1279,7 +1760,11 @@
       "title": "Зинковка",
       "unit": "шт",
       "unitCost": 10,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "Зинковка",
+      "assemblyMinCost": 10
     },
     {
       "id": "assembly-установка-на-композит-на-клей-скотч-шт-160",
@@ -1287,7 +1772,11 @@
       "title": "Установка на композит (на клей/скотч), шт",
       "unit": "шт",
       "unitCost": 30,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "Установка на композит (на клей/скотч), шт",
+      "assemblyMinCost": 30
     },
     {
       "id": "assembly-установка-на-раму-черз-штапики-на-саморезы-на-кл-161",
@@ -1295,7 +1784,11 @@
       "title": "Установка на раму черз штапики на саморезы (на клей/скотч), шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "Установка на раму черз штапики на саморезы (на клей/скотч), шт",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-покраска-бортов-элементов-шт-162",
@@ -1303,7 +1796,11 @@
       "title": "Покраска бортов элементов, шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "Покраска бортов элементов, шт",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-установка-ленты-шт-163",
@@ -1311,7 +1808,11 @@
       "title": "Установка ленты, шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "Установка ленты, шт",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-ргб-лента-диоды-шт-164",
@@ -1319,7 +1820,11 @@
       "title": "РГБ лента/диоды, шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 40 см",
+      "assemblyOperation": "РГБ лента/диоды, шт",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-плоская-буква-до-90-см-закатка-материала-под-рез-165",
@@ -1327,7 +1832,11 @@
       "title": "Плоская буква до 90 см: Закатка материала под резку, м2",
       "unit": "м2",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Закатка материала под резку, м2",
+      "assemblyMinCost": 150
     },
     {
       "id": "assembly-закатка-лица-кант-шт-166",
@@ -1335,7 +1844,11 @@
       "title": "Закатка лица (кант), шт",
       "unit": "шт",
       "unitCost": 90,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Закатка лица (кант), шт",
+      "assemblyMinCost": 90
     },
     {
       "id": "assembly-склейка-элементов-шт-167",
@@ -1343,7 +1856,11 @@
       "title": "Склейка элементов, шт",
       "unit": "шт",
       "unitCost": 40,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Склейка элементов, шт",
+      "assemblyMinCost": 40
     },
     {
       "id": "assembly-наклейка-скотча-168",
@@ -1351,7 +1868,11 @@
       "title": "Наклейка скотча",
       "unit": "шт",
       "unitCost": 20,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Наклейка скотча",
+      "assemblyMinCost": 20
     },
     {
       "id": "assembly-зинковка-169",
@@ -1359,7 +1880,11 @@
       "title": "Зинковка",
       "unit": "шт",
       "unitCost": 10,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Зинковка",
+      "assemblyMinCost": 10
     },
     {
       "id": "assembly-установка-на-композит-на-клей-скотч-шт-170",
@@ -1367,7 +1892,11 @@
       "title": "Установка на композит (на клей/скотч), шт",
       "unit": "шт",
       "unitCost": 30,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Установка на композит (на клей/скотч), шт",
+      "assemblyMinCost": 30
     },
     {
       "id": "assembly-установка-на-раму-черз-штапики-на-саморезы-на-кл-171",
@@ -1375,7 +1904,11 @@
       "title": "Установка на раму черз штапики на саморезы (на клей/скотч), шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Установка на раму черз штапики на саморезы (на клей/скотч), шт",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-нанесение-плоттерки-выборка-м2-172",
@@ -1383,7 +1916,11 @@
       "title": "Нанесение плоттерки / выборка, м2",
       "unit": "м2",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Нанесение плоттерки / выборка, м2",
+      "assemblyMinCost": 150
     },
     {
       "id": "assembly-покраска-бортов-элементов-шт-173",
@@ -1391,7 +1928,11 @@
       "title": "Покраска бортов элементов, шт",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Покраска бортов элементов, шт",
+      "assemblyMinCost": 75
     },
     {
       "id": "assembly-установка-ленты-шт-174",
@@ -1399,7 +1940,11 @@
       "title": "Установка ленты, шт",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "Установка ленты, шт",
+      "assemblyMinCost": 75
     },
     {
       "id": "assembly-ргб-лента-диоды-шт-175",
@@ -1407,7 +1952,11 @@
       "title": "РГБ лента/диоды, шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 90 см",
+      "assemblyOperation": "РГБ лента/диоды, шт",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-плоская-буква-до-150-см-закатка-материала-под-ре-176",
@@ -1415,7 +1964,11 @@
       "title": "Плоская буква до 150 см: Закатка материала под резку, м2",
       "unit": "м2",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "Закатка материала под резку, м2",
+      "assemblyMinCost": 150
     },
     {
       "id": "assembly-закатка-лица-кант-шт-177",
@@ -1423,7 +1976,11 @@
       "title": "Закатка лица (кант), шт",
       "unit": "шт",
       "unitCost": 120,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "Закатка лица (кант), шт",
+      "assemblyMinCost": 120
     },
     {
       "id": "assembly-склейка-элементов-шт-178",
@@ -1431,7 +1988,11 @@
       "title": "Склейка элементов, шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "Склейка элементов, шт",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-наклейка-скотча-179",
@@ -1439,7 +2000,11 @@
       "title": "Наклейка скотча",
       "unit": "шт",
       "unitCost": 30,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "Наклейка скотча",
+      "assemblyMinCost": 30
     },
     {
       "id": "assembly-зинковка-180",
@@ -1447,7 +2012,11 @@
       "title": "Зинковка",
       "unit": "шт",
       "unitCost": 10,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "Зинковка",
+      "assemblyMinCost": 10
     },
     {
       "id": "assembly-установка-на-композит-на-клей-скотч-шт-181",
@@ -1455,7 +2024,11 @@
       "title": "Установка на композит (на клей/скотч), шт",
       "unit": "шт",
       "unitCost": 40,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "Установка на композит (на клей/скотч), шт",
+      "assemblyMinCost": 40
     },
     {
       "id": "assembly-установка-на-раму-черз-штапики-на-саморезы-на-кл-182",
@@ -1463,7 +2036,11 @@
       "title": "Установка на раму черз штапики на саморезы (на клей/скотч), шт",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "Установка на раму черз штапики на саморезы (на клей/скотч), шт",
+      "assemblyMinCost": 75
     },
     {
       "id": "assembly-покраска-бортов-элементов-шт-183",
@@ -1471,7 +2048,11 @@
       "title": "Покраска бортов элементов, шт",
       "unit": "шт",
       "unitCost": 120,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "Покраска бортов элементов, шт",
+      "assemblyMinCost": 120
     },
     {
       "id": "assembly-установк-ленты-шт-184",
@@ -1479,7 +2060,11 @@
       "title": "Установк ленты, шт",
       "unit": "шт",
       "unitCost": 120,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "Установк ленты, шт",
+      "assemblyMinCost": 120
     },
     {
       "id": "assembly-ргб-лента-диоды-шт-185",
@@ -1487,7 +2072,11 @@
       "title": "РГБ лента/диоды, шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Плоские буквы"
+      "source": "Прайс сборка.xlsx / Плоские буквы",
+      "assemblySheet": "Плоские буквы",
+      "assemblyGroup": "Плоская буква до 150 см",
+      "assemblyOperation": "РГБ лента/диоды, шт",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-сборка-до-0-8м-высотой-м-п-186",
@@ -1495,7 +2084,11 @@
       "title": "Сборка до 0,8м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1000,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 0,8м высотой, м.п.",
+      "assemblyMinCost": 1000
     },
     {
       "id": "assembly-сборка-до-0-9м-высотой-м-п-187",
@@ -1503,7 +2096,10 @@
       "title": "Сборка до 0,9м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1100,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 0,9м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1м-высотой-м-п-188",
@@ -1511,7 +2107,10 @@
       "title": "Сборка до 1м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1200,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-1м-высотой-м-п-189",
@@ -1519,7 +2118,10 @@
       "title": "Сборка до 1,1м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1300,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1,1м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-2м-высотой-м-п-190",
@@ -1527,7 +2129,10 @@
       "title": "Сборка до 1,2м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1400,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1,2м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-3м-высотой-м-п-191",
@@ -1535,7 +2140,10 @@
       "title": "Сборка до 1,3м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1500,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1,3м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-4м-высотой-м-п-192",
@@ -1543,7 +2151,10 @@
       "title": "Сборка до 1,4м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1600,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1,4м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-5м-высотой-м-п-193",
@@ -1551,7 +2162,10 @@
       "title": "Сборка до 1,5м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1700,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1,5м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-6м-высотой-м-п-194",
@@ -1559,7 +2173,10 @@
       "title": "Сборка до 1,6м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1800,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1,6м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-7м-высотой-м-п-195",
@@ -1567,7 +2184,10 @@
       "title": "Сборка до 1,7м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1900,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1,7м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-8м-высотой-м-п-196",
@@ -1575,7 +2195,10 @@
       "title": "Сборка до 1,8м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2000,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1,8м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-9м-высотой-м-п-197",
@@ -1583,7 +2206,10 @@
       "title": "Сборка до 1,9м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2100,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 1,9м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-2-0м-высотой-м-п-198",
@@ -1591,7 +2217,10 @@
       "title": "Сборка до 2,0м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2200,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 2,0м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-2-1м-высотой-м-п-199",
@@ -1599,7 +2228,10 @@
       "title": "Сборка до 2,1м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2300,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт НАСТЕННЫЙ",
+      "assemblyOperation": "Сборка до 2,1м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-0-8м-высотой-м-п-200",
@@ -1607,7 +2239,11 @@
       "title": "Сборка до 0,8м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1200,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 0,8м высотой, м.п.",
+      "assemblyMinCost": 1200
     },
     {
       "id": "assembly-сборка-до-0-9м-высотой-м-п-201",
@@ -1615,7 +2251,10 @@
       "title": "Сборка до 0,9м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1300,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 0,9м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1м-высотой-м-п-202",
@@ -1623,7 +2262,10 @@
       "title": "Сборка до 1м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1400,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-1м-высотой-м-п-203",
@@ -1631,7 +2273,10 @@
       "title": "Сборка до 1,1м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1500,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1,1м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-2м-высотой-м-п-204",
@@ -1639,7 +2284,10 @@
       "title": "Сборка до 1,2м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1600,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1,2м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-3м-высотой-м-п-205",
@@ -1647,7 +2295,10 @@
       "title": "Сборка до 1,3м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1700,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1,3м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-4м-высотой-м-п-206",
@@ -1655,7 +2306,10 @@
       "title": "Сборка до 1,4м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1800,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1,4м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-5м-высотой-м-п-207",
@@ -1663,7 +2317,10 @@
       "title": "Сборка до 1,5м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 1900,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1,5м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-6м-высотой-м-п-208",
@@ -1671,7 +2328,10 @@
       "title": "Сборка до 1,6м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2000,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1,6м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-7м-высотой-м-п-209",
@@ -1679,7 +2339,10 @@
       "title": "Сборка до 1,7м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2100,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1,7м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-8м-высотой-м-п-210",
@@ -1687,7 +2350,10 @@
       "title": "Сборка до 1,8м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2200,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1,8м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-9м-высотой-м-п-211",
@@ -1695,7 +2361,10 @@
       "title": "Сборка до 1,9м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2300,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 1,9м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-2-0м-высотой-м-п-212",
@@ -1703,7 +2372,10 @@
       "title": "Сборка до 2,0м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2400,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 2,0м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-2-1м-высотой-м-п-213",
@@ -1711,7 +2383,10 @@
       "title": "Сборка до 2,1м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 2500,
-      "source": "Прайс сборка.xlsx / Кристалайт"
+      "source": "Прайс сборка.xlsx / Кристалайт",
+      "assemblySheet": "Кристалайт",
+      "assemblyGroup": "Кристалайт ПОДВЕСНОЙ",
+      "assemblyOperation": "Сборка до 2,1м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-0-6м-высотой-м-п-214",
@@ -1719,7 +2394,11 @@
       "title": "Сборка до 0,6м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 170,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Сборка до 0,6м высотой, м.п.",
+      "assemblyMinCost": 500
     },
     {
       "id": "assembly-сборка-до-1-2м-высотой-м-п-215",
@@ -1727,7 +2406,10 @@
       "title": "Сборка до 1,2м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 220,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Сборка до 1,2м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-5м-высотой-м-п-216",
@@ -1735,7 +2417,10 @@
       "title": "Сборка до 1,5м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 270,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Сборка до 1,5м высотой, м.п."
     },
     {
       "id": "assembly-закатка-до-0-5м-высотой-м-п-217",
@@ -1743,7 +2428,10 @@
       "title": "Закатка до 0,5м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Закатка до 0,5м высотой, м.п."
     },
     {
       "id": "assembly-закатка-до-0-9м-высотой-м-п-218",
@@ -1751,7 +2439,10 @@
       "title": "Закатка до 0,9м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 200,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Закатка до 0,9м высотой, м.п."
     },
     {
       "id": "assembly-закатка-до-1-2м-высотой-м-п-219",
@@ -1759,7 +2450,10 @@
       "title": "Закатка до 1,2м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Закатка до 1,2м высотой, м.п."
     },
     {
       "id": "assembly-установка-задника-м-п-220",
@@ -1767,7 +2461,10 @@
       "title": "Установка задника, м.п.",
       "unit": "м.п.",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Установка задника, м.п."
     },
     {
       "id": "assembly-установка-профиля-под-неон-м-п-221",
@@ -1775,7 +2472,10 @@
       "title": "Установка профиля под неон, м.п.",
       "unit": "м.п.",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Установка профиля под неон, м.п."
     },
     {
       "id": "assembly-установка-ленты-диодов-неона-м-п-222",
@@ -1783,7 +2483,10 @@
       "title": "Установка ленты/диодов/неона, м.п.",
       "unit": "м.п.",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Установка ленты/диодов/неона, м.п."
     },
     {
       "id": "assembly-вклейка-бортов-м-п-223",
@@ -1791,7 +2494,10 @@
       "title": "Вклейка бортов, м.п.",
       "unit": "м.п.",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Вклейка бортов, м.п."
     },
     {
       "id": "assembly-устанвока-букв-на-скотч-клей-шт-224",
@@ -1799,7 +2505,10 @@
       "title": "Устанвока букв на скотч/клей, шт",
       "unit": "шт",
       "unitCost": 30,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Устанвока букв на скотч/клей, шт"
     },
     {
       "id": "assembly-устанвока-плоской-подложки-для-контражура-на-рам-225",
@@ -1807,7 +2516,10 @@
       "title": "Устанвока плоской подложки для контражура на раму, м.п.",
       "unit": "м.п.",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Устанвока плоской подложки для контражура на раму, м.п."
     },
     {
       "id": "assembly-нанесение-плоттерки-выборка-226",
@@ -1815,7 +2527,11 @@
       "title": "Нанесение плоттерки / выборка",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Композит"
+      "source": "Прайс сборка.xlsx / Композит",
+      "assemblySheet": "Композит",
+      "assemblyGroup": "Подложка",
+      "assemblyOperation": "Нанесение плоттерки / выборка",
+      "assemblyMinCost": 150
     },
     {
       "id": "assembly-короб-объемный-склейка-227",
@@ -1823,7 +2539,11 @@
       "title": "Короб объемный: Склейка",
       "unit": "шт",
       "unitCost": 800,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный",
+      "assemblyOperation": "Склейка",
+      "assemblyMinCost": 500
     },
     {
       "id": "assembly-установка-диодов-228",
@@ -1831,7 +2551,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-закатка-лица-печать-229",
@@ -1839,7 +2562,10 @@
       "title": "Закатка лица (печать)",
       "unit": "шт",
       "unitCost": 200,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный",
+      "assemblyOperation": "Закатка лица (печать)"
     },
     {
       "id": "assembly-закатка-лица-плоттер-230",
@@ -1847,7 +2573,10 @@
       "title": "Закатка лица (плоттер)",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный",
+      "assemblyOperation": "Закатка лица (плоттер)"
     },
     {
       "id": "assembly-установка-на-раму-231",
@@ -1855,7 +2584,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-установка-клик-рамки-шт-232",
@@ -1863,7 +2595,10 @@
       "title": "Установка клик рамки, шт",
       "unit": "шт",
       "unitCost": 600,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный",
+      "assemblyOperation": "Установка клик рамки, шт"
     },
     {
       "id": "assembly-сложный-контур-233",
@@ -1871,7 +2606,10 @@
       "title": "Сложный контур",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный",
+      "assemblyOperation": "Сложный контур"
     },
     {
       "id": "assembly-ргб-лента-диоды-234",
@@ -1879,7 +2617,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-короб-объемный-световой-борт-склейка-235",
@@ -1887,7 +2628,10 @@
       "title": "Короб объемный (световой борт): Склейка",
       "unit": "шт",
       "unitCost": 1200,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный (световой борт)",
+      "assemblyOperation": "Склейка"
     },
     {
       "id": "assembly-установка-диодов-236",
@@ -1895,7 +2639,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный (световой борт)",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-закатка-лица-печать-237",
@@ -1903,7 +2650,10 @@
       "title": "Закатка лица (печать)",
       "unit": "шт",
       "unitCost": 200,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный (световой борт)",
+      "assemblyOperation": "Закатка лица (печать)"
     },
     {
       "id": "assembly-закатка-лица-плоттер-238",
@@ -1911,7 +2661,10 @@
       "title": "Закатка лица (плоттер)",
       "unit": "шт",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный (световой борт)",
+      "assemblyOperation": "Закатка лица (плоттер)"
     },
     {
       "id": "assembly-установка-на-раму-239",
@@ -1919,7 +2672,10 @@
       "title": "Установка на раму",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный (световой борт)",
+      "assemblyOperation": "Установка на раму"
     },
     {
       "id": "assembly-сложный-контур-240",
@@ -1927,7 +2683,10 @@
       "title": "Сложный контур",
       "unit": "шт",
       "unitCost": 500,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный (световой борт)",
+      "assemblyOperation": "Сложный контур"
     },
     {
       "id": "assembly-ргб-лента-диоды-241",
@@ -1935,7 +2694,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Короба"
+      "source": "Прайс сборка.xlsx / Короба",
+      "assemblySheet": "Короба",
+      "assemblyGroup": "Короб объемный (световой борт)",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-консольная-вывеска-склейка-242",
@@ -1943,7 +2705,11 @@
       "title": "Консольная вывеска: Склейка",
       "unit": "шт",
       "unitCost": 4000,
-      "source": "Прайс сборка.xlsx / Консоль"
+      "source": "Прайс сборка.xlsx / Консоль",
+      "assemblySheet": "Консоль",
+      "assemblyGroup": "Консольная вывеска",
+      "assemblyOperation": "Склейка",
+      "assemblyMinCost": 1750
     },
     {
       "id": "assembly-установка-диодов-243",
@@ -1951,7 +2717,10 @@
       "title": "Установка диодов",
       "unit": "шт",
       "unitCost": 1000,
-      "source": "Прайс сборка.xlsx / Консоль"
+      "source": "Прайс сборка.xlsx / Консоль",
+      "assemblySheet": "Консоль",
+      "assemblyGroup": "Консольная вывеска",
+      "assemblyOperation": "Установка диодов"
     },
     {
       "id": "assembly-закатка-лица-печать-244",
@@ -1959,7 +2728,10 @@
       "title": "Закатка лица (печать)",
       "unit": "шт",
       "unitCost": 400,
-      "source": "Прайс сборка.xlsx / Консоль"
+      "source": "Прайс сборка.xlsx / Консоль",
+      "assemblySheet": "Консоль",
+      "assemblyGroup": "Консольная вывеска",
+      "assemblyOperation": "Закатка лица (печать)"
     },
     {
       "id": "assembly-закатка-лица-плоттер-245",
@@ -1967,7 +2739,10 @@
       "title": "Закатка лица (плоттер)",
       "unit": "шт",
       "unitCost": 600,
-      "source": "Прайс сборка.xlsx / Консоль"
+      "source": "Прайс сборка.xlsx / Консоль",
+      "assemblySheet": "Консоль",
+      "assemblyGroup": "Консольная вывеска",
+      "assemblyOperation": "Закатка лица (плоттер)"
     },
     {
       "id": "assembly-закатка-борта-246",
@@ -1975,7 +2750,10 @@
       "title": "Закатка борта",
       "unit": "шт",
       "unitCost": 400,
-      "source": "Прайс сборка.xlsx / Консоль"
+      "source": "Прайс сборка.xlsx / Консоль",
+      "assemblySheet": "Консоль",
+      "assemblyGroup": "Консольная вывеска",
+      "assemblyOperation": "Закатка борта"
     },
     {
       "id": "assembly-сложный-контур-247",
@@ -1983,7 +2761,10 @@
       "title": "Сложный контур",
       "unit": "шт",
       "unitCost": 1600,
-      "source": "Прайс сборка.xlsx / Консоль"
+      "source": "Прайс сборка.xlsx / Консоль",
+      "assemblySheet": "Консоль",
+      "assemblyGroup": "Консольная вывеска",
+      "assemblyOperation": "Сложный контур"
     },
     {
       "id": "assembly-ргб-лента-диоды-248",
@@ -1991,7 +2772,10 @@
       "title": "РГБ лента/диоды",
       "unit": "шт",
       "unitCost": 2000,
-      "source": "Прайс сборка.xlsx / Консоль"
+      "source": "Прайс сборка.xlsx / Консоль",
+      "assemblySheet": "Консоль",
+      "assemblyGroup": "Консольная вывеска",
+      "assemblyOperation": "РГБ лента/диоды"
     },
     {
       "id": "assembly-сварка-ножек-2шт-249",
@@ -1999,7 +2783,10 @@
       "title": "Сварка ножек 2шт",
       "unit": "шт",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Консоль"
+      "source": "Прайс сборка.xlsx / Консоль",
+      "assemblySheet": "Консоль",
+      "assemblyGroup": "Консольная вывеска",
+      "assemblyOperation": "Сварка ножек 2шт"
     },
     {
       "id": "assembly-инкрустация-сборка-до-0-6м-высотой-м-п-250",
@@ -2007,7 +2794,11 @@
       "title": "Инкрустация: Сборка до 0,6м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 270,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Сборка до 0,6м высотой, м.п.",
+      "assemblyMinCost": 1500
     },
     {
       "id": "assembly-сборка-до-1-2м-высотой-м-п-251",
@@ -2015,7 +2806,10 @@
       "title": "Сборка до 1,2м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 320,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Сборка до 1,2м высотой, м.п."
     },
     {
       "id": "assembly-сборка-до-1-5м-высотой-м-п-252",
@@ -2023,7 +2817,10 @@
       "title": "Сборка до 1,5м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 370,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Сборка до 1,5м высотой, м.п."
     },
     {
       "id": "assembly-закатка-до-0-5м-высотой-м-п-253",
@@ -2031,7 +2828,10 @@
       "title": "Закатка до 0,5м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Закатка до 0,5м высотой, м.п."
     },
     {
       "id": "assembly-закатка-до-0-9м-высотой-м-п-254",
@@ -2039,7 +2839,10 @@
       "title": "Закатка до 0,9м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 200,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Закатка до 0,9м высотой, м.п."
     },
     {
       "id": "assembly-закатка-до-1-2м-высотой-м-п-255",
@@ -2047,7 +2850,10 @@
       "title": "Закатка до 1,2м высотой, м.п.",
       "unit": "м.п.",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Закатка до 1,2м высотой, м.п."
     },
     {
       "id": "assembly-установка-диодов-м-п-256",
@@ -2055,7 +2861,10 @@
       "title": "Установка диодов, м.п.",
       "unit": "м.п.",
       "unitCost": 200,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Установка диодов, м.п."
     },
     {
       "id": "assembly-склейка-элементов-шт-257",
@@ -2063,7 +2872,10 @@
       "title": "Склейка элементов, шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Склейка элементов, шт"
     },
     {
       "id": "assembly-закатка-борта-м-п-258",
@@ -2071,7 +2883,10 @@
       "title": "Закатка борта, м.п.",
       "unit": "м.п.",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Закатка борта, м.п."
     },
     {
       "id": "assembly-установка-задника-м-п-259",
@@ -2079,7 +2894,10 @@
       "title": "Установка задника, м.п.",
       "unit": "м.п.",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Установка задника, м.п."
     },
     {
       "id": "assembly-вклейка-бортов-м-п-260",
@@ -2087,7 +2905,10 @@
       "title": "Вклейка бортов, м.п.",
       "unit": "м.п.",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "Вклейка бортов, м.п."
     },
     {
       "id": "assembly-ргб-лента-диоды-м-п-261",
@@ -2095,7 +2916,10 @@
       "title": "РГБ лента/диоды, м.п.",
       "unit": "м.п.",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Инкрустация"
+      "source": "Прайс сборка.xlsx / Инкрустация",
+      "assemblySheet": "Инкрустация",
+      "assemblyGroup": "Инкрустация",
+      "assemblyOperation": "РГБ лента/диоды, м.п."
     },
     {
       "id": "assembly-печать-белая-закатка-м2-262",
@@ -2103,7 +2927,11 @@
       "title": "Печать белая: Закатка, м2",
       "unit": "м2",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Печать белая",
+      "assemblyOperation": "Закатка, м2",
+      "assemblyMinCost": 30
     },
     {
       "id": "assembly-обрезка-квадрат-круг-и-т-д-м2-263",
@@ -2111,7 +2939,11 @@
       "title": "Обрезка (квадрат, круг и т.д.), м2",
       "unit": "м2",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Печать белая",
+      "assemblyOperation": "Обрезка (квадрат, круг и т.д.), м2",
+      "assemblyMinCost": 20
     },
     {
       "id": "assembly-обрезка-фигурная-м2-264",
@@ -2119,7 +2951,11 @@
       "title": "Обрезка (фигурная), м2",
       "unit": "м2",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Печать белая",
+      "assemblyOperation": "Обрезка (фигурная), м2",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-подвороты-м2-265",
@@ -2127,7 +2963,11 @@
       "title": "Подвороты, м2",
       "unit": "м2",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Печать белая",
+      "assemblyOperation": "Подвороты, м2",
+      "assemblyMinCost": 25
     },
     {
       "id": "assembly-скотч-м2-266",
@@ -2135,7 +2975,11 @@
       "title": "Скотч, м2",
       "unit": "м2",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Печать белая",
+      "assemblyOperation": "Скотч, м2",
+      "assemblyMinCost": 25
     },
     {
       "id": "assembly-печать-прозрачная-закатка-м2-267",
@@ -2143,7 +2987,11 @@
       "title": "Печать прозрачная: Закатка, м2",
       "unit": "м2",
       "unitCost": 250,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Печать прозрачная",
+      "assemblyOperation": "Закатка, м2",
+      "assemblyMinCost": 100
     },
     {
       "id": "assembly-обрезка-квадрат-круг-и-т-д-м2-268",
@@ -2151,7 +2999,11 @@
       "title": "Обрезка (квадрат, круг и т.д.), м2",
       "unit": "м2",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Печать прозрачная",
+      "assemblyOperation": "Обрезка (квадрат, круг и т.д.), м2",
+      "assemblyMinCost": 20
     },
     {
       "id": "assembly-обрезка-фигурная-м2-269",
@@ -2159,7 +3011,11 @@
       "title": "Обрезка (фигурная), м2",
       "unit": "м2",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Печать прозрачная",
+      "assemblyOperation": "Обрезка (фигурная), м2",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-скотч-м2-270",
@@ -2167,7 +3023,11 @@
       "title": "Скотч, м2",
       "unit": "м2",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Печать прозрачная",
+      "assemblyOperation": "Скотч, м2",
+      "assemblyMinCost": 25
     },
     {
       "id": "assembly-плоттерка-выборка-271",
@@ -2175,7 +3035,11 @@
       "title": "Плоттерка: Выборка",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Плоттерка",
+      "assemblyOperation": "Выборка",
+      "assemblyMinCost": 100
     },
     {
       "id": "assembly-закатка-272",
@@ -2183,7 +3047,11 @@
       "title": "Закатка",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Плоттерка",
+      "assemblyOperation": "Закатка",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-обрезка-фигурная-м2-273",
@@ -2191,7 +3059,11 @@
       "title": "Обрезка (фигурная), м2",
       "unit": "м2",
       "unitCost": 200,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Плоттерка",
+      "assemblyOperation": "Обрезка (фигурная), м2",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-подвороты-м2-274",
@@ -2199,7 +3071,11 @@
       "title": "Подвороты, м2",
       "unit": "м2",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Плоттерка",
+      "assemblyOperation": "Подвороты, м2",
+      "assemblyMinCost": 30
     },
     {
       "id": "assembly-баннер-обрезка-м-п-275",
@@ -2207,7 +3083,11 @@
       "title": "Баннер: Обрезка, м.п.",
       "unit": "м.п.",
       "unitCost": 10,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Баннер",
+      "assemblyOperation": "Обрезка, м.п.",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-пробивка-люверсов-м-п-276",
@@ -2215,7 +3095,11 @@
       "title": "Пробивка люверсов, м.п.",
       "unit": "м.п.",
       "unitCost": 20,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Баннер",
+      "assemblyOperation": "Пробивка люверсов, м.п.",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-проклейка-м-п-277",
@@ -2223,7 +3107,11 @@
       "title": "Проклейка, м.п",
       "unit": "м.п.",
       "unitCost": 15,
-      "source": "Прайс сборка.xlsx / Таблички, Баннеры"
+      "source": "Прайс сборка.xlsx / Таблички, Баннеры",
+      "assemblySheet": "Таблички, Баннеры",
+      "assemblyGroup": "Баннер",
+      "assemblyOperation": "Проклейка, м.п",
+      "assemblyMinCost": 50
     },
     {
       "id": "assembly-сварка-резка-металла-шт-278",
@@ -2231,7 +3119,11 @@
       "title": "Сварка: Резка металла, шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Сварка, Покраска"
+      "source": "Прайс сборка.xlsx / Сварка, Покраска",
+      "assemblySheet": "Сварка, Покраска",
+      "assemblyGroup": "Сварка",
+      "assemblyOperation": "Резка металла, шт",
+      "assemblyMinCost": 300
     },
     {
       "id": "assembly-сварка-точки-шт-279",
@@ -2239,7 +3131,10 @@
       "title": "Сварка точки, шт",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Сварка, Покраска"
+      "source": "Прайс сборка.xlsx / Сварка, Покраска",
+      "assemblySheet": "Сварка, Покраска",
+      "assemblyGroup": "Сварка",
+      "assemblyOperation": "Сварка точки, шт"
     },
     {
       "id": "assembly-покраска-м-п-280",
@@ -2247,7 +3142,10 @@
       "title": "Покраска, м.п.",
       "unit": "м.п.",
       "unitCost": 25,
-      "source": "Прайс сборка.xlsx / Сварка, Покраска"
+      "source": "Прайс сборка.xlsx / Сварка, Покраска",
+      "assemblySheet": "Сварка, Покраска",
+      "assemblyGroup": "Сварка",
+      "assemblyOperation": "Покраска, м.п."
     },
     {
       "id": "assembly-покраска-покраска-м2-281",
@@ -2255,7 +3153,11 @@
       "title": "Покраска: Покраска, м2",
       "unit": "м2",
       "unitCost": 300,
-      "source": "Прайс сборка.xlsx / Сварка, Покраска"
+      "source": "Прайс сборка.xlsx / Сварка, Покраска",
+      "assemblySheet": "Сварка, Покраска",
+      "assemblyGroup": "Покраска",
+      "assemblyOperation": "Покраска, м2",
+      "assemblyMinCost": 100
     },
     {
       "id": "assembly-покраска-букв-шт-282",
@@ -2263,7 +3165,10 @@
       "title": "Покраска букв, шт",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Сварка, Покраска"
+      "source": "Прайс сборка.xlsx / Сварка, Покраска",
+      "assemblySheet": "Сварка, Покраска",
+      "assemblyGroup": "Покраска",
+      "assemblyOperation": "Покраска букв, шт"
     },
     {
       "id": "assembly-прокладка-неона-м-150-283",
@@ -2271,7 +3176,10 @@
       "title": "Прокладка неона, м: 150",
       "unit": "шт",
       "unitCost": 500,
-      "source": "Прайс сборка.xlsx / Неон"
+      "source": "Прайс сборка.xlsx / Неон",
+      "assemblySheet": "Неон",
+      "assemblyGroup": "Прокладка неона, м",
+      "assemblyOperation": "150"
     },
     {
       "id": "assembly-ремонт-разборка-крышки-буквы-284",
@@ -2279,7 +3187,10 @@
       "title": "Ремонт: Разборка крышки буквы",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Разборка крышки буквы"
     },
     {
       "id": "assembly-сборка-крышки-буквы-285",
@@ -2287,7 +3198,10 @@
       "title": "Сборка крышки буквы",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Сборка крышки буквы"
     },
     {
       "id": "assembly-удаление-задника-286",
@@ -2295,7 +3209,10 @@
       "title": "Удаление задника",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Удаление задника"
     },
     {
       "id": "assembly-снятие-с-рамы-287",
@@ -2303,7 +3220,10 @@
       "title": "Снятие с рамы",
       "unit": "шт",
       "unitCost": 25,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Снятие с рамы"
     },
     {
       "id": "assembly-установка-на-раму-композит-и-т-д-288",
@@ -2311,7 +3231,10 @@
       "title": "Установка на раму/композит и т.д.",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Установка на раму/композит и т.д."
     },
     {
       "id": "assembly-коммутация-289",
@@ -2319,7 +3242,10 @@
       "title": "Коммутация",
       "unit": "шт",
       "unitCost": 50,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Коммутация"
     },
     {
       "id": "assembly-набивка-диодами-290",
@@ -2327,7 +3253,10 @@
       "title": "Набивка диодами",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Набивка диодами"
     },
     {
       "id": "assembly-замена-диодов-291",
@@ -2335,7 +3264,10 @@
       "title": "Замена диодов",
       "unit": "шт",
       "unitCost": 150,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Замена диодов"
     },
     {
       "id": "assembly-восстановление-борта-292",
@@ -2343,7 +3275,10 @@
       "title": "Восстановление борта",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Восстановление борта"
     },
     {
       "id": "assembly-замена-пленки-на-лице-293",
@@ -2351,7 +3286,10 @@
       "title": "Замена пленки на лице",
       "unit": "шт",
       "unitCost": 75,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Замена пленки на лице"
     },
     {
       "id": "assembly-замена-пленки-на-бортах-294",
@@ -2359,7 +3297,10 @@
       "title": "Замена пленки на бортах",
       "unit": "шт",
       "unitCost": 125,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Замена пленки на бортах"
     },
     {
       "id": "assembly-чистка-буквы-295",
@@ -2367,7 +3308,10 @@
       "title": "Чистка буквы",
       "unit": "шт",
       "unitCost": 100,
-      "source": "Прайс сборка.xlsx / Ремонт"
+      "source": "Прайс сборка.xlsx / Ремонт",
+      "assemblySheet": "Ремонт",
+      "assemblyGroup": "Ремонт",
+      "assemblyOperation": "Чистка буквы"
     },
     {
       "id": "print-rexjet-plus-120х80-бел-гл-д-печати-1-06-1-27-1-3-296",

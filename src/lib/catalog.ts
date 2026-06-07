@@ -83,10 +83,12 @@ export function catalogSecondarySubgroupValue(item: CatalogItem) {
 }
 
 function assemblySheetValue(item: CatalogItem) {
-  return sourcePart(item, 1) || "Без листа";
+  return item.assemblySheet || sourcePart(item, 1) || "Без листа";
 }
 
 function assemblyWorkGroupValue(item: CatalogItem) {
+  if (item.assemblyGroup) return item.assemblyGroup;
+
   const prefix = item.title.split(":")[0]?.trim();
   if (prefix && prefix !== item.title) return prefix;
   return item.unit || "Без подгруппы";
@@ -181,6 +183,10 @@ export function materialFamilyValue(item: CatalogItem) {
 }
 
 export function materialGroupLabel(item: CatalogItem) {
+  if (item.section === "assembly") {
+    return [item.assemblySheet, item.assemblyGroup].filter(Boolean).join(" / ");
+  }
+
   const family = item.materialFamily?.trim();
   const subgroup = item.materialSubgroup?.trim();
   const fullPath = item.materialGroupPath || [item.materialGroup, subgroup].filter(Boolean).join(" / ");
@@ -219,6 +225,9 @@ function catalogSearchScore(item: CatalogItem, tokens: string[]) {
       item.materialFamily,
       item.materialSubgroup,
       item.materialGroupPath,
+      item.assemblySheet,
+      item.assemblyGroup,
+      item.assemblyOperation,
       item.productCode,
       item.productUrl,
       sectionLabels[item.section],

@@ -30,11 +30,17 @@ async function readAssembly(file) {
   const workbook = XLSX.readFile(file, { cellDates: false });
   for (const sheetName of workbook.SheetNames) {
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: "" });
+    const groupByOffset = new Map();
     for (const row of rows) {
       for (let offset = 0; offset <= row.length - 3; offset += 4) {
         const group = clean(row[offset]);
         const title = clean(row[offset + 1]);
         const price = toNumber(row[offset + 2]);
+        const minCost = toNumber(row[offset + 3]);
+        if (group && !/наименование|именование|цена/i.test(group)) {
+          groupByOffset.set(offset, group);
+        }
+        const assemblyGroup = groupByOffset.get(offset) || group;
         if (!title || !price || /наименование|именование|цена/i.test(title)) continue;
         addItem({
           section: "assembly",
@@ -42,6 +48,10 @@ async function readAssembly(file) {
           unit: inferUnit(title),
           unitCost: price,
           source: `${path.basename(file)} / ${sheetName}`,
+          assemblySheet: sheetName,
+          assemblyGroup: assemblyGroup || undefined,
+          assemblyOperation: title,
+          assemblyMinCost: minCost || undefined,
         });
       }
     }
