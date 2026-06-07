@@ -315,19 +315,6 @@ export function CatalogManager({
 
           <div className="catalog-form">
             <label>
-              <span>Раздел</span>
-              <select
-                value={draft.section}
-                onChange={(event) => patchDraft({ section: event.target.value as CostSection })}
-              >
-                {Object.entries(sectionLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
               <span>Единица</span>
               <input
                 value={draft.unit}
@@ -358,7 +345,7 @@ export function CatalogManager({
                 type="checkbox"
                 onChange={(event) => patchDraft({ favorite: event.target.checked })}
               />
-              <span>Избранный материал для быстрого доступа</span>
+              <span>Избранная позиция для быстрого доступа</span>
             </label>
             <label>
               <span>Код товара</span>
