@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T17:06:56.913Z",
+  "generatedAt": "2026-06-07T17:07:02.601Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-07T17:06:56.041Z",
+      "updatedAt": "2026-06-07T17:07:01.734Z",
       "positions": [
         {
           "id": "35bdf2d1-d02d-43fb-82ff-c7b6e1dcbac2",
@@ -18,7 +18,7 @@
           "unit": "м2",
           "unitCost": 0,
           "section": "materials",
-          "title": "Новый материал",
+          "title": "",
           "calcMode": "area",
           "note": "Добавлено из блока: Материалы / рама"
         },
