@@ -14,22 +14,69 @@ export const sectionLabels: Record<CostSection, string> = {
   other: "Прочие",
 };
 
-export const catalogGroups = [
-  { id: "materials", label: "Материалы", sections: ["materials"] },
-  { id: "lighting", label: "Светотехника", sections: ["lighting", "consumables"] },
-  { id: "milling", label: "Фрезеровка", sections: ["milling"] },
-  { id: "print", label: "Пленки / печать", sections: ["print", "plotter"] },
-  { id: "assembly", label: "Сборка / работа", sections: ["assembly", "mounting", "subcontract"] },
-  { id: "other", label: "Прочие", sections: ["other"] },
-  { id: "defects", label: "Косяки", sections: ["defects"] },
-] as const satisfies ReadonlyArray<{
+const lightingLegacyMaterialGroups = ["Светодиоды и аксессуары"] as const;
+
+export type CatalogGroup = {
   id: string;
   label: string;
   sections: ReadonlyArray<CostSection>;
-}>;
+  materialGroups?: ReadonlyArray<string>;
+  excludeMaterialGroups?: ReadonlyArray<string>;
+};
+
+export const catalogGroups: ReadonlyArray<CatalogGroup> = [
+  {
+    id: "materials",
+    label: "Материалы",
+    sections: ["materials"],
+    excludeMaterialGroups: lightingLegacyMaterialGroups,
+  },
+  {
+    id: "lighting",
+    label: "Светотехника",
+    sections: ["lighting", "consumables", "materials"],
+    materialGroups: lightingLegacyMaterialGroups,
+  },
+  { id: "milling", label: "Фрезеровка", sections: ["milling"] },
+  { id: "print", label: "Печать / Плоттер", sections: ["print", "plotter"] },
+  { id: "other", label: "Прочие", sections: ["other", "assembly", "mounting", "subcontract", "defects"] },
+];
 
 export function filterCatalogItems(items: CatalogItem[], query: string, limit: number) {
   return smartCatalogSearch(items, query).slice(0, limit);
+}
+
+export function catalogItemInGroup(item: CatalogItem, group: CatalogGroup) {
+  if (!group.sections.some((section) => section === item.section)) return false;
+
+  const materialGroup = item.materialGroup || "Без группы";
+  if (item.section === "materials") {
+    if (group.materialGroups?.length) {
+      return group.materialGroups.some((groupName) => groupName === materialGroup);
+    }
+
+    if (group.excludeMaterialGroups?.length) {
+      return !group.excludeMaterialGroups.some((groupName) => groupName === materialGroup);
+    }
+  }
+
+  return true;
+}
+
+export function catalogPrimarySubgroupValue(item: CatalogItem) {
+  if (item.section === "materials") return item.materialGroup || "Без группы";
+  return sectionLabels[item.section] || "Без раздела";
+}
+
+export function catalogSecondarySubgroupValue(item: CatalogItem) {
+  if (item.section === "materials") return materialFamilyValue(item);
+
+  const sourceParts = item.source
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return sourceParts[1] || item.materialSubgroup || "Без подгруппы";
 }
 
 export function smartCatalogSearch(items: CatalogItem[], query: string) {

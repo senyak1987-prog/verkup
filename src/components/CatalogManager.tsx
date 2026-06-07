@@ -1,13 +1,13 @@
 import { Check, CirclePlus, Save, Search, Star, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  catalogItemInGroup,
+  catalogPrimarySubgroupValue,
   catalogGroups,
+  catalogSecondarySubgroupValue,
   createEmptyCatalogItem,
   filterCatalogItems,
-  materialFamilyOptions,
-  materialFamilyValue,
   materialGroupLabel,
-  materialGroupOptions,
   normalizeCatalogItem,
   sectionLabels,
   toggleCatalogFavorite,
@@ -39,10 +39,14 @@ export function CatalogManager({
 }: CatalogManagerProps) {
   const [query, setQuery] = useState("");
   const [activeGroupId, setActiveGroupId] = useState<string>(() =>
-    initialDraft ? groupIdForSection(initialDraft.section) : "materials",
+    initialDraft ? groupIdForItem(initialDraft) : "materials",
   );
-  const [activeMaterialGroup, setActiveMaterialGroup] = useState(initialDraft?.materialGroup || "");
-  const [activeMaterialFamily, setActiveMaterialFamily] = useState(initialDraft?.materialFamily || "");
+  const [activePrimarySubgroup, setActivePrimarySubgroup] = useState(
+    initialDraft ? catalogPrimarySubgroupValue(initialDraft) : "",
+  );
+  const [activeSecondarySubgroup, setActiveSecondarySubgroup] = useState(
+    initialDraft ? catalogSecondarySubgroupValue(initialDraft) : "",
+  );
   const [selectedId, setSelectedId] = useState(initialDraft ? "" : items[0]?.id || "");
   const [draft, setDraft] = useState<CatalogItem>(() =>
     initialDraft ? { ...initialDraft } : items[0] ? { ...items[0] } : createEmptyCatalogItem(),
@@ -54,21 +58,28 @@ export function CatalogManager({
 
   const activeGroup =
     catalogGroups.find((group) => group.id === activeGroupId) || catalogGroups[0];
-  const materialGroups = useMemo(() => materialGroupOptions(items), [items]);
-  const materialFamilies = useMemo(
-    () => materialFamilyOptions(items, activeMaterialGroup),
-    [activeMaterialGroup, items],
+  const pageItems = useMemo(
+    () => items.filter((item) => catalogItemInGroup(item, activeGroup)),
+    [activeGroup, items],
+  );
+  const primarySubgroups = useMemo(
+    () => uniqueSorted(pageItems.map(catalogPrimarySubgroupValue)),
+    [pageItems],
+  );
+  const secondarySubgroups = useMemo(
+    () =>
+      uniqueSorted(
+        pageItems
+          .filter((item) => !activePrimarySubgroup || catalogPrimarySubgroupValue(item) === activePrimarySubgroup)
+          .map(catalogSecondarySubgroupValue),
+      ),
+    [activePrimarySubgroup, pageItems],
   );
   const groupItems = useMemo(() => {
-    const sectionItems = items.filter((item) =>
-      activeGroup.sections.some((section) => section === item.section),
-    );
-    if (activeGroup.id !== "materials") return sectionItems;
-
-    return sectionItems
-      .filter((item) => !activeMaterialGroup || (item.materialGroup || "Без группы") === activeMaterialGroup)
-      .filter((item) => !activeMaterialFamily || materialFamilyValue(item) === activeMaterialFamily);
-  }, [activeGroup.id, activeGroup.sections, activeMaterialFamily, activeMaterialGroup, items]);
+    return pageItems
+      .filter((item) => !activePrimarySubgroup || catalogPrimarySubgroupValue(item) === activePrimarySubgroup)
+      .filter((item) => !activeSecondarySubgroup || catalogSecondarySubgroupValue(item) === activeSecondarySubgroup);
+  }, [activePrimarySubgroup, activeSecondarySubgroup, pageItems]);
   const filteredItems = useMemo(() => filterCatalogItems(groupItems, query, 300), [groupItems, query]);
 
   useEffect(() => {
@@ -79,9 +90,9 @@ export function CatalogManager({
   useEffect(() => {
     if (!initialDraft) return;
 
-    setActiveGroupId(groupIdForSection(initialDraft.section));
-    setActiveMaterialGroup(initialDraft.materialGroup || "");
-    setActiveMaterialFamily(initialDraft.materialFamily || "");
+    setActiveGroupId(groupIdForItem(initialDraft));
+    setActivePrimarySubgroup(catalogPrimarySubgroupValue(initialDraft));
+    setActiveSecondarySubgroup(catalogSecondarySubgroupValue(initialDraft));
     setSelectedId(items.some((item) => item.id === initialDraft.id) ? initialDraft.id : "");
     setDraft({ ...initialDraft });
     setSaveState("idle");
@@ -97,13 +108,11 @@ export function CatalogManager({
 
   function selectGroup(groupId: string) {
     const nextGroup = catalogGroups.find((group) => group.id === groupId) || catalogGroups[0];
-    const firstItem = items.find((item) => nextGroup.sections.some((section) => section === item.section));
+    const firstItem = items.find((item) => catalogItemInGroup(item, nextGroup));
 
     setActiveGroupId(groupId);
-    if (nextGroup.id !== "materials") {
-      setActiveMaterialGroup("");
-      setActiveMaterialFamily("");
-    }
+    setActivePrimarySubgroup("");
+    setActiveSecondarySubgroup("");
     setSelectedId(firstItem?.id || "");
     setDraft(firstItem ? { ...firstItem } : { ...createEmptyCatalogItem(), section: nextGroup.sections[0] });
     setSaveState("idle");
@@ -115,8 +124,8 @@ export function CatalogManager({
     setDraft({
       ...createEmptyCatalogItem(),
       section: activeGroup.sections[0],
-      materialGroup: activeGroup.id === "materials" ? activeMaterialGroup : undefined,
-      materialFamily: activeGroup.id === "materials" ? activeMaterialFamily : undefined,
+      materialGroup: activeGroup.id === "materials" ? activePrimarySubgroup : undefined,
+      materialFamily: activeGroup.id === "materials" ? activeSecondarySubgroup : undefined,
     });
     setSaveState("idle");
     setSaveError("");
@@ -225,7 +234,7 @@ export function CatalogManager({
             </div>
             <div className="catalog-group-tabs">
               {catalogGroups.map((group) => {
-                const count = items.filter((item) => group.sections.some((section) => section === item.section)).length;
+                const count = items.filter((item) => catalogItemInGroup(item, group)).length;
                 return (
                   <button
                     className={activeGroup.id === group.id ? "active" : ""}
@@ -238,42 +247,40 @@ export function CatalogManager({
                 );
               })}
             </div>
-            {activeGroup.id === "materials" && (
-              <>
-                <label className="material-group-filter">
-                  <span>Группа материалов</span>
-                  <select
-                    value={activeMaterialGroup}
-                    onChange={(event) => {
-                      setActiveMaterialGroup(event.target.value);
-                      setActiveMaterialFamily("");
-                    }}
-                  >
-                    <option value="">Все группы</option>
-                    {materialGroups.map((group) => (
-                      <option key={group} value={group}>
-                        {group}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {activeMaterialGroup && (
-                  <label className="material-group-filter">
-                    <span>Подгруппа</span>
-                    <select
-                      value={activeMaterialFamily}
-                      onChange={(event) => setActiveMaterialFamily(event.target.value)}
-                    >
-                      <option value="">Все подгруппы</option>
-                      {materialFamilies.map((family) => (
-                        <option key={family} value={family}>
-                          {family}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-              </>
+            {primarySubgroups.length > 0 && (
+              <label className="material-group-filter">
+                <span>{primarySubgroupLabel(activeGroup.id)}</span>
+                <select
+                  value={activePrimarySubgroup}
+                  onChange={(event) => {
+                    setActivePrimarySubgroup(event.target.value);
+                    setActiveSecondarySubgroup("");
+                  }}
+                >
+                  <option value="">Все подразделы</option>
+                  {primarySubgroups.map((subgroup) => (
+                    <option key={subgroup} value={subgroup}>
+                      {subgroup}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {activePrimarySubgroup && secondarySubgroups.length > 1 && (
+              <label className="material-group-filter">
+                <span>Подгруппа</span>
+                <select
+                  value={activeSecondarySubgroup}
+                  onChange={(event) => setActiveSecondarySubgroup(event.target.value)}
+                >
+                  <option value="">Все подгруппы</option>
+                  {secondarySubgroups.map((subgroup) => (
+                    <option key={subgroup} value={subgroup}>
+                      {subgroup}
+                    </option>
+                  ))}
+                </select>
+              </label>
             )}
             <div className="catalog-browser-list">
               {filteredItems.map((item) => (
@@ -471,6 +478,18 @@ export function CatalogManager({
   );
 }
 
+function groupIdForItem(item: CatalogItem) {
+  return catalogGroups.find((group) => catalogItemInGroup(item, group))?.id || groupIdForSection(item.section);
+}
+
 function groupIdForSection(section: CostSection) {
   return catalogGroups.find((group) => group.sections.some((groupSection) => groupSection === section))?.id || "materials";
+}
+
+function uniqueSorted(values: string[]) {
+  return [...new Set(values.filter(Boolean))].sort((first, second) => first.localeCompare(second, "ru"));
+}
+
+function primarySubgroupLabel(groupId: string) {
+  return groupId === "materials" ? "Группа материалов" : "Подраздел";
 }
