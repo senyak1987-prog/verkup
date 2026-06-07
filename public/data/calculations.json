@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T19:28:06.651Z",
+  "generatedAt": "2026-06-07T19:28:14.885Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,21 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-07T18:53:35.605Z",
+      "updatedAt": "2026-06-07T19:28:14.026Z",
       "positions": [
+        {
+          "id": "99d091dd-59b0-4302-812d-6bb89ae9caa9",
+          "catalogId": "assembly-буква-60-69см-склейка-83",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 350,
+          "section": "assembly",
+          "title": "Буква 60-69см: Склейка",
+          "calcMode": "letterAssembly",
+          "note": "Прайс сборка.xlsx / Буквы",
+          "addons": [],
+          "baseUnitCost": 350
+        },
         {
           "id": "05b47674-e10c-4061-af98-277587c37831",
           "catalogId": "materials-2-диодный-модуль-белый-instatica-2д-2835-0-8w-80-2011",
