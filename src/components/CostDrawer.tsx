@@ -44,6 +44,7 @@ import {
   sectionLabels,
   smartCatalogSearch,
   toggleCatalogFavorite,
+  upsertCatalogItem,
 } from "../lib/catalog";
 import {
   defaultSaveApiUrl,
@@ -106,6 +107,7 @@ const assemblyAddons = [
 const materialFrameGroups = [
   "Листовые материалы",
   "Профили",
+  "Металл",
   "Моб.стенды, стойки, штендеры",
 ];
 
@@ -403,6 +405,16 @@ const blockAddLabels: Record<string, string> = {
   defects: "косяк",
 };
 
+const manualItemTitles: Record<string, string> = {
+  materials: "Новый материал",
+  lighting: "Новая позиция светотехники",
+  milling: "Новая фрезеровка",
+  print: "Новая печать / пленка",
+  assembly: "Новая работа",
+  other: "Новое прочее",
+  defects: "Новый косяк",
+};
+
 export function CostDrawer({
   deal,
   calculation,
@@ -524,6 +536,12 @@ export function CostDrawer({
     });
   }
 
+  function addManualCatalogItem(block: CostBlock) {
+    const manualCatalogItem = createManualCatalogItem(block);
+    onCatalogChange(upsertCatalogItem(catalogItems, manualCatalogItem));
+    addCatalogItem(manualCatalogItem, block.catalogTargetSection);
+  }
+
   function toggleFavorite(item: CatalogItem) {
     onCatalogChange(toggleCatalogFavorite(catalogItems, item.id));
     setSaveState("idle");
@@ -541,6 +559,11 @@ export function CostDrawer({
 
     if (patchedPosition?.section === "other") {
       onCatalogChange(catalogWithOtherPositions(catalogItems, nextPositions));
+    } else if (patchedPosition?.catalogId) {
+      const linkedCatalogItem = catalogItems.find((item) => item.id === patchedPosition?.catalogId);
+      if (linkedCatalogItem && isManualBlockCatalogItem(linkedCatalogItem)) {
+        onCatalogChange(syncManualCatalogPosition(catalogItems, linkedCatalogItem, patchedPosition));
+      }
     }
   }
 
@@ -666,8 +689,8 @@ export function CostDrawer({
               positions={activeCalculation.positions.filter((position) =>
                 block.sections.includes(position.section),
               )}
-              onAdd={addPosition}
               onAddCatalog={addCatalogItem}
+              onAddManualCatalogItem={addManualCatalogItem}
               onToggle={() => setExpandedBlockId((current) => current === block.id ? null : block.id)}
               onToggleFavorite={toggleFavorite}
               onPatch={patchPosition}
@@ -696,8 +719,8 @@ export function CostDrawer({
             isOpen={expandedBlockId === defectBlock.id}
             newPositionId={lastAddedPositionId}
             positions={activeCalculation.positions.filter((position) => position.section === "defects")}
-            onAdd={addPosition}
             onAddCatalog={addCatalogItem}
+            onAddManualCatalogItem={addManualCatalogItem}
             onDelete={deletePosition}
             onPatch={patchPosition}
             onToggle={() => setExpandedBlockId((current) => current === defectBlock.id ? null : defectBlock.id)}
@@ -770,8 +793,8 @@ function CostBlockView({
   isOpen,
   newPositionId,
   positions,
-  onAdd,
   onAddCatalog,
+  onAddManualCatalogItem,
   onToggle,
   onToggleFavorite,
   onPatch,
@@ -782,8 +805,8 @@ function CostBlockView({
   isOpen: boolean;
   newPositionId: string;
   positions: CostPosition[];
-  onAdd: (template: PositionTemplate) => void;
   onAddCatalog: (item: CatalogItem, targetSection?: CostSection) => void;
+  onAddManualCatalogItem: (block: CostBlock) => void;
   onToggle: () => void;
   onToggleFavorite: (item: CatalogItem) => void;
   onPatch: (id: string, patch: Partial<CostPosition>) => void;
@@ -842,12 +865,10 @@ function CostBlockView({
                   onToggleFavorite={onToggleFavorite}
                 />
                 <div className="calc-block-actions">
-                  {block.actions.map((action) => (
-                    <button key={action.label} onClick={() => onAdd(action.template)}>
-                      <CirclePlus size={16} />
-                      {action.label}
-                    </button>
-                  ))}
+                  <button onClick={() => onAddManualCatalogItem(block)}>
+                    <CirclePlus size={16} />
+                    {manualCatalogButtonLabel(block)}
+                  </button>
                 </div>
               </div>
               <BlockFavorites
@@ -1343,6 +1364,60 @@ function unitForMode(mode: CostCalcMode, fallback?: string) {
 
 function defaultQuantityForMode(mode: CostCalcMode) {
   return mode === "area" ? 0 : 1;
+}
+
+function createManualCatalogItem(block: CostBlock): CatalogItem {
+  const template = block.actions[0]?.template;
+  const section = block.catalogTargetSection || template?.section || block.sections[0];
+  const calcMode = template?.calcMode || modeForUnit(template?.unit);
+  const materialGroup = section === "materials" ? manualMaterialGroupForBlock(block) : undefined;
+
+  return {
+    id: `manual-block-${block.id}-${crypto.randomUUID().slice(0, 8)}`,
+    section,
+    title: manualTitleForBlock(block),
+    unit: unitForMode(calcMode, template?.unit),
+    unitCost: 0,
+    source: `Добавлено из блока: ${block.title.replace(/^\d+\.\s*/, "")}`,
+    materialGroup,
+    materialFamily: materialGroup ? "Ручной ввод" : undefined,
+    materialSubgroup: materialGroup ? "Ручной ввод" : undefined,
+    materialGroupPath: materialGroup ? `${materialGroup} / Ручной ввод` : undefined,
+    favorite: false,
+  };
+}
+
+function manualTitleForBlock(block: CostBlock) {
+  return manualItemTitles[block.id] || "Новая позиция";
+}
+
+function manualCatalogButtonLabel(block: CostBlock) {
+  if (block.id === "materials") return "Добавить новый материал в справочник";
+  if (block.id === "defects") return "Добавить новый косяк в справочник";
+  return "Добавить новую позицию в справочник";
+}
+
+function manualMaterialGroupForBlock(block: CostBlock) {
+  return block.catalogMaterialGroups?.[0] || "Без группы";
+}
+
+function isManualBlockCatalogItem(item: CatalogItem) {
+  return item.id.startsWith("manual-block-");
+}
+
+function syncManualCatalogPosition(items: CatalogItem[], catalogItem: CatalogItem, position: CostPosition) {
+  const title = position.title.trim();
+
+  return items.map((item) => {
+    if (item.id !== catalogItem.id) return item;
+
+    return {
+      ...item,
+      title: title || item.title,
+      unit: position.unit || item.unit,
+      unitCost: Number.isFinite(Number(position.unitCost)) ? Number(position.unitCost) : item.unitCost,
+    };
+  });
 }
 
 function assemblyAddonsTotal(addons: string[]) {
