@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:47:04.626Z",
+  "generatedAt": "2026-06-08T13:47:21.183Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T13:47:03.769Z",
+      "updatedAt": "2026-06-08T13:34:21.692Z",
       "positions": [
         {
           "id": "3ee5f4c3-88ee-48d6-b916-8ee9c9df5aa4",
@@ -21,6 +21,17 @@
           "title": "Светодиодный модуль линзованный Demiled Premium B2 175° 2835-2 1W IP65 12V CW, PW",
           "calcMode": "pieces",
           "note": "promo.pdf / Светодиодные модули / Demiled Premium B"
+        },
+        {
+          "id": "4bfa7c99-317a-43ce-abc0-8112e57facd7",
+          "catalogId": "materials-профиль-тюбинг-алюм-тюбинг-20х20х1х6000-мм-1975",
+          "qty": 3,
+          "unit": "шт",
+          "unitCost": 500,
+          "section": "materials",
+          "title": "[*] Профиль Тюбинг алюм. Тюбинг 20х20х1х6000 мм",
+          "calcMode": "pieces",
+          "note": "Прайс по материалам.xlsx; строка 1339; столбец G"
         },
         {
           "id": "894ab787-6cff-4940-9b00-0c02a30b33ee",
