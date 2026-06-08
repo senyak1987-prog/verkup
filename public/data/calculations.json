@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T12:02:07.603Z",
+  "generatedAt": "2026-06-08T12:02:29.588Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,30 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T12:02:06.747Z",
+      "updatedAt": "2026-06-08T12:00:11.598Z",
       "positions": [
-        {
-          "id": "a63d76e4-0849-4c33-80fd-64d632aeb429",
-          "catalogId": "lighting-demiled-promo-module-x3-2835-3-1w-ip67-pw",
-          "qty": 125,
-          "unit": "шт",
-          "unitCost": 9.5,
-          "section": "lighting",
-          "title": "Светодиодный модуль линзованный Demiled Premium X3 178° 2835-3 1W IP67 12V PW",
-          "calcMode": "pieces",
-          "note": "promo.pdf / Светодиодные модули / Demiled Premium X"
-        },
-        {
-          "id": "5e7a926b-3b7a-49cc-ac2c-42d70f56b5d5",
-          "catalogId": "lighting-demiled-promo-light-150w-12v-ip20",
-          "qty": 1,
-          "unit": "шт",
-          "unitCost": 790,
-          "section": "lighting",
-          "title": "Блок питания LIGHT 150W 12V IP20",
-          "calcMode": "pieces",
-          "note": "promo.pdf / Блоки питания / LIGHT IP20"
-        },
         {
           "id": "df664a8f-d557-439d-ad6a-93c15df14236",
           "catalogId": "materials-оргстекло-6мм-3050х2050х6-20070-прозр-92-plexist-1623",
