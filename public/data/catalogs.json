@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T12:59:52.587Z",
+  "generatedAt": "2026-06-08T13:01:00.804Z",
   "items": [
     {
       "id": "assembly-буква-объемная-12-50-см-склейка-0",
@@ -923,7 +923,8 @@
       "source": "Прайс сборка.xlsx / Буквы",
       "assemblySheet": "Буквы",
       "assemblyGroup": "Буква 60-69см",
-      "assemblyOperation": "Склейка"
+      "assemblyOperation": "Склейка",
+      "favorite": true
     },
     {
       "id": "assembly-установка-диодов-84",
