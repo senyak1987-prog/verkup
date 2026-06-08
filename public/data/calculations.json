@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T14:02:09.496Z",
+  "generatedAt": "2026-06-08T14:02:15.752Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T14:02:08.639Z",
+      "updatedAt": "2026-06-08T14:02:14.894Z",
       "positions": [
         {
           "id": "3ee5f4c3-88ee-48d6-b916-8ee9c9df5aa4",
@@ -76,7 +76,9 @@
           "section": "materials",
           "title": "ПВХ белый 2мм 3050х2030х2 \"UNEXT\" STR",
           "calcMode": "area",
-          "note": "Прайс по материалам.xlsx; строка 835; столбец G"
+          "note": "Прайс по материалам.xlsx; строка 835; столбец G",
+          "width": 1,
+          "height": 2
         },
         {
           "id": "99d091dd-59b0-4302-812d-6bb89ae9caa9",
