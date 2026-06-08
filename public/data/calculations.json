@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T06:56:54.530Z",
+  "generatedAt": "2026-06-08T09:18:50.829Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T06:56:53.663Z",
+      "updatedAt": "2026-06-08T09:18:49.971Z",
       "positions": [
+        {
+          "id": "1f82882b-7613-469b-bb19-ecf24f411103",
+          "catalogId": "materials-пвх-белый-2мм-3050х2030х2-unext-str-1541",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 512.8,
+          "section": "materials",
+          "title": "ПВХ белый 2мм 3050х2030х2 \"UNEXT\" STR",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 835; столбец G"
+        },
         {
           "id": "bbfce817-ffb2-431c-8a81-35cf3e6c2fce",
           "catalogId": "assembly-сборка-до-1-2м-высотой-м-п-215",
