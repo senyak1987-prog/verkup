@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:17:28.235Z",
+  "generatedAt": "2026-06-08T13:17:43.711Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,19 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T13:17:25.146Z",
+      "updatedAt": "2026-06-08T13:01:09.424Z",
       "positions": [
-        {
-          "id": "23595d31-4321-4dfd-aac5-9ee5a41f2b55",
-          "catalogId": "lighting-demiled-promo-module-b2-2835-2-1w-ip65",
-          "qty": 1,
-          "unit": "шт",
-          "unitCost": 11.7,
-          "section": "lighting",
-          "title": "Светодиодный модуль линзованный Demiled Premium B2 175° 2835-2 1W IP65 12V CW, PW",
-          "calcMode": "pieces",
-          "note": "promo.pdf / Светодиодные модули / Demiled Premium B"
-        },
         {
           "id": "58aca086-b9db-4f10-a113-099dea7cc438",
           "qty": 1,
