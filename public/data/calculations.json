@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T12:01:38.016Z",
+  "generatedAt": "2026-06-08T12:02:02.319Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T12:01:37.156Z",
+      "updatedAt": "2026-06-08T12:02:01.458Z",
       "positions": [
+        {
+          "id": "a63d76e4-0849-4c33-80fd-64d632aeb429",
+          "catalogId": "lighting-demiled-promo-module-x3-2835-3-1w-ip67-pw",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 9.5,
+          "section": "lighting",
+          "title": "Светодиодный модуль линзованный Demiled Premium X3 178° 2835-3 1W IP67 12V PW",
+          "calcMode": "pieces",
+          "note": "promo.pdf / Светодиодные модули / Demiled Premium X"
+        },
         {
           "id": "5e7a926b-3b7a-49cc-ac2c-42d70f56b5d5",
           "catalogId": "lighting-demiled-promo-light-150w-12v-ip20",
