@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T14:03:03.242Z",
+  "generatedAt": "2026-06-08T14:03:04.949Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,19 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T14:03:02.383Z",
+      "updatedAt": "2026-06-08T14:03:04.088Z",
       "positions": [
-        {
-          "id": "3ea07011-3977-4f47-8392-fe5f8c176134",
-          "catalogId": "materials-профиль-тюбинг-алюм-тюбинг-20х20х1х6000-мм-1975",
-          "qty": 1,
-          "unit": "шт",
-          "unitCost": 885.84,
-          "section": "materials",
-          "title": "[*] Профиль Тюбинг алюм. Тюбинг 20х20х1х6000 мм",
-          "calcMode": "pieces",
-          "note": "Прайс по материалам.xlsx; строка 1339; столбец G"
-        },
         {
           "id": "3ee5f4c3-88ee-48d6-b916-8ee9c9df5aa4",
           "catalogId": "lighting-demiled-promo-module-b2-2835-2-1w-ip65",
