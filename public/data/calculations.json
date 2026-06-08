@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:22:22.889Z",
+  "generatedAt": "2026-06-08T13:23:05.234Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,14 +9,14 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T13:22:22.028Z",
+      "updatedAt": "2026-06-08T13:23:04.376Z",
       "positions": [
         {
           "id": "4bfa7c99-317a-43ce-abc0-8112e57facd7",
           "catalogId": "materials-профиль-тюбинг-алюм-тюбинг-20х20х1х6000-мм-1975",
           "qty": 1,
           "unit": "шт",
-          "unitCost": 885.84,
+          "unitCost": 833,
           "section": "materials",
           "title": "[*] Профиль Тюбинг алюм. Тюбинг 20х20х1х6000 мм",
           "calcMode": "pieces",
