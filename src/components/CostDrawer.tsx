@@ -932,18 +932,18 @@ function BlockCatalogPicker({
               {quickSearchItems.map((item) => (
                 <div className="catalog-search-result" key={item.id}>
                   <button
-                    className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
-                    onClick={() => onToggleFavorite(item)}
-                    title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
-                  >
-                    <Star size={15} />
-                  </button>
-                  <button
                     className="catalog-add-toggle"
                     onClick={() => addSelectedCatalogItem(item)}
                     title="Добавить"
                   >
                     <CirclePlus size={16} />
+                  </button>
+                  <button
+                    className={item.favorite ? "favorite-toggle active" : "favorite-toggle"}
+                    onClick={() => onToggleFavorite(item)}
+                    title={item.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+                  >
+                    <Star size={15} />
                   </button>
                   <button
                     className={item.imageUrl ? "catalog-search-result-main with-thumb" : "catalog-search-result-main"}
