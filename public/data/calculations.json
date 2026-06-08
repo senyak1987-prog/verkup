@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:01:39.202Z",
+  "generatedAt": "2026-06-08T13:02:47.430Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,21 +9,8 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T13:01:32.075Z",
+      "updatedAt": "2026-06-08T13:01:09.424Z",
       "positions": [
-        {
-          "id": "74cadfe9-8d0c-431c-96fd-048e38f1eff8",
-          "catalogId": "assembly-сварка-точки-шт-279",
-          "qty": 1,
-          "unit": "шт",
-          "unitCost": 100,
-          "section": "assembly",
-          "title": "Сварка точки, шт",
-          "calcMode": "letterAssembly",
-          "note": "Прайс сборка.xlsx / Сварка, Покраска",
-          "addons": [],
-          "baseUnitCost": 100
-        },
         {
           "id": "58aca086-b9db-4f10-a113-099dea7cc438",
           "qty": 1,
