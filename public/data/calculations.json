@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T09:43:25.705Z",
+  "generatedAt": "2026-06-08T11:12:55.525Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T09:43:24.842Z",
+      "updatedAt": "2026-06-08T11:12:54.668Z",
       "positions": [
+        {
+          "id": "df664a8f-d557-439d-ad6a-93c15df14236",
+          "catalogId": "materials-оргстекло-6мм-3050х2050х6-20070-прозр-92-plexist-1623",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 2992.56,
+          "section": "materials",
+          "title": "Оргстекло 6мм 3050х2050х6 20070 прозр 92% PLEXISTEK XT",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 935; столбец G"
+        },
         {
           "id": "26a2abf0-732a-4daa-9bd9-220726fa675c",
           "catalogId": "metall-dk-труба-профильная-труба-15х15-труба-профильная-15х15х1",
