@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T14:02:15.752Z",
+  "generatedAt": "2026-06-08T14:02:25.771Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T14:02:14.894Z",
+      "updatedAt": "2026-06-08T14:02:24.906Z",
       "positions": [
         {
           "id": "3ee5f4c3-88ee-48d6-b916-8ee9c9df5aa4",
@@ -159,7 +159,8 @@
           "section": "materials",
           "title": "ПВХ белый 3мм 3050х1560х3 \"UNEXT\" STR",
           "calcMode": "area",
-          "note": "Прайс по материалам.xlsx; строка 840; столбец G"
+          "note": "Прайс по материалам.xlsx; строка 840; столбец G",
+          "width": 1
         }
       ]
     }
