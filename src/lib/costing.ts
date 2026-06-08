@@ -70,12 +70,20 @@ export function mountingCost(calculation?: DealCalculation) {
 }
 
 export function defectsCost(calculation?: DealCalculation) {
+  return roundMoney(defectsBaseCost(calculation) + defectsConsumablesCost(calculation));
+}
+
+export function defectsBaseCost(calculation?: DealCalculation) {
   if (!calculation) return 0;
   return roundMoney(
     calculation.positions
       .filter((position) => position.section === "defects")
       .reduce((sum, position) => sum + positionTotal(position), 0),
   );
+}
+
+export function defectsConsumablesCost(calculation?: DealCalculation) {
+  return roundMoney(defectsBaseCost(calculation) * AUTO_CONSUMABLES_RATE);
 }
 
 export function finalCost(calculation?: DealCalculation) {

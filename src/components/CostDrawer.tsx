@@ -133,7 +133,7 @@ const printMaterialGroups = [
 const costBlocks: CostBlock[] = [
   {
     id: "materials",
-    title: "1. Материалы / рама",
+    title: "Материалы / рама",
     hint: "Листы считаются по м2, рама по погонным метрам.",
     sections: ["materials"],
     catalogMaterialGroups: materialFrameGroups,
@@ -162,7 +162,7 @@ const costBlocks: CostBlock[] = [
   },
   {
     id: "lighting",
-    title: "2. Светотехника",
+    title: "Светотехника",
     hint: "Блоки, диоды и комплектующие по факту изготовления.",
     sections: ["lighting", "consumables"],
     catalogSections: ["lighting", "consumables", "materials"],
@@ -193,7 +193,7 @@ const costBlocks: CostBlock[] = [
   },
   {
     id: "print",
-    title: "3. Пленки / баннеры / печать / плоттер",
+    title: "Пленки / баннеры / печать / плоттер",
     hint: "Все позиции считаются по квадратным метрам.",
     sections: ["print", "plotter"],
     catalogSections: ["print", "plotter", "materials"],
@@ -234,7 +234,7 @@ const costBlocks: CostBlock[] = [
   },
   {
     id: "assembly",
-    title: "4. Сборка / работа / фрезеровка",
+    title: "Сборка / работа / фрезеровка",
     hint: "Объемные буквы с наборами операций, АКП, фрезеровка по длине реза, монтаж и работа по часам.",
     sections: ["assembly", "milling", "mounting", "subcontract"],
     catalogSections: ["assembly"],
@@ -309,7 +309,7 @@ const costBlocks: CostBlock[] = [
   },
   {
     id: "other",
-    title: "5. Прочие",
+    title: "Прочие",
     hint: "Ручной ввод: название, единица, количество и цена. Заполненные позиции сохраняются в справочнике.",
     sections: ["other"],
     isOther: true,
@@ -387,7 +387,7 @@ const defectActions: BlockAction[] = [
 
 const defectBlock: CostBlock = {
   id: "defects",
-  title: "6. Косяки / брак",
+  title: "Косяки / брак",
   hint: "Учет исправлений отдельно от чистого себеса.",
   sections: ["defects"],
   catalogSections: ["materials", "lighting", "print", "plotter", "assembly", "mounting", "subcontract"],
@@ -701,21 +701,6 @@ export function CostDrawer({
               onDelete={deletePosition}
             />
           ))}
-
-          <section className="calc-block auto-consumables">
-            <div className="calc-block-head">
-              <div>
-                <h3>7. Расходники</h3>
-                <p>Автоматически 7% от чистой базы без брака.</p>
-              </div>
-              <strong>{formatMoney(autoConsumablesCost(activeCalculation))}</strong>
-            </div>
-            <div className="auto-consumables-row">
-              <span>База: {formatMoney(baseCleanCost(activeCalculation))}</span>
-              <span>Коэффициент: 7%</span>
-              <span>Сумма: {formatMoney(autoConsumablesCost(activeCalculation))}</span>
-            </div>
-          </section>
 
           <CostBlockView
             block={defectBlock}
