@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-07T19:31:15.596Z",
+  "generatedAt": "2026-06-08T06:56:54.530Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-07T19:31:14.741Z",
+      "updatedAt": "2026-06-08T06:56:53.663Z",
       "positions": [
         {
           "id": "bbfce817-ffb2-431c-8a81-35cf3e6c2fce",
@@ -51,7 +51,7 @@
         {
           "id": "05b47674-e10c-4061-af98-277587c37831",
           "catalogId": "materials-2-диодный-модуль-белый-instatica-2д-2835-0-8w-80-2011",
-          "qty": 1,
+          "qty": 100,
           "unit": "шт",
           "unitCost": 8.59,
           "section": "lighting",
