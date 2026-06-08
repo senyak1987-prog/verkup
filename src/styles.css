@@ -960,7 +960,7 @@ td small {
 
 .catalog-cascade {
   display: grid;
-  grid-template-columns: repeat(3, minmax(160px, 1fr));
+  grid-template-columns: minmax(260px, 760px) minmax(0, 1fr);
   gap: 6px;
   margin-top: 6px;
 }
@@ -976,7 +976,7 @@ td small {
 }
 
 .catalog-search-field {
-  grid-column: 1 / -1;
+  grid-column: 1 / 2;
 }
 
 .catalog-search-results {
@@ -994,7 +994,8 @@ td small {
 
 .catalog-search-result {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px 30px;
+  grid-template-columns: 30px minmax(0, 1fr) 30px;
+  align-items: stretch;
   gap: 4px;
 }
 
