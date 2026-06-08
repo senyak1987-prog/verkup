@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T12:59:24.368Z",
+  "generatedAt": "2026-06-08T12:59:37.387Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T12:59:23.512Z",
+      "updatedAt": "2026-06-08T12:59:36.528Z",
       "positions": [
+        {
+          "id": "58aca086-b9db-4f10-a113-099dea7cc438",
+          "qty": 1,
+          "unit": "п/м",
+          "unitCost": 45,
+          "section": "milling",
+          "title": "Фрезеровка: Материал 2-3мм",
+          "calcMode": "milling",
+          "thickness": 3,
+          "note": "Фрезеровка"
+        },
         {
           "id": "df664a8f-d557-439d-ad6a-93c15df14236",
           "catalogId": "materials-оргстекло-6мм-3050х2050х6-20070-прозр-92-plexist-1623",
