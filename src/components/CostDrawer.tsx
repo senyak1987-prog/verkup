@@ -1003,6 +1003,20 @@ function BlockFavorites({
     ...sectionItems.filter((item) => item.favorite),
     ...positionFavoriteItems,
   ]).slice(0, 24);
+  const [hoveredItem, setHoveredItem] = useState<{
+    item: CatalogItem;
+    left: number;
+    top: number;
+  } | null>(null);
+
+  function showFavoriteInfo(item: CatalogItem, target: HTMLElement) {
+    const rect = target.getBoundingClientRect();
+    setHoveredItem({
+      item,
+      left: Math.max(12, rect.left - 340),
+      top: Math.max(12, Math.min(rect.top - 8, window.innerHeight - 330)),
+    });
+  }
 
   return (
     <aside className="block-favorites">
@@ -1016,17 +1030,27 @@ function BlockFavorites({
             className="block-favorite-item"
             key={item.id}
             onClick={() => onAdd(item)}
+            onFocus={(event) => showFavoriteInfo(item, event.currentTarget)}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 onAdd(item);
               }
             }}
+            onMouseEnter={(event) => showFavoriteInfo(item, event.currentTarget)}
+            onMouseLeave={() => setHoveredItem(null)}
+            onBlur={() => setHoveredItem(null)}
             role="button"
             tabIndex={0}
           >
-            <div className={item.imageUrl ? "block-favorite-main with-thumb" : "block-favorite-main"}>
-              {item.imageUrl && <img className="catalog-thumb" src={item.imageUrl} alt="" loading="lazy" />}
+            <div className="block-favorite-main">
+              <div className="favorite-thumb">
+                {item.imageUrl ? (
+                  <img src={item.imageUrl} alt="" loading="lazy" />
+                ) : (
+                  <Database size={16} />
+                )}
+              </div>
               <div className="catalog-item-text">
                 <span>{item.title}</span>
                 <small>{formatMoney(item.unitCost)} / {item.unit}</small>
@@ -1049,8 +1073,65 @@ function BlockFavorites({
           <p className="empty-state compact">Отметьте позицию звездой, и она будет здесь во всех сделках.</p>
         )}
       </div>
+      {hoveredItem && (
+        <FavoriteInfoPopover
+          item={hoveredItem.item}
+          style={{
+            left: hoveredItem.left,
+            top: hoveredItem.top,
+          }}
+        />
+      )}
     </aside>
   );
+}
+
+function FavoriteInfoPopover({
+  item,
+  style,
+}: {
+  item: CatalogItem;
+  style: { left: number; top: number };
+}) {
+  const details = favoriteInfoRows(item);
+
+  return (
+    <div className="favorite-info-popover" style={style}>
+      <div className="favorite-info-head">
+        <div className="favorite-info-thumb">
+          {item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" /> : <Database size={22} />}
+        </div>
+        <div>
+          <strong>{item.title}</strong>
+          <span>
+            {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+          </span>
+        </div>
+      </div>
+      <dl>
+        {details.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function favoriteInfoRows(item: CatalogItem) {
+  const rows: Array<[string, string]> = [];
+  const group = materialGroupLabel(item);
+
+  if (group) rows.push(["Группа", group]);
+  if (item.assemblyOperation) rows.push(["Операция", item.assemblyOperation]);
+  if (item.assemblyMinCost) rows.push(["Минимум", formatMoney(item.assemblyMinCost)]);
+  if (item.productCode) rows.push(["Код", item.productCode]);
+  if (item.source) rows.push(["Источник", item.source]);
+  if (item.productUrl) rows.push(["Ссылка", item.productUrl]);
+
+  return rows;
 }
 
 function PositionList({
