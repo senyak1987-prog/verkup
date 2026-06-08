@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type {
   CatalogItem,
   CostCalcMode,
@@ -1011,10 +1012,20 @@ function BlockFavorites({
 
   function showFavoriteInfo(item: CatalogItem, target: HTMLElement) {
     const rect = target.getBoundingClientRect();
+    const gap = 10;
+    const margin = 12;
+    const width = Math.min(320, window.innerWidth - margin * 2);
+    const height = Math.min(320, window.innerHeight - margin * 2);
+    const canOpenLeft = rect.left >= width + gap + margin;
+    const left = canOpenLeft
+      ? rect.left - width - gap
+      : Math.min(window.innerWidth - width - margin, rect.right + gap);
+    const centeredTop = rect.top + rect.height / 2 - height / 2;
+
     setHoveredItem({
       item,
-      left: Math.max(12, rect.left - 340),
-      top: Math.max(12, Math.min(rect.top - 8, window.innerHeight - 330)),
+      left: Math.max(margin, left),
+      top: Math.max(margin, Math.min(centeredTop, window.innerHeight - height - margin)),
     });
   }
 
@@ -1073,15 +1084,17 @@ function BlockFavorites({
           <p className="empty-state compact">Отметьте позицию звездой, и она будет здесь во всех сделках.</p>
         )}
       </div>
-      {hoveredItem && (
-        <FavoriteInfoPopover
-          item={hoveredItem.item}
-          style={{
-            left: hoveredItem.left,
-            top: hoveredItem.top,
-          }}
-        />
-      )}
+      {hoveredItem &&
+        createPortal(
+          <FavoriteInfoPopover
+            item={hoveredItem.item}
+            style={{
+              left: hoveredItem.left,
+              top: hoveredItem.top,
+            }}
+          />,
+          document.body,
+        )}
     </aside>
   );
 }
