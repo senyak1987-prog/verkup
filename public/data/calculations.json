@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T12:02:29.588Z",
+  "generatedAt": "2026-06-08T12:03:25.838Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T12:00:11.598Z",
+      "updatedAt": "2026-06-08T12:01:37.156Z",
       "positions": [
+        {
+          "id": "5e7a926b-3b7a-49cc-ac2c-42d70f56b5d5",
+          "catalogId": "lighting-demiled-promo-light-150w-12v-ip20",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 790,
+          "section": "lighting",
+          "title": "Блок питания LIGHT 150W 12V IP20",
+          "calcMode": "pieces",
+          "note": "promo.pdf / Блоки питания / LIGHT IP20"
+        },
         {
           "id": "df664a8f-d557-439d-ad6a-93c15df14236",
           "catalogId": "materials-оргстекло-6мм-3050х2050х6-20070-прозр-92-plexist-1623",
