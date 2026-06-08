@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T14:02:27.332Z",
+  "generatedAt": "2026-06-08T14:03:04.549Z",
   "items": [
     {
       "id": "assembly-буква-объемная-12-50-см-склейка-0",
@@ -22249,7 +22249,8 @@
       "materialFamily": "Профиль Тюбинг алюм.",
       "materialSubgroup": "Профиль Тюбинг алюм.",
       "materialGroupPath": "Профили / Профиль Тюбинг алюм.",
-      "favorite": false
+      "favorite": true,
+      "favoriteOrder": 8
     },
     {
       "id": "materials-профиль-тюбинг-алюм-элемент-соедин-т-образный-1976",
