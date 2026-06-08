@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:02:49.087Z",
+  "generatedAt": "2026-06-08T13:17:29.671Z",
   "items": [
     {
       "id": "assembly-буква-объемная-12-50-см-склейка-0",
@@ -35505,7 +35505,8 @@
       "materialFamily": "Светодиодные модули",
       "materialSubgroup": "Demiled Premium B",
       "materialGroupPath": "Светотехника / Светодиодные модули / Demiled Premium B",
-      "imageUrl": "catalog-images/demiled/demiled-premium-b2-2835-2-1w-ip65.webp"
+      "imageUrl": "catalog-images/demiled/demiled-premium-b2-2835-2-1w-ip65.webp",
+      "favorite": true
     },
     {
       "id": "lighting-demiled-promo-module-b3-2835-3-12w-ip65",
