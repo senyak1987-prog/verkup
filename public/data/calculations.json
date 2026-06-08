@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:34:04.080Z",
+  "generatedAt": "2026-06-08T13:34:22.552Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,12 +9,12 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T13:34:03.225Z",
+      "updatedAt": "2026-06-08T13:34:21.692Z",
       "positions": [
         {
           "id": "3ee5f4c3-88ee-48d6-b916-8ee9c9df5aa4",
           "catalogId": "lighting-demiled-promo-module-b2-2835-2-1w-ip65",
-          "qty": 1,
+          "qty": 120,
           "unit": "шт",
           "unitCost": 11.7,
           "section": "lighting",
