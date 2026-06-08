@@ -994,7 +994,7 @@ td small {
 
 .catalog-search-result {
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) 30px;
+  grid-template-columns: 30px 30px minmax(0, 1fr);
   align-items: stretch;
   gap: 4px;
 }

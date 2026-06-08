@@ -939,6 +939,13 @@ function BlockCatalogPicker({
                     <Star size={15} />
                   </button>
                   <button
+                    className="catalog-add-toggle"
+                    onClick={() => addSelectedCatalogItem(item)}
+                    title="Добавить"
+                  >
+                    <CirclePlus size={16} />
+                  </button>
+                  <button
                     className={item.imageUrl ? "catalog-search-result-main with-thumb" : "catalog-search-result-main"}
                     onClick={() => addSelectedCatalogItem(item)}
                   >
@@ -950,13 +957,6 @@ function BlockCatalogPicker({
                         {materialGroupLabel(item) ? ` · ${materialGroupLabel(item)}` : ""}
                       </small>
                     </div>
-                  </button>
-                  <button
-                    className="catalog-add-toggle"
-                    onClick={() => addSelectedCatalogItem(item)}
-                    title="Добавить"
-                  >
-                    <CirclePlus size={16} />
                   </button>
                 </div>
               ))}
