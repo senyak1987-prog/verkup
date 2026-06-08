@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:01:34.124Z",
+  "generatedAt": "2026-06-08T13:01:40.635Z",
   "items": [
     {
       "id": "assembly-буква-объемная-12-50-см-склейка-0",
@@ -3135,7 +3135,8 @@
       "source": "Прайс сборка.xlsx / Сварка, Покраска",
       "assemblySheet": "Сварка, Покраска",
       "assemblyGroup": "Сварка",
-      "assemblyOperation": "Сварка точки, шт"
+      "assemblyOperation": "Сварка точки, шт",
+      "favorite": true
     },
     {
       "id": "assembly-покраска-м-п-280",
