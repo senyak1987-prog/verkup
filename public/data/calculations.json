@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T12:02:02.319Z",
+  "generatedAt": "2026-06-08T12:02:06.737Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,12 +9,12 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T12:02:01.458Z",
+      "updatedAt": "2026-06-08T12:02:05.876Z",
       "positions": [
         {
           "id": "a63d76e4-0849-4c33-80fd-64d632aeb429",
           "catalogId": "lighting-demiled-promo-module-x3-2835-3-1w-ip67-pw",
-          "qty": 1,
+          "qty": 12,
           "unit": "шт",
           "unitCost": 9.5,
           "section": "lighting",
