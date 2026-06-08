@@ -1265,6 +1265,107 @@ td small {
   line-height: 1.25;
 }
 
+.position-info-popover {
+  position: fixed;
+  z-index: 1001;
+  width: min(360px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+  padding: 10px;
+  animation: favoriteInfoEnter 120ms ease-out both;
+}
+
+.position-info-head {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 28px;
+  gap: 9px;
+  align-items: center;
+  padding-bottom: 9px;
+  border-bottom: 1px solid #e4e9f1;
+}
+
+.position-info-head .favorite-info-thumb {
+  width: 46px;
+  height: 46px;
+}
+
+.position-info-head strong {
+  display: block;
+  overflow-wrap: anywhere;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.position-info-head span {
+  display: block;
+  margin-top: 3px;
+  color: #667085;
+  font-size: 11.5px;
+}
+
+.position-info-head button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d8dee8;
+  border-radius: 7px;
+  background: #fff;
+  color: #344054;
+}
+
+.position-info-popover dl {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.position-info-popover dl div {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.position-info-popover dt {
+  color: #667085;
+  font-size: 11px;
+}
+
+.position-info-popover dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: #344054;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.position-info-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  border: 1px solid #99d5cf;
+  border-radius: 7px;
+  background: #effaf8;
+  padding: 7px 9px;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.position-info-no-link {
+  margin-top: 9px;
+  color: #667085;
+  font-size: 11.5px;
+}
+
 @keyframes favoriteInfoEnter {
   from {
     opacity: 0;
@@ -1302,7 +1403,7 @@ td small {
 
 .calc-lines {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .calc-line-item {
@@ -1322,12 +1423,12 @@ td small {
 
 .calc-position {
   display: grid;
-  gap: 7px;
+  gap: 5px;
   min-height: 0;
   border: 1px solid #e1e7ef;
   border-radius: 8px;
-  background: #f9fafb;
-  padding: 8px;
+  background: #fbfcfe;
+  padding: 6px;
 }
 
 @keyframes calcBlockExpand {
@@ -1392,21 +1493,25 @@ td small {
 
 .position-main {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 34px;
-  gap: 6px;
+  grid-template-columns: minmax(180px, 1fr) 30px 30px;
+  gap: 5px;
   align-items: center;
+  border: 1px solid #cce7e2;
+  border-radius: 7px;
+  background: #eefaf7;
+  padding: 4px;
 }
 
 .position-main.with-favorite {
-  grid-template-columns: minmax(180px, 1fr) 34px 34px;
+  grid-template-columns: minmax(180px, 1fr) 30px 30px 30px;
 }
 
 .position-main button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   border: 1px solid #d5dce6;
   border-radius: 7px;
   background: #fff;
@@ -1421,10 +1526,15 @@ td small {
   color: #b45309;
 }
 
+.position-main .position-info-toggle {
+  color: #0f766e;
+}
+
 .field-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(96px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 170px));
+  gap: 5px;
+  align-items: end;
 }
 
 .milling-price-table {
@@ -1502,12 +1612,12 @@ td small {
 
 .field {
   display: grid;
-  gap: 3px;
+  gap: 2px;
 }
 
 .field span {
   color: #667085;
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .field input,
@@ -1518,13 +1628,15 @@ td small {
   border: 1px solid #d8dee8;
   border-radius: 7px;
   background: #fff;
-  padding: 7px 8px;
+  padding: 5px 8px;
 }
 
 .calc-position .position-title-readonly {
   overflow: hidden;
-  background: #f8fafc;
+  border-color: transparent;
+  background: transparent;
   color: #101828;
+  font-weight: 700;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1558,7 +1670,7 @@ td small {
   justify-content: space-between;
   gap: 12px;
   color: #667085;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .position-total-row span {

@@ -7,6 +7,8 @@ import {
   ChevronRight,
   CirclePlus,
   Database,
+  ExternalLink,
+  Info,
   Save,
   Star,
   Trash2,
@@ -1208,6 +1210,7 @@ function PositionEditor({
   const total = positionTotal(position);
   const areaInputValue = position.calcMode === "area" ? areaFieldValue(position) : position.qty;
   const assemblyOptions = assemblyCatalogAddonOptions(position, catalogItems);
+  const [infoAnchor, setInfoAnchor] = useState<{ left: number; top: number } | null>(null);
   const hasCatalogAssemblyOptions = assemblyOptions.length > 0;
   const assemblyAddonsToShow = hasCatalogAssemblyOptions
     ? assemblyOptions
@@ -1240,76 +1243,95 @@ function PositionEditor({
     });
   }
 
+  function togglePositionInfo(target: HTMLElement) {
+    if (infoAnchor) {
+      setInfoAnchor(null);
+      return;
+    }
+
+    setInfoAnchor(popoverPositionForTarget(target, 360, 330));
+  }
+
   return (
-    <div className="calc-position">
-      <div className={catalogItem ? "position-main with-favorite" : "position-main"}>
-        {catalogItem ? (
-          <div
-            className="position-title position-title-readonly"
-            title="Название меняется только в справочнике"
-          >
-            {catalogItem.title}
-          </div>
-        ) : (
-          <input
-            className="position-title"
-            value={position.title}
-            onChange={(event) => onPatch({ title: event.target.value })}
-            placeholder="Позиция"
-          />
-        )}
-        {catalogItem && (
+    <>
+      <div className="calc-position">
+        <div className={catalogItem ? "position-main with-favorite" : "position-main"}>
+          {catalogItem ? (
+            <div
+              className="position-title position-title-readonly"
+              title="Название меняется только в справочнике"
+            >
+              {catalogItem.title}
+            </div>
+          ) : (
+            <input
+              className="position-title"
+              value={position.title}
+              onChange={(event) => onPatch({ title: event.target.value })}
+              placeholder="Позиция"
+            />
+          )}
+          {catalogItem && (
+            <button
+              className={catalogItem.favorite ? "favorite-toggle active" : "favorite-toggle"}
+              title={catalogItem.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+              onClick={() => onToggleFavorite(catalogItem)}
+              type="button"
+            >
+              <Star size={16} />
+            </button>
+          )}
           <button
-            className={catalogItem.favorite ? "favorite-toggle active" : "favorite-toggle"}
-            title={catalogItem.favorite ? "Убрать из избранного" : "Добавить в избранное"}
-            onClick={() => onToggleFavorite(catalogItem)}
+            className="position-info-toggle"
+            title="Информация о позиции"
+            onClick={(event) => togglePositionInfo(event.currentTarget)}
+            type="button"
           >
-            <Star size={16} />
+            <Info size={16} />
           </button>
+          <button title="Удалить" onClick={onDelete} type="button">
+            <Trash2 size={16} />
+          </button>
+        </div>
+
+        {position.calcMode === "area" && (
+          <div className="field-grid">
+            <NumberField label="Ширина, м" value={position.width} onChange={(value) => patchNumber("width", value)} />
+            <NumberField label="Высота, м" value={position.height} onChange={(value) => patchNumber("height", value)} />
+            <NumberField label="м/кв" value={areaInputValue} onChange={patchAreaQuantity} />
+            <NumberField label="Цена / м2" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+          </div>
         )}
-        <button title="Удалить" onClick={onDelete}>
-          <Trash2 size={16} />
-        </button>
-      </div>
 
-      {position.calcMode === "area" && (
-        <div className="field-grid">
-          <NumberField label="Ширина, м" value={position.width} onChange={(value) => patchNumber("width", value)} />
-          <NumberField label="Высота, м" value={position.height} onChange={(value) => patchNumber("height", value)} />
-          <NumberField label="м/кв" value={areaInputValue} onChange={patchAreaQuantity} />
-          <NumberField label="Цена / м2" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
-        </div>
-      )}
+        {position.calcMode === "milling" && <MillingTableEditor position={position} onPatch={onPatch} />}
 
-      {position.calcMode === "milling" && <MillingTableEditor position={position} onPatch={onPatch} />}
+        {position.calcMode === "linear" && (
+          <div className="field-grid">
+            <NumberField label="Длина, м" value={position.length} onChange={(value) => patchNumber("length", value)} />
+            <NumberField label="Кол-во" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+            <NumberField
+              label={position.section === "milling" || position.title.toLowerCase().includes("фрез") ? "Толщина, мм" : "Толщина / профиль"}
+              value={position.thickness}
+              onChange={(value) => patchNumber("thickness", value)}
+            />
+            <NumberField label="Цена / п.м" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+          </div>
+        )}
 
-      {position.calcMode === "linear" && (
-        <div className="field-grid">
-          <NumberField label="Длина, м" value={position.length} onChange={(value) => patchNumber("length", value)} />
-          <NumberField label="Кол-во" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
-          <NumberField
-            label={position.section === "milling" || position.title.toLowerCase().includes("фрез") ? "Толщина, мм" : "Толщина / профиль"}
-            value={position.thickness}
-            onChange={(value) => patchNumber("thickness", value)}
-          />
-          <NumberField label="Цена / п.м" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
-        </div>
-      )}
+        {(position.calcMode === "pieces" || position.calcMode === "manual" || !position.calcMode) && (
+          <div className="field-grid">
+            <NumberField label="Кол-во" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+            <TextField label="Ед." value={position.unit} onChange={(value) => onPatch({ unit: value })} />
+            <NumberField label="Цена / ед." value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+          </div>
+        )}
 
-      {(position.calcMode === "pieces" || position.calcMode === "manual" || !position.calcMode) && (
-        <div className="field-grid">
-          <NumberField label="Кол-во" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
-          <TextField label="Ед." value={position.unit} onChange={(value) => onPatch({ unit: value })} />
-          <NumberField label="Цена / ед." value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
-        </div>
-      )}
-
-      {position.calcMode === "hourly" && (
-        <div className="field-grid">
-          <NumberField label="Часы" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
-          <NumberField label="Ставка / час" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
-        </div>
-      )}
+        {position.calcMode === "hourly" && (
+          <div className="field-grid">
+            <NumberField label="Часы" value={position.qty} onChange={(value) => patchNumber("qty", value)} />
+            <NumberField label="Ставка / час" value={position.unitCost} onChange={(value) => patchNumber("unitCost", value)} />
+          </div>
+        )}
 
       {position.calcMode === "letterAssembly" && (
         <>
@@ -1359,7 +1381,106 @@ function PositionEditor({
         <strong>{formatMoney(total)}</strong>
       </div>
     </div>
+    {infoAnchor &&
+      createPortal(
+        <PositionInfoPopover
+          catalogItem={catalogItem}
+          position={position}
+          style={infoAnchor}
+          onClose={() => setInfoAnchor(null)}
+        />,
+        document.body,
+      )}
+    </>
   );
+}
+
+function PositionInfoPopover({
+  catalogItem,
+  position,
+  style,
+  onClose,
+}: {
+  catalogItem?: CatalogItem;
+  position: CostPosition;
+  style: { left: number; top: number };
+  onClose: () => void;
+}) {
+  const rows = positionInfoRows(position, catalogItem);
+  const sourceUrl = catalogItem?.productUrl || firstUrl(catalogItem?.source) || firstUrl(position.note);
+  const title = catalogItem?.title || position.title;
+
+  return (
+    <div className="position-info-popover" style={style}>
+      <div className="position-info-head">
+        <div className="favorite-info-thumb">
+          {catalogItem?.imageUrl ? <img src={catalogItem.imageUrl} alt="" loading="lazy" /> : <Database size={22} />}
+        </div>
+        <div>
+          <strong>{title}</strong>
+          <span>
+            {sectionLabels[position.section]} · {formatMoney(position.unitCost)} / {position.unit}
+          </span>
+        </div>
+        <button title="Закрыть" type="button" onClick={onClose}>
+          <X size={16} />
+        </button>
+      </div>
+      <dl>
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {sourceUrl ? (
+        <a className="position-info-link" href={sourceUrl} target="_blank" rel="noreferrer">
+          <ExternalLink size={15} />
+          Открыть источник
+        </a>
+      ) : (
+        <p className="position-info-no-link">Ссылка на сайт для этой позиции не указана.</p>
+      )}
+    </div>
+  );
+}
+
+function positionInfoRows(position: CostPosition, catalogItem?: CatalogItem) {
+  const rows: Array<[string, string]> = [];
+  const group = catalogItem ? materialGroupLabel(catalogItem) : "";
+
+  if (group) rows.push(["Группа", group]);
+  if (catalogItem?.assemblyOperation) rows.push(["Операция", catalogItem.assemblyOperation]);
+  if (catalogItem?.productCode) rows.push(["Код", catalogItem.productCode]);
+  rows.push(["Кол-во", `${formatQuantity(positionQuantity(position))} ${position.unit}`]);
+  rows.push(["Сумма", formatMoney(positionTotal(position))]);
+  if (catalogItem?.source) rows.push(["Источник", catalogItem.source]);
+  if (position.note && position.note !== catalogItem?.source) rows.push(["Примечание", position.note]);
+
+  return rows;
+}
+
+function firstUrl(value?: string) {
+  return value?.match(/https?:\/\/[^\s)]+/i)?.[0];
+}
+
+function popoverPositionForTarget(target: HTMLElement, preferredWidth: number, preferredHeight: number) {
+  const rect = target.getBoundingClientRect();
+  const gap = 10;
+  const margin = 12;
+  const width = Math.min(preferredWidth, window.innerWidth - margin * 2);
+  const height = Math.min(preferredHeight, window.innerHeight - margin * 2);
+  const canOpenLeft = rect.left >= width + gap + margin;
+  const left = canOpenLeft
+    ? rect.left - width - gap
+    : Math.min(window.innerWidth - width - margin, rect.right + gap);
+  const top = rect.top + rect.height / 2 - height / 2;
+
+  return {
+    left: Math.max(margin, left),
+    top: Math.max(margin, Math.min(top, window.innerHeight - height - margin)),
+  };
 }
 
 function areaFieldValue(position: CostPosition) {
