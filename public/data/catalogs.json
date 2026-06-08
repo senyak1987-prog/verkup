@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:48:15.432Z",
+  "generatedAt": "2026-06-08T13:58:57.650Z",
   "items": [
     {
       "id": "assembly-буква-объемная-12-50-см-склейка-0",
@@ -15495,7 +15495,8 @@
       "materialGroupPath": "Листовые материалы / Пластик ПВХ / ПВХ белый 2мм",
       "favorite": true,
       "productUrl": "https://www.remex.ru/product/20030642",
-      "productCode": "20030642"
+      "productCode": "20030642",
+      "favoriteOrder": 2
     },
     {
       "id": "materials-пвх-белый-2мм-3050х2030х2-unext-fresh-1542",
@@ -15556,7 +15557,8 @@
       "favorite": true,
       "productUrl": "https://www.remex.ru/product/20040864",
       "productCode": "20040864",
-      "imageUrl": "https://www.remex.ru/storage/r-products/December2024/iaYLHk5LAX3DVgc0oqs0.jpg"
+      "imageUrl": "https://www.remex.ru/storage/r-products/December2024/iaYLHk5LAX3DVgc0oqs0.jpg",
+      "favoriteOrder": 0
     },
     {
       "id": "materials-пвх-белый-3мм-3050х2030х3-unext-str-1546",
@@ -15841,7 +15843,8 @@
       "favorite": true,
       "productUrl": "https://www.remex.ru/product/20062210",
       "productCode": "20062210",
-      "imageUrl": "https://www.remex.ru/storage/r-products/August2025/PPpdVA0pPAis5CJpzkrz.jpg"
+      "imageUrl": "https://www.remex.ru/storage/r-products/August2025/PPpdVA0pPAis5CJpzkrz.jpg",
+      "favoriteOrder": 1
     },
     {
       "id": "materials-пвх-белый-6мм-3050х2030х6-unext-str-1564",
@@ -16609,7 +16612,8 @@
       "favorite": true,
       "productUrl": "https://www.remex.ru/product/20407100",
       "productCode": "20407100",
-      "imageUrl": "https://www.remex.ru/storage/r-products/December2024/LTc5bdGBmfbMKQ1exSD1.jpg"
+      "imageUrl": "https://www.remex.ru/storage/r-products/December2024/LTc5bdGBmfbMKQ1exSD1.jpg",
+      "favoriteOrder": 3
     },
     {
       "id": "materials-оргстекло-3мм-3050х2050х3-молочный-20-30-acryma--1612",
@@ -16801,7 +16805,8 @@
       "favorite": true,
       "productUrl": "https://www.remex.ru/product/20416629",
       "productCode": "20416629",
-      "imageUrl": "https://www.remex.ru/storage/r-products/December2024/mV0FUUBYSXygnSnN40le.jpg"
+      "imageUrl": "https://www.remex.ru/storage/r-products/December2024/mV0FUUBYSXygnSnN40le.jpg",
+      "favoriteOrder": 4
     },
     {
       "id": "materials-оргстекло-6мм-3050х2050х6-прозр-92-acryma-72-xt-1624",
@@ -19702,7 +19707,8 @@
       "favorite": true,
       "productUrl": "https://www.remex.ru/product/20985031",
       "productCode": "20985031",
-      "imageUrl": "https://www.remex.ru/storage/r-products/December2024/4LvnZqVKSqranLopm9vj.jpg"
+      "imageUrl": "https://www.remex.ru/storage/r-products/December2024/4LvnZqVKSqranLopm9vj.jpg",
+      "favoriteOrder": 5
     },
     {
       "id": "materials-акп-1220х4000-3-0-21-мат-серебро-9905-rexbond-1--1810",
@@ -25425,7 +25431,8 @@
       "materialGroupPath": "Металл / Труба профильная / Труба 15х15",
       "productUrl": "https://metall-dk.ru/catalog/truba-profilnaya/",
       "imageUrl": "https://metall-dk.ru/upload/iblock/8f5/8k1j6nbkgf900gndi4gn0sdxm3qydhcz.jpeg",
-      "favorite": true
+      "favorite": true,
+      "favoriteOrder": 6
     },
     {
       "id": "metall-dk-труба-профильная-труба-15х15-труба-профильная-15х15х1-2",
@@ -25485,7 +25492,8 @@
       "materialGroupPath": "Металл / Труба профильная / Труба 20х20",
       "productUrl": "https://metall-dk.ru/catalog/truba-profilnaya/",
       "imageUrl": "https://metall-dk.ru/upload/iblock/8f5/8k1j6nbkgf900gndi4gn0sdxm3qydhcz.jpeg",
-      "favorite": true
+      "favorite": true,
+      "favoriteOrder": 7
     },
     {
       "id": "metall-dk-труба-профильная-труба-20х20-труба-профильная-20х20х1-5",
