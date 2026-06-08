@@ -41,14 +41,6 @@ const fallbackCatalogs: AppData<CatalogItem> = {
       unitCost: 700,
       source: "Светотехника",
     },
-    {
-      id: "milling-material-4-5",
-      section: "milling",
-      title: "Фрезеровка материала 4-5 мм",
-      unit: "п/м",
-      unitCost: 55,
-      source: "ПРАЙС ФРЕЗЕРОВКА",
-    },
   ],
 };
 

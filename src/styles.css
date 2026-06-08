@@ -1423,6 +1423,65 @@ td small {
   gap: 6px;
 }
 
+.milling-price-table {
+  overflow: hidden;
+  border: 1px solid #d8dee8;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.milling-table-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(96px, 0.5fr) minmax(96px, 0.55fr) minmax(108px, 0.65fr);
+  align-items: center;
+  min-height: 34px;
+  border-top: 1px solid #e6edf5;
+}
+
+.milling-table-row:first-child {
+  border-top: 0;
+}
+
+.milling-table-row > * {
+  padding: 6px 8px;
+}
+
+.milling-table-head {
+  background: #f8fafc;
+  color: #101828;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.milling-table-row.active {
+  background: #eefaf7;
+  box-shadow: inset 3px 0 0 #0f8375;
+}
+
+.milling-row-title {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #101828;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.milling-table-row input {
+  width: calc(100% - 12px);
+  margin: 3px 6px;
+  border: 1px solid #d8dee8;
+  border-radius: 6px;
+  padding: 5px 7px;
+}
+
+.milling-table-row input:disabled {
+  background: #f8fafc;
+  color: transparent;
+}
+
 .assembly-set-summary {
   display: flex;
   flex-wrap: wrap;

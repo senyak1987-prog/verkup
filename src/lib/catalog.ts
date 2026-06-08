@@ -38,7 +38,6 @@ export const catalogGroups: ReadonlyArray<CatalogGroup> = [
     materialGroups: lightingLegacyMaterialGroups,
   },
   { id: "assembly", label: "Сборка", sections: ["assembly"] },
-  { id: "milling", label: "Фрезеровка", sections: ["milling"] },
   { id: "print", label: "Печать / Плоттер", sections: ["print", "plotter"] },
   { id: "other", label: "Прочие", sections: ["other", "mounting", "subcontract", "defects"] },
 ];

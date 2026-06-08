@@ -36,6 +36,7 @@ export type CostCalcMode =
   | "manual"
   | "area"
   | "linear"
+  | "milling"
   | "pieces"
   | "letterAssembly"
   | "hourly";

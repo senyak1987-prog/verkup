@@ -25,6 +25,10 @@ export function positionQuantity(position: CostPosition) {
     return roundMoney(length ? length * qty : qty);
   }
 
+  if (position.calcMode === "milling") {
+    return roundMoney(Number(position.length) || 0);
+  }
+
   return roundMoney(qty);
 }
 

@@ -105,6 +105,14 @@ const assemblyAddons = [
   { id: "subframe", label: "Подрамник / усиление", unitCost: 350 },
 ] as const;
 
+const millingOptions = [
+  { id: "material-2-3", label: "Материал 2-3мм", thickness: 3, unitCost: 45 },
+  { id: "material-4-5", label: "Материал 4-5мм", thickness: 5, unitCost: 55 },
+  { id: "material-6-10", label: "Материал 6-10мм", thickness: 10, unitCost: 65 },
+  { id: "acp-3", label: "АКП 3мм", thickness: 3, unitCost: 70 },
+  { id: "acp-4", label: "АКП 4мм", thickness: 4, unitCost: 85 },
+] as const;
+
 const materialFrameGroups = [
   "Листовые материалы",
   "Профили",
@@ -184,26 +192,8 @@ const costBlocks: CostBlock[] = [
     ],
   },
   {
-    id: "milling",
-    title: "3. Фрезеровка",
-    hint: "Материал, толщина и стоимость за погонный метр.",
-    sections: ["milling"],
-    actions: [
-      {
-        label: "Фрезеровка п/м",
-        template: {
-          section: "milling",
-          title: "Фрезеровка",
-          calcMode: "linear",
-          unit: "п/м",
-          unitCost: 0,
-        },
-      },
-    ],
-  },
-  {
     id: "print",
-    title: "4. Пленки / баннеры / печать / плоттер",
+    title: "3. Пленки / баннеры / печать / плоттер",
     hint: "Все позиции считаются по квадратным метрам.",
     sections: ["print", "plotter"],
     catalogSections: ["print", "plotter", "materials"],
@@ -244,9 +234,9 @@ const costBlocks: CostBlock[] = [
   },
   {
     id: "assembly",
-    title: "5. Сборка / работа",
-    hint: "Объемные буквы с наборами операций, АКП, монтаж и работа по часам.",
-    sections: ["assembly", "mounting", "subcontract"],
+    title: "4. Сборка / работа / фрезеровка",
+    hint: "Объемные буквы с наборами операций, АКП, фрезеровка по длине реза, монтаж и работа по часам.",
+    sections: ["assembly", "milling", "mounting", "subcontract"],
     catalogSections: ["assembly"],
     catalogTargetSection: "assembly",
     actions: [
@@ -283,6 +273,19 @@ const costBlocks: CostBlock[] = [
         },
       },
       {
+        label: "Фрезеровка",
+        template: {
+          section: "milling",
+          title: "Фрезеровка: Материал 2-3мм",
+          calcMode: "milling",
+          unit: "п/м",
+          unitCost: 45,
+          thickness: 3,
+          qty: 1,
+          note: "Фрезеровка",
+        },
+      },
+      {
         label: "Монтаж",
         template: {
           section: "mounting",
@@ -306,7 +309,7 @@ const costBlocks: CostBlock[] = [
   },
   {
     id: "other",
-    title: "6. Прочие",
+    title: "5. Прочие",
     hint: "Ручной ввод: название, единица, количество и цена. Заполненные позиции сохраняются в справочнике.",
     sections: ["other"],
     isOther: true,
@@ -351,10 +354,13 @@ const defectActions: BlockAction[] = [
     label: "Фрезеровка",
     template: {
       section: "defects",
-      title: "Брак: фрезеровка",
-      calcMode: "linear",
+      title: "Брак: фрезеровка: Материал 2-3мм",
+      calcMode: "milling",
       unit: "п/м",
-      unitCost: 0,
+      unitCost: 45,
+      thickness: 3,
+      qty: 1,
+      note: "Фрезеровка",
     },
   },
   {
@@ -381,10 +387,10 @@ const defectActions: BlockAction[] = [
 
 const defectBlock: CostBlock = {
   id: "defects",
-  title: "8. Косяки / брак",
+  title: "6. Косяки / брак",
   hint: "Учет исправлений отдельно от чистого себеса.",
   sections: ["defects"],
-  catalogSections: ["materials", "lighting", "milling", "print", "plotter", "assembly", "mounting", "subcontract"],
+  catalogSections: ["materials", "lighting", "print", "plotter", "assembly", "mounting", "subcontract"],
   catalogTargetSection: "defects",
   actions: defectActions,
 };
@@ -392,7 +398,6 @@ const defectBlock: CostBlock = {
 const blockAddLabels: Record<string, string> = {
   materials: "материал",
   lighting: "светотехнику",
-  milling: "фрезеровку",
   print: "печать / пленку",
   assembly: "работу",
   other: "прочее",
@@ -402,7 +407,6 @@ const blockAddLabels: Record<string, string> = {
 const manualItemTitles: Record<string, string> = {
   materials: "Новый материал",
   lighting: "Новая позиция светотехники",
-  milling: "Новая фрезеровка",
   print: "Новая печать / пленка",
   assembly: "Новая работа",
   other: "Новое прочее",
@@ -690,6 +694,7 @@ export function CostDrawer({
               )}
               onAddCatalog={addCatalogItem}
               onAddManualCatalogItem={addManualCatalogItem}
+              onAddPosition={addPosition}
               onToggle={() => setExpandedBlockId((current) => current === block.id ? null : block.id)}
               onToggleFavorite={toggleFavorite}
               onPatch={patchPosition}
@@ -720,6 +725,7 @@ export function CostDrawer({
             positions={activeCalculation.positions.filter((position) => position.section === "defects")}
             onAddCatalog={addCatalogItem}
             onAddManualCatalogItem={addManualCatalogItem}
+            onAddPosition={addPosition}
             onDelete={deletePosition}
             onPatch={patchPosition}
             onToggle={() => setExpandedBlockId((current) => current === defectBlock.id ? null : defectBlock.id)}
@@ -794,6 +800,7 @@ function CostBlockView({
   positions,
   onAddCatalog,
   onAddManualCatalogItem,
+  onAddPosition,
   onToggle,
   onToggleFavorite,
   onPatch,
@@ -806,12 +813,14 @@ function CostBlockView({
   positions: CostPosition[];
   onAddCatalog: (item: CatalogItem, targetSection?: CostSection) => void;
   onAddManualCatalogItem: (block: CostBlock) => void;
+  onAddPosition: (template: PositionTemplate) => void;
   onToggle: () => void;
   onToggleFavorite: (item: CatalogItem) => void;
   onPatch: (id: string, patch: Partial<CostPosition>) => void;
   onDelete: (id: string) => void;
 }) {
   const total = positions.reduce((sum, position) => sum + positionTotal(position), 0);
+  const inlineActions = block.actions.filter((action) => action.template.calcMode === "milling");
   const [shouldRenderBody, setShouldRenderBody] = useState(isOpen);
   const isBodyClosing = !isOpen && shouldRenderBody;
 
@@ -864,6 +873,12 @@ function CostBlockView({
                   onToggleFavorite={onToggleFavorite}
                 />
                 <div className="calc-block-actions">
+                  {inlineActions.map((action) => (
+                    <button key={action.label} onClick={() => onAddPosition(action.template)}>
+                      <CirclePlus size={16} />
+                      {action.label}
+                    </button>
+                  ))}
                   <button onClick={() => onAddManualCatalogItem(block)}>
                     <CirclePlus size={16} />
                     {manualCatalogButtonLabel(block)}
@@ -1281,6 +1296,8 @@ function PositionEditor({
         </div>
       )}
 
+      {position.calcMode === "milling" && <MillingTableEditor position={position} onPatch={onPatch} />}
+
       {position.calcMode === "linear" && (
         <div className="field-grid">
           <NumberField label="Длина, м" value={position.length} onChange={(value) => patchNumber("length", value)} />
@@ -1371,6 +1388,39 @@ function areaFieldValue(position: CostPosition) {
   return qty || undefined;
 }
 
+function millingOptionForPosition(position: CostPosition) {
+  const title = position.title.toLowerCase();
+  const matchedByTitle = millingOptions.find((option) => title.includes(option.label.toLowerCase()));
+  if (matchedByTitle) return matchedByTitle;
+
+  const unitCost = Number(position.unitCost) || 0;
+  const thickness = Number(position.thickness) || 0;
+  return (
+    millingOptions.find((option) => option.unitCost === unitCost && option.thickness === thickness) ||
+    millingOptions.find((option) => option.unitCost === unitCost) ||
+    millingOptions[0]
+  );
+}
+
+function millingPatchForOption(
+  position: CostPosition,
+  option: (typeof millingOptions)[number],
+): Partial<CostPosition> {
+  return {
+    title: millingTitleForPosition(position, option),
+    calcMode: "milling",
+    unit: "п/м",
+    unitCost: option.unitCost,
+    thickness: option.thickness,
+    qty: 1,
+  };
+}
+
+function millingTitleForPosition(position: CostPosition, option: (typeof millingOptions)[number]) {
+  const isDefect = position.section === "defects" || position.title.toLowerCase().startsWith("брак:");
+  return `${isDefect ? "Брак: фрезеровка" : "Фрезеровка"}: ${option.label}`;
+}
+
 function inputNumber(value: string) {
   return value.trim() === "" ? undefined : Number(value);
 }
@@ -1409,6 +1459,61 @@ function TextField({
   );
 }
 
+function MillingTableEditor({
+  position,
+  onPatch,
+}: {
+  position: CostPosition;
+  onPatch: (patch: Partial<CostPosition>) => void;
+}) {
+  const selectedOption = millingOptionForPosition(position);
+  const length = Number(position.length) || 0;
+
+  function selectOption(option: (typeof millingOptions)[number]) {
+    onPatch(millingPatchForOption(position, option));
+  }
+
+  function patchLength(option: (typeof millingOptions)[number], value: string) {
+    onPatch({
+      ...millingPatchForOption(position, option),
+      length: inputNumber(value),
+    });
+  }
+
+  return (
+    <div className="milling-price-table" aria-label="Фрезеровка">
+      <div className="milling-table-row milling-table-head">
+        <span>Фрезеровка</span>
+        <span>Цена за п/м</span>
+        <span>п/м</span>
+        <span>Стоимость</span>
+      </div>
+      {millingOptions.map((option) => {
+        const isActive = option.id === selectedOption.id;
+        const rowLength = isActive ? length : 0;
+
+        return (
+          <div className={isActive ? "milling-table-row active" : "milling-table-row"} key={option.id}>
+            <button className="milling-row-title" type="button" onClick={() => selectOption(option)}>
+              {option.label}
+            </button>
+            <strong>{formatMoney(option.unitCost)}</strong>
+            <input
+              aria-label={`Длина реза: ${option.label}`}
+              disabled={!isActive}
+              inputMode="decimal"
+              type="number"
+              value={isActive ? position.length ?? "" : ""}
+              onChange={(event) => patchLength(option, event.target.value)}
+            />
+            <strong>{formatMoney(rowLength * option.unitCost)}</strong>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Summary({ label, value }: { label: string; value: string }) {
   return (
     <div className="summary">
@@ -1419,18 +1524,26 @@ function Summary({ label, value }: { label: string; value: string }) {
 }
 
 function normalizePosition(position: CostPosition): CostPosition {
-  const calcMode = position.calcMode || modeForUnit(position.unit);
+  const calcMode = position.section === "milling" ? "milling" : position.calcMode || modeForUnit(position.unit);
   const unit = unitForMode(calcMode, position.unit);
   const addons = position.addons || [];
+  const millingOption = calcMode === "milling" ? millingOptionForPosition(position) : undefined;
+  const unitCost = Number(position.unitCost);
 
   return {
     ...position,
     calcMode,
     unit,
     qty: Number.isFinite(Number(position.qty)) ? Number(position.qty) : defaultQuantityForMode(calcMode),
+    thickness:
+      calcMode === "milling" && !Number(position.thickness)
+        ? millingOption?.thickness
+        : position.thickness,
     unitCost:
       calcMode === "letterAssembly" && addons.length && assemblyAddonsTotal(addons) > 0 && !position.baseUnitCost
         ? assemblyAddonsTotal(addons)
+        : calcMode === "milling" && (!Number.isFinite(unitCost) || unitCost === 0)
+          ? millingOption?.unitCost || 45
         : Number.isFinite(Number(position.unitCost))
           ? Number(position.unitCost)
           : 0,
@@ -1439,7 +1552,7 @@ function normalizePosition(position: CostPosition): CostPosition {
 
 function modeForCatalogItem(item: CatalogItem): CostCalcMode {
   if (item.section === "materials") return modeForUnit(item.unit);
-  if (item.section === "milling") return "linear";
+  if (item.section === "milling") return "milling";
   if (item.section === "print" || item.section === "plotter") return "area";
   if (item.section === "assembly") return item.assemblyGroup ? "letterAssembly" : modeForUnit(item.unit);
   if (item.section === "lighting") return "pieces";
@@ -1482,7 +1595,7 @@ function modeForUnit(unit?: string): CostCalcMode {
 
 function unitForMode(mode: CostCalcMode, fallback?: string) {
   if (mode === "area") return "м2";
-  if (mode === "linear") return "п/м";
+  if (mode === "linear" || mode === "milling") return "п/м";
   if (mode === "hourly") return "ч";
   return fallback || "шт";
 }
