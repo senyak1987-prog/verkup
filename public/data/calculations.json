@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T14:08:45.219Z",
+  "generatedAt": "2026-06-08T14:09:09.550Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T14:03:04.088Z",
+      "updatedAt": "2026-06-08T14:09:08.688Z",
       "positions": [
+        {
+          "id": "ff0e95c9-28b3-47d0-aba8-a4296d0a6644",
+          "catalogId": "materials-пвх-белый-8мм-3050х2050х8-rexplast-light-g-1574",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 751.44,
+          "section": "materials",
+          "title": "ПВХ белый 8мм 3050х2050х8 REXPLAST light G",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 873; столбец G"
+        },
         {
           "id": "3ee5f4c3-88ee-48d6-b916-8ee9c9df5aa4",
           "catalogId": "lighting-demiled-promo-module-b2-2835-2-1w-ip65",
