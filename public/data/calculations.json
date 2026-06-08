@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:47:21.183Z",
+  "generatedAt": "2026-06-08T13:47:25.487Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,8 +9,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T13:34:21.692Z",
+      "updatedAt": "2026-06-08T13:47:24.630Z",
       "positions": [
+        {
+          "id": "25173121-5ca5-49fd-b6ba-3472ec73c756",
+          "catalogId": "metall-dk-труба-профильная-труба-20х20-труба-профильная-20х20х1-2",
+          "qty": 1,
+          "unit": "п/м",
+          "unitCost": 47.36,
+          "section": "materials",
+          "title": "Труба профильная 20х20х1,2",
+          "calcMode": "linear",
+          "note": "Металл-ДК; price_metal_dk.pdf от 07.06.2026; страница PDF 2"
+        },
         {
           "id": "3ee5f4c3-88ee-48d6-b916-8ee9c9df5aa4",
           "catalogId": "lighting-demiled-promo-module-b2-2835-2-1w-ip65",
