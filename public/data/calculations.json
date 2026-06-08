@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T12:59:49.876Z",
+  "generatedAt": "2026-06-08T12:59:51.313Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,17 +9,17 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T12:59:49.013Z",
+      "updatedAt": "2026-06-08T12:59:50.451Z",
       "positions": [
         {
           "id": "58aca086-b9db-4f10-a113-099dea7cc438",
           "qty": 1,
           "unit": "п/м",
-          "unitCost": 55,
+          "unitCost": 45,
           "section": "milling",
-          "title": "Фрезеровка: Материал 4-5мм",
+          "title": "Фрезеровка: Материал 2-3мм",
           "calcMode": "milling",
-          "thickness": 5,
+          "thickness": 3,
           "note": "Фрезеровка",
           "length": 120
         },
