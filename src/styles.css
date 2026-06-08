@@ -1142,7 +1142,9 @@ td small {
 .favorite-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  box-sizing: border-box;
+  padding: 3px;
+  object-fit: contain;
 }
 
 .block-favorite-main .catalog-item-text {
@@ -1218,7 +1220,9 @@ td small {
 .favorite-info-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  box-sizing: border-box;
+  padding: 4px;
+  object-fit: contain;
 }
 
 .favorite-info-head strong {
