@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T13:59:26.989Z",
+  "generatedAt": "2026-06-08T14:02:09.496Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T13:34:21.692Z",
+      "updatedAt": "2026-06-08T14:02:08.639Z",
       "positions": [
         {
           "id": "3ee5f4c3-88ee-48d6-b916-8ee9c9df5aa4",
@@ -59,7 +59,7 @@
         {
           "id": "26a2abf0-732a-4daa-9bd9-220726fa675c",
           "catalogId": "metall-dk-труба-профильная-труба-15х15-труба-профильная-15х15х1",
-          "qty": 1,
+          "qty": 22,
           "unit": "шт",
           "unitCost": 29.96,
           "section": "materials",
