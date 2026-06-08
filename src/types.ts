@@ -86,6 +86,7 @@ export type CatalogItem = {
   assemblyOperation?: string;
   assemblyMinCost?: number;
   favorite?: boolean;
+  favoriteOrder?: number;
 };
 
 export type AppData<T> = {

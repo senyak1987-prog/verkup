@@ -44,6 +44,7 @@ import {
 } from "../lib/costing";
 import {
   materialGroupLabel,
+  reorderCatalogFavorites,
   sectionLabels,
   smartCatalogSearch,
   toggleCatalogFavorite,
@@ -552,6 +553,11 @@ export function CostDrawer({
     setSaveState("idle");
   }
 
+  function reorderFavorites(orderedIds: string[]) {
+    onCatalogChange(reorderCatalogFavorites(catalogItems, orderedIds));
+    setSaveState("idle");
+  }
+
   function patchPosition(id: string, patch: Partial<CostPosition>) {
     let patchedPosition: CostPosition | undefined;
     const nextPositions = activeCalculation.positions.map((position) => {
@@ -699,6 +705,7 @@ export function CostDrawer({
               onAddPosition={addPosition}
               onToggle={() => setExpandedBlockId((current) => current === block.id ? null : block.id)}
               onToggleFavorite={toggleFavorite}
+              onReorderFavorites={reorderFavorites}
               onPatch={patchPosition}
               onDelete={deletePosition}
             />
@@ -715,6 +722,7 @@ export function CostDrawer({
             onAddPosition={addPosition}
             onDelete={deletePosition}
             onPatch={patchPosition}
+            onReorderFavorites={reorderFavorites}
             onToggle={() => setExpandedBlockId((current) => current === defectBlock.id ? null : defectBlock.id)}
             onToggleFavorite={toggleFavorite}
           />
@@ -790,6 +798,7 @@ function CostBlockView({
   onAddPosition,
   onToggle,
   onToggleFavorite,
+  onReorderFavorites,
   onPatch,
   onDelete,
 }: {
@@ -803,6 +812,7 @@ function CostBlockView({
   onAddPosition: (template: PositionTemplate) => void;
   onToggle: () => void;
   onToggleFavorite: (item: CatalogItem) => void;
+  onReorderFavorites: (orderedIds: string[]) => void;
   onPatch: (id: string, patch: Partial<CostPosition>) => void;
   onDelete: (id: string) => void;
 }) {
@@ -877,6 +887,7 @@ function CostBlockView({
                 catalogItems={catalogItems}
                 positions={positions}
                 onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
+                onReorderFavorites={onReorderFavorites}
                 onToggleFavorite={onToggleFavorite}
               />
             </div>
@@ -978,12 +989,14 @@ function BlockFavorites({
   catalogItems,
   positions,
   onAdd,
+  onReorderFavorites,
   onToggleFavorite,
 }: {
   block: CostBlock;
   catalogItems: CatalogItem[];
   positions: CostPosition[];
   onAdd: (item: CatalogItem) => void;
+  onReorderFavorites: (orderedIds: string[]) => void;
   onToggleFavorite: (item: CatalogItem) => void;
 }) {
   const catalogSections = block.catalogSections || block.sections;
@@ -1002,15 +1015,20 @@ function BlockFavorites({
   const positionFavoriteItems = positions
     .map((position) => (position.catalogId ? catalogItemsById.get(position.catalogId) : undefined))
     .filter((item): item is CatalogItem => Boolean(item?.favorite && sectionItemIds.has(item.id)));
-  const favoriteItems = uniqueCatalogItems([
-    ...sectionItems.filter((item) => item.favorite),
-    ...positionFavoriteItems,
-  ]).slice(0, 24);
+  const favoriteItems = sortFavoriteItems(
+    uniqueCatalogItems([
+      ...sectionItems.filter((item) => item.favorite),
+      ...positionFavoriteItems,
+    ]),
+  ).slice(0, 24);
   const [hoveredItem, setHoveredItem] = useState<{
     item: CatalogItem;
     left: number;
     top: number;
   } | null>(null);
+  const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
+  const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+  const suppressFavoriteClickRef = useRef(false);
 
   function showFavoriteInfo(item: CatalogItem, target: HTMLElement) {
     const rect = target.getBoundingClientRect();
@@ -1031,6 +1049,33 @@ function BlockFavorites({
     });
   }
 
+  function addFavoriteItem(item: CatalogItem) {
+    if (suppressFavoriteClickRef.current) return;
+    onAdd(item);
+  }
+
+  function finishDrag() {
+    setDraggingItemId(null);
+    setDragOverItemId(null);
+    window.setTimeout(() => {
+      suppressFavoriteClickRef.current = false;
+    }, 160);
+  }
+
+  function reorderFavoriteItem(targetId: string) {
+    if (!draggingItemId || draggingItemId === targetId) return;
+
+    const orderedIds = favoriteItems.map((item) => item.id);
+    const sourceIndex = orderedIds.indexOf(draggingItemId);
+    const targetIndex = orderedIds.indexOf(targetId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const [movedId] = orderedIds.splice(sourceIndex, 1);
+    orderedIds.splice(targetIndex, 0, movedId);
+    suppressFavoriteClickRef.current = true;
+    onReorderFavorites(orderedIds);
+  }
+
   return (
     <aside className="block-favorites">
       <div className="section-title compact">
@@ -1040,17 +1085,46 @@ function BlockFavorites({
       <div className="block-favorite-list">
         {favoriteItems.map((item) => (
           <div
-            className="block-favorite-item"
+            className={[
+              "block-favorite-item",
+              draggingItemId === item.id ? "dragging" : "",
+              dragOverItemId === item.id && draggingItemId !== item.id ? "drag-over" : "",
+            ].filter(Boolean).join(" ")}
+            draggable
             key={item.id}
-            onClick={() => onAdd(item)}
+            onClick={() => addFavoriteItem(item)}
+            onDragEnd={finishDrag}
+            onDragOver={(event) => {
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              if (draggingItemId && draggingItemId !== item.id) {
+                setDragOverItemId(item.id);
+              }
+            }}
+            onDragStart={(event) => {
+              suppressFavoriteClickRef.current = false;
+              setDraggingItemId(item.id);
+              setHoveredItem(null);
+              event.dataTransfer.effectAllowed = "move";
+              event.dataTransfer.setData("text/plain", item.id);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              suppressFavoriteClickRef.current = true;
+              reorderFavoriteItem(item.id);
+              finishDrag();
+            }}
             onFocus={(event) => showFavoriteInfo(item, event.currentTarget)}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                onAdd(item);
+                addFavoriteItem(item);
               }
             }}
-            onMouseEnter={(event) => showFavoriteInfo(item, event.currentTarget)}
+            onMouseEnter={(event) => {
+              if (!draggingItemId) showFavoriteInfo(item, event.currentTarget);
+            }}
             onMouseLeave={() => setHoveredItem(null)}
             onBlur={() => setHoveredItem(null)}
             role="button"
@@ -1688,6 +1762,18 @@ function uniqueCatalogItems(items: CatalogItem[]) {
     if (seen.has(item.id)) return false;
     seen.add(item.id);
     return true;
+  });
+}
+
+function sortFavoriteItems(items: CatalogItem[]) {
+  const originalIndex = new Map(items.map((item, index) => [item.id, index]));
+
+  return items.slice().sort((first, second) => {
+    const firstOrder = Number.isFinite(first.favoriteOrder) ? first.favoriteOrder || 0 : Number.MAX_SAFE_INTEGER;
+    const secondOrder = Number.isFinite(second.favoriteOrder) ? second.favoriteOrder || 0 : Number.MAX_SAFE_INTEGER;
+
+    if (firstOrder !== secondOrder) return firstOrder - secondOrder;
+    return (originalIndex.get(first.id) || 0) - (originalIndex.get(second.id) || 0);
   });
 }
 

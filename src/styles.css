@@ -1098,7 +1098,24 @@ td small {
   grid-template-columns: minmax(0, 1fr) 30px;
   gap: 5px;
   align-items: center;
-  cursor: pointer;
+  cursor: grab;
+  user-select: none;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.block-favorite-item:active {
+  cursor: grabbing;
+}
+
+.block-favorite-item.dragging {
+  opacity: 0.45;
+}
+
+.block-favorite-item.drag-over .block-favorite-main {
+  border-color: #0f766e;
+  background: #e7f4f1;
+  box-shadow: inset 4px 0 0 #0f766e;
+  transform: translateY(1px);
 }
 
 .block-favorite-item:hover .block-favorite-main,
@@ -1124,6 +1141,7 @@ td small {
   background: #f9fafb;
   padding: 3px 7px 3px 3px;
   text-align: left;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
 .favorite-thumb {

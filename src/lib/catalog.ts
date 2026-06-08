@@ -159,6 +159,7 @@ export function normalizeCatalogItem(item: CatalogItem) {
     assemblyOperation: assemblyOperation || undefined,
     assemblyMinCost: assemblyMinCost || undefined,
     favorite: Boolean(item.favorite),
+    favoriteOrder: Number.isFinite(item.favoriteOrder) ? item.favoriteOrder : undefined,
   };
 }
 
@@ -205,9 +206,34 @@ export function materialGroupLabel(item: CatalogItem) {
 }
 
 export function toggleCatalogFavorite(items: CatalogItem[], itemId: string) {
+  const nextFavoriteOrder = maxFavoriteOrder(items) + 1;
+
   return items.map((item) =>
-    item.id === itemId ? { ...item, favorite: !item.favorite } : item,
+    item.id === itemId
+      ? {
+          ...item,
+          favorite: !item.favorite,
+          favoriteOrder: !item.favorite ? item.favoriteOrder ?? nextFavoriteOrder : undefined,
+        }
+      : item,
   );
+}
+
+export function reorderCatalogFavorites(items: CatalogItem[], orderedIds: string[]) {
+  const favoriteOrderById = new Map(orderedIds.map((id, index) => [id, index]));
+
+  return items.map((item) =>
+    favoriteOrderById.has(item.id)
+      ? { ...item, favorite: true, favoriteOrder: favoriteOrderById.get(item.id) }
+      : item,
+  );
+}
+
+function maxFavoriteOrder(items: CatalogItem[]) {
+  return items.reduce((max, item) => {
+    if (!item.favorite || !Number.isFinite(item.favoriteOrder)) return max;
+    return Math.max(max, item.favoriteOrder || 0);
+  }, -1);
 }
 
 function createCatalogId(section: CostSection, title: string) {

@@ -6,6 +6,11 @@ const CATALOG_FAVORITES_KEY = `${CACHE_PREFIX}catalog:favorites`;
 const REQUEST_TIMEOUT_MS = 6000;
 const DEAL_CACHE_RETAIN_MS = 24 * 60 * 60 * 1000;
 
+type CatalogFavoriteOverride = {
+  favorite: boolean;
+  favoriteOrder?: number;
+};
+
 type CacheRecord<T> = {
   savedAt?: string;
   data?: T;
@@ -86,23 +91,28 @@ export function writeCachedCatalogs(data: AppData<CatalogItem>) {
 }
 
 export function rememberCatalogFavoriteChanges(previousItems: CatalogItem[], nextItems: CatalogItem[]) {
-  const previousById = new Map(previousItems.map((item) => [item.id, Boolean(item.favorite)]));
+  const previousById = new Map(
+    previousItems.map((item) => [item.id, catalogFavoriteOverrideForItem(item)]),
+  );
   const overrides = readCatalogFavoriteOverrides();
   let changed = false;
 
   for (const item of nextItems) {
-    const nextFavorite = Boolean(item.favorite);
-    const previousFavorite = previousById.get(item.id);
+    const nextOverride = catalogFavoriteOverrideForItem(item);
+    const previousOverride = previousById.get(item.id);
 
-    if (previousFavorite === undefined) {
-      if (!nextFavorite) continue;
-      overrides[item.id] = true;
+    if (previousOverride === undefined) {
+      if (!nextOverride.favorite) continue;
+      overrides[item.id] = nextOverride;
       changed = true;
       continue;
     }
 
-    if (previousFavorite !== nextFavorite) {
-      overrides[item.id] = nextFavorite;
+    if (
+      previousOverride.favorite !== nextOverride.favorite ||
+      previousOverride.favoriteOrder !== nextOverride.favoriteOrder
+    ) {
+      overrides[item.id] = nextOverride;
       changed = true;
     }
   }
@@ -222,7 +232,11 @@ function withCatalogFavoriteOverrides(data: AppData<CatalogItem>): AppData<Catal
     ...data,
     items: data.items.map((item) =>
       Object.prototype.hasOwnProperty.call(overrides, item.id)
-        ? { ...item, favorite: overrides[item.id] }
+        ? {
+            ...item,
+            favorite: overrides[item.id].favorite,
+            favoriteOrder: overrides[item.id].favoriteOrder,
+          }
         : item,
     ),
   };
@@ -231,23 +245,41 @@ function withCatalogFavoriteOverrides(data: AppData<CatalogItem>): AppData<Catal
 function readCatalogFavoriteOverrides() {
   try {
     const raw = localStorage.getItem(CATALOG_FAVORITES_KEY);
-    if (!raw) return {} as Record<string, boolean>;
-    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    if (!raw) return {} as Record<string, CatalogFavoriteOverride>;
+    const parsed = JSON.parse(raw) as Record<string, boolean | CatalogFavoriteOverride>;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
     return Object.fromEntries(
-      Object.entries(parsed).map(([id, favorite]) => [id, Boolean(favorite)]),
+      Object.entries(parsed).map(([id, override]) => [id, normalizeCatalogFavoriteOverride(override)]),
     );
   } catch {
     return {};
   }
 }
 
-function writeCatalogFavoriteOverrides(overrides: Record<string, boolean>) {
+function writeCatalogFavoriteOverrides(overrides: Record<string, CatalogFavoriteOverride>) {
   try {
     localStorage.setItem(CATALOG_FAVORITES_KEY, JSON.stringify(overrides));
   } catch {
     // Избранное останется в текущем состоянии приложения, даже если браузер запретил localStorage.
   }
+}
+
+function catalogFavoriteOverrideForItem(item: CatalogItem): CatalogFavoriteOverride {
+  return {
+    favorite: Boolean(item.favorite),
+    favoriteOrder: Number.isFinite(item.favoriteOrder) ? item.favoriteOrder : undefined,
+  };
+}
+
+function normalizeCatalogFavoriteOverride(
+  override: boolean | CatalogFavoriteOverride,
+): CatalogFavoriteOverride {
+  if (typeof override === "boolean") return { favorite: override };
+
+  return {
+    favorite: Boolean(override.favorite),
+    favoriteOrder: Number.isFinite(override.favoriteOrder) ? override.favoriteOrder : undefined,
+  };
 }
 
 function writeCacheIfUseful<T>(path: string, data: T, cachedData?: T) {
