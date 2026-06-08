@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T11:22:41.460Z",
+  "generatedAt": "2026-06-08T12:00:12.454Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -9,7 +9,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T11:12:54.668Z",
+      "updatedAt": "2026-06-08T12:00:11.598Z",
       "positions": [
         {
           "id": "df664a8f-d557-439d-ad6a-93c15df14236",
@@ -80,17 +80,6 @@
             "assembly-составные-буквы-93"
           ],
           "baseUnitCost": 350
-        },
-        {
-          "id": "05b47674-e10c-4061-af98-277587c37831",
-          "catalogId": "materials-2-диодный-модуль-белый-instatica-2д-2835-0-8w-80-2011",
-          "qty": 100,
-          "unit": "шт",
-          "unitCost": 8.59,
-          "section": "lighting",
-          "title": "2-диодный модуль белый Instatica 2д 2835 0,8W 80lm 8000К Л IP65",
-          "calcMode": "pieces",
-          "note": "Прайс по материалам.xlsx; строка 1383; столбец G"
         },
         {
           "id": "9c4bbcca-273d-46d7-aba1-ee87896fc583",
