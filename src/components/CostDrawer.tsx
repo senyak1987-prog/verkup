@@ -84,9 +84,11 @@ type CostBlock = {
   sections: CostSection[];
   actions: BlockAction[];
   isOther?: boolean;
+  childBlocks?: CostBlock[];
   catalogSections?: CostSection[];
   catalogMaterialGroups?: string[];
   catalogTargetSection?: CostSection;
+  catalogCreateSection?: CostSection;
 };
 
 type PositionTemplate = Omit<Partial<CostPosition>, "id"> & {
@@ -332,59 +334,211 @@ const costBlocks: CostBlock[] = [
   },
 ];
 
-const defectActions: BlockAction[] = [
+const defectChildBlocks: CostBlock[] = [
   {
-    label: "Материал",
-    template: {
-      section: "defects",
-      title: "Брак: материал",
-      calcMode: "area",
-      unit: "м2",
-      unitCost: 0,
-    },
+    id: "defects-materials",
+    title: "Материалы / рама",
+    hint: "Косячные листы, профиль, металл и рама. Не попадает в чистый себес.",
+    sections: ["defects"],
+    catalogSections: ["materials"],
+    catalogMaterialGroups: materialFrameGroups,
+    catalogTargetSection: "defects",
+    catalogCreateSection: "materials",
+    actions: [
+      {
+        label: "Материал м2",
+        template: {
+          section: "defects",
+          title: "Брак: материал",
+          calcMode: "area",
+          unit: "м2",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Рама п/м",
+        template: {
+          section: "defects",
+          title: "Брак: рама",
+          calcMode: "linear",
+          unit: "п/м",
+          unitCost: 0,
+        },
+      },
+    ],
   },
   {
-    label: "Свет",
-    template: {
-      section: "defects",
-      title: "Брак: светотехника",
-      calcMode: "pieces",
-      unit: "шт",
-      unitCost: 0,
-    },
+    id: "defects-lighting",
+    title: "Светотехника",
+    hint: "Косячные блоки, диоды, лента и комплектующие по факту.",
+    sections: ["defects"],
+    catalogSections: ["lighting", "consumables", "materials"],
+    catalogMaterialGroups: lightingMaterialGroups,
+    catalogTargetSection: "defects",
+    catalogCreateSection: "lighting",
+    actions: [
+      {
+        label: "Блок питания",
+        template: {
+          section: "defects",
+          title: "Брак: блок питания",
+          calcMode: "pieces",
+          unit: "шт",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Диоды",
+        template: {
+          section: "defects",
+          title: "Брак: диоды",
+          calcMode: "pieces",
+          unit: "шт",
+          unitCost: 0,
+        },
+      },
+    ],
   },
   {
-    label: "Фрезеровка",
-    template: {
-      section: "defects",
-      title: "Брак: фрезеровка: Материал 2-3мм",
-      calcMode: "milling",
-      unit: "п/м",
-      unitCost: 45,
-      thickness: 3,
-      qty: 1,
-      note: "Фрезеровка",
-    },
+    id: "defects-print",
+    title: "Пленки / баннеры / печать / плоттер",
+    hint: "Косячные пленки, печать, баннеры и плоттер по квадратным метрам.",
+    sections: ["defects"],
+    catalogSections: ["print", "plotter", "materials"],
+    catalogMaterialGroups: printMaterialGroups,
+    catalogTargetSection: "defects",
+    catalogCreateSection: "print",
+    actions: [
+      {
+        label: "Печать м2",
+        template: {
+          section: "defects",
+          title: "Брак: печать",
+          calcMode: "area",
+          unit: "м2",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Пленка м2",
+        template: {
+          section: "defects",
+          title: "Брак: пленка",
+          calcMode: "area",
+          unit: "м2",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Плоттер м2",
+        template: {
+          section: "defects",
+          title: "Брак: плоттерная резка",
+          calcMode: "area",
+          unit: "м2",
+          unitCost: 0,
+        },
+      },
+    ],
   },
   {
-    label: "Печать",
-    template: {
-      section: "defects",
-      title: "Брак: печать",
-      calcMode: "area",
-      unit: "м2",
-      unitCost: 0,
-    },
+    id: "defects-assembly",
+    title: "Сборка / работа / фрезеровка",
+    hint: "Косячная сборка, фрезеровка, монтаж, подряд и работа по часам.",
+    sections: ["defects"],
+    catalogSections: ["assembly", "milling", "mounting", "subcontract"],
+    catalogTargetSection: "defects",
+    catalogCreateSection: "assembly",
+    actions: [
+      {
+        label: "Объемные буквы",
+        template: {
+          section: "defects",
+          title: "Брак: объемные буквы",
+          calcMode: "letterAssembly",
+          unit: "шт",
+          unitCost: 0,
+          addons: [],
+        },
+      },
+      {
+        label: "Сборка АКП",
+        template: {
+          section: "defects",
+          title: "Брак: сборка АКП панели",
+          calcMode: "letterAssembly",
+          unit: "шт",
+          unitCost: 0,
+          addons: ["acp-panel"],
+        },
+      },
+      {
+        label: "Работа/час",
+        template: {
+          section: "defects",
+          title: "Брак: работа",
+          calcMode: "hourly",
+          unit: "ч",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Фрезеровка",
+        template: {
+          section: "defects",
+          title: "Брак: фрезеровка: Материал 2-3мм",
+          calcMode: "milling",
+          unit: "п/м",
+          unitCost: 45,
+          thickness: 3,
+          qty: 1,
+          note: "Фрезеровка",
+        },
+      },
+      {
+        label: "Монтаж",
+        template: {
+          section: "defects",
+          title: "Брак: монтаж",
+          calcMode: "pieces",
+          unit: "усл",
+          unitCost: 0,
+        },
+      },
+      {
+        label: "Подряд",
+        template: {
+          section: "defects",
+          title: "Брак: подряд",
+          calcMode: "pieces",
+          unit: "усл",
+          unitCost: 0,
+        },
+      },
+    ],
   },
   {
-    label: "Работа/час",
-    template: {
-      section: "defects",
-      title: "Брак: работа",
-      calcMode: "hourly",
-      unit: "ч",
-      unitCost: 0,
-    },
+    id: "defects-other",
+    title: "Прочие",
+    hint: "Ручные косячные расходы: описание, единица, количество и цена.",
+    sections: ["defects"],
+    catalogSections: ["other"],
+    catalogTargetSection: "defects",
+    catalogCreateSection: "other",
+    isOther: true,
+    actions: [
+      {
+        label: "Прочая позиция",
+        template: {
+          section: "defects",
+          title: "Брак: прочее",
+          calcMode: "pieces",
+          unit: "шт",
+          unitCost: 0,
+          note: "Прочие",
+        },
+      },
+    ],
   },
 ];
 
@@ -393,9 +547,8 @@ const defectBlock: CostBlock = {
   title: "Косяки / брак",
   hint: "Учет исправлений отдельно от чистого себеса.",
   sections: ["defects"],
-  catalogSections: ["materials", "lighting", "print", "plotter", "assembly", "mounting", "subcontract"],
-  catalogTargetSection: "defects",
-  actions: defectActions,
+  actions: [],
+  childBlocks: defectChildBlocks,
 };
 
 const blockAddLabels: Record<string, string> = {
@@ -405,6 +558,11 @@ const blockAddLabels: Record<string, string> = {
   assembly: "работу",
   other: "прочее",
   defects: "косяк",
+  "defects-materials": "косячный материал",
+  "defects-lighting": "косячную светотехнику",
+  "defects-print": "косячную печать / пленку",
+  "defects-assembly": "косячную работу",
+  "defects-other": "косячее прочее",
 };
 
 const manualItemTitles: Record<string, string> = {
@@ -414,6 +572,11 @@ const manualItemTitles: Record<string, string> = {
   assembly: "Новая работа",
   other: "Новое прочее",
   defects: "Новый косяк",
+  "defects-materials": "Новый брак: материал",
+  "defects-lighting": "Новый брак: светотехника",
+  "defects-print": "Новый брак: печать / пленка",
+  "defects-assembly": "Новый брак: работа",
+  "defects-other": "Новый брак: прочее",
 };
 
 export function CostDrawer({
@@ -818,8 +981,16 @@ function CostBlockView({
 }) {
   const total = positions.reduce((sum, position) => sum + positionTotal(position), 0);
   const inlineActions = block.actions.filter((action) => action.template.calcMode === "milling");
+  const childBlocks = block.childBlocks || [];
+  const hasChildBlocks = childBlocks.length > 0;
+  const [openChildBlockId, setOpenChildBlockId] = useState<string | null>(() => childBlocks[0]?.id || null);
   const [shouldRenderBody, setShouldRenderBody] = useState(isOpen);
   const isBodyClosing = !isOpen && shouldRenderBody;
+
+  useEffect(() => {
+    if (!hasChildBlocks) return;
+    setOpenChildBlockId((current) => current || childBlocks[0]?.id || null);
+  }, [childBlocks, hasChildBlocks]);
 
   useEffect(() => {
     if (isOpen) {
@@ -852,45 +1023,76 @@ function CostBlockView({
       {shouldRenderBody && (
         <div className={`calc-block-body-shell ${isBodyClosing ? "closing" : "opening"}`}>
           <div className="calc-block-body">
-            <BlockCatalogPicker
-              block={block}
-              catalogItems={catalogItems}
-              onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
-              onToggleFavorite={onToggleFavorite}
-            />
-            <div className="calc-block-workspace">
-              <div className="calc-lines-column">
-                <PositionList
+            {hasChildBlocks ? (
+              <div className="defect-subblocks">
+                {childBlocks.map((childBlock) => {
+                  const childPositions = defectChildPositions(positions, childBlock, catalogItems);
+
+                  return (
+                    <CostBlockView
+                      key={childBlock.id}
+                      block={childBlock}
+                      catalogItems={catalogItems}
+                      isOpen={openChildBlockId === childBlock.id}
+                      newPositionId={newPositionId}
+                      positions={childPositions}
+                      onAddCatalog={onAddCatalog}
+                      onAddManualCatalogItem={onAddManualCatalogItem}
+                      onAddPosition={onAddPosition}
+                      onDelete={onDelete}
+                      onPatch={onPatch}
+                      onReorderFavorites={onReorderFavorites}
+                      onToggle={() =>
+                        setOpenChildBlockId((current) => (current === childBlock.id ? null : childBlock.id))
+                      }
+                      onToggleFavorite={onToggleFavorite}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                <BlockCatalogPicker
+                  block={block}
                   catalogItems={catalogItems}
-                  emptyText="Пока нет позиций в этом блоке."
-                  newPositionId={newPositionId}
-                  positions={positions}
-                  onDelete={onDelete}
-                  onPatch={onPatch}
+                  onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
                   onToggleFavorite={onToggleFavorite}
                 />
-                <div className="calc-block-actions">
-                  {inlineActions.map((action) => (
-                    <button key={action.label} onClick={() => onAddPosition(action.template)}>
-                      <CirclePlus size={16} />
-                      {action.label}
-                    </button>
-                  ))}
-                  <button onClick={() => onAddManualCatalogItem(block)}>
-                    <CirclePlus size={16} />
-                    {manualCatalogButtonLabel(block)}
-                  </button>
+                <div className="calc-block-workspace">
+                  <div className="calc-lines-column">
+                    <PositionList
+                      catalogItems={catalogItems}
+                      emptyText="Пока нет позиций в этом блоке."
+                      newPositionId={newPositionId}
+                      positions={positions}
+                      onDelete={onDelete}
+                      onPatch={onPatch}
+                      onToggleFavorite={onToggleFavorite}
+                    />
+                    <div className="calc-block-actions">
+                      {inlineActions.map((action) => (
+                        <button key={action.label} onClick={() => onAddPosition(action.template)}>
+                          <CirclePlus size={16} />
+                          {action.label}
+                        </button>
+                      ))}
+                      <button onClick={() => onAddManualCatalogItem(block)}>
+                        <CirclePlus size={16} />
+                        {manualCatalogButtonLabel(block)}
+                      </button>
+                    </div>
+                  </div>
+                  <BlockFavorites
+                    block={block}
+                    catalogItems={catalogItems}
+                    positions={positions}
+                    onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
+                    onReorderFavorites={onReorderFavorites}
+                    onToggleFavorite={onToggleFavorite}
+                  />
                 </div>
-              </div>
-              <BlockFavorites
-                block={block}
-                catalogItems={catalogItems}
-                positions={positions}
-                onAdd={(item) => onAddCatalog(item, block.catalogTargetSection)}
-                onReorderFavorites={onReorderFavorites}
-                onToggleFavorite={onToggleFavorite}
-              />
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1755,6 +1957,90 @@ function filterBlockCatalogItems(
   });
 }
 
+function defectChildPositions(positions: CostPosition[], block: CostBlock, catalogItems: CatalogItem[]) {
+  return positions.filter((position) => defectPositionBelongsToBlock(position, block, catalogItems));
+}
+
+function defectPositionBelongsToBlock(position: CostPosition, block: CostBlock, catalogItems: CatalogItem[]) {
+  if (position.section !== "defects") return false;
+
+  const catalogItem = position.catalogId ? catalogItems.find((item) => item.id === position.catalogId) : undefined;
+  if (catalogItem && catalogItem.section !== "defects") {
+    const catalogSections = block.catalogSections || block.sections;
+    return filterBlockCatalogItems([catalogItem], catalogSections, block.catalogMaterialGroups).length > 0;
+  }
+
+  return inferredDefectBlockId(position, catalogItem) === block.id;
+}
+
+function inferredDefectBlockId(position: CostPosition, catalogItem?: CatalogItem) {
+  const text = [
+    position.title,
+    position.note,
+    position.unit,
+    catalogItem?.title,
+    catalogItem?.source,
+    catalogItem?.materialGroup,
+    catalogItem?.materialFamily,
+    catalogItem?.materialSubgroup,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (
+    position.calcMode === "milling" ||
+    position.calcMode === "hourly" ||
+    position.calcMode === "letterAssembly" ||
+    text.includes("фрез") ||
+    text.includes("сбор") ||
+    text.includes("работ") ||
+    text.includes("монтаж") ||
+    text.includes("подряд") ||
+    text.includes("букв")
+  ) {
+    return "defects-assembly";
+  }
+
+  if (
+    text.includes("свет") ||
+    text.includes("диод") ||
+    text.includes("блок") ||
+    text.includes("лента")
+  ) {
+    return "defects-lighting";
+  }
+
+  if (
+    text.includes("печ") ||
+    text.includes("плен") ||
+    text.includes("баннер") ||
+    text.includes("плоттер")
+  ) {
+    return "defects-print";
+  }
+
+  if (text.includes("проч")) {
+    return "defects-other";
+  }
+
+  if (
+    position.calcMode === "area" ||
+    position.calcMode === "linear" ||
+    text.includes("материал") ||
+    text.includes("рама") ||
+    text.includes("акп") ||
+    text.includes("пвх") ||
+    text.includes("оргстек") ||
+    text.includes("профил") ||
+    text.includes("металл")
+  ) {
+    return "defects-materials";
+  }
+
+  return "defects-other";
+}
+
 function uniqueCatalogItems(items: CatalogItem[]) {
   const seen = new Set<string>();
 
@@ -1798,7 +2084,7 @@ function defaultQuantityForMode(mode: CostCalcMode) {
 
 function createManualCatalogItem(block: CostBlock): CatalogItem {
   const template = block.actions[0]?.template;
-  const section = block.catalogTargetSection || template?.section || block.sections[0];
+  const section = block.catalogCreateSection || block.catalogTargetSection || template?.section || block.sections[0];
   const calcMode = template?.calcMode || modeForUnit(template?.unit);
   const materialGroup = section === "materials" ? manualMaterialGroupForBlock(block) : undefined;
 
@@ -1823,7 +2109,7 @@ function manualTitleForBlock(block: CostBlock) {
 
 function manualCatalogButtonLabel(block: CostBlock) {
   if (block.id === "materials") return "Добавить новый материал в справочник";
-  if (block.id === "defects") return "Добавить новый косяк в справочник";
+  if (block.id.startsWith("defects")) return "Добавить новый косяк в справочник";
   return "Добавить новую позицию в справочник";
 }
 

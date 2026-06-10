@@ -914,6 +914,23 @@ td small {
   padding: 10px;
 }
 
+.defect-subblocks {
+  display: grid;
+  gap: 8px;
+}
+
+.defect-subblocks > .calc-block {
+  background: #fbfcfe;
+}
+
+.defect-subblocks .calc-block-row {
+  padding: 9px 10px;
+}
+
+.defect-subblocks .calc-block-body {
+  padding: 8px;
+}
+
 .calc-block-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(420px, 34%);
