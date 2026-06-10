@@ -3,6 +3,7 @@ import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
 import { DealTable } from "./components/DealTable";
 import { PdfCalculator } from "./components/PdfCalculator";
+import { TechSpecBuilder } from "./components/TechSpecBuilder";
 import {
   loadCalculations,
   loadCatalogs,
@@ -36,7 +37,7 @@ type PendingStageMove = {
   expiresAt: number;
 };
 
-type AppTab = DealStageCode | "calculator";
+type AppTab = DealStageCode | "calculator" | "techSpec";
 
 type PendingCatalogInsert = {
   dealId: string;
@@ -58,7 +59,7 @@ export default function App() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [pendingCatalogInsert, setPendingCatalogInsert] = useState<PendingCatalogInsert>();
   const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
-  const [activeScreen, setActiveScreen] = useState<"deals" | "calculator">("deals");
+  const [activeScreen, setActiveScreen] = useState<"deals" | "calculator" | "techSpec">("deals");
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
 
   useEffect(() => {
@@ -279,6 +280,12 @@ export default function App() {
       return;
     }
 
+    if (tab === "techSpec") {
+      setSelectedDealId(undefined);
+      setActiveScreen("techSpec");
+      return;
+    }
+
     setActiveStage(tab);
     setActiveScreen("deals");
   }
@@ -312,6 +319,16 @@ export default function App() {
           topTabs={
             <AppTopTabs
               activeTab="calculator"
+              stageCounts={stageCounts}
+              onChange={handleTabChange}
+            />
+          }
+        />
+      ) : activeScreen === "techSpec" ? (
+        <TechSpecBuilder
+          topTabs={
+            <AppTopTabs
+              activeTab="techSpec"
               stageCounts={stageCounts}
               onChange={handleTabChange}
             />
@@ -433,6 +450,15 @@ function AppTopTabs({
         type="button"
       >
         Калькулятор
+      </button>
+      <button
+        aria-selected={activeTab === "techSpec"}
+        className={activeTab === "techSpec" ? "active" : ""}
+        onClick={() => onChange("techSpec")}
+        role="tab"
+        type="button"
+      >
+        Тех ТЗ
       </button>
     </div>
   );
