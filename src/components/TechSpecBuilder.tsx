@@ -58,7 +58,7 @@ type AttachmentDimensions = {
   width: number;
   height: number;
   unit: "mm" | "px" | "svg";
-  source: "image" | "svg" | "eps";
+  source: "image" | "svg" | "eps" | "pdf";
 };
 
 type LayoutAttachment = {
@@ -570,7 +570,7 @@ function normalizeAttachmentDimensions(value: unknown): AttachmentDimensions | u
   const height = dimensions.height;
 
   if (unit !== "mm" && unit !== "px" && unit !== "svg") return undefined;
-  if (source !== "image" && source !== "svg" && source !== "eps") return undefined;
+  if (source !== "image" && source !== "svg" && source !== "eps" && source !== "pdf") return undefined;
   if (typeof width !== "number" || typeof height !== "number") return undefined;
   if (!Number.isFinite(width) || !Number.isFinite(height)) return undefined;
   if (width <= 0 || height <= 0) return undefined;
@@ -710,6 +710,7 @@ function formatAttachmentDimensions(dimensions?: AttachmentDimensions) {
     image: "изображение",
     svg: "SVG",
     eps: "EPS/AI",
+    pdf: "PDF/AI",
   };
 
   return `${formatDimensionNumber(dimensions.width)} x ${formatDimensionNumber(dimensions.height)} ${
@@ -724,7 +725,9 @@ function getAttachmentSizeText(attachment: LayoutAttachment) {
 function getAutoSizeFromAttachments(attachments: LayoutAttachment[]) {
   return attachments
     .map((attachment) =>
-      attachment.dimensions?.source === "svg" || attachment.dimensions?.source === "eps"
+      attachment.dimensions?.source === "svg" ||
+      attachment.dimensions?.source === "eps" ||
+      attachment.dimensions?.source === "pdf"
         ? formatAttachmentDimensions(attachment.dimensions)
         : "",
     )
@@ -820,6 +823,22 @@ function parsePostscriptDimensions(text: string): AttachmentDimensions | undefin
   const height = Math.abs(top - bottom) * (MM_PER_INCH / 72);
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return undefined;
   return { width, height, unit: "mm", source: "eps" };
+}
+
+function parsePdfDimensions(text: string): AttachmentDimensions | undefined {
+  const match =
+    text.match(/\/MediaBox\s*\[\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\]/i) ||
+    text.match(/\/CropBox\s*\[\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*\]/i);
+
+  if (!match) return undefined;
+  const left = Number(match[1]);
+  const bottom = Number(match[2]);
+  const right = Number(match[3]);
+  const top = Number(match[4]);
+  const width = Math.abs(right - left) * (MM_PER_INCH / 72);
+  const height = Math.abs(top - bottom) * (MM_PER_INCH / 72);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return undefined;
+  return { width, height, unit: "mm", source: "pdf" };
 }
 
 function sanitizeFilePart(value: string) {
@@ -1470,9 +1489,10 @@ async function fileToAttachment(file: File): Promise<LayoutAttachment> {
 
   if (type.startsWith("image/")) {
     dimensions = await readImageDimensions(dataUrl);
-  } else if (/\.(eps|ai)$/i.test(name)) {
+  } else if (/\.pdf$/i.test(name) || type === "application/pdf" || /\.(eps|ai)$/i.test(name)) {
     try {
-      dimensions = parsePostscriptDimensions(await readFileAsText(file));
+      const text = await readFileAsText(file);
+      dimensions = parsePdfDimensions(text) || parsePostscriptDimensions(text);
     } catch {
       dimensions = undefined;
     }
