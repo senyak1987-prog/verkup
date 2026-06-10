@@ -17,6 +17,15 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ClipboardEvent, ReactNode, RefObject } from "react";
+import type {
+  AttachmentDimensions,
+  Deal,
+  DealTechSpec,
+  LayoutAttachment,
+  TechSpecDraft,
+  TechSpecItem,
+  TemplateId,
+} from "../types";
 
 type FieldKind = "text" | "number" | "select" | "textarea";
 
@@ -30,18 +39,6 @@ type FieldConfig = {
   wide?: boolean;
 };
 
-type TemplateId =
-  | "letters"
-  | "lightbox"
-  | "panelBracket"
-  | "plate"
-  | "sticker"
-  | "banner"
-  | "neon"
-  | "incrustation"
-  | "milling"
-  | "metal";
-
 type ProductTemplate = {
   id: TemplateId;
   title: string;
@@ -52,38 +49,6 @@ type ProductTemplate = {
   defaults: Record<string, string>;
   checklist: string[];
   hints: string[];
-};
-
-type AttachmentDimensions = {
-  width: number;
-  height: number;
-  unit: "mm" | "px" | "svg";
-  source: "image" | "svg" | "eps" | "pdf";
-};
-
-type LayoutAttachment = {
-  id: string;
-  name: string;
-  type: string;
-  dataUrl: string;
-  note?: string;
-  dimensions?: AttachmentDimensions;
-};
-
-type TechSpecItem = {
-  id: string;
-  templateId: TemplateId;
-  fields: Record<string, string>;
-  attachments: LayoutAttachment[];
-};
-
-type TechSpecDraft = {
-  dealNumber: string;
-  projectName: string;
-  manager: string;
-  date: string;
-  globalNote: string;
-  items: TechSpecItem[];
 };
 
 const STORAGE_KEY = "verkup-tech-spec-builder";
@@ -557,6 +522,18 @@ function createInitialDraft(): TechSpecDraft {
   };
 }
 
+function createDraftForDeal(deal?: Deal): TechSpecDraft {
+  const draft = createInitialDraft();
+  if (!deal) return draft;
+
+  return {
+    ...draft,
+    dealNumber: deal.number || deal.id || "",
+    projectName: deal.title || "",
+    manager: deal.responsible || "",
+  };
+}
+
 function normalizeTemplateId(value: unknown): TemplateId {
   return templateById.has(value as TemplateId) ? (value as TemplateId) : "letters";
 }
@@ -621,20 +598,30 @@ function normalizeItem(value: unknown): TechSpecItem | null {
   };
 }
 
+function normalizeDraft(value: unknown, fallback = createInitialDraft()): TechSpecDraft {
+  if (!value || typeof value !== "object") return fallback;
+  const parsed = value as Partial<TechSpecDraft>;
+  if (!Array.isArray(parsed.items) || parsed.items.length === 0) return fallback;
+  const normalizedItems = parsed.items.map(normalizeItem).filter((item): item is TechSpecItem => Boolean(item));
+  if (!normalizedItems.length) return fallback;
+
+  return {
+    ...fallback,
+    ...parsed,
+    dealNumber: typeof parsed.dealNumber === "string" ? parsed.dealNumber : fallback.dealNumber,
+    projectName: typeof parsed.projectName === "string" ? parsed.projectName : fallback.projectName,
+    manager: typeof parsed.manager === "string" ? parsed.manager : fallback.manager,
+    date: typeof parsed.date === "string" ? parsed.date : fallback.date,
+    globalNote: typeof parsed.globalNote === "string" ? parsed.globalNote : fallback.globalNote,
+    items: normalizedItems,
+  };
+}
+
 function readStoredDraft() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return createInitialDraft();
-    const parsed = JSON.parse(raw) as TechSpecDraft;
-    if (!Array.isArray(parsed.items) || parsed.items.length === 0) return createInitialDraft();
-    const normalizedItems = parsed.items.map(normalizeItem).filter((item): item is TechSpecItem => Boolean(item));
-    if (!normalizedItems.length) return createInitialDraft();
-
-    return {
-      ...createInitialDraft(),
-      ...parsed,
-      items: normalizedItems,
-    };
+    return normalizeDraft(JSON.parse(raw));
   } catch {
     return createInitialDraft();
   }
@@ -1030,6 +1017,18 @@ function downloadBlob(filename: string, blob: Blob) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function blobToBase64(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Не удалось подготовить файл ТЗ"));
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",")[1] : result);
+    };
+    reader.readAsDataURL(blob);
+  });
 }
 
 function setCanvasFont(context: CanvasRenderingContext2D, size: number, weight = 400) {
@@ -1628,13 +1627,33 @@ function ProductionSpecDocument({
   );
 }
 
-export function TechSpecBuilder({ topTabs }: { topTabs: ReactNode }) {
-  const [draft, setDraft] = useState<TechSpecDraft>(() => readStoredDraft());
+type TechSpecBuilderProps = {
+  topTabs?: ReactNode;
+  deal?: Deal;
+  storedSpec?: DealTechSpec;
+  embedded?: boolean;
+  onDraftChange?: (spec: DealTechSpec) => void;
+  onUploadToBitrix?: (draft: TechSpecDraft, fileName: string, fileBase64: string) => Promise<void>;
+};
+
+export function TechSpecBuilder({
+  topTabs,
+  deal,
+  storedSpec,
+  embedded = false,
+  onDraftChange,
+  onUploadToBitrix,
+}: TechSpecBuilderProps) {
+  const [draft, setDraft] = useState<TechSpecDraft>(() =>
+    storedSpec?.draft ? normalizeDraft(storedSpec.draft, createDraftForDeal(deal)) : deal ? createDraftForDeal(deal) : readStoredDraft(),
+  );
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("letters");
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const [exportState, setExportState] = useState<"idle" | "working" | "done" | "error">("idle");
+  const [bitrixUploadState, setBitrixUploadState] = useState<"idle" | "working" | "done" | "error">("idle");
   const [storageIssue, setStorageIssue] = useState("");
   const [attachmentNotice, setAttachmentNotice] = useState("");
+  const [bitrixUploadError, setBitrixUploadError] = useState("");
   const exportRef = useRef<HTMLElement>(null);
 
   const specText = useMemo(() => buildSpecText(draft), [draft]);
@@ -1650,13 +1669,37 @@ export function TechSpecBuilder({ topTabs }: { topTabs: ReactNode }) {
   const missingCount = missingItems.reduce((sum, item) => sum + item.missing.length, 0);
 
   useEffect(() => {
+    setDraft(
+      storedSpec?.draft
+        ? normalizeDraft(storedSpec.draft, createDraftForDeal(deal))
+        : deal
+          ? createDraftForDeal(deal)
+          : readStoredDraft(),
+    );
+    setSelectedTemplateId("letters");
+    setBitrixUploadState("idle");
+    setBitrixUploadError("");
+  }, [deal?.id]);
+
+  useEffect(() => {
+    if (deal?.id) {
+      onDraftChange?.({
+        dealId: deal.id,
+        draft,
+        updatedAt: new Date().toISOString(),
+        bitrixFile: storedSpec?.bitrixFile,
+      });
+      setStorageIssue("");
+      return;
+    }
+
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
       setStorageIssue("");
     } catch {
       setStorageIssue("Макеты слишком большие для автосохранения. Экспорт работает, но черновик с файлами может не сохраниться.");
     }
-  }, [draft]);
+  }, [draft, deal?.id]);
 
   function updateDraftField(field: keyof TechSpecDraft, value: string) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -1869,8 +1912,25 @@ export function TechSpecBuilder({ topTabs }: { topTabs: ReactNode }) {
     }
   }
 
+  async function uploadToBitrix() {
+    if (!deal?.id || !onUploadToBitrix) return;
+
+    setBitrixUploadState("working");
+    setBitrixUploadError("");
+
+    try {
+      const jpegBlob = await renderDraftToJpegBlob(draft);
+      await onUploadToBitrix(draft, getExportFilename(draft, "jpg"), await blobToBase64(jpegBlob));
+      setBitrixUploadState("done");
+      window.setTimeout(() => setBitrixUploadState("idle"), 2200);
+    } catch (error) {
+      setBitrixUploadState("error");
+      setBitrixUploadError(error instanceof Error ? error.message : "Не удалось выгрузить ТЗ в Bitrix");
+    }
+  }
+
   return (
-    <main className="tech-spec-builder">
+    <main className={`tech-spec-builder${embedded ? " embedded" : ""}`}>
       <div className="toolbar tech-spec-toolbar">
         <div className="toolbar-actions">{topTabs}</div>
         <div className="toolbar-actions tech-spec-actions">
@@ -1894,6 +1954,17 @@ export function TechSpecBuilder({ topTabs }: { topTabs: ReactNode }) {
             <FileImage size={16} />
             JPEG
           </button>
+          {deal && onUploadToBitrix ? (
+            <button
+              className="primary compact"
+              disabled={bitrixUploadState === "working"}
+              onClick={() => void uploadToBitrix()}
+              type="button"
+            >
+              <Upload size={16} />
+              {bitrixUploadState === "working" ? "Выгружаю..." : "В Bitrix"}
+            </button>
+          ) : null}
           <button className="icon-button" onClick={resetDraft} title="Сбросить форму" type="button">
             <RotateCcw size={16} />
           </button>
@@ -1950,12 +2021,23 @@ export function TechSpecBuilder({ topTabs }: { topTabs: ReactNode }) {
         </label>
       </section>
 
-      {storageIssue || attachmentNotice || exportState === "error" || exportState === "done" ? (
+      {storageIssue ||
+      attachmentNotice ||
+      exportState === "error" ||
+      exportState === "done" ||
+      bitrixUploadState === "done" ||
+      bitrixUploadState === "error" ||
+      storedSpec?.bitrixFile ? (
         <div className="tech-spec-notices">
           {storageIssue ? <span className="warn">{storageIssue}</span> : null}
           {attachmentNotice ? <span>{attachmentNotice}</span> : null}
           {exportState === "error" ? <span className="warn">Экспорт не сработал. Попробуйте PDF или уменьшите макеты.</span> : null}
           {exportState === "done" ? <span>Экспорт подготовлен.</span> : null}
+          {bitrixUploadState === "done" ? <span>ТЗ выгружено в Bitrix.</span> : null}
+          {bitrixUploadState === "error" ? <span className="warn">{bitrixUploadError}</span> : null}
+          {storedSpec?.bitrixFile ? (
+            <span>Последний файл в Bitrix: {storedSpec.bitrixFile.name}</span>
+          ) : null}
         </div>
       ) : null}
 

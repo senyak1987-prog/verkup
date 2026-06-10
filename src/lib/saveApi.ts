@@ -1,4 +1,11 @@
-import type { AppData, CatalogItem, DealStageCode, StoredCalculations } from "../types";
+import type {
+  AppData,
+  CatalogItem,
+  DealStageCode,
+  StoredCalculations,
+  StoredTechSpecs,
+  TechSpecDraft,
+} from "../types";
 
 const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim();
 
@@ -33,12 +40,32 @@ export async function saveCatalogs(
   return postToSaveApi(settings, "/save-catalogs", { data });
 }
 
+export async function saveTechSpecs(settings: SaveApiSettings, data: StoredTechSpecs) {
+  return postToSaveApi(settings, "/save-tech-specs", { data });
+}
+
 export async function moveDealToStage(
   settings: SaveApiSettings,
   dealId: string,
   targetStage: DealStageCode,
 ) {
   return postToSaveApi(settings, "/move-stage", { dealId, targetStage });
+}
+
+export async function uploadTechSpecToBitrix(
+  settings: SaveApiSettings,
+  payload: {
+    dealId: string;
+    draft: TechSpecDraft;
+    fileName: string;
+    fileBase64: string;
+    mimeType?: string;
+  },
+) {
+  return postToSaveApi(settings, "/upload-tech-spec", payload) as Promise<{
+    ok: boolean;
+    field: string;
+  }>;
 }
 
 async function postToSaveApi(settings: SaveApiSettings, path: string, payload: unknown) {

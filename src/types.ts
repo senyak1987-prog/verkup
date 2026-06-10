@@ -17,7 +17,7 @@ export type Deal = {
   bitrixUrl: string;
 };
 
-export type DealStageCode = "launch" | "production";
+export type DealStageCode = "tz" | "tzApproval" | "launch" | "production";
 
 export type CostSection =
   | "materials"
@@ -98,4 +98,64 @@ export type StoredCalculations = {
   generatedAt: string;
   agentCostRatio: number;
   calculations: DealCalculation[];
+};
+
+export type TemplateId =
+  | "letters"
+  | "lightbox"
+  | "panelBracket"
+  | "plate"
+  | "sticker"
+  | "banner"
+  | "neon"
+  | "incrustation"
+  | "milling"
+  | "metal";
+
+export type AttachmentDimensions = {
+  width: number;
+  height: number;
+  unit: "mm" | "px" | "svg";
+  source: "image" | "svg" | "eps" | "pdf";
+};
+
+export type LayoutAttachment = {
+  id: string;
+  name: string;
+  type: string;
+  dataUrl: string;
+  note?: string;
+  dimensions?: AttachmentDimensions;
+};
+
+export type TechSpecItem = {
+  id: string;
+  templateId: TemplateId;
+  fields: Record<string, string>;
+  attachments: LayoutAttachment[];
+};
+
+export type TechSpecDraft = {
+  dealNumber: string;
+  projectName: string;
+  manager: string;
+  date: string;
+  globalNote: string;
+  items: TechSpecItem[];
+};
+
+export type DealTechSpec = {
+  dealId: string;
+  draft: TechSpecDraft;
+  updatedAt: string;
+  bitrixFile?: {
+    field: string;
+    name: string;
+    uploadedAt: string;
+  };
+};
+
+export type StoredTechSpecs = {
+  generatedAt: string;
+  specs: DealTechSpec[];
 };

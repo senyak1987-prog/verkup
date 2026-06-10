@@ -6,6 +6,10 @@ const webhookUrl = required("BITRIX_WEBHOOK_URL").replace(/\/?$/, "/");
 const bitrixDomain = env.BITRIX_DOMAIN || new URL(webhookUrl).host;
 const stageId = env.BITRIX_STAGE_ID || "";
 const stageName = env.BITRIX_STAGE_NAME || "Запустить в производство";
+const tzStageId = env.BITRIX_TZ_STAGE_ID || "DETAILS";
+const tzStageName = env.BITRIX_TZ_STAGE_NAME || "Подготовка ТЗ";
+const tzApprovalStageId = env.BITRIX_TZ_APPROVAL_STAGE_ID || "13";
+const tzApprovalStageName = env.BITRIX_TZ_APPROVAL_STAGE_NAME || "Согласование ТЗ";
 const productionStageId = env.BITRIX_PRODUCTION_STAGE_ID || "10";
 const productionStageName = env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве";
 const categoryId = env.BITRIX_CATEGORY_ID || "";
@@ -21,6 +25,13 @@ const stageMap = await loadStageMap();
 const stageCodesById = new Map();
 const targetStageIds = new Set();
 
+addTargetStages({ code: "tz", id: tzStageId, name: tzStageName, required: false });
+addTargetStages({
+  code: "tzApproval",
+  id: tzApprovalStageId,
+  name: tzApprovalStageName,
+  required: false,
+});
 addTargetStages({ code: "launch", id: stageId, name: stageName, required: true });
 addTargetStages({
   code: "production",
@@ -209,7 +220,10 @@ function addTargetStages({ code, id, name, required }) {
 }
 
 function inferStageCode(stageTitle) {
-  return normalize(stageTitle) === normalize(productionStageName) ? "production" : "launch";
+  const normalized = normalize(stageTitle);
+  if (normalized.includes(normalize(tzStageName))) return "tz";
+  if (normalized.includes(normalize(tzApprovalStageName))) return "tzApproval";
+  return normalized === normalize(productionStageName) ? "production" : "launch";
 }
 
 async function callRest(method, params) {

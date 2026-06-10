@@ -2,20 +2,24 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
 import { DealTable } from "./components/DealTable";
-import { PdfCalculator } from "./components/PdfCalculator";
+import { SignConfigurator } from "./components/PdfCalculator";
 import { TechSpecBuilder } from "./components/TechSpecBuilder";
 import {
   loadCalculations,
   loadCatalogs,
   loadDeals,
+  loadTechSpecs,
   readCachedCalculations,
   readCachedCatalogs,
   readCachedDeals,
+  readCachedTechSpecs,
   rememberCatalogFavoriteChanges,
   writeCachedCalculations,
   writeCachedCatalogs,
   writeCachedDeals,
+  writeCachedTechSpecs,
 } from "./lib/data";
+import { defaultSaveApiUrl, saveTechSpecs, uploadTechSpecToBitrix } from "./lib/saveApi";
 import { stageCodeForDeal, stageLabels } from "./lib/stages";
 import type {
   CatalogItem,
@@ -25,19 +29,24 @@ import type {
   Deal,
   DealCalculation,
   DealStageCode,
+  DealTechSpec,
   StoredCalculations,
+  StoredTechSpecs,
+  TechSpecDraft,
 } from "./types";
 import "./styles.css";
 
 const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
 const DEAL_REFRESH_INTERVAL_MS = 2000;
+const TECH_SPEC_SAVE_DELAY_MS = 900;
+const DEAL_STAGE_TABS: DealStageCode[] = ["tz", "tzApproval", "launch", "production"];
 
 type PendingStageMove = {
   stage: DealStageCode;
   expiresAt: number;
 };
 
-type AppTab = DealStageCode | "calculator" | "techSpec";
+type AppTab = DealStageCode | "signConfigurator" | "techSpec";
 
 type PendingCatalogInsert = {
   dealId: string;
@@ -53,24 +62,29 @@ export default function App() {
   const [storedCalculations, setStoredCalculations] = useState<StoredCalculations>(
     () => readCachedCalculations() || createEmptyStoredCalculations(),
   );
+  const [storedTechSpecs, setStoredTechSpecs] = useState<StoredTechSpecs>(
+    () => readCachedTechSpecs() || createEmptyStoredTechSpecs(),
+  );
   const [selectedDealId, setSelectedDealId] = useState<string>();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(() => !hasCachedStartupData());
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [pendingCatalogInsert, setPendingCatalogInsert] = useState<PendingCatalogInsert>();
   const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
-  const [activeScreen, setActiveScreen] = useState<"deals" | "calculator" | "techSpec">("deals");
+  const [activeScreen, setActiveScreen] = useState<"deals" | "signConfigurator" | "techSpec">("deals");
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
+  const techSpecSaveTimerRef = useRef<number>();
 
   useEffect(() => {
     let canceled = false;
 
     async function loadInitialData() {
       try {
-        const [dealsData, calculationsData, catalogsData] = await Promise.all([
+        const [dealsData, calculationsData, catalogsData, techSpecsData] = await Promise.all([
           loadDeals(),
           loadCalculations(),
           loadCatalogs(),
+          loadTechSpecs(),
         ]);
         if (canceled) return;
 
@@ -78,9 +92,11 @@ export default function App() {
         setDeals(nextDeals);
         setStoredCalculations(calculationsData);
         setCatalogItems(catalogsData.items);
+        setStoredTechSpecs(techSpecsData);
         writeCachedDeals({ ...dealsData, items: nextDeals });
         writeCachedCalculations(calculationsData);
         writeCachedCatalogs(catalogsData);
+        writeCachedTechSpecs(techSpecsData);
       } finally {
         if (!canceled) setLoading(false);
       }
@@ -106,10 +122,11 @@ export default function App() {
     }
 
     async function refreshAllData() {
-      const [dealsData, calculationsData, catalogsData] = await Promise.all([
+      const [dealsData, calculationsData, catalogsData, techSpecsData] = await Promise.all([
         loadDeals(),
         loadCalculations(),
         loadCatalogs(),
+        loadTechSpecs(),
       ]);
       if (canceled) return;
 
@@ -117,9 +134,11 @@ export default function App() {
       setDeals(nextDeals);
       setStoredCalculations(calculationsData);
       setCatalogItems(catalogsData.items);
+      setStoredTechSpecs(techSpecsData);
       writeCachedDeals({ ...dealsData, items: nextDeals });
       writeCachedCalculations(calculationsData);
       writeCachedCatalogs(catalogsData);
+      writeCachedTechSpecs(techSpecsData);
     }
 
     const intervalId = window.setInterval(refreshDeals, DEAL_REFRESH_INTERVAL_MS);
@@ -138,13 +157,17 @@ export default function App() {
     return new Map(storedCalculations.calculations.map((calculation) => [calculation.dealId, calculation]));
   }, [storedCalculations.calculations]);
 
+  const techSpecsMap = useMemo(() => {
+    return new Map(storedTechSpecs.specs.map((spec) => [spec.dealId, spec]));
+  }, [storedTechSpecs.specs]);
+
   const stageCounts = useMemo(() => {
     return deals.reduce(
       (counts, deal) => {
         counts[stageCodeForDeal(deal)] += 1;
         return counts;
       },
-      { launch: 0, production: 0 } as Record<DealStageCode, number>,
+      createEmptyStageCounts(),
     );
   }, [deals]);
 
@@ -162,6 +185,7 @@ export default function App() {
 
   const selectedDeal = deals.find((deal) => deal.id === selectedDealId);
   const selectedCalculation = selectedDealId ? calculationsMap.get(selectedDealId) : undefined;
+  const selectedTechSpec = selectedDealId ? techSpecsMap.get(selectedDealId) : undefined;
 
   useEffect(() => {
     if (selectedDealId && !filteredDeals.some((deal) => deal.id === selectedDealId)) {
@@ -186,6 +210,79 @@ export default function App() {
       writeCachedCalculations(next);
       return next;
     });
+  }
+
+  function handleTechSpecChange(spec: DealTechSpec) {
+    setStoredTechSpecs((current) => {
+      const next = {
+        ...current,
+        generatedAt: new Date().toISOString(),
+        specs: [
+          ...current.specs.filter((item) => item.dealId !== spec.dealId),
+          spec,
+        ],
+      };
+      writeCachedTechSpecs(next);
+      scheduleTechSpecSave(next);
+      return next;
+    });
+  }
+
+  async function handleTechSpecUpload(
+    dealId: string,
+    draft: TechSpecDraft,
+    fileName: string,
+    fileBase64: string,
+  ) {
+    const result = await uploadTechSpecToBitrix(
+      { apiUrl: defaultSaveApiUrl() },
+      {
+        dealId,
+        draft,
+        fileName,
+        fileBase64,
+        mimeType: "image/jpeg",
+      },
+    );
+    const nextSpec: DealTechSpec = {
+      dealId,
+      draft,
+      updatedAt: new Date().toISOString(),
+      bitrixFile: {
+        field: result.field,
+        name: fileName,
+        uploadedAt: new Date().toISOString(),
+      },
+    };
+
+    setStoredTechSpecs((current) => {
+      const next = {
+        ...current,
+        generatedAt: new Date().toISOString(),
+        specs: [
+          ...current.specs.filter((item) => item.dealId !== dealId),
+          nextSpec,
+        ],
+      };
+      writeCachedTechSpecs(next);
+      scheduleTechSpecSave(next);
+      return next;
+    });
+  }
+
+  function scheduleTechSpecSave(data: StoredTechSpecs) {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+
+    if (techSpecSaveTimerRef.current) {
+      window.clearTimeout(techSpecSaveTimerRef.current);
+    }
+
+    techSpecSaveTimerRef.current = window.setTimeout(() => {
+      void saveTechSpecs({ apiUrl }, data).catch(() => {
+        // Локальный черновик уже сохранен, повторим синхронизацию при следующем изменении.
+      });
+    }, TECH_SPEC_SAVE_DELAY_MS);
   }
 
   function handleCatalogChange(items: CatalogItem[]) {
@@ -274,9 +371,9 @@ export default function App() {
   }
 
   function handleTabChange(tab: AppTab) {
-    if (tab === "calculator") {
+    if (tab === "signConfigurator") {
       setSelectedDealId(undefined);
-      setActiveScreen("calculator");
+      setActiveScreen("signConfigurator");
       return;
     }
 
@@ -314,11 +411,11 @@ export default function App() {
   return (
     <div className="app">
       {loading && <div className="loading">Загружаю данные...</div>}
-      {activeScreen === "calculator" ? (
-        <PdfCalculator
+      {activeScreen === "signConfigurator" ? (
+        <SignConfigurator
           topTabs={
             <AppTopTabs
-              activeTab="calculator"
+              activeTab="signConfigurator"
               stageCounts={stageCounts}
               onChange={handleTabChange}
             />
@@ -354,18 +451,30 @@ export default function App() {
           onQueryChange={setQuery}
           expandedRow={
             selectedDeal ? (
-              <CostDrawer
-                deal={selectedDeal}
-                calculation={selectedCalculation}
-                catalogItems={catalogItems}
-                storedCalculations={storedCalculations}
-                onOpenCatalog={openCatalog}
-                onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
-                onChange={handleCalculationChange}
-                onCatalogChange={handleCatalogChange}
-                onClose={() => setSelectedDealId(undefined)}
-                onStageMoved={handleDealStageChanged}
-              />
+              activeStage === "tz" || activeStage === "tzApproval" ? (
+                <TechSpecBuilder
+                  deal={selectedDeal}
+                  embedded
+                  storedSpec={selectedTechSpec}
+                  onDraftChange={handleTechSpecChange}
+                  onUploadToBitrix={(draft, fileName, fileBase64) =>
+                    handleTechSpecUpload(selectedDeal.id, draft, fileName, fileBase64)
+                  }
+                />
+              ) : (
+                <CostDrawer
+                  deal={selectedDeal}
+                  calculation={selectedCalculation}
+                  catalogItems={catalogItems}
+                  storedCalculations={storedCalculations}
+                  onOpenCatalog={openCatalog}
+                  onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
+                  onChange={handleCalculationChange}
+                  onCatalogChange={handleCatalogChange}
+                  onClose={() => setSelectedDealId(undefined)}
+                  onStageMoved={handleDealStageChanged}
+                />
+              )
             ) : undefined
           }
         />
@@ -429,7 +538,7 @@ function AppTopTabs({
 }) {
   return (
     <div className="stage-tabs" role="tablist" aria-label="Разделы">
-      {(["launch", "production"] as const).map((stage) => (
+      {DEAL_STAGE_TABS.map((stage) => (
         <button
           aria-selected={activeTab === stage}
           className={activeTab === stage ? "active" : ""}
@@ -443,13 +552,13 @@ function AppTopTabs({
         </button>
       ))}
       <button
-        aria-selected={activeTab === "calculator"}
-        className={activeTab === "calculator" ? "active app-tab-offset" : "app-tab-offset"}
-        onClick={() => onChange("calculator")}
+        aria-selected={activeTab === "signConfigurator"}
+        className={activeTab === "signConfigurator" ? "active app-tab-offset" : "app-tab-offset"}
+        onClick={() => onChange("signConfigurator")}
         role="tab"
         type="button"
       >
-        Калькулятор
+        Конфигуратор вывесок
       </button>
       <button
         aria-selected={activeTab === "techSpec"}
@@ -465,10 +574,17 @@ function AppTopTabs({
 }
 
 function withStage(deal: Deal, stage: DealStageCode): Deal {
+  const stageNames: Record<DealStageCode, string> = {
+    tz: "Подготовка ТЗ",
+    tzApproval: "Согласование ТЗ",
+    launch: "Запустить в производство",
+    production: "В производстве",
+  };
+
   return {
     ...deal,
     stageCode: stage,
-    stageName: stage === "production" ? "В производстве" : "Запустить в производство",
+    stageName: stageNames[stage],
   };
 }
 
@@ -480,6 +596,22 @@ function createEmptyStoredCalculations(): StoredCalculations {
   };
 }
 
+function createEmptyStoredTechSpecs(): StoredTechSpecs {
+  return {
+    generatedAt: new Date().toISOString(),
+    specs: [],
+  };
+}
+
+function createEmptyStageCounts(): Record<DealStageCode, number> {
+  return {
+    tz: 0,
+    tzApproval: 0,
+    launch: 0,
+    production: 0,
+  };
+}
+
 function hasCachedStartupData() {
-  return Boolean(readCachedDeals() || readCachedCalculations() || readCachedCatalogs());
+  return Boolean(readCachedDeals() || readCachedCalculations() || readCachedCatalogs() || readCachedTechSpecs());
 }

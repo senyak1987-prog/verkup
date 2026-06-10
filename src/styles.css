@@ -121,7 +121,7 @@ a {
 }
 
 .stage-tabs .app-tab-offset {
-  margin-left: 16px;
+  margin-left: 36px;
 }
 
 h1,
@@ -2262,6 +2262,184 @@ td small {
   color: #b42318;
 }
 
+.sign-configurator-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 34%) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sign-config-panel,
+.sign-preview-panel {
+  min-width: 0;
+  border: 1px solid #dce2ea;
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.sign-config-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 10px;
+}
+
+.sign-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.sign-field span {
+  color: #667085;
+  font-size: 12px;
+}
+
+.sign-field input,
+.sign-field select {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #d8dee8;
+  border-radius: 7px;
+  background: #fff;
+  padding: 9px 10px;
+}
+
+.sign-size-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sign-mode-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sign-mode-tabs button,
+.sign-swatch-grid button {
+  min-width: 0;
+  border: 1px solid #d8dee8;
+  border-radius: 7px;
+  background: #fff;
+  padding: 8px 9px;
+  color: #334155;
+}
+
+.sign-mode-tabs button.active,
+.sign-swatch-grid button.active {
+  border-color: #0f766e;
+  background: #e7f4f1;
+  color: #0f4f49;
+}
+
+.sign-swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.sign-swatch-grid.compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sign-swatch-grid button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  text-align: left;
+}
+
+.sign-swatch-grid i {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #cbd5e1;
+  border-radius: 50%;
+  background-image:
+    linear-gradient(45deg, rgba(148, 163, 184, 0.35) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(148, 163, 184, 0.35) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(148, 163, 184, 0.35) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(148, 163, 184, 0.35) 75%);
+  background-position:
+    0 0,
+    0 9px,
+    9px -9px,
+    -9px 0;
+  background-size: 18px 18px;
+}
+
+.sign-preview-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.sign-preview-stage {
+  display: grid;
+  place-items: center;
+  min-height: 270px;
+  overflow: hidden;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(226, 232, 240, 0.65) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(226, 232, 240, 0.65) 1px, transparent 1px),
+    #f8fafc;
+  background-size: 24px 24px;
+  padding: 18px;
+}
+
+.sign-preview-board {
+  display: grid;
+  place-items: center;
+  width: min(100%, 920px);
+  max-height: 100%;
+  min-height: 90px;
+  border-radius: 4px;
+  background: var(--sign-backing-color);
+  padding: clamp(14px, 4%, 36px);
+}
+
+.sign-preview-board.frame {
+  border: 8px solid #334155;
+  background: transparent;
+}
+
+.sign-preview-board.backing {
+  border: 1px solid #d6dce6;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.12);
+}
+
+.sign-preview-copy {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--sign-face-color);
+  font-family: var(--sign-font-family);
+  font-size: var(--sign-font-size);
+  font-weight: 900;
+  line-height: 0.82;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sign-preview-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #667085;
+  font-size: 13px;
+}
+
+.sign-preview-meta strong {
+  color: #0f172a;
+}
+
 .pdf-workspace {
   height: calc(100dvh - 220px);
   min-height: 360px;
@@ -2388,6 +2566,22 @@ td small {
 .tech-spec-builder {
   min-width: 0;
   padding: 16px;
+}
+
+.tech-spec-builder.embedded {
+  padding: 0;
+}
+
+.tech-spec-builder.embedded .tech-spec-toolbar {
+  justify-content: flex-end;
+}
+
+.tech-spec-builder.embedded .tech-spec-toolbar > .toolbar-actions:first-child:empty {
+  display: none;
+}
+
+.tech-spec-builder.embedded .tech-spec-hero {
+  background: #f7fbfa;
 }
 
 .tech-spec-toolbar {
@@ -3083,6 +3277,14 @@ td small {
     width: 100%;
   }
 
+  .sign-configurator-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sign-preview-stage {
+    min-height: 240px;
+  }
+
   .tech-spec-actions {
     justify-content: flex-start;
     width: 100%;
@@ -3153,6 +3355,17 @@ td small {
   .cost-popover .summary-grid,
   .calculator-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sign-size-grid,
+  .sign-swatch-grid,
+  .sign-swatch-grid.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .sign-preview-stage {
+    min-height: 200px;
+    padding: 12px;
   }
 
   .pdf-preview-scroll {

@@ -37,6 +37,11 @@ export default {
         return await loadJsonFromGitHub(env, "public/data/calculations.json", cors);
       }
 
+      if (request.method === "GET" && url.pathname === "/data/tech-specs.json") {
+        requireEnv(env, "GITHUB_TOKEN");
+        return await loadJsonFromGitHub(env, "public/data/tech-specs.json", cors);
+      }
+
       if (request.method === "GET" && url.pathname === "/data/catalogs.json") {
         return json({ error: "Use static catalogs from GitHub Pages" }, 503, noStoreHeaders(cors));
       }
@@ -67,6 +72,22 @@ export default {
           body.data,
           cors,
         );
+      }
+
+      if (url.pathname === "/save-tech-specs") {
+        const body = await request.json();
+        return await saveJsonToGitHub(
+          env,
+          "public/data/tech-specs.json",
+          `Update Verkup tech specs ${new Date().toISOString()}`,
+          body.data,
+          cors,
+        );
+      }
+
+      if (url.pathname === "/upload-tech-spec") {
+        const body = await request.json();
+        return await uploadTechSpecToBitrix(env, body, cors);
       }
 
       if (url.pathname === "/move-to-production") {
@@ -259,6 +280,16 @@ async function fetchLiveDeals(env) {
   const dictionaries = await loadLiveDictionaries(env);
   const targetStageIds = new Set();
   const stageCodesById = new Map();
+  addLiveStageTarget(env, dictionaries.stageMap, targetStageIds, stageCodesById, {
+    code: "tz",
+    id: env.BITRIX_TZ_STAGE_ID || "DETAILS",
+    name: env.BITRIX_TZ_STAGE_NAME || "Подготовка ТЗ",
+  });
+  addLiveStageTarget(env, dictionaries.stageMap, targetStageIds, stageCodesById, {
+    code: "tzApproval",
+    id: env.BITRIX_TZ_APPROVAL_STAGE_ID || "13",
+    name: env.BITRIX_TZ_APPROVAL_STAGE_NAME || "Согласование ТЗ",
+  });
   addLiveStageTarget(env, dictionaries.stageMap, targetStageIds, stageCodesById, {
     code: "launch",
     id: env.BITRIX_LAUNCH_STAGE_ID || env.BITRIX_STAGE_ID || "4",
@@ -493,7 +524,10 @@ function liveCustomFields(env) {
 }
 
 function inferLiveStageCode(env, stageTitle) {
-  return normalize(stageTitle) === normalize(env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве")
+  const normalized = normalize(stageTitle);
+  if (normalized.includes(normalize(env.BITRIX_TZ_STAGE_NAME || "Подготовка ТЗ"))) return "tz";
+  if (normalized.includes(normalize(env.BITRIX_TZ_APPROVAL_STAGE_NAME || "Согласование ТЗ"))) return "tzApproval";
+  return normalized === normalize(env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве")
     ? "production"
     : "launch";
 }
@@ -555,12 +589,62 @@ function targetStageIdFor(env, targetStage, explicitStageId) {
   const explicit = String(explicitStageId || "").trim();
   if (explicit) return explicit;
 
+  if (target === "tz" || target === "techspec" || target === "tech-spec") {
+    return String(env.BITRIX_TZ_STAGE_ID || "DETAILS");
+  }
+  if (target === "tzapproval" || target === "tz-approval") {
+    return String(env.BITRIX_TZ_APPROVAL_STAGE_ID || "13");
+  }
   if (target === "launch") return String(env.BITRIX_LAUNCH_STAGE_ID || "4");
   if (target === "production") return String(env.BITRIX_PRODUCTION_STAGE_ID || "10");
 
-  const error = new Error("targetStage must be launch or production");
+  const error = new Error("targetStage must be tz, tzApproval, launch or production");
   error.status = 400;
   throw error;
+}
+
+async function uploadTechSpecToBitrix(env, body, cors) {
+  requireEnv(env, "BITRIX_WEBHOOK_URL");
+
+  const dealId = String(body.dealId || "").trim();
+  const fileName = String(body.fileName || "").trim() || `tech-spec-${dealId}.jpg`;
+  const fileBase64 = String(body.fileBase64 || "")
+    .replace(/^data:[^;]+;base64,/, "")
+    .trim();
+  const fieldName = String(
+    env.BITRIX_TECH_SPEC_FILE_FIELD ||
+      env.BITRIX_FIELD_TECH_SPEC_FILE ||
+      env.BITRIX_FIELD_PRODUCTION_FILES ||
+      "UF_CRM_1780210628536",
+  ).trim();
+
+  if (!dealId) return json({ error: "dealId is required" }, 400, cors);
+  if (!fileBase64) return json({ error: "fileBase64 is required" }, 400, cors);
+  if (!fieldName) return json({ error: "Bitrix tech spec file field is not configured" }, 500, cors);
+
+  try {
+    const result = await callBitrixRest(env, "crm.deal.update", {
+      id: dealId,
+      fields: {
+        [fieldName]: [
+          {
+            fileData: [fileName, fileBase64],
+          },
+        ],
+      },
+    });
+    return json({ ok: true, field: fieldName, result }, 200, cors);
+  } catch (firstError) {
+    const result = await callBitrixRest(env, "crm.deal.update", {
+      id: dealId,
+      fields: {
+        [fieldName]: {
+          fileData: [fileName, fileBase64],
+        },
+      },
+    });
+    return json({ ok: true, field: fieldName, result, fallback: true, firstError: firstError.message }, 200, cors);
+  }
 }
 
 function githubHeaders(env) {

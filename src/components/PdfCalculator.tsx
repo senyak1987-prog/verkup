@@ -10,6 +10,30 @@ const ZOOM_STEP = 0.1;
 const FIT_PADDING = 48;
 const NUMBER_PATTERN = "[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?";
 const PDF_BOXES = ["CropBox", "MediaBox"] as const;
+const SIGN_FONTS = [
+  { label: "Arial Black", value: "Arial Black, Arial, sans-serif" },
+  { label: "Arial", value: "Arial, Helvetica, sans-serif" },
+  { label: "Impact", value: "Impact, Haettenschweiler, sans-serif" },
+  { label: "Georgia", value: "Georgia, serif" },
+  { label: "Times New Roman", value: "Times New Roman, Times, serif" },
+  { label: "Verdana", value: "Verdana, Geneva, sans-serif" },
+] as const;
+const ORACAL_COLORS = [
+  { name: "Красный 031", value: "#e2251b" },
+  { name: "Белый 010", value: "#ffffff" },
+  { name: "Черный 070", value: "#111827" },
+  { name: "Синий 049", value: "#1565c0" },
+  { name: "Желтый 021", value: "#ffd21f" },
+  { name: "Зеленый 061", value: "#0f8a4b" },
+  { name: "Оранжевый 034", value: "#f36b21" },
+  { name: "Серебро 090", value: "#c8ced6" },
+] as const;
+const BACKING_COLORS = [
+  { name: "Белая подложка", value: "#ffffff" },
+  { name: "Черная подложка", value: "#111827" },
+  { name: "Серый композит", value: "#d6dce6" },
+  { name: "Прозрачная", value: "transparent" },
+] as const;
 
 type PdfBoxName = (typeof PDF_BOXES)[number];
 
@@ -54,6 +78,7 @@ type PixelBounds = {
 };
 
 type ZoomMode = "fit" | "manual";
+type SignBaseType = "frame" | "backing";
 
 type PdfJsModule = {
   GlobalWorkerOptions: { workerSrc: string };
@@ -90,11 +115,18 @@ type PdfRenderTask = {
 
 let pdfJsPromise: Promise<PdfJsModule> | undefined;
 
-export function PdfCalculator({ topTabs }: { topTabs: ReactNode }) {
+export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
   const [pdf, setPdf] = useState<UploadedPdf | null>(null);
   const [contentBounds, setContentBounds] = useState<ContentBounds | null>(null);
   const [error, setError] = useState("");
   const [rendering, setRendering] = useState(false);
+  const [signText, setSignText] = useState("ЦВЕТЫ");
+  const [signFont, setSignFont] = useState<string>(SIGN_FONTS[0].value);
+  const [faceColor, setFaceColor] = useState<string>(ORACAL_COLORS[0].value);
+  const [backingColor, setBackingColor] = useState<string>(BACKING_COLORS[0].value);
+  const [baseType, setBaseType] = useState<SignBaseType>("backing");
+  const [signWidthMm, setSignWidthMm] = useState(1850);
+  const [signHeightMm, setSignHeightMm] = useState(372);
   const [zoom, setZoom] = useState(1);
   const [zoomMode, setZoomMode] = useState<ZoomMode>("fit");
   const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 });
@@ -127,6 +159,21 @@ export function PdfCalculator({ topTabs }: { topTabs: ReactNode }) {
   const measuredDimensions = contentBounds
     ? { widthMm: contentBounds.widthMm, heightMm: contentBounds.heightMm }
     : pdf?.dimensions;
+  const signAreaM2 = (signWidthMm * signHeightMm) / 1_000_000;
+  const previewFontSize = Math.max(34, Math.min(132, 920 / Math.max(6, signText.length)));
+  const previewStyle = {
+    "--sign-face-color": faceColor,
+    "--sign-backing-color": backingColor,
+    "--sign-font-family": signFont,
+    "--sign-font-size": `${previewFontSize}px`,
+    aspectRatio: `${Math.max(1, signWidthMm)} / ${Math.max(1, signHeightMm)}`,
+  } as CSSProperties;
+
+  useEffect(() => {
+    if (!contentBounds) return;
+    setSignWidthMm(Math.max(1, Math.round(contentBounds.widthMm)));
+    setSignHeightMm(Math.max(1, Math.round(contentBounds.heightMm)));
+  }, [contentBounds]);
 
   const fitZoom = useMemo(() => {
     if (!pdf || !workspaceSize.width || !workspaceSize.height) return 1;
@@ -317,6 +364,118 @@ export function PdfCalculator({ topTabs }: { topTabs: ReactNode }) {
           {error}
         </div>
       )}
+
+      <section className="sign-configurator-grid">
+        <div className="sign-config-panel">
+          <div className="section-title compact">
+            <h3>Макет вывески</h3>
+            <span>{formatAreaM2(signAreaM2)} м² пленки</span>
+          </div>
+          <label className="sign-field sign-field-wide">
+            <span>Текст</span>
+            <input value={signText} onChange={(event) => setSignText(event.target.value)} />
+          </label>
+          <label className="sign-field">
+            <span>Шрифт</span>
+            <select value={signFont} onChange={(event) => setSignFont(event.target.value)}>
+              {SIGN_FONTS.map((font) => (
+                <option key={font.value} value={font.value}>
+                  {font.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="sign-size-grid">
+            <label className="sign-field">
+              <span>Ширина, мм</span>
+              <input
+                min={1}
+                type="number"
+                value={signWidthMm}
+                onChange={(event) => setSignWidthMm(readPositiveNumber(event.target.value, signWidthMm))}
+              />
+            </label>
+            <label className="sign-field">
+              <span>Высота, мм</span>
+              <input
+                min={1}
+                type="number"
+                value={signHeightMm}
+                onChange={(event) => setSignHeightMm(readPositiveNumber(event.target.value, signHeightMm))}
+              />
+            </label>
+          </div>
+          <div className="sign-field sign-field-wide">
+            <span>Основа</span>
+            <div className="sign-mode-tabs">
+              <button
+                className={baseType === "backing" ? "active" : ""}
+                onClick={() => setBaseType("backing")}
+                type="button"
+              >
+                Подложка
+              </button>
+              <button
+                className={baseType === "frame" ? "active" : ""}
+                onClick={() => setBaseType("frame")}
+                type="button"
+              >
+                Рама
+              </button>
+            </div>
+          </div>
+          <div className="sign-field sign-field-wide">
+            <span>Лицо: пленка Oracal</span>
+            <div className="sign-swatch-grid">
+              {ORACAL_COLORS.map((color) => (
+                <button
+                  className={faceColor === color.value ? "active" : ""}
+                  key={color.value}
+                  onClick={() => setFaceColor(color.value)}
+                  title={color.name}
+                  type="button"
+                >
+                  <i style={{ background: color.value }} />
+                  {color.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="sign-field sign-field-wide">
+            <span>Цвет основы</span>
+            <div className="sign-swatch-grid compact">
+              {BACKING_COLORS.map((color) => (
+                <button
+                  className={backingColor === color.value ? "active" : ""}
+                  key={color.value}
+                  onClick={() => setBackingColor(color.value)}
+                  title={color.name}
+                  type="button"
+                >
+                  <i style={{ background: color.value }} />
+                  {color.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="sign-preview-panel">
+          <div className="section-title compact">
+            <h3>Визуал</h3>
+            <span>{baseType === "frame" ? "рама" : "подложка"}</span>
+          </div>
+          <div className="sign-preview-stage">
+            <div className={`sign-preview-board ${baseType}`} style={previewStyle}>
+              <div className="sign-preview-copy">{signText || " "}</div>
+            </div>
+          </div>
+          <div className="sign-preview-meta">
+            <span>{formatMeasureMm(signWidthMm)} × {formatMeasureMm(signHeightMm)} мм</span>
+            <strong>{formatAreaM2(signAreaM2)} м²</strong>
+          </div>
+        </div>
+      </section>
 
       <section className="pdf-workspace" ref={workspaceRef}>
         {pdf && pageStyle ? (
@@ -668,9 +827,22 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function readPositiveNumber(value: string, fallback: number) {
+  const nextValue = Number(value);
+  return Number.isFinite(nextValue) && nextValue > 0 ? nextValue : fallback;
+}
+
 function formatMeasureMm(value: number) {
   return new Intl.NumberFormat("ru-RU", {
     maximumFractionDigits: value >= 100 ? 0 : 1,
+    useGrouping: false,
+  }).format(value);
+}
+
+function formatAreaM2(value: number) {
+  return new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
     useGrouping: false,
   }).format(value);
 }

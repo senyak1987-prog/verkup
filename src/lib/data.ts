@@ -1,4 +1,4 @@
-import type { AppData, CatalogItem, Deal, StoredCalculations } from "../types";
+import type { AppData, CatalogItem, Deal, StoredCalculations, StoredTechSpecs } from "../types";
 
 const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim().replace(/\/+$/, "");
 const CACHE_PREFIX = "verkup:data:";
@@ -25,6 +25,11 @@ const fallbackCalculations: StoredCalculations = {
   generatedAt: new Date().toISOString(),
   agentCostRatio: 0.58,
   calculations: [],
+};
+
+const fallbackTechSpecs: StoredTechSpecs = {
+  generatedAt: new Date().toISOString(),
+  specs: [],
 };
 
 const fallbackCatalogs: AppData<CatalogItem> = {
@@ -59,6 +64,12 @@ export async function loadCalculations() {
   });
 }
 
+export async function loadTechSpecs() {
+  return loadJson<StoredTechSpecs>("/data/tech-specs.json", fallbackTechSpecs, {
+    preferApi: true,
+  });
+}
+
 export async function loadCatalogs() {
   return withCatalogFavoriteOverrides(
     await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs),
@@ -73,6 +84,10 @@ export function readCachedCalculations() {
   return readCache<StoredCalculations>("data/calculations.json");
 }
 
+export function readCachedTechSpecs() {
+  return readCache<StoredTechSpecs>("data/tech-specs.json");
+}
+
 export function readCachedCatalogs() {
   const data = readCache<AppData<CatalogItem>>("data/catalogs.json");
   return data ? withCatalogFavoriteOverrides(data) : undefined;
@@ -84,6 +99,10 @@ export function writeCachedDeals(data: AppData<Deal>) {
 
 export function writeCachedCalculations(data: StoredCalculations) {
   writeCache("data/calculations.json", data);
+}
+
+export function writeCachedTechSpecs(data: StoredTechSpecs) {
+  writeCache("data/tech-specs.json", data);
 }
 
 export function writeCachedCatalogs(data: AppData<CatalogItem>) {
@@ -332,7 +351,10 @@ function isCacheTooOld(savedAt?: string) {
 }
 
 function shouldKeepCachedData<T>(data: T, cachedData?: T): cachedData is T {
-  return isEmptyAppData(data) && isNonEmptyAppData(cachedData);
+  return (
+    (isEmptyAppData(data) && isNonEmptyAppData(cachedData)) ||
+    (isEmptyStoredTechSpecs(data) && isNonEmptyStoredTechSpecs(cachedData))
+  );
 }
 
 function isBrowserOffline() {
@@ -347,10 +369,26 @@ function isNonEmptyAppData(value: unknown): value is AppData<unknown> {
   return isAppData(value) && value.items.length > 0;
 }
 
+function isEmptyStoredTechSpecs(value: unknown): value is StoredTechSpecs {
+  return isStoredTechSpecs(value) && !value.specs.length;
+}
+
+function isNonEmptyStoredTechSpecs(value: unknown): value is StoredTechSpecs {
+  return isStoredTechSpecs(value) && value.specs.length > 0;
+}
+
 function isAppData<T>(value: unknown): value is AppData<T> {
   return Boolean(
     value &&
       typeof value === "object" &&
       Array.isArray((value as AppData<unknown>).items),
+  );
+}
+
+function isStoredTechSpecs(value: unknown): value is StoredTechSpecs {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      Array.isArray((value as StoredTechSpecs).specs),
   );
 }
