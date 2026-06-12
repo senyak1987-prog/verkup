@@ -1,6 +1,42 @@
 {
-  "generatedAt": "2026-06-12T11:51:54.657Z",
+  "generatedAt": "2026-06-12T18:31:34.514Z",
   "items": [
+    {
+      "id": "16986",
+      "number": "16986",
+      "title": "КрутоДизайн",
+      "stageId": "10",
+      "stageCode": "production",
+      "source": "Парсинг",
+      "type": "Изготовление + Монтаж",
+      "classification": "Консоль, короба",
+      "saleAmount": 38100,
+      "installSaleAmount": 9000,
+      "responsible": "Алексей Купоров",
+      "startDate": "2026-06-11T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-12T03:00:00+03:00",
+      "createdDate": "2026-06-11T10:50:57+03:00",
+      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16986/"
+    },
+    {
+      "id": "16882",
+      "number": "16882",
+      "title": "Море вкусов",
+      "stageId": "10",
+      "stageCode": "production",
+      "source": "Повтор (уже заказывали)",
+      "type": "Изготовление + Монтаж",
+      "classification": "Буквы",
+      "saleAmount": 65670,
+      "installSaleAmount": 8000,
+      "responsible": "Антон Исаков",
+      "startDate": "2026-06-02T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-09T03:00:00+03:00",
+      "createdDate": "2026-06-02T17:37:32+03:00",
+      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16882/"
+    },
     {
       "id": "17012",
       "number": "17012",
@@ -288,24 +324,6 @@
       "createdDate": "2026-06-11T11:25:48+03:00",
       "stageName": "В ПРОИЗВОДСТВЕ (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16988/"
-    },
-    {
-      "id": "16986",
-      "number": "16986",
-      "title": "КрутоДизайн",
-      "stageId": "10",
-      "stageCode": "production",
-      "source": "Парсинг",
-      "type": "Изготовление + Монтаж",
-      "classification": "Консоль, короба",
-      "saleAmount": 38100,
-      "installSaleAmount": 9000,
-      "responsible": "Алексей Купоров",
-      "startDate": "2026-06-11T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-12T03:00:00+03:00",
-      "createdDate": "2026-06-11T10:50:57+03:00",
-      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16986/"
     },
     {
       "id": "16770",
@@ -612,24 +630,6 @@
       "createdDate": "2026-06-08T17:06:55+03:00",
       "stageName": "В ПРОИЗВОДСТВЕ (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16950/"
-    },
-    {
-      "id": "16882",
-      "number": "16882",
-      "title": "Море вкусов",
-      "stageId": "10",
-      "stageCode": "production",
-      "source": "Повтор (уже заказывали)",
-      "type": "Изготовление + Монтаж",
-      "classification": "Буквы",
-      "saleAmount": 65670,
-      "installSaleAmount": 8000,
-      "responsible": "Антон Исаков",
-      "startDate": "2026-06-02T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-09T03:00:00+03:00",
-      "createdDate": "2026-06-02T17:37:32+03:00",
-      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16882/"
     },
     {
       "id": "16936",
