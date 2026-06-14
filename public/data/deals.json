@@ -1,6 +1,24 @@
 {
-  "generatedAt": "2026-06-14T15:28:52.278Z",
+  "generatedAt": "2026-06-14T20:23:52.486Z",
   "items": [
+    {
+      "id": "17018",
+      "number": "17018",
+      "title": "Лотос алина БОЛДОВ",
+      "stageId": "13",
+      "stageCode": "tzApproval",
+      "source": "Агент",
+      "type": "Изготовление + Самовывоз",
+      "classification": "Комплект конструкций",
+      "saleAmount": 0,
+      "installSaleAmount": 0,
+      "responsible": "Никита Беспалов",
+      "startDate": "2026-06-14T03:00:00+03:00",
+      "expectedFinishDate": "2026-06-19T03:00:00+03:00",
+      "createdDate": "2026-06-14T18:59:14+03:00",
+      "stageName": "Согласование ТЗ (пр)",
+      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/17018/"
+    },
     {
       "id": "16986",
       "number": "16986",
@@ -18,24 +36,6 @@
       "createdDate": "2026-06-11T10:50:57+03:00",
       "stageName": "В ПРОИЗВОДСТВЕ (пр)",
       "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16986/"
-    },
-    {
-      "id": "16882",
-      "number": "16882",
-      "title": "Море вкусов",
-      "stageId": "10",
-      "stageCode": "production",
-      "source": "Повтор (уже заказывали)",
-      "type": "Изготовление + Монтаж",
-      "classification": "Буквы",
-      "saleAmount": 65670,
-      "installSaleAmount": 8000,
-      "responsible": "Антон Исаков",
-      "startDate": "2026-06-02T03:00:00+03:00",
-      "expectedFinishDate": "2026-06-09T03:00:00+03:00",
-      "createdDate": "2026-06-02T17:37:32+03:00",
-      "stageName": "В ПРОИЗВОДСТВЕ (пр)",
-      "bitrixUrl": "https://verkup.bitrix24.ru/crm/deal/details/16882/"
     },
     {
       "id": "17012",
