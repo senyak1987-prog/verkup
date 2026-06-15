@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T12:58:19.909Z",
+  "generatedAt": "2026-06-15T12:58:25.939Z",
   "specs": [
     {
       "dealId": "16986",
@@ -127,12 +127,13 @@
               "installPlace": "",
               "faceFilm": "641-091",
               "sideFilm": "641-091",
-              "backingDepth": "30мм"
+              "backingDepth": "30мм",
+              "frameColor": "641-070м"
             }
           }
         ]
       },
-      "updatedAt": "2026-06-15T12:58:19.909Z"
+      "updatedAt": "2026-06-15T12:58:25.939Z"
     }
   ]
 }
