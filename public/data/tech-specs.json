@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T12:57:17.750Z",
+  "generatedAt": "2026-06-15T12:57:48.967Z",
   "specs": [
     {
       "dealId": "16986",
@@ -111,7 +111,7 @@
               "name": "150",
               "quantity": "1 шт",
               "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "ЛИЦЕВОЕ",
+              "lightingType": "КОНТРАЖУР",
               "glowColor": "НЕЙТРАЛЬНОЕ",
               "faceMaterial": "Молочный акрил 3 мм",
               "sideMaterial": "Алюминий",
@@ -129,7 +129,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-15T12:57:17.750Z"
+      "updatedAt": "2026-06-15T12:57:48.967Z"
     }
   ]
 }
