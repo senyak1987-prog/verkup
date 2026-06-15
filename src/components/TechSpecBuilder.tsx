@@ -619,16 +619,17 @@ function normalizeDraft(value: unknown, fallback = createInitialDraft()): TechSp
   if (!Array.isArray(parsed.items) || parsed.items.length === 0) return fallback;
   const normalizedItems = parsed.items.map(normalizeItem).filter((item): item is TechSpecItem => Boolean(item));
   if (!normalizedItems.length) return fallback;
+  const stringOrFallback = (value: unknown, fallbackValue: string) =>
+    typeof value === "string" && value.trim() ? value : fallbackValue;
 
   return {
     ...fallback,
     ...parsed,
-    dealNumber: typeof parsed.dealNumber === "string" ? parsed.dealNumber : fallback.dealNumber,
-    projectName: typeof parsed.projectName === "string" ? parsed.projectName : fallback.projectName,
-    manager: typeof parsed.manager === "string" ? parsed.manager : fallback.manager,
-    responsiblePhone:
-      typeof parsed.responsiblePhone === "string" ? parsed.responsiblePhone : fallback.responsiblePhone,
-    deadline: typeof parsed.deadline === "string" ? parsed.deadline : fallback.deadline,
+    dealNumber: stringOrFallback(parsed.dealNumber, fallback.dealNumber),
+    projectName: stringOrFallback(parsed.projectName, fallback.projectName),
+    manager: stringOrFallback(parsed.manager, fallback.manager),
+    responsiblePhone: stringOrFallback(parsed.responsiblePhone, fallback.responsiblePhone),
+    deadline: stringOrFallback(parsed.deadline, fallback.deadline),
     date: typeof parsed.date === "string" ? parsed.date : fallback.date,
     globalNote: typeof parsed.globalNote === "string" ? parsed.globalNote : fallback.globalNote,
     items: normalizedItems,
@@ -856,10 +857,15 @@ function sanitizeFilePart(value: string) {
   );
 }
 
+function techSpecTitle(draft: TechSpecDraft) {
+  return ["ТЗ", draft.dealNumber, draft.projectName]
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
 function getExportFilename(draft: TechSpecDraft, extension: "txt" | "jpg") {
-  const deal = sanitizeFilePart(draft.dealNumber || "new");
-  const project = sanitizeFilePart(draft.projectName || "TZ");
-  return `TZ-${deal}-${project}.${extension}`;
+  return `${sanitizeFilePart(techSpecTitle(draft) || "TZ")}.${extension}`;
 }
 
 function escapeHtml(value: string) {
@@ -919,9 +925,7 @@ function buildAttachmentImageHtml(attachment: LayoutAttachment) {
 
 function buildPrintableBody(draft: TechSpecDraft) {
   const meta = [
-    draft.projectName ? ["Проект", draft.projectName] : null,
     draft.deadline ? ["Срок сдачи", draft.deadline] : null,
-    draft.date ? ["Дата", draft.date] : null,
     draft.manager ? ["Ответственный", draft.manager] : null,
     draft.responsiblePhone ? ["Телефон", draft.responsiblePhone] : null,
   ].filter((item): item is [string, string] => Boolean(item));
@@ -977,8 +981,8 @@ function buildPrintableBody(draft: TechSpecDraft) {
     <section class="tech-spec-document">
       <div class="tech-spec-doc-title">
         <div>
-          <span>Техническое задание для производства</span>
-          <h2>${escapeHtml(draft.dealNumber ? `ТЗ ${draft.dealNumber}` : "ТЗ без номера")}</h2>
+          <span>ТЗ для производства</span>
+          <h2>${escapeHtml(techSpecTitle(draft) || "ТЗ без номера")}</h2>
         </div>
         <div class="tech-spec-doc-meta">${metaHtml}</div>
       </div>
@@ -989,16 +993,14 @@ function buildPrintableBody(draft: TechSpecDraft) {
 
 function buildPrintableDocument(draft: TechSpecDraft) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8" /><title>${escapeHtml(
-    draft.dealNumber ? `ТЗ ${draft.dealNumber}` : "ТЗ",
+    techSpecTitle(draft) || "ТЗ",
   )}</title><style>${EXPORT_DOCUMENT_CSS}</style></head><body>${buildPrintableBody(draft)}</body></html>`;
 }
 
 function buildSpecText(draft: TechSpecDraft) {
   const header = [
-    draft.dealNumber ? `ТЗ ${draft.dealNumber}` : "ТЗ",
-    draft.projectName ? `Проект: ${draft.projectName}` : "",
+    techSpecTitle(draft) || "ТЗ",
     draft.deadline ? `Срок сдачи: ${draft.deadline}` : "",
-    draft.date ? `Дата: ${draft.date}` : "",
     draft.manager ? `Ответственный: ${draft.manager}` : "",
     draft.responsiblePhone ? `Телефон: ${draft.responsiblePhone}` : "",
     draft.globalNote ? `Общее примечание: ${draft.globalNote}` : "",
@@ -1225,19 +1227,17 @@ function measureJpegDraftHeight(context: CanvasRenderingContext2D, draft: TechSp
 }
 
 function drawJpegHeader(context: CanvasRenderingContext2D, draft: TechSpecDraft) {
-  const title = draft.dealNumber ? `ТЗ ${draft.dealNumber}` : "ТЗ без номера";
+  const title = techSpecTitle(draft) || "ТЗ без номера";
   context.fillStyle = "#111827";
   setCanvasFont(context, 54, 700);
   context.fillText(title, JPEG_MARGIN, JPEG_MARGIN);
 
   context.fillStyle = "#667085";
   setCanvasFont(context, 19, 700);
-  context.fillText("Техническое задание для производства", JPEG_MARGIN, JPEG_MARGIN + 62);
+  context.fillText("ТЗ для производства", JPEG_MARGIN, JPEG_MARGIN + 62);
 
   const meta = [
-    draft.projectName ? `Проект: ${draft.projectName}` : "",
     draft.deadline ? `Срок сдачи: ${draft.deadline}` : "",
-    draft.date ? `Дата: ${draft.date}` : "",
     draft.manager ? `Ответственный: ${draft.manager}` : "",
     draft.responsiblePhone ? `Телефон: ${draft.responsiblePhone}` : "",
   ].filter(Boolean);
@@ -1567,9 +1567,7 @@ function ProductionSpecDocument({
   exportRef: RefObject<HTMLElement>;
 }) {
   const meta = [
-    draft.projectName ? ["Проект", draft.projectName] : null,
     draft.deadline ? ["Срок сдачи", draft.deadline] : null,
-    draft.date ? ["Дата", draft.date] : null,
     draft.manager ? ["Ответственный", draft.manager] : null,
     draft.responsiblePhone ? ["Телефон", draft.responsiblePhone] : null,
   ].filter((item): item is [string, string] => Boolean(item));
@@ -1578,8 +1576,8 @@ function ProductionSpecDocument({
     <section className="tech-spec-document" ref={exportRef}>
       <div className="tech-spec-doc-title">
         <div>
-          <span>Техническое задание для производства</span>
-          <h2>{draft.dealNumber ? `ТЗ ${draft.dealNumber}` : "ТЗ без номера"}</h2>
+          <span>ТЗ для производства</span>
+          <h2>{techSpecTitle(draft) || "ТЗ без номера"}</h2>
         </div>
         <div className="tech-spec-doc-meta">
           {meta.map(([label, value]) => (
@@ -1657,6 +1655,7 @@ type TechSpecBuilderProps = {
   topTabs?: ReactNode;
   deal?: Deal;
   storedSpec?: DealTechSpec;
+  costNote?: string;
   embedded?: boolean;
   onDraftChange?: (spec: DealTechSpec) => void;
   onUploadToBitrix?: (draft: TechSpecDraft, fileName: string, fileBase64: string) => Promise<void>;
@@ -1666,6 +1665,7 @@ export function TechSpecBuilder({
   topTabs,
   deal,
   storedSpec,
+  costNote,
   embedded = false,
   onDraftChange,
   onUploadToBitrix,
@@ -1732,7 +1732,20 @@ export function TechSpecBuilder({
   }
 
   function addItem(templateId = selectedTemplateId) {
-    setDraft((current) => ({ ...current, items: [...current.items, createItem(templateId)] }));
+    setDraft((current) => ({ ...current, items: [createItem(templateId), ...current.items] }));
+  }
+
+  function addCostNote() {
+    if (!costNote) return;
+    setDraft((current) => {
+      const existingNote = current.globalNote.trim();
+      if (existingNote.includes(costNote)) return current;
+
+      return {
+        ...current,
+        globalNote: [existingNote, costNote].filter(Boolean).join("\n"),
+      };
+    });
   }
 
   function removeItem(itemId: string) {
@@ -1968,6 +1981,12 @@ export function TechSpecBuilder({
             {copyState === "copied" ? <CheckCircle2 size={16} /> : <Copy size={16} />}
             {copyState === "copied" ? "Скопировано" : "Копировать"}
           </button>
+          {costNote ? (
+            <button className="secondary compact" onClick={addCostNote} type="button">
+              <Plus size={16} />
+              Сумму себеса в ТЗ
+            </button>
+          ) : null}
           <button className="primary compact" onClick={downloadSpec} type="button">
             <Download size={16} />
             TXT
@@ -1999,7 +2018,7 @@ export function TechSpecBuilder({
 
       <section className="tech-spec-hero">
         <div>
-          <h1>Техническое ТЗ</h1>
+          <h1>{techSpecTitle(draft) || "ТЗ без номера"}</h1>
           <p>Шаблоны, макеты, изображения и экспорт в одном листе для передачи на сборку.</p>
         </div>
         <div className={missingCount ? "tech-spec-status warn" : "tech-spec-status is-ok"}>
@@ -2015,14 +2034,6 @@ export function TechSpecBuilder({
             onChange={(event) => updateDraftField("dealNumber", event.target.value)}
             placeholder="8634"
             value={draft.dealNumber}
-          />
-        </label>
-        <label>
-          <span>Проект / клиент</span>
-          <input
-            onChange={(event) => updateDraftField("projectName", event.target.value)}
-            placeholder="Smoking Shop, Клиника, РЖД"
-            value={draft.projectName}
           />
         </label>
         <label>
@@ -2048,10 +2059,6 @@ export function TechSpecBuilder({
             type="date"
             value={draft.deadline}
           />
-        </label>
-        <label>
-          <span>Дата</span>
-          <input onChange={(event) => updateDraftField("date", event.target.value)} type="date" value={draft.date} />
         </label>
         <label className="wide">
           <span>Общее примечание</span>
@@ -2168,48 +2175,6 @@ export function TechSpecBuilder({
                   </div>
                 </div>
 
-                <div className="tech-spec-item-grid">
-                  {fields.map((field) => {
-                    const value = renderFieldValue(item, field);
-                    const isMissing = field.required && missing.has(field.label);
-
-                    return (
-                      <label className={`${field.wide ? "wide" : ""} ${isMissing ? "missing" : ""}`} key={field.id}>
-                        <span>
-                          {field.label}
-                          {field.required ? <b>*</b> : null}
-                        </span>
-                        {field.kind === "textarea" ? (
-                          <textarea
-                            onChange={(event) => updateItemField(item.id, field.id, event.target.value)}
-                            placeholder={field.placeholder}
-                            value={value}
-                          />
-                        ) : field.kind === "select" ? (
-                          <select
-                            onChange={(event) => updateItemField(item.id, field.id, event.target.value)}
-                            value={value}
-                          >
-                            <option value="">Уточнить</option>
-                            {(field.options || []).map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <input
-                            onChange={(event) => updateItemField(item.id, field.id, event.target.value)}
-                            placeholder={field.placeholder}
-                            type={field.kind === "number" ? "number" : "text"}
-                            value={value}
-                          />
-                        )}
-                      </label>
-                    );
-                  })}
-                </div>
-
                 <div className="tech-spec-layout-box" onPaste={(event) => handleAttachmentPaste(event, item.id)}>
                   <div className="tech-spec-layout-head">
                     <div>
@@ -2272,6 +2237,48 @@ export function TechSpecBuilder({
                       <span>Нажмите “Загрузить” или вставьте макет сюда через Ctrl+V</span>
                     </div>
                   )}
+                </div>
+
+                <div className="tech-spec-item-grid">
+                  {fields.map((field) => {
+                    const value = renderFieldValue(item, field);
+                    const isMissing = field.required && missing.has(field.label);
+
+                    return (
+                      <label className={`${field.wide ? "wide" : ""} ${isMissing ? "missing" : ""}`} key={field.id}>
+                        <span>
+                          {field.label}
+                          {field.required ? <b>*</b> : null}
+                        </span>
+                        {field.kind === "textarea" ? (
+                          <textarea
+                            onChange={(event) => updateItemField(item.id, field.id, event.target.value)}
+                            placeholder={field.placeholder}
+                            value={value}
+                          />
+                        ) : field.kind === "select" ? (
+                          <select
+                            onChange={(event) => updateItemField(item.id, field.id, event.target.value)}
+                            value={value}
+                          >
+                            <option value="">Уточнить</option>
+                            {(field.options || []).map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            onChange={(event) => updateItemField(item.id, field.id, event.target.value)}
+                            placeholder={field.placeholder}
+                            type={field.kind === "number" ? "number" : "text"}
+                            value={value}
+                          />
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
 
                 <div className="tech-spec-checklist">

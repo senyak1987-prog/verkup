@@ -19,6 +19,7 @@ import {
   writeCachedDeals,
   writeCachedTechSpecs,
 } from "./lib/data";
+import { finalCost, formatMoney } from "./lib/costing";
 import { defaultSaveApiUrl, saveTechSpecs, uploadTechSpecToBitrix } from "./lib/saveApi";
 import { stageCodeForDeal, stageLabels } from "./lib/stages";
 import type {
@@ -48,7 +49,7 @@ type PendingStageMove = {
 
 type AppTab = DealStageCode | "signConfigurator" | "techSpec";
 
-type DealWorkspaceTab = "cost" | "techSpec" | "workCost";
+type DealWorkspaceTab = "cost" | "techSpec";
 
 type PendingCatalogInsert = {
   dealId: string;
@@ -61,6 +62,7 @@ type DealWorkspaceProps = {
   catalogItems: CatalogItem[];
   calculation?: DealCalculation;
   deal: Deal;
+  costNote: string;
   storedCalculations: StoredCalculations;
   storedSpec?: DealTechSpec;
   onCatalogChange: (items: CatalogItem[]) => void;
@@ -479,6 +481,7 @@ export default function App() {
                 activeStage={activeStage}
                 catalogItems={catalogItems}
                 calculation={selectedCalculation}
+                costNote={costNoteForCalculation(selectedCalculation)}
                 deal={selectedDeal}
                 storedCalculations={storedCalculations}
                 storedSpec={selectedTechSpec}
@@ -516,6 +519,7 @@ function DealWorkspace({
   activeStage,
   catalogItems,
   calculation,
+  costNote,
   deal,
   storedCalculations,
   storedSpec,
@@ -557,15 +561,6 @@ function DealWorkspace({
         >
           Подготовить ТЗ
         </button>
-        <button
-          aria-selected={activeTab === "workCost"}
-          className={activeTab === "workCost" ? "active" : ""}
-          onClick={() => setActiveTab("workCost")}
-          role="tab"
-          type="button"
-        >
-          Стоимость работы
-        </button>
       </div>
 
       <div className="deal-workspace-body">
@@ -573,6 +568,7 @@ function DealWorkspace({
           <TechSpecBuilder
             deal={deal}
             embedded
+            costNote={costNote}
             storedSpec={storedSpec}
             onDraftChange={onTechSpecChange}
             onUploadToBitrix={(draft, fileName, fileBase64) =>
@@ -592,12 +588,16 @@ function DealWorkspace({
             onCatalogChange={onCatalogChange}
             onClose={onClose}
             onStageMoved={onStageMoved}
-            initialExpandedBlockId={activeTab === "workCost" ? "assembly" : undefined}
           />
         )}
       </div>
     </section>
   );
+}
+
+function costNoteForCalculation(calculation?: DealCalculation) {
+  if (!calculation?.positions.length) return "";
+  return `Итоговый себес по расчету: ${formatMoney(finalCost(calculation))}`;
 }
 
 function costPositionFromCatalogItem(item: CatalogItem, targetSection?: CostSection): CostPosition {

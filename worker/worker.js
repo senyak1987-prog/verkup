@@ -381,9 +381,16 @@ async function fetchBitrixUsers(env, ids) {
       try {
         const response = await callBitrixRest(env, "user.get", { ID: id });
         const user = response.result?.[0];
-        if (user) users.set(String(id), [user.NAME, user.LAST_NAME].filter(Boolean).join(" "));
+        if (user) {
+          const name = [user.NAME, user.LAST_NAME].filter(Boolean).join(" ");
+          const phone =
+            [user.PERSONAL_MOBILE, user.WORK_PHONE, user.PERSONAL_PHONE, user.UF_PHONE_INNER]
+              .map((value) => String(value || "").trim())
+              .find(Boolean) || "";
+          users.set(String(id), { name, phone });
+        }
       } catch {
-        users.set(String(id), String(id));
+        users.set(String(id), { name: String(id), phone: "" });
       }
     }),
   );
@@ -462,6 +469,7 @@ function normalizeBitrixDeal(env, deal, users, dictionaries, stageCodesById) {
   const productionSaleAmount =
     installSaleAmount > 0 ? Math.max(0, totalSaleAmount - installSaleAmount) : totalSaleAmount;
   const bitrixDomain = env.BITRIX_DOMAIN || new URL(env.BITRIX_WEBHOOK_URL).host;
+  const responsibleUser = users.get(String(deal.ASSIGNED_BY_ID));
 
   return {
     id,
@@ -474,7 +482,8 @@ function normalizeBitrixDeal(env, deal, users, dictionaries, stageCodesById) {
     classification: displayValueByField(deal, fields.classification, dictionaries.customFieldMaps),
     saleAmount: productionSaleAmount,
     installSaleAmount,
-    responsible: users.get(String(deal.ASSIGNED_BY_ID)) || "",
+    responsible: responsibleUser?.name || "",
+    responsiblePhone: responsibleUser?.phone || "",
     startDate: valueByField(deal, fields.startDate) || deal.BEGINDATE || "",
     expectedFinishDate: valueByField(deal, fields.expectedFinishDate) || deal.CLOSEDATE || "",
     createdDate: deal.DATE_CREATE || "",
