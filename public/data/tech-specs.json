@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T12:58:08.517Z",
+  "generatedAt": "2026-06-15T12:58:12.963Z",
   "specs": [
     {
       "dealId": "16986",
@@ -118,7 +118,7 @@
               "backMaterial": "ПВХ Strong 6 мм",
               "depth": "100 мм",
               "returnSide": "НЕТ",
-              "mountType": "НА РАМЕ",
+              "mountType": "ОТДЕЛЬНОСТОЯЩИЕ",
               "wireExit": "ПОСЕРЕДИНЕ",
               "psu": "УЛИЧНЫЙ",
               "cableLength": "3 метра",
@@ -131,7 +131,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-15T12:58:08.517Z"
+      "updatedAt": "2026-06-15T12:58:12.963Z"
     }
   ]
 }
