@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T13:01:52.706Z",
+  "generatedAt": "2026-06-15T13:02:01.339Z",
   "specs": [
     {
       "dealId": "16986",
@@ -182,12 +182,13 @@
               "size": "1500х2120",
               "faceFilm": "641-091м",
               "sideFilm": "641-091м",
-              "backingDepth": "30мм"
+              "backingDepth": "30мм",
+              "frameColor": "641-"
             }
           }
         ]
       },
-      "updatedAt": "2026-06-15T13:01:52.706Z"
+      "updatedAt": "2026-06-15T13:02:01.339Z"
     }
   ]
 }
