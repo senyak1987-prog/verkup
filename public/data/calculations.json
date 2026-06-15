@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T11:47:03.880Z",
+  "generatedAt": "2026-06-15T11:47:05.862Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -178,12 +178,12 @@
     },
     {
       "dealId": "16986",
-      "updatedAt": "2026-06-15T11:47:03.027Z",
+      "updatedAt": "2026-06-15T11:47:05.006Z",
       "positions": [
         {
           "id": "2b5016ec-5c53-4168-8c14-9b58ae86c8c7",
           "catalogId": "assembly-буква-6-7-см-склейка-42",
-          "qty": 1,
+          "qty": 5,
           "unit": "шт",
           "unitCost": 675,
           "section": "assembly",
