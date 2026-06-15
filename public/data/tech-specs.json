@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T12:57:52.006Z",
+  "generatedAt": "2026-06-15T12:57:57.465Z",
   "specs": [
     {
       "dealId": "16986",
@@ -124,12 +124,13 @@
               "cableLength": "3 метра",
               "size": "",
               "layout": "",
-              "installPlace": ""
+              "installPlace": "",
+              "faceFilm": "641"
             }
           }
         ]
       },
-      "updatedAt": "2026-06-15T12:57:52.006Z"
+      "updatedAt": "2026-06-15T12:57:57.465Z"
     }
   ]
 }
