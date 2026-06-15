@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T13:01:40.999Z",
+  "generatedAt": "2026-06-15T13:01:45.964Z",
   "specs": [
     {
       "dealId": "16986",
@@ -173,7 +173,7 @@
               "faceMaterial": "Молочный акрил 3 мм",
               "sideMaterial": "Алюминий",
               "backMaterial": "ПВХ Strong 6 мм",
-              "depth": "60 мм",
+              "depth": "100 мм",
               "returnSide": "НЕТ",
               "mountType": "НА РАМЕ",
               "wireExit": "ПОСЕРЕДИНЕ",
@@ -186,7 +186,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-15T13:01:40.999Z"
+      "updatedAt": "2026-06-15T13:01:45.964Z"
     }
   ]
 }
