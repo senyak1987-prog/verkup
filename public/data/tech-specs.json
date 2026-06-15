@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T12:58:28.380Z",
+  "generatedAt": "2026-06-15T12:59:07.636Z",
   "specs": [
     {
       "dealId": "16986",
@@ -134,6 +134,42 @@
         ]
       },
       "updatedAt": "2026-06-15T12:58:28.380Z"
+    },
+    {
+      "dealId": "17012",
+      "draft": {
+        "dealNumber": "17012",
+        "projectName": "150 ",
+        "manager": "Александра Рябова",
+        "responsiblePhone": "",
+        "deadline": "2026-06-18",
+        "date": "2026-06-15",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "59878144-3a26-40b5-99f9-ef29833b8e2d",
+            "templateId": "letters",
+            "attachments": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-15T12:59:07.636Z"
     }
   ]
 }
