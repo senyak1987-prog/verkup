@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T11:47:05.862Z",
+  "generatedAt": "2026-06-15T13:03:22.164Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -197,6 +197,25 @@
             "assembly-закатка-борта-50"
           ],
           "baseUnitCost": 350
+        }
+      ]
+    },
+    {
+      "dealId": "17012",
+      "updatedAt": "2026-06-15T13:03:21.305Z",
+      "positions": [
+        {
+          "id": "4b3270fe-465e-465e-8d23-9afd6a6c05d3",
+          "catalogId": "assembly-буква-110-119см-склейка-143",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 600,
+          "section": "assembly",
+          "title": "Буква 110-119см: Склейка",
+          "calcMode": "letterAssembly",
+          "note": "Прайс сборка.xlsx / Буквы",
+          "addons": [],
+          "baseUnitCost": 600
         }
       ]
     }
