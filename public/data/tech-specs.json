@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T11:53:17.649Z",
+  "generatedAt": "2026-06-15T11:54:06.409Z",
   "specs": [
     {
       "dealId": "16874",
@@ -76,7 +76,7 @@
       "draft": {
         "dealNumber": "16888",
         "projectName": "Тест 2",
-        "manager": "1",
+        "manager": "",
         "responsiblePhone": "",
         "deadline": "2026-06-12",
         "date": "2026-06-15",
@@ -108,7 +108,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-15T11:53:17.649Z"
+      "updatedAt": "2026-06-15T11:54:06.409Z"
     }
   ]
 }
