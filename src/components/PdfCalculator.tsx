@@ -1,9 +1,11 @@
-import { FileText, Maximize2, Upload, ZoomIn, ZoomOut } from "lucide-react";
+import { FileText, ImageIcon, Maximize2, Upload, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 
 const POINT_TO_MM = 25.4 / 72;
 const POINT_TO_CSS_PIXEL = 96 / 72;
+const PX_TO_MM = 25.4 / 96;
+const MM_PER_INCH = 25.4;
 const MIN_ZOOM = 0.03;
 const MAX_ZOOM = 6;
 const ZOOM_STEP = 0.1;
@@ -35,7 +37,8 @@ const BACKING_COLORS = [
   { name: "Прозрачная", value: "transparent" },
 ] as const;
 
-type PdfBoxName = (typeof PDF_BOXES)[number];
+type PdfBoxName = (typeof PDF_BOXES)[number] | "SVG" | "Image";
+type LayoutKind = "pdf" | "svg" | "image";
 
 type PdfDimensions = {
   boxName: PdfBoxName;
@@ -50,14 +53,25 @@ type PdfDimensions = {
 };
 
 type UploadedPdf = {
+  kind: "pdf";
   fileName: string;
   fileSize: number;
   data: Uint8Array;
   dimensions: PdfDimensions;
 };
 
+type UploadedVisualLayout = {
+  kind: "svg" | "image";
+  fileName: string;
+  fileSize: number;
+  dataUrl: string;
+  dimensions: PdfDimensions;
+};
+
+type UploadedLayout = UploadedPdf | UploadedVisualLayout;
+
 type ParsedPdfBox = {
-  name: PdfBoxName;
+  name: (typeof PDF_BOXES)[number];
   values: [number, number, number, number];
 };
 
@@ -75,6 +89,11 @@ type PixelBounds = {
   top: number;
   right: number;
   bottom: number;
+};
+
+type ParsedVectorLength = {
+  value: number;
+  unit: "mm" | "px" | "svg";
 };
 
 type ZoomMode = "fit" | "manual";
@@ -116,7 +135,7 @@ type PdfRenderTask = {
 let pdfJsPromise: Promise<PdfJsModule> | undefined;
 
 export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
-  const [pdf, setPdf] = useState<UploadedPdf | null>(null);
+  const [layout, setLayout] = useState<UploadedLayout | null>(null);
   const [contentBounds, setContentBounds] = useState<ContentBounds | null>(null);
   const [error, setError] = useState("");
   const [rendering, setRendering] = useState(false);
@@ -132,6 +151,7 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
   const [workspaceSize, setWorkspaceSize] = useState({ width: 0, height: 0 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
+  const layoutKindLabel = layout ? getLayoutKindLabel(layout.kind) : "";
 
   useEffect(() => {
     const workspace = workspaceRef.current;
@@ -158,7 +178,7 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
 
   const measuredDimensions = contentBounds
     ? { widthMm: contentBounds.widthMm, heightMm: contentBounds.heightMm }
-    : pdf?.dimensions;
+    : layout?.dimensions;
   const signAreaM2 = (signWidthMm * signHeightMm) / 1_000_000;
   const previewFontSize = Math.max(34, Math.min(132, 920 / Math.max(6, signText.length)));
   const previewStyle = {
@@ -176,36 +196,36 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
   }, [contentBounds]);
 
   const fitZoom = useMemo(() => {
-    if (!pdf || !workspaceSize.width || !workspaceSize.height) return 1;
+    if (!layout || !workspaceSize.width || !workspaceSize.height) return 1;
 
     const availableWidth = Math.max(1, workspaceSize.width - FIT_PADDING * 2);
     const availableHeight = Math.max(1, workspaceSize.height - FIT_PADDING * 2);
     const nextZoom = Math.min(
-      availableWidth / pdf.dimensions.widthCssPixels,
-      availableHeight / pdf.dimensions.heightCssPixels,
+      availableWidth / layout.dimensions.widthCssPixels,
+      availableHeight / layout.dimensions.heightCssPixels,
     );
 
     return clamp(roundZoom(nextZoom), MIN_ZOOM, MAX_ZOOM);
-  }, [pdf, workspaceSize.height, workspaceSize.width]);
+  }, [layout, workspaceSize.height, workspaceSize.width]);
 
   useEffect(() => {
-    if (!pdf || zoomMode !== "fit") return;
+    if (!layout || zoomMode !== "fit") return;
     setZoom((current) => (Math.abs(current - fitZoom) > 0.001 ? fitZoom : current));
-  }, [fitZoom, pdf, zoomMode]);
+  }, [fitZoom, layout, zoomMode]);
 
   const pageStyle = useMemo(() => {
-    if (!pdf) return undefined;
+    if (!layout) return undefined;
 
     return {
-      "--pdf-width": `${pdf.dimensions.widthCssPixels * zoom}px`,
-      "--pdf-height": `${pdf.dimensions.heightCssPixels * zoom}px`,
+      "--pdf-width": `${layout.dimensions.widthCssPixels * zoom}px`,
+      "--pdf-height": `${layout.dimensions.heightCssPixels * zoom}px`,
     } as CSSProperties;
-  }, [pdf, zoom]);
+  }, [layout, zoom]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!pdf || !canvas) return;
-    const activePdf = pdf;
+    if (!layout || layout.kind !== "pdf" || !canvas) return;
+    const activePdf = layout;
     const activeCanvas = canvas;
 
     let canceled = false;
@@ -231,8 +251,7 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
         const viewport = page.getViewport({ scale: POINT_TO_CSS_PIXEL * zoom * pixelRatio });
         activeCanvas.width = Math.max(1, Math.ceil(viewport.width));
         activeCanvas.height = Math.max(1, Math.ceil(viewport.height));
-        context.fillStyle = "#fff";
-        context.fillRect(0, 0, activeCanvas.width, activeCanvas.height);
+        context.clearRect(0, 0, activeCanvas.width, activeCanvas.height);
 
         renderTask = page.render({ canvasContext: context, viewport });
         await renderTask.promise;
@@ -255,33 +274,25 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
       renderTask?.cancel?.();
       loadingTask?.destroy?.().catch(() => undefined);
     };
-  }, [pdf, zoom]);
+  }, [layout, zoom]);
 
-  async function handlePdfUpload(event: ChangeEvent<HTMLInputElement>) {
+  async function handleLayoutUpload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setContentBounds(null);
     setError("");
-
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setError("Выберите PDF-файл.");
-      event.target.value = "";
-      return;
-    }
+    setRendering(false);
 
     try {
-      const buffer = await file.arrayBuffer();
-      const dimensions = extractPdfDimensions(buffer);
-      setPdf({
-        fileName: file.name,
-        fileSize: file.size,
-        data: new Uint8Array(buffer),
-        dimensions,
-      });
+      const uploadedLayout = await fileToLayout(file);
+      setLayout(uploadedLayout);
+      if (uploadedLayout.kind !== "pdf") {
+        setContentBounds(fullContentBounds(uploadedLayout.dimensions));
+      }
       setZoomMode("fit");
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Не удалось прочитать размер PDF.");
+      setError(caughtError instanceof Error ? caughtError.message : "Не удалось прочитать размер макета.");
     } finally {
       event.target.value = "";
     }
@@ -302,17 +313,17 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
       <div className="toolbar calculator-toolbar">
         <div>
           {topTabs}
-          <p>{pdf ? `${pdf.fileName} · ${formatFileSize(pdf.fileSize)}` : "PDF не выбран"}</p>
+          <p>{layout ? `${layout.fileName} · ${layoutKindLabel} · ${formatFileSize(layout.fileSize)}` : "Макет не выбран"}</p>
         </div>
         <div className="toolbar-actions calculator-actions">
-          <label className="secondary calculator-upload" title="Загрузить PDF">
+          <label className="secondary calculator-upload" title="Загрузить PDF, SVG или изображение">
             <Upload size={18} />
-            PDF
-            <input accept="application/pdf,.pdf" onChange={handlePdfUpload} type="file" />
+            Макет
+            <input accept="application/pdf,.pdf,image/svg+xml,.svg,image/*" onChange={handleLayoutUpload} type="file" />
           </label>
           <button
             className="icon-button"
-            disabled={!pdf || zoom <= MIN_ZOOM}
+            disabled={!layout || zoom <= MIN_ZOOM}
             onClick={() => adjustZoom(-ZOOM_STEP)}
             title="Уменьшить"
             type="button"
@@ -322,7 +333,7 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
           <strong className="zoom-pill">{Math.round(zoom * 100)}%</strong>
           <button
             className="icon-button"
-            disabled={!pdf || zoom >= MAX_ZOOM}
+            disabled={!layout || zoom >= MAX_ZOOM}
             onClick={() => adjustZoom(ZOOM_STEP)}
             title="Увеличить"
             type="button"
@@ -331,7 +342,7 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
           </button>
           <button
             className={zoomMode === "fit" ? "icon-button active" : "icon-button"}
-            disabled={!pdf}
+            disabled={!layout}
             onClick={fitToView}
             title="Уместить в окно"
             type="button"
@@ -341,20 +352,20 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
         </div>
       </div>
 
-      {pdf && (
+      {layout && (
         <section className="kpis calculator-kpis">
           <Metric
             label="Размер"
-            value={`${formatMeasureMm(measuredDimensions?.widthMm || pdf.dimensions.widthMm)} × ${formatMeasureMm(
-              measuredDimensions?.heightMm || pdf.dimensions.heightMm,
+            value={`${formatMeasureMm(measuredDimensions?.widthMm || layout.dimensions.widthMm)} × ${formatMeasureMm(
+              measuredDimensions?.heightMm || layout.dimensions.heightMm,
             )} мм`}
           />
           <Metric
-            label="Лист PDF"
-            value={`${formatMeasureMm(pdf.dimensions.widthMm)} × ${formatMeasureMm(pdf.dimensions.heightMm)} мм`}
+            label={layout.kind === "pdf" ? "Лист PDF" : "Холст макета"}
+            value={`${formatMeasureMm(layout.dimensions.widthMm)} × ${formatMeasureMm(layout.dimensions.heightMm)} мм`}
           />
-          <Metric label="Область" value={pdf.dimensions.boxName} />
-          <Metric label="Поворот" value={`${pdf.dimensions.rotation}°`} />
+          <Metric label="Тип" value={layoutKindLabel} />
+          <Metric label="Область" value={layout.dimensions.boxName} />
         </section>
       )}
 
@@ -478,10 +489,14 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
       </section>
 
       <section className="pdf-workspace" ref={workspaceRef}>
-        {pdf && pageStyle ? (
+        {layout && pageStyle ? (
           <div className="pdf-preview-scroll">
             <div className="pdf-page-frame" style={pageStyle}>
-              <canvas aria-label={pdf.fileName} className="pdf-render-canvas" ref={canvasRef} />
+              {layout.kind === "pdf" ? (
+                <canvas aria-label={layout.fileName} className="pdf-render-canvas" ref={canvasRef} />
+              ) : (
+                <img alt={layout.fileName} className="pdf-render-image" src={layout.dataUrl} />
+              )}
               {contentBounds && (
                 <DimensionOverlay
                   bounds={contentBounds}
@@ -494,8 +509,8 @@ export function SignConfigurator({ topTabs }: { topTabs: ReactNode }) {
           </div>
         ) : (
           <div className="pdf-empty">
-            <FileText size={38} />
-            <strong>PDF не выбран</strong>
+            <ImageIcon size={38} />
+            <strong>Макет не выбран</strong>
           </div>
         )}
       </section>
@@ -592,6 +607,208 @@ function Metric({ label, value }: { label: string; value: string }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+async function fileToLayout(file: File): Promise<UploadedLayout> {
+  const fileName = file.name || "Макет";
+  const lowerName = fileName.toLowerCase();
+  const fileType = file.type || "";
+
+  if (fileType === "application/pdf" || lowerName.endsWith(".pdf")) {
+    const buffer = await file.arrayBuffer();
+    return {
+      kind: "pdf",
+      fileName,
+      fileSize: file.size,
+      data: new Uint8Array(buffer),
+      dimensions: extractPdfDimensions(buffer),
+    };
+  }
+
+  if (fileType === "image/svg+xml" || lowerName.endsWith(".svg")) {
+    const text = await file.text();
+    const dimensions = extractSvgDimensions(text);
+    return {
+      kind: "svg",
+      fileName,
+      fileSize: file.size,
+      dataUrl: svgTextToDataUrl(text),
+      dimensions,
+    };
+  }
+
+  if (fileType.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(lowerName)) {
+    const dataUrl = await readFileAsDataUrl(file);
+    const dimensions = await extractImageDimensions(dataUrl);
+    return {
+      kind: "image",
+      fileName,
+      fileSize: file.size,
+      dataUrl,
+      dimensions,
+    };
+  }
+
+  throw new Error("Поддерживаются PDF, SVG, PNG, JPG, WEBP и GIF.");
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Не удалось прочитать файл."));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function extractImageDimensions(dataUrl: string): Promise<PdfDimensions> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const nextImage = new Image();
+    nextImage.onload = () => resolve(nextImage);
+    nextImage.onerror = () => reject(new Error("Не удалось прочитать размер изображения."));
+    nextImage.src = dataUrl;
+  });
+
+  const widthPixels = image.naturalWidth || image.width;
+  const heightPixels = image.naturalHeight || image.height;
+
+  if (!widthPixels || !heightPixels) {
+    throw new Error("В изображении не найден размер.");
+  }
+
+  return dimensionsFromPixels(widthPixels, heightPixels, "Image");
+}
+
+function normalizeSvgText(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return text;
+  if (/<svg\b[^>]*\sxmlns\s*=/i.test(trimmed)) return trimmed;
+  return trimmed.replace(/<svg\b/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+}
+
+function svgTextToDataUrl(text: string) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(normalizeSvgText(text))}`;
+}
+
+function extractSvgDimensions(text: string): PdfDimensions {
+  const openTag = normalizeSvgText(text).match(/<svg\b[^>]*>/i)?.[0] || "";
+  if (!openTag) throw new Error("Файл не похож на SVG.");
+
+  const width = parseVectorLength(getXmlAttribute(openTag, "width"));
+  const height = parseVectorLength(getXmlAttribute(openTag, "height"));
+
+  if (width && height) {
+    return dimensionsFromMm(vectorLengthToMm(width), vectorLengthToMm(height), "SVG");
+  }
+
+  const viewBoxDimensions = parseSvgViewBoxDimensions(openTag);
+  if (viewBoxDimensions) {
+    return dimensionsFromMm(viewBoxDimensions.widthMm, viewBoxDimensions.heightMm, "SVG");
+  }
+
+  throw new Error("В SVG не найден размер: укажите width/height или viewBox.");
+}
+
+function getXmlAttribute(openTag: string, attribute: string) {
+  const doubleQuoted = openTag.match(new RegExp(`${attribute}\\s*=\\s*"([^"]+)"`, "i"));
+  if (doubleQuoted?.[1]) return doubleQuoted[1];
+  const singleQuoted = openTag.match(new RegExp(`${attribute}\\s*=\\s*'([^']+)'`, "i"));
+  return singleQuoted?.[1] || "";
+}
+
+function parseVectorLength(value: string): ParsedVectorLength | null {
+  const normalized = value.trim().replace(",", ".").replace(/\s+/g, "");
+  if (!normalized || normalized.includes("%")) return null;
+  const match = normalized.match(/^(-?\d+(?:\.\d+)?)(mm|cm|m|in|pt|pc|px)?$/i);
+  if (!match) return null;
+
+  const numberValue = Number(match[1]);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return null;
+  const unit = (match[2] || "").toLowerCase();
+
+  switch (unit) {
+    case "mm":
+      return { value: numberValue, unit: "mm" };
+    case "cm":
+      return { value: numberValue * 10, unit: "mm" };
+    case "m":
+      return { value: numberValue * 1000, unit: "mm" };
+    case "in":
+      return { value: numberValue * MM_PER_INCH, unit: "mm" };
+    case "pt":
+      return { value: (numberValue * MM_PER_INCH) / 72, unit: "mm" };
+    case "pc":
+      return { value: (numberValue * MM_PER_INCH) / 6, unit: "mm" };
+    case "px":
+      return { value: numberValue, unit: "px" };
+    default:
+      return { value: numberValue, unit: "svg" };
+  }
+}
+
+function vectorLengthToMm(length: ParsedVectorLength) {
+  if (length.unit === "px") return length.value * PX_TO_MM;
+  return length.value;
+}
+
+function parseSvgViewBoxDimensions(openTag: string) {
+  const viewBox = getXmlAttribute(openTag, "viewBox");
+  const parts = viewBox
+    .trim()
+    .replace(/,/g, " ")
+    .split(/\s+/)
+    .map(Number);
+
+  if (parts.length < 4 || parts.some((part) => !Number.isFinite(part))) return null;
+  const [, , width, height] = parts;
+  if (width <= 0 || height <= 0) return null;
+  return { widthMm: width, heightMm: height };
+}
+
+function dimensionsFromPixels(widthPixels: number, heightPixels: number, boxName: PdfBoxName): PdfDimensions {
+  return dimensionsFromMm(widthPixels * PX_TO_MM, heightPixels * PX_TO_MM, boxName, {
+    widthCssPixels: widthPixels,
+    heightCssPixels: heightPixels,
+  });
+}
+
+function dimensionsFromMm(
+  widthMm: number,
+  heightMm: number,
+  boxName: PdfBoxName,
+  cssSize?: { widthCssPixels: number; heightCssPixels: number },
+): PdfDimensions {
+  const widthPoints = widthMm / POINT_TO_MM;
+  const heightPoints = heightMm / POINT_TO_MM;
+
+  return {
+    boxName,
+    rotation: 0,
+    userUnit: 1,
+    widthPoints,
+    heightPoints,
+    widthMm,
+    heightMm,
+    widthCssPixels: cssSize?.widthCssPixels || widthPoints * POINT_TO_CSS_PIXEL,
+    heightCssPixels: cssSize?.heightCssPixels || heightPoints * POINT_TO_CSS_PIXEL,
+  };
+}
+
+function fullContentBounds(dimensions: PdfDimensions): ContentBounds {
+  return {
+    leftPercent: 0,
+    rightPercent: 100,
+    topPercent: 0,
+    bottomPercent: 100,
+    widthMm: dimensions.widthMm,
+    heightMm: dimensions.heightMm,
+  };
+}
+
+function getLayoutKindLabel(kind: LayoutKind) {
+  if (kind === "pdf") return "PDF";
+  if (kind === "svg") return "SVG";
+  return "Изображение";
 }
 
 async function loadPdfJs() {

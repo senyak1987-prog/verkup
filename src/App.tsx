@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
 import { DealTable } from "./components/DealTable";
-import { SignConfigurator } from "./components/PdfCalculator";
 import { TechSpecBuilder } from "./components/TechSpecBuilder";
 import {
   loadCalculations,
@@ -47,9 +46,9 @@ type PendingStageMove = {
   expiresAt: number;
 };
 
-type AppTab = DealStageCode | "signConfigurator" | "techSpec";
+type AppTab = DealStageCode;
 
-type DealWorkspaceTab = "cost" | "techSpec";
+type DealWorkspaceTab = "cost" | "techSpec" | "workCost";
 
 type PendingCatalogInsert = {
   dealId: string;
@@ -97,7 +96,6 @@ export default function App() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [pendingCatalogInsert, setPendingCatalogInsert] = useState<PendingCatalogInsert>();
   const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
-  const [activeScreen, setActiveScreen] = useState<"deals" | "signConfigurator" | "techSpec">("deals");
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
   const techSpecSaveTimerRef = useRef<number>();
 
@@ -339,7 +337,6 @@ export default function App() {
       return next;
     });
     setActiveStage(stage);
-    setActiveScreen("deals");
   }
 
   function openCatalog() {
@@ -397,20 +394,7 @@ export default function App() {
   }
 
   function handleTabChange(tab: AppTab) {
-    if (tab === "signConfigurator") {
-      setSelectedDealId(undefined);
-      setActiveScreen("signConfigurator");
-      return;
-    }
-
-    if (tab === "techSpec") {
-      setSelectedDealId(undefined);
-      setActiveScreen("techSpec");
-      return;
-    }
-
     setActiveStage(tab);
-    setActiveScreen("deals");
   }
 
   function applyPendingStageMoves(items: Deal[]) {
@@ -437,67 +421,45 @@ export default function App() {
   return (
     <div className="app">
       {loading && <div className="loading">Загружаю данные...</div>}
-      {activeScreen === "signConfigurator" ? (
-        <SignConfigurator
-          topTabs={
-            <AppTopTabs
-              activeTab="signConfigurator"
-              stageCounts={stageCounts}
-              onChange={handleTabChange}
+      <DealTable
+        deals={filteredDeals}
+        calculations={calculationsMap}
+        agentRatio={storedCalculations.agentCostRatio}
+        selectedDealId={selectedDealId}
+        topTabs={
+          <AppTopTabs
+            activeTab={activeStage}
+            stageCounts={stageCounts}
+            onChange={handleTabChange}
+          />
+        }
+        onSelect={handleDealToggle}
+        onOpenCatalog={openCatalog}
+        catalogCount={catalogItems.length}
+        query={query}
+        onQueryChange={setQuery}
+        expandedRow={
+          selectedDeal ? (
+            <DealWorkspace
+              activeStage={activeStage}
+              catalogItems={catalogItems}
+              calculation={selectedCalculation}
+              costNote={costNoteForCalculation(selectedCalculation)}
+              deal={selectedDeal}
+              storedCalculations={storedCalculations}
+              storedSpec={selectedTechSpec}
+              onCatalogChange={handleCatalogChange}
+              onChange={handleCalculationChange}
+              onClose={() => setSelectedDealId(undefined)}
+              onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
+              onOpenCatalog={openCatalog}
+              onStageMoved={handleDealStageChanged}
+              onTechSpecChange={handleTechSpecChange}
+              onTechSpecUpload={handleTechSpecUpload}
             />
-          }
-        />
-      ) : activeScreen === "techSpec" ? (
-        <TechSpecBuilder
-          topTabs={
-            <AppTopTabs
-              activeTab="techSpec"
-              stageCounts={stageCounts}
-              onChange={handleTabChange}
-            />
-          }
-        />
-      ) : (
-        <DealTable
-          deals={filteredDeals}
-          calculations={calculationsMap}
-          agentRatio={storedCalculations.agentCostRatio}
-          selectedDealId={selectedDealId}
-          topTabs={
-            <AppTopTabs
-              activeTab={activeStage}
-              stageCounts={stageCounts}
-              onChange={handleTabChange}
-            />
-          }
-          onSelect={handleDealToggle}
-          onOpenCatalog={openCatalog}
-          catalogCount={catalogItems.length}
-          query={query}
-          onQueryChange={setQuery}
-          expandedRow={
-            selectedDeal ? (
-              <DealWorkspace
-                activeStage={activeStage}
-                catalogItems={catalogItems}
-                calculation={selectedCalculation}
-                costNote={costNoteForCalculation(selectedCalculation)}
-                deal={selectedDeal}
-                storedCalculations={storedCalculations}
-                storedSpec={selectedTechSpec}
-                onCatalogChange={handleCatalogChange}
-                onChange={handleCalculationChange}
-                onClose={() => setSelectedDealId(undefined)}
-                onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
-                onOpenCatalog={openCatalog}
-                onStageMoved={handleDealStageChanged}
-                onTechSpecChange={handleTechSpecChange}
-                onTechSpecUpload={handleTechSpecUpload}
-              />
-            ) : undefined
-          }
-        />
-      )}
+          ) : undefined
+        }
+      />
       {catalogOpen && (
         <CatalogManager
           items={catalogItems}
@@ -561,6 +523,15 @@ function DealWorkspace({
         >
           Подготовить ТЗ
         </button>
+        <button
+          aria-selected={activeTab === "workCost"}
+          className={activeTab === "workCost" ? "active" : ""}
+          onClick={() => setActiveTab("workCost")}
+          role="tab"
+          type="button"
+        >
+          Стоимость работы
+        </button>
       </div>
 
       <div className="deal-workspace-body">
@@ -588,6 +559,7 @@ function DealWorkspace({
             onCatalogChange={onCatalogChange}
             onClose={onClose}
             onStageMoved={onStageMoved}
+            initialExpandedBlockId={activeTab === "workCost" ? "assembly" : undefined}
           />
         )}
       </div>
@@ -659,24 +631,6 @@ function AppTopTabs({
           <span>{stageCounts[stage]}</span>
         </button>
       ))}
-      <button
-        aria-selected={activeTab === "signConfigurator"}
-        className={activeTab === "signConfigurator" ? "active app-tab-offset" : "app-tab-offset"}
-        onClick={() => onChange("signConfigurator")}
-        role="tab"
-        type="button"
-      >
-        Конфигуратор вывесок
-      </button>
-      <button
-        aria-selected={activeTab === "techSpec"}
-        className={activeTab === "techSpec" ? "active" : ""}
-        onClick={() => onChange("techSpec")}
-        role="tab"
-        type="button"
-      >
-        Тех ТЗ
-      </button>
     </div>
   );
 }

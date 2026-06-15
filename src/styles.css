@@ -120,10 +120,6 @@ a {
   color: #fff;
 }
 
-.stage-tabs .app-tab-offset {
-  margin-left: 36px;
-}
-
 h1,
 h2,
 h3,
@@ -584,6 +580,55 @@ td small {
 
 .cost-popover .catalog-list {
   max-height: 360px;
+}
+
+.deal-workspace {
+  overflow: hidden;
+  border-top: 1px solid #dce6ef;
+  background: #fff;
+}
+
+.deal-workspace-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid #dce6ef;
+  background: #f7fbfa;
+  padding: 10px 14px;
+}
+
+.deal-workspace-tabs button,
+.standalone-back-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  border: 1px solid #cfd9e5;
+  border-radius: 7px;
+  background: #fff;
+  padding: 7px 12px;
+  color: #334155;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.deal-workspace-tabs button.active {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+}
+
+.deal-workspace-body {
+  min-height: 420px;
+}
+
+.deal-workspace-body .cost-popover {
+  border-top: 0;
+  box-shadow: none;
+}
+
+.standalone-tabs {
+  justify-content: flex-start;
 }
 
 .notice {
@@ -2465,18 +2510,34 @@ td small {
   height: var(--pdf-height);
   margin: auto;
   overflow: hidden;
-  background: #fff;
+  background-color: #eef2f7;
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.72) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.72) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.72) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.72) 75%);
+  background-position:
+    0 0,
+    0 12px,
+    12px -12px,
+    -12px 0;
+  background-size: 24px 24px;
   box-shadow: 0 12px 34px rgba(15, 23, 42, 0.1);
 }
 
-.pdf-render-canvas {
+.pdf-render-canvas,
+.pdf-render-image {
   position: absolute;
   inset: 0;
   z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
-  background: #fff;
+  background: transparent;
+}
+
+.pdf-render-image {
+  object-fit: contain;
 }
 
 .pdf-measure-layer {
@@ -3267,10 +3328,6 @@ td small {
   .stage-tabs button {
     justify-content: center;
     flex: 1;
-  }
-
-  .stage-tabs .app-tab-offset {
-    margin-left: 0;
   }
 
   .calculator-actions {
