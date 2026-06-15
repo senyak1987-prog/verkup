@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T13:24:40.057Z",
+  "generatedAt": "2026-06-15T13:24:43.634Z",
   "specs": [
     {
       "dealId": "16986",
@@ -194,7 +194,7 @@
         "responsiblePhone": "",
         "deadline": "2026-06-09",
         "date": "2026-06-15",
-        "globalNote": " ",
+        "globalNote": "",
         "items": [
           {
             "id": "24ada386-d1a4-491e-ab87-1f5369212456",
@@ -219,7 +219,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-15T13:24:40.057Z",
+      "updatedAt": "2026-06-15T13:24:43.634Z",
       "bitrixFile": {
         "field": "UF_CRM_1780210628536",
         "name": "TZ-16874-Тест.jpg",
