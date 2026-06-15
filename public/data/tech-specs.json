@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T13:02:03.101Z",
+  "generatedAt": "2026-06-15T13:02:37.592Z",
   "specs": [
     {
       "dealId": "16986",
@@ -142,7 +142,7 @@
         "projectName": "150 ",
         "manager": "Александра Рябова",
         "responsiblePhone": "",
-        "deadline": "2026-06-18",
+        "deadline": "2026-06-15",
         "date": "2026-06-15",
         "globalNote": "",
         "items": [
@@ -177,7 +177,7 @@
               "returnSide": "НЕТ",
               "mountType": "НА ОБЪЕМНОЙ ПОДЛОЖКЕ",
               "wireExit": "ПОСЕРЕДИНЕ",
-              "psu": "УЛИЧНЫЙ",
+              "psu": "ИНТЕРЬЕРНЫЙ",
               "cableLength": "3 метра",
               "size": "1500х2120",
               "faceFilm": "641-091м",
@@ -188,7 +188,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-15T13:02:03.101Z"
+      "updatedAt": "2026-06-15T13:02:37.592Z"
     }
   ]
 }
