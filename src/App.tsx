@@ -39,7 +39,7 @@ import "./styles.css";
 const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
 const DEAL_REFRESH_INTERVAL_MS = 2000;
 const TECH_SPEC_SAVE_DELAY_MS = 900;
-const DEAL_STAGE_TABS: DealStageCode[] = ["tz", "tzApproval", "launch", "production"];
+const DEAL_STAGE_TABS: DealStageCode[] = ["tz", "tzApproval", "launch", "production", "defect"];
 
 type PendingStageMove = {
   stage: DealStageCode;
@@ -579,6 +579,7 @@ function withStage(deal: Deal, stage: DealStageCode): Deal {
     tzApproval: "Согласование ТЗ",
     launch: "Запустить в производство",
     production: "В производстве",
+    defect: "КОСЯК в заказе",
   };
 
   return {
@@ -609,6 +610,7 @@ function createEmptyStageCounts(): Record<DealStageCode, number> {
     tzApproval: 0,
     launch: 0,
     production: 0,
+    defect: 0,
   };
 }
 

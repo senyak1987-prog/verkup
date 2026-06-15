@@ -300,6 +300,11 @@ async function fetchLiveDeals(env) {
     id: env.BITRIX_PRODUCTION_STAGE_ID || "10",
     name: env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве",
   });
+  addLiveStageTarget(env, dictionaries.stageMap, targetStageIds, stageCodesById, {
+    code: "defect",
+    id: env.BITRIX_DEFECT_STAGE_ID || "9",
+    name: env.BITRIX_DEFECT_STAGE_NAME || "КОСЯК в заказе",
+  });
 
   const deals = await fetchBitrixDeals(env, targetStageIds);
   const users = await fetchBitrixUsers(
@@ -527,9 +532,16 @@ function inferLiveStageCode(env, stageTitle) {
   const normalized = normalize(stageTitle);
   if (normalized.includes(normalize(env.BITRIX_TZ_STAGE_NAME || "Подготовка ТЗ"))) return "tz";
   if (normalized.includes(normalize(env.BITRIX_TZ_APPROVAL_STAGE_NAME || "Согласование ТЗ"))) return "tzApproval";
-  return normalized === normalize(env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве")
-    ? "production"
-    : "launch";
+  if (normalized.includes(normalize(env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве"))) {
+    return "production";
+  }
+  if (
+    normalized.includes(normalize(env.BITRIX_DEFECT_STAGE_NAME || "КОСЯК в заказе")) ||
+    normalized.includes(normalize("Косяк"))
+  ) {
+    return "defect";
+  }
+  return "launch";
 }
 
 function valueByField(row, fieldName) {
@@ -597,8 +609,11 @@ function targetStageIdFor(env, targetStage, explicitStageId) {
   }
   if (target === "launch") return String(env.BITRIX_LAUNCH_STAGE_ID || "4");
   if (target === "production") return String(env.BITRIX_PRODUCTION_STAGE_ID || "10");
+  if (target === "defect" || target === "defects" || target === "kosyak") {
+    return String(env.BITRIX_DEFECT_STAGE_ID || "9");
+  }
 
-  const error = new Error("targetStage must be tz, tzApproval, launch or production");
+  const error = new Error("targetStage must be tz, tzApproval, launch, production or defect");
   error.status = 400;
   throw error;
 }

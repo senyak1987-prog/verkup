@@ -70,6 +70,7 @@ type CostDrawerProps = {
   onChange: (calculation: DealCalculation) => void;
   onCatalogChange: (items: CatalogItem[]) => void;
   onStageMoved: (dealId: string, stage: "launch" | "production") => void;
+  initialExpandedBlockId?: string;
 };
 
 type BlockAction = {
@@ -590,8 +591,13 @@ export function CostDrawer({
   onChange,
   onCatalogChange,
   onStageMoved,
+  initialExpandedBlockId,
 }: CostDrawerProps) {
-  const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
+  const [expandedBlockId, setExpandedBlockId] = useState<string | null>(() =>
+    initialExpandedBlockId && costBlocks.some((block) => block.id === initialExpandedBlockId)
+      ? initialExpandedBlockId
+      : null,
+  );
   const [lastAddedPositionId, setLastAddedPositionId] = useState("");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState("");
@@ -618,6 +624,12 @@ export function CostDrawer({
     [activeCalculation.dealId, activeCalculation.positions, catalogItems],
   );
   const autoSaveBaselineRef = useRef({ dealId: "", signature: "" });
+
+  useEffect(() => {
+    if (!initialExpandedBlockId) return;
+    if (!costBlocks.some((block) => block.id === initialExpandedBlockId)) return;
+    setExpandedBlockId(initialExpandedBlockId);
+  }, [deal?.id, initialExpandedBlockId]);
 
   useEffect(() => {
     if (!deal?.id) return;

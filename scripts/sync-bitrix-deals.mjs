@@ -12,6 +12,8 @@ const tzApprovalStageId = env.BITRIX_TZ_APPROVAL_STAGE_ID || "13";
 const tzApprovalStageName = env.BITRIX_TZ_APPROVAL_STAGE_NAME || "Согласование ТЗ";
 const productionStageId = env.BITRIX_PRODUCTION_STAGE_ID || "10";
 const productionStageName = env.BITRIX_PRODUCTION_STAGE_NAME || "В производстве";
+const defectStageId = env.BITRIX_DEFECT_STAGE_ID || "9";
+const defectStageName = env.BITRIX_DEFECT_STAGE_NAME || "КОСЯК в заказе";
 const categoryId = env.BITRIX_CATEGORY_ID || "";
 
 const customFields = {
@@ -37,6 +39,12 @@ addTargetStages({
   code: "production",
   id: productionStageId,
   name: productionStageName,
+  required: false,
+});
+addTargetStages({
+  code: "defect",
+  id: defectStageId,
+  name: defectStageName,
   required: false,
 });
 
@@ -108,9 +116,16 @@ async function fetchUsers(ids) {
       try {
         const response = await callRest("user.get", { ID: id });
         const user = response.result?.[0];
-        if (user) users.set(String(id), [user.NAME, user.LAST_NAME].filter(Boolean).join(" "));
+        if (user) {
+          const name = [user.NAME, user.LAST_NAME].filter(Boolean).join(" ");
+          const phone =
+            [user.PERSONAL_MOBILE, user.WORK_PHONE, user.PERSONAL_PHONE, user.UF_PHONE_INNER]
+              .map((value) => String(value || "").trim())
+              .find(Boolean) || "";
+          users.set(String(id), { name, phone });
+        }
       } catch {
-        users.set(String(id), String(id));
+        users.set(String(id), { name: String(id), phone: "" });
       }
     }),
   );
@@ -178,6 +193,7 @@ function normalizeDeal(deal, users, stageMap) {
   const installSaleAmount = toNumber(valueByField(deal, customFields.installAmount));
   const productionSaleAmount =
     installSaleAmount > 0 ? Math.max(0, totalSaleAmount - installSaleAmount) : totalSaleAmount;
+  const responsibleUser = users.get(String(deal.ASSIGNED_BY_ID));
 
   return {
     id,
@@ -190,7 +206,8 @@ function normalizeDeal(deal, users, stageMap) {
     classification: displayValueByField(deal, customFields.classification),
     saleAmount: productionSaleAmount,
     installSaleAmount,
-    responsible: users.get(String(deal.ASSIGNED_BY_ID)) || "",
+    responsible: responsibleUser?.name || "",
+    responsiblePhone: responsibleUser?.phone || "",
     startDate: valueByField(deal, customFields.startDate) || deal.BEGINDATE || "",
     expectedFinishDate: valueByField(deal, customFields.expectedFinishDate) || deal.CLOSEDATE || "",
     createdDate: deal.DATE_CREATE || "",
@@ -223,7 +240,11 @@ function inferStageCode(stageTitle) {
   const normalized = normalize(stageTitle);
   if (normalized.includes(normalize(tzStageName))) return "tz";
   if (normalized.includes(normalize(tzApprovalStageName))) return "tzApproval";
-  return normalized === normalize(productionStageName) ? "production" : "launch";
+  if (normalized.includes(normalize(productionStageName))) return "production";
+  if (normalized.includes(normalize(defectStageName)) || normalized.includes(normalize("Косяк"))) {
+    return "defect";
+  }
+  return "launch";
 }
 
 async function callRest(method, params) {

@@ -497,6 +497,17 @@ function todayValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function dateValueFromDeal(value?: string) {
+  const rawValue = String(value || "").trim();
+  if (!rawValue) return "";
+
+  const isoDate = rawValue.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (isoDate) return isoDate;
+
+  const parsedDate = new Date(rawValue);
+  return Number.isNaN(parsedDate.getTime()) ? rawValue : parsedDate.toISOString().slice(0, 10);
+}
+
 function createItem(templateId: TemplateId): TechSpecItem {
   const template = templateById.get(templateId) ?? productTemplates[0];
   return {
@@ -516,6 +527,8 @@ function createInitialDraft(): TechSpecDraft {
     dealNumber: "",
     projectName: "",
     manager: "",
+    responsiblePhone: "",
+    deadline: "",
     date: todayValue(),
     globalNote: "",
     items: [createItem("letters")],
@@ -531,6 +544,8 @@ function createDraftForDeal(deal?: Deal): TechSpecDraft {
     dealNumber: deal.number || deal.id || "",
     projectName: deal.title || "",
     manager: deal.responsible || "",
+    responsiblePhone: deal.responsiblePhone || "",
+    deadline: dateValueFromDeal(deal.expectedFinishDate),
   };
 }
 
@@ -611,6 +626,9 @@ function normalizeDraft(value: unknown, fallback = createInitialDraft()): TechSp
     dealNumber: typeof parsed.dealNumber === "string" ? parsed.dealNumber : fallback.dealNumber,
     projectName: typeof parsed.projectName === "string" ? parsed.projectName : fallback.projectName,
     manager: typeof parsed.manager === "string" ? parsed.manager : fallback.manager,
+    responsiblePhone:
+      typeof parsed.responsiblePhone === "string" ? parsed.responsiblePhone : fallback.responsiblePhone,
+    deadline: typeof parsed.deadline === "string" ? parsed.deadline : fallback.deadline,
     date: typeof parsed.date === "string" ? parsed.date : fallback.date,
     globalNote: typeof parsed.globalNote === "string" ? parsed.globalNote : fallback.globalNote,
     items: normalizedItems,
@@ -902,8 +920,10 @@ function buildAttachmentImageHtml(attachment: LayoutAttachment) {
 function buildPrintableBody(draft: TechSpecDraft) {
   const meta = [
     draft.projectName ? ["Проект", draft.projectName] : null,
+    draft.deadline ? ["Срок сдачи", draft.deadline] : null,
     draft.date ? ["Дата", draft.date] : null,
-    draft.manager ? ["Менеджер", draft.manager] : null,
+    draft.manager ? ["Ответственный", draft.manager] : null,
+    draft.responsiblePhone ? ["Телефон", draft.responsiblePhone] : null,
   ].filter((item): item is [string, string] => Boolean(item));
 
   const metaHtml = meta
@@ -977,8 +997,10 @@ function buildSpecText(draft: TechSpecDraft) {
   const header = [
     draft.dealNumber ? `ТЗ ${draft.dealNumber}` : "ТЗ",
     draft.projectName ? `Проект: ${draft.projectName}` : "",
+    draft.deadline ? `Срок сдачи: ${draft.deadline}` : "",
     draft.date ? `Дата: ${draft.date}` : "",
-    draft.manager ? `Менеджер: ${draft.manager}` : "",
+    draft.manager ? `Ответственный: ${draft.manager}` : "",
+    draft.responsiblePhone ? `Телефон: ${draft.responsiblePhone}` : "",
     draft.globalNote ? `Общее примечание: ${draft.globalNote}` : "",
   ].filter(Boolean);
 
@@ -1214,8 +1236,10 @@ function drawJpegHeader(context: CanvasRenderingContext2D, draft: TechSpecDraft)
 
   const meta = [
     draft.projectName ? `Проект: ${draft.projectName}` : "",
+    draft.deadline ? `Срок сдачи: ${draft.deadline}` : "",
     draft.date ? `Дата: ${draft.date}` : "",
-    draft.manager ? `Менеджер: ${draft.manager}` : "",
+    draft.manager ? `Ответственный: ${draft.manager}` : "",
+    draft.responsiblePhone ? `Телефон: ${draft.responsiblePhone}` : "",
   ].filter(Boolean);
 
   setCanvasFont(context, 20, 400);
@@ -1544,8 +1568,10 @@ function ProductionSpecDocument({
 }) {
   const meta = [
     draft.projectName ? ["Проект", draft.projectName] : null,
+    draft.deadline ? ["Срок сдачи", draft.deadline] : null,
     draft.date ? ["Дата", draft.date] : null,
-    draft.manager ? ["Менеджер", draft.manager] : null,
+    draft.manager ? ["Ответственный", draft.manager] : null,
+    draft.responsiblePhone ? ["Телефон", draft.responsiblePhone] : null,
   ].filter((item): item is [string, string] => Boolean(item));
 
   return (
@@ -1872,7 +1898,7 @@ export function TechSpecBuilder({
   }
 
   function resetDraft() {
-    setDraft(createInitialDraft());
+    setDraft(deal ? createDraftForDeal(deal) : createInitialDraft());
     setSelectedTemplateId("letters");
   }
 
@@ -2000,11 +2026,27 @@ export function TechSpecBuilder({
           />
         </label>
         <label>
-          <span>Менеджер</span>
+          <span>Ответственный</span>
           <input
             onChange={(event) => updateDraftField("manager", event.target.value)}
             placeholder="Фамилия"
             value={draft.manager}
+          />
+        </label>
+        <label>
+          <span>Телефон ответственного</span>
+          <input
+            onChange={(event) => updateDraftField("responsiblePhone", event.target.value)}
+            placeholder="+7..."
+            value={draft.responsiblePhone}
+          />
+        </label>
+        <label>
+          <span>Срок сдачи</span>
+          <input
+            onChange={(event) => updateDraftField("deadline", event.target.value)}
+            type="date"
+            value={draft.deadline}
           />
         </label>
         <label>

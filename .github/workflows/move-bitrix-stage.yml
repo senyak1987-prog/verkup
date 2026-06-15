@@ -40,6 +40,8 @@ jobs:
           BITRIX_LAUNCH_STAGE_NAME: Запустить в производство
           BITRIX_PRODUCTION_STAGE_ID: ${{ secrets.BITRIX_PRODUCTION_STAGE_ID }}
           BITRIX_PRODUCTION_STAGE_NAME: В производстве
+          BITRIX_DEFECT_STAGE_ID: ${{ secrets.BITRIX_DEFECT_STAGE_ID }}
+          BITRIX_DEFECT_STAGE_NAME: КОСЯК в заказе
         run: npm run bitrix:move-stage
 
       - name: Sync deals from Bitrix24
@@ -54,6 +56,8 @@ jobs:
           BITRIX_STAGE_NAME: Запустить в производство
           BITRIX_PRODUCTION_STAGE_ID: ${{ secrets.BITRIX_PRODUCTION_STAGE_ID }}
           BITRIX_PRODUCTION_STAGE_NAME: В производстве
+          BITRIX_DEFECT_STAGE_ID: ${{ secrets.BITRIX_DEFECT_STAGE_ID }}
+          BITRIX_DEFECT_STAGE_NAME: КОСЯК в заказе
           BITRIX_CATEGORY_ID: ${{ secrets.BITRIX_CATEGORY_ID }}
           BITRIX_FIELD_CLASSIFICATION: ${{ secrets.BITRIX_FIELD_CLASSIFICATION }}
           BITRIX_FIELD_INSTALL_AMOUNT: ${{ secrets.BITRIX_FIELD_INSTALL_AMOUNT }}

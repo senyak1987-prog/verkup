@@ -10,6 +10,7 @@ export type Deal = {
   saleAmount: number;
   installSaleAmount: number;
   responsible: string;
+  responsiblePhone?: string;
   startDate: string;
   expectedFinishDate: string;
   createdDate: string;
@@ -17,7 +18,7 @@ export type Deal = {
   bitrixUrl: string;
 };
 
-export type DealStageCode = "tz" | "tzApproval" | "launch" | "production";
+export type DealStageCode = "tz" | "tzApproval" | "launch" | "production" | "defect";
 
 export type CostSection =
   | "materials"
@@ -139,6 +140,8 @@ export type TechSpecDraft = {
   dealNumber: string;
   projectName: string;
   manager: string;
+  responsiblePhone: string;
+  deadline: string;
   date: string;
   globalNote: string;
   items: TechSpecItem[];

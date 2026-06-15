@@ -7,6 +7,7 @@ const targetStageName =
   (targetStageId === env.BITRIX_TZ_STAGE_ID ? env.BITRIX_TZ_STAGE_NAME : "") ||
   (targetStageId === env.BITRIX_TZ_APPROVAL_STAGE_ID ? env.BITRIX_TZ_APPROVAL_STAGE_NAME : "") ||
   (targetStageId === env.BITRIX_LAUNCH_STAGE_ID ? env.BITRIX_LAUNCH_STAGE_NAME : "") ||
+  (targetStageId === env.BITRIX_DEFECT_STAGE_ID ? env.BITRIX_DEFECT_STAGE_NAME : "") ||
   env.BITRIX_PRODUCTION_STAGE_NAME ||
   "В производстве";
 
