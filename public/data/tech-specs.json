@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T12:59:07.636Z",
+  "generatedAt": "2026-06-15T12:59:17.052Z",
   "specs": [
     {
       "dealId": "16986",
@@ -151,7 +151,7 @@
             "templateId": "letters",
             "attachments": [],
             "fields": {
-              "name": "Вывеска",
+              "name": "150",
               "quantity": "1 шт",
               "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
               "lightingType": "ЛИЦЕВОЕ",
@@ -169,7 +169,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-15T12:59:07.636Z"
+      "updatedAt": "2026-06-15T12:59:17.052Z"
     }
   ]
 }
