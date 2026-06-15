@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T13:03:31.014Z",
+  "generatedAt": "2026-06-15T13:03:32.848Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -202,14 +202,14 @@
     },
     {
       "dealId": "17012",
-      "updatedAt": "2026-06-15T13:03:30.153Z",
+      "updatedAt": "2026-06-15T13:03:31.982Z",
       "positions": [
         {
           "id": "4b3270fe-465e-465e-8d23-9afd6a6c05d3",
           "catalogId": "assembly-буква-110-119см-склейка-143",
           "qty": 1,
           "unit": "шт",
-          "unitCost": 100000,
+          "unitCost": 10000,
           "section": "assembly",
           "title": "Буква 110-119см: Склейка",
           "calcMode": "letterAssembly",
