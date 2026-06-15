@@ -383,10 +383,7 @@ async function fetchBitrixUsers(env, ids) {
         const user = response.result?.[0];
         if (user) {
           const name = [user.NAME, user.LAST_NAME].filter(Boolean).join(" ");
-          const phone =
-            [user.PERSONAL_MOBILE, user.WORK_PHONE, user.PERSONAL_PHONE, user.UF_PHONE_INNER]
-              .map((value) => String(value || "").trim())
-              .find(Boolean) || "";
+          const phone = extractBitrixUserPhone(user);
           users.set(String(id), { name, phone });
         }
       } catch {
@@ -395,6 +392,78 @@ async function fetchBitrixUsers(env, ids) {
     }),
   );
   return users;
+}
+
+const BITRIX_USER_PHONE_FIELDS = [
+  "PERSONAL_MOBILE",
+  "WORK_PHONE",
+  "PERSONAL_PHONE",
+  "UF_PHONE_INNER",
+  "UF_PHONE",
+  "UF_MOBILE",
+  "UF_WORK_PHONE",
+  "UF_PERSONAL_MOBILE",
+];
+
+function extractBitrixUserPhone(user) {
+  for (const field of BITRIX_USER_PHONE_FIELDS) {
+    const phone = extractPhoneValue(user[field], true);
+    if (phone) return phone;
+  }
+
+  for (const [field, value] of Object.entries(user || {})) {
+    const phone = extractPhoneValue(value, isPhoneFieldName(field));
+    if (phone) return phone;
+  }
+
+  return "";
+}
+
+function isPhoneFieldName(field) {
+  return /PHONE|MOBILE|TEL|INNER|EXT/i.test(String(field || ""));
+}
+
+function extractPhoneValue(value, allowExtension) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const phone = extractPhoneValue(item, allowExtension);
+      if (phone) return phone;
+    }
+    return "";
+  }
+
+  if (value && typeof value === "object") {
+    for (const item of Object.values(value)) {
+      const phone = extractPhoneValue(item, allowExtension);
+      if (phone) return phone;
+    }
+    return "";
+  }
+
+  return normalizePhoneText(value, allowExtension);
+}
+
+function normalizePhoneText(value, allowExtension) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+
+  const digits = text.replace(/\D/g, "");
+  const compact = text.replace(/[^\d+]/g, "");
+  const plainDigits = text.replace(/[^\d]/g, "");
+
+  if (allowExtension && /^\d{3,5}$/.test(digits) && digits === plainDigits && !/[T:.-]/.test(text)) {
+    return text;
+  }
+
+  if (/^\+?7\d{10}$/.test(compact) || (/^8\d{10}$/.test(digits) && digits.length === 11)) {
+    return text;
+  }
+
+  if (/^(\+7|7|8)/.test(compact) && digits.length === 11) {
+    return text;
+  }
+
+  return "";
 }
 
 async function loadBitrixStageMap(env) {

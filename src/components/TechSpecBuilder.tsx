@@ -636,6 +636,20 @@ function normalizeDraft(value: unknown, fallback = createInitialDraft()): TechSp
   };
 }
 
+function hydrateDraftFromDeal(current: TechSpecDraft, fallback: TechSpecDraft): TechSpecDraft {
+  const valueOrFallback = (value: string, fallbackValue: string) =>
+    value && value.trim() ? value : fallbackValue;
+
+  return {
+    ...current,
+    dealNumber: valueOrFallback(current.dealNumber, fallback.dealNumber),
+    projectName: valueOrFallback(current.projectName, fallback.projectName),
+    manager: valueOrFallback(current.manager, fallback.manager),
+    responsiblePhone: valueOrFallback(current.responsiblePhone, fallback.responsiblePhone),
+    deadline: valueOrFallback(current.deadline, fallback.deadline),
+  };
+}
+
 function readStoredDraft() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -1695,17 +1709,33 @@ export function TechSpecBuilder({
   const missingCount = missingItems.reduce((sum, item) => sum + item.missing.length, 0);
 
   useEffect(() => {
-    setDraft(
-      storedSpec?.draft
-        ? normalizeDraft(storedSpec.draft, createDraftForDeal(deal))
-        : deal
-          ? createDraftForDeal(deal)
-          : readStoredDraft(),
-    );
+    const dealFallback = createDraftForDeal(deal);
+    setDraft((current) => {
+      if (storedSpec?.draft) {
+        return normalizeDraft(storedSpec.draft, dealFallback);
+      }
+
+      if (!deal) {
+        return readStoredDraft();
+      }
+
+      if (current.dealNumber && current.dealNumber === dealFallback.dealNumber) {
+        return hydrateDraftFromDeal(current, dealFallback);
+      }
+
+      return dealFallback;
+    });
     setSelectedTemplateId("letters");
     setBitrixUploadState("idle");
     setBitrixUploadError("");
-  }, [deal?.id]);
+  }, [
+    deal?.id,
+    deal?.number,
+    deal?.title,
+    deal?.responsible,
+    deal?.responsiblePhone,
+    deal?.expectedFinishDate,
+  ]);
 
   useEffect(() => {
     if (deal?.id) {
