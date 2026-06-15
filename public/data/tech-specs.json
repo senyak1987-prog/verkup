@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T13:04:27.939Z",
+  "generatedAt": "2026-06-15T13:04:40.701Z",
   "specs": [
     {
       "dealId": "16986",
@@ -168,7 +168,7 @@
               "name": "Вывеска",
               "quantity": "1 шт",
               "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "ЛИЦЕВОЕ",
+              "lightingType": "КОНТРАЖУР",
               "glowColor": "НЕЙТРАЛЬНОЕ",
               "faceMaterial": "Молочный акрил 3 мм",
               "sideMaterial": "Алюминий",
@@ -223,7 +223,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-15T13:04:27.939Z"
+      "updatedAt": "2026-06-15T13:04:40.701Z"
     }
   ]
 }
