@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T11:46:57.271Z",
+  "generatedAt": "2026-06-15T11:47:03.880Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -178,19 +178,24 @@
     },
     {
       "dealId": "16986",
-      "updatedAt": "2026-06-15T11:46:56.414Z",
+      "updatedAt": "2026-06-15T11:47:03.027Z",
       "positions": [
         {
           "id": "2b5016ec-5c53-4168-8c14-9b58ae86c8c7",
           "catalogId": "assembly-буква-6-7-см-склейка-42",
           "qty": 1,
           "unit": "шт",
-          "unitCost": 350,
+          "unitCost": 675,
           "section": "assembly",
           "title": "Буква 6-7 см: Склейка",
           "calcMode": "letterAssembly",
           "note": "Прайс сборка.xlsx / Буквы",
-          "addons": [],
+          "addons": [
+            "assembly-установка-диодов-44",
+            "assembly-закатка-лица-48",
+            "assembly-установка-на-раму-46",
+            "assembly-закатка-борта-50"
+          ],
           "baseUnitCost": 350
         }
       ]
