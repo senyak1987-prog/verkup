@@ -48,10 +48,34 @@ type PendingStageMove = {
 
 type AppTab = DealStageCode | "signConfigurator" | "techSpec";
 
+type DealWorkspaceTab = "cost" | "techSpec" | "workCost";
+
 type PendingCatalogInsert = {
   dealId: string;
   item: CatalogItem;
   targetSection?: CostSection;
+};
+
+type DealWorkspaceProps = {
+  activeStage: DealStageCode;
+  catalogItems: CatalogItem[];
+  calculation?: DealCalculation;
+  deal: Deal;
+  storedCalculations: StoredCalculations;
+  storedSpec?: DealTechSpec;
+  onCatalogChange: (items: CatalogItem[]) => void;
+  onChange: (calculation: DealCalculation) => void;
+  onClose: () => void;
+  onCreateCatalogItem: (item: CatalogItem, targetSection?: CostSection) => void;
+  onOpenCatalog: () => void;
+  onStageMoved: (dealId: string, stage: DealStageCode) => void;
+  onTechSpecChange: (spec: DealTechSpec) => void;
+  onTechSpecUpload: (
+    dealId: string,
+    draft: TechSpecDraft,
+    fileName: string,
+    fileBase64: string,
+  ) => Promise<void>;
 };
 
 export default function App() {
@@ -451,30 +475,22 @@ export default function App() {
           onQueryChange={setQuery}
           expandedRow={
             selectedDeal ? (
-              activeStage === "tz" || activeStage === "tzApproval" ? (
-                <TechSpecBuilder
-                  deal={selectedDeal}
-                  embedded
-                  storedSpec={selectedTechSpec}
-                  onDraftChange={handleTechSpecChange}
-                  onUploadToBitrix={(draft, fileName, fileBase64) =>
-                    handleTechSpecUpload(selectedDeal.id, draft, fileName, fileBase64)
-                  }
-                />
-              ) : (
-                <CostDrawer
-                  deal={selectedDeal}
-                  calculation={selectedCalculation}
-                  catalogItems={catalogItems}
-                  storedCalculations={storedCalculations}
-                  onOpenCatalog={openCatalog}
-                  onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
-                  onChange={handleCalculationChange}
-                  onCatalogChange={handleCatalogChange}
-                  onClose={() => setSelectedDealId(undefined)}
-                  onStageMoved={handleDealStageChanged}
-                />
-              )
+              <DealWorkspace
+                activeStage={activeStage}
+                catalogItems={catalogItems}
+                calculation={selectedCalculation}
+                deal={selectedDeal}
+                storedCalculations={storedCalculations}
+                storedSpec={selectedTechSpec}
+                onCatalogChange={handleCatalogChange}
+                onChange={handleCalculationChange}
+                onClose={() => setSelectedDealId(undefined)}
+                onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
+                onOpenCatalog={openCatalog}
+                onStageMoved={handleDealStageChanged}
+                onTechSpecChange={handleTechSpecChange}
+                onTechSpecUpload={handleTechSpecUpload}
+              />
             ) : undefined
           }
         />
@@ -489,6 +505,98 @@ export default function App() {
         />
       )}
     </div>
+  );
+}
+
+function defaultDealWorkspaceTab(stage: DealStageCode): DealWorkspaceTab {
+  return stage === "tz" || stage === "tzApproval" ? "techSpec" : "cost";
+}
+
+function DealWorkspace({
+  activeStage,
+  catalogItems,
+  calculation,
+  deal,
+  storedCalculations,
+  storedSpec,
+  onCatalogChange,
+  onChange,
+  onClose,
+  onCreateCatalogItem,
+  onOpenCatalog,
+  onStageMoved,
+  onTechSpecChange,
+  onTechSpecUpload,
+}: DealWorkspaceProps) {
+  const [activeTab, setActiveTab] = useState<DealWorkspaceTab>(() =>
+    defaultDealWorkspaceTab(activeStage),
+  );
+
+  useEffect(() => {
+    setActiveTab(defaultDealWorkspaceTab(activeStage));
+  }, [activeStage, deal.id]);
+
+  return (
+    <section className="deal-workspace" aria-label="Работа со сделкой">
+      <div className="deal-workspace-tabs" role="tablist" aria-label="Действия по сделке">
+        <button
+          aria-selected={activeTab === "cost"}
+          className={activeTab === "cost" ? "active" : ""}
+          onClick={() => setActiveTab("cost")}
+          role="tab"
+          type="button"
+        >
+          Себес
+        </button>
+        <button
+          aria-selected={activeTab === "techSpec"}
+          className={activeTab === "techSpec" ? "active" : ""}
+          onClick={() => setActiveTab("techSpec")}
+          role="tab"
+          type="button"
+        >
+          Подготовить ТЗ
+        </button>
+        <button
+          aria-selected={activeTab === "workCost"}
+          className={activeTab === "workCost" ? "active" : ""}
+          onClick={() => setActiveTab("workCost")}
+          role="tab"
+          type="button"
+        >
+          Стоимость работы
+        </button>
+      </div>
+
+      <div className="deal-workspace-body">
+        {activeTab === "techSpec" ? (
+          <TechSpecBuilder
+            deal={deal}
+            embedded
+            storedSpec={storedSpec}
+            onDraftChange={onTechSpecChange}
+            onUploadToBitrix={(draft, fileName, fileBase64) =>
+              onTechSpecUpload(deal.id, draft, fileName, fileBase64)
+            }
+          />
+        ) : (
+          <CostDrawer
+            key={activeTab}
+            deal={deal}
+            calculation={calculation}
+            catalogItems={catalogItems}
+            storedCalculations={storedCalculations}
+            onOpenCatalog={onOpenCatalog}
+            onCreateCatalogItem={onCreateCatalogItem}
+            onChange={onChange}
+            onCatalogChange={onCatalogChange}
+            onClose={onClose}
+            onStageMoved={onStageMoved}
+            initialExpandedBlockId={activeTab === "workCost" ? "assembly" : undefined}
+          />
+        )}
+      </div>
+    </section>
   );
 }
 
