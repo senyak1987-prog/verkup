@@ -5,6 +5,7 @@ const CACHE_PREFIX = "verkup:data:";
 const CATALOG_FAVORITES_KEY = `${CACHE_PREFIX}catalog:favorites`;
 const REQUEST_TIMEOUT_MS = 6000;
 const DEAL_CACHE_RETAIN_MS = 24 * 60 * 60 * 1000;
+const DEAL_CACHE_VERSION = 2;
 
 type CatalogFavoriteOverride = {
   favorite: boolean;
@@ -12,6 +13,7 @@ type CatalogFavoriteOverride = {
 };
 
 type CacheRecord<T> = {
+  version?: number;
   savedAt?: string;
   data?: T;
 };
@@ -221,6 +223,7 @@ function readCacheRecord<T>(path: string): CacheRecord<T> | undefined {
     if (!raw) return undefined;
     const record = JSON.parse(raw) as CacheRecord<T>;
     if (!record || typeof record !== "object" || !("data" in record)) return undefined;
+    if (isDealsPath(path) && record.version !== DEAL_CACHE_VERSION) return undefined;
     return record;
   } catch {
     return undefined;
@@ -232,6 +235,7 @@ function writeCache<T>(path: string, data: T) {
     localStorage.setItem(
       cacheKey(path),
       JSON.stringify({
+        version: isDealsPath(path) ? DEAL_CACHE_VERSION : undefined,
         savedAt: new Date().toISOString(),
         data,
       }),
@@ -308,7 +312,7 @@ function writeCacheIfUseful<T>(path: string, data: T, cachedData?: T) {
 }
 
 function shouldPreferCachedDeals(path: string) {
-  return path === "data/deals.json";
+  return isDealsPath(path);
 }
 
 function reconcileFetchedData<T>(
@@ -317,7 +321,7 @@ function reconcileFetchedData<T>(
   cachedData?: T,
   cachedSavedAt?: string,
 ): T {
-  if (path !== "data/deals.json") return data;
+  if (!isDealsPath(path)) return data;
   if (!isAppData<Deal>(data) || !isAppData<Deal>(cachedData)) return data;
   if (!cachedData.items.length || isCacheTooOld(cachedSavedAt)) return data;
   if (!shouldMergeCachedDeals(data, cachedData)) return data;
@@ -391,4 +395,8 @@ function isStoredTechSpecs(value: unknown): value is StoredTechSpecs {
       typeof value === "object" &&
       Array.isArray((value as StoredTechSpecs).specs),
   );
+}
+
+function isDealsPath(path: string) {
+  return path.replace(/^\//, "") === "data/deals.json";
 }

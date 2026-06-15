@@ -1,9 +1,6 @@
-const CACHE_NAME = "verkup-offline-v2";
+const CACHE_NAME = "verkup-offline-v3";
 const APP_SHELL = [
   "./",
-  "./data/catalogs.json",
-  "./data/calculations.json",
-  "./data/deals.json",
   "./vendor/pdfjs/pdf.mjs",
   "./vendor/pdfjs/pdf.worker.mjs",
 ];
@@ -32,7 +29,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    fetch(request)
+    fetch(request, url.pathname.includes("/data/") ? { cache: "no-store" } : undefined)
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
