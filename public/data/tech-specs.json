@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T12:58:12.963Z",
+  "generatedAt": "2026-06-15T12:58:19.909Z",
   "specs": [
     {
       "dealId": "16986",
@@ -126,12 +126,13 @@
               "layout": "",
               "installPlace": "",
               "faceFilm": "641-091",
-              "sideFilm": "641-091"
+              "sideFilm": "641-091",
+              "backingDepth": "30мм"
             }
           }
         ]
       },
-      "updatedAt": "2026-06-15T12:58:12.963Z"
+      "updatedAt": "2026-06-15T12:58:19.909Z"
     }
   ]
 }
