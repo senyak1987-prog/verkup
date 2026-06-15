@@ -3042,15 +3042,53 @@ td small {
 
 .tech-spec-file-tile {
   display: grid;
-  place-items: center;
+  align-content: center;
+  justify-items: center;
+  gap: 7px;
   background: #fff;
   color: #667085;
   font-size: 12px;
   font-weight: 700;
+  padding: 12px;
+  text-align: center;
+}
+
+.tech-spec-file-tile.vector {
+  background: linear-gradient(135deg, #ecfdf3 0%, #f8fafc 100%);
 }
 
 .tech-spec-file-tile span {
   display: block;
+}
+
+.tech-spec-file-extension {
+  display: inline-grid;
+  min-width: 58px;
+  place-items: center;
+  border-radius: 6px;
+  background: #111827;
+  padding: 7px 10px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.tech-spec-file-kind {
+  color: #344054;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tech-spec-file-dimensions {
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.tech-spec-file-dimensions.missing {
+  color: #b54708;
 }
 
 .tech-spec-attachment-card strong {
@@ -3220,6 +3258,16 @@ td small {
   max-height: 360px;
 }
 
+.tech-spec-doc-file {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+}
+
+.tech-spec-doc-file .tech-spec-file-tile {
+  min-height: 150px;
+}
+
 .tech-spec-doc-media-grid figcaption,
 .tech-spec-doc-file,
 .tech-spec-doc-empty {
@@ -3235,6 +3283,10 @@ td small {
 .tech-spec-doc-file strong {
   display: block;
   color: #111827;
+}
+
+.tech-spec-doc-file small {
+  color: #667085;
 }
 
 .tech-spec-doc-empty {

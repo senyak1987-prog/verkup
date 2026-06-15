@@ -7,7 +7,6 @@ import {
   FileImage,
   FileText,
   ImagePlus,
-  Paperclip,
   Plus,
   Printer,
   RotateCcw,
@@ -580,7 +579,7 @@ function normalizeAttachments(value: unknown): LayoutAttachment[] {
 
   return value.reduce<LayoutAttachment[]>((result, attachment) => {
     if (!attachment || typeof attachment !== "object") return result;
-      const candidate = attachment as Partial<LayoutAttachment>;
+    const candidate = attachment as Partial<LayoutAttachment>;
     if (!candidate.dataUrl || typeof candidate.dataUrl !== "string") return result;
 
     result.push({
@@ -740,6 +739,41 @@ function formatAttachmentDimensions(dimensions?: AttachmentDimensions) {
 
 function getAttachmentSizeText(attachment: LayoutAttachment) {
   return formatAttachmentDimensions(attachment.dimensions);
+}
+
+function getAttachmentExtension(attachment: LayoutAttachment) {
+  const match = attachment.name.match(/\.([a-z0-9]+)$/i);
+  if (match?.[1]) return match[1].toUpperCase();
+  if (attachment.type.includes("pdf")) return "PDF";
+  if (attachment.type.includes("postscript")) return "EPS";
+  if (isSvgAttachment(attachment)) return "SVG";
+  return "FILE";
+}
+
+function isVectorAttachment(attachment: LayoutAttachment) {
+  return (
+    isSvgAttachment(attachment) ||
+    attachment.type.includes("pdf") ||
+    attachment.type.includes("postscript") ||
+    /\.(pdf|eps|ai|cdr|dxf)$/i.test(attachment.name)
+  );
+}
+
+function getAttachmentKindLabel(attachment: LayoutAttachment) {
+  if (isVectorAttachment(attachment)) return "Векторный макет";
+  if (isImageAttachment(attachment)) return "Изображение";
+  return "Файл макета";
+}
+
+function getAttachmentDimensionHint(attachment: LayoutAttachment) {
+  const sizeText = getAttachmentSizeText(attachment);
+  if (sizeText) return `Размер: ${sizeText}`;
+  return isVectorAttachment(attachment) ? "Размер не определен автоматически" : "";
+}
+
+function getAttachmentSummary(attachment: LayoutAttachment) {
+  const sizeText = getAttachmentSizeText(attachment);
+  return [attachment.name, sizeText ? `размер ${sizeText}` : "", attachment.note].filter(Boolean).join(" - ");
 }
 
 function getAutoSizeFromAttachments(attachments: LayoutAttachment[]) {
@@ -914,9 +948,17 @@ const EXPORT_DOCUMENT_CSS = `
   .tech-spec-media-frame { position: relative; display: grid; place-items: center; min-height: 180px; overflow: hidden; border: 1px solid #d7dde7; border-radius: 7px; background: linear-gradient(135deg, #e9eef5 0%, #f8fafc 100%); }
   .tech-spec-media-frame img { display: block; width: 100%; height: 100%; max-height: 360px; object-fit: contain; padding: 8px; }
   .tech-spec-size-badge { position: absolute; left: 8px; bottom: 8px; border-radius: 999px; background: rgba(17, 24, 39, 0.9); padding: 4px 8px; color: #fff; font-size: 11px; font-weight: 700; line-height: 1.2; }
+  .tech-spec-file-tile { display: grid; align-content: center; justify-items: center; gap: 7px; min-height: 150px; border: 1px solid #d7dde7; border-radius: 7px; background: #fff; padding: 14px; text-align: center; }
+  .tech-spec-file-tile.vector { background: linear-gradient(135deg, #ecfdf3 0%, #f8fafc 100%); }
+  .tech-spec-file-extension { display: inline-grid; min-width: 58px; place-items: center; border-radius: 6px; background: #111827; padding: 7px 10px; color: #fff; font-size: 18px; font-weight: 800; line-height: 1; }
+  .tech-spec-file-kind { color: #344054; font-size: 12px; font-weight: 700; }
+  .tech-spec-file-dimensions { color: #0f766e; font-size: 11px; font-weight: 800; line-height: 1.25; }
+  .tech-spec-file-dimensions.missing { color: #b54708; }
   .tech-spec-doc-media-grid figcaption, .tech-spec-doc-file, .tech-spec-doc-empty { color: #344054; font-size: 12px; line-height: 1.35; }
   .tech-spec-doc-media-grid figcaption { margin-top: 6px; }
+  .tech-spec-doc-file { display: grid; gap: 6px; align-content: start; }
   .tech-spec-doc-file strong { display: block; color: #111827; }
+  .tech-spec-doc-file small { color: #667085; }
   .tech-spec-doc-empty { padding: 14px; color: #667085; }
   .tech-spec-doc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .tech-spec-doc-table th, .tech-spec-doc-table td { border-top: 1px solid #d7dde7; padding: 8px 10px; vertical-align: top; text-align: left; }
@@ -935,6 +977,23 @@ function buildAttachmentImageHtml(attachment: LayoutAttachment) {
   return `<div class="tech-spec-media-frame"><img alt="${escapeHtml(attachment.name)}" src="${escapeHtml(
     attachment.dataUrl,
   )}" />${sizeText ? `<span class="tech-spec-size-badge">${escapeHtml(sizeText)}</span>` : ""}</div>`;
+}
+
+function buildAttachmentFileHtml(attachment: LayoutAttachment) {
+  const dimensionHint = getAttachmentDimensionHint(attachment);
+  const sizeText = getAttachmentSizeText(attachment);
+  const caption = [attachment.name, attachment.note].filter(Boolean).join(" - ");
+
+  return `<div class="tech-spec-doc-file tech-spec-doc-file-card">
+    <span class="tech-spec-file-extension">${escapeHtml(getAttachmentExtension(attachment))}</span>
+    <strong>${escapeHtml(getAttachmentKindLabel(attachment))}</strong>
+    ${
+      dimensionHint
+        ? `<span class="${sizeText ? "tech-spec-file-dimensions" : "tech-spec-file-dimensions missing"}">${escapeHtml(dimensionHint)}</span>`
+        : ""
+    }
+    <small>${escapeHtml(caption)}</small>
+  </div>`;
 }
 
 function buildPrintableBody(draft: TechSpecDraft) {
@@ -961,7 +1020,7 @@ function buildPrintableBody(draft: TechSpecDraft) {
             .map((attachment) => {
               const caption = [attachment.name, attachment.note].filter(Boolean).join(" - ");
               if (!isImageAttachment(attachment)) {
-                return `<div class="tech-spec-doc-file"><strong>${escapeHtml(attachment.name)}</strong>${attachment.note ? `<span>${escapeHtml(attachment.note)}</span>` : ""}</div>`;
+                return buildAttachmentFileHtml(attachment);
               }
 
               return `<figure>${buildAttachmentImageHtml(attachment)}<figcaption>${escapeHtml(caption)}</figcaption></figure>`;
@@ -1029,7 +1088,7 @@ function buildSpecText(draft: TechSpecDraft) {
       })
       .filter(Boolean);
     const attachments = item.attachments?.length
-      ? [`Макеты: ${item.attachments.map((attachment) => attachment.name).join(", ")}`]
+      ? ["Макеты:", ...item.attachments.map((attachment) => `- ${getAttachmentSummary(attachment)}`)]
       : [];
 
     return [`${index + 1}. ${template.title}`, ...lines, ...attachments].join("\n");
@@ -1284,6 +1343,34 @@ function drawJpegNote(context: CanvasRenderingContext2D, draft: TechSpecDraft, y
   return y + height + 22;
 }
 
+function drawJpegAttachmentPlaceholder(
+  context: CanvasRenderingContext2D,
+  attachment: LayoutAttachment,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  drawCanvasBox(context, x, y, width, height, isVectorAttachment(attachment) ? "#ecfdf3" : "#eef2f6", "#d7dde7");
+
+  context.fillStyle = "#344054";
+  setCanvasFont(context, 17, 700);
+  drawWrappedText(context, getAttachmentKindLabel(attachment), x + 16, y + 20, width - 32, 20, 2);
+
+  const extension = getAttachmentExtension(attachment);
+  setCanvasFont(context, 48, 800);
+  const extensionWidth = context.measureText(extension).width;
+  context.fillStyle = "#111827";
+  context.fillText(extension, x + (width - extensionWidth) / 2, y + height / 2 + 16);
+
+  const dimensionHint = getAttachmentDimensionHint(attachment);
+  if (dimensionHint) {
+    setCanvasFont(context, 15, 700);
+    context.fillStyle = getAttachmentSizeText(attachment) ? "#0f766e" : "#b54708";
+    drawWrappedText(context, dimensionHint, x + 16, y + height - 44, width - 32, 18, 2);
+  }
+}
+
 function drawJpegAttachments(
   context: CanvasRenderingContext2D,
   item: TechSpecItem,
@@ -1333,20 +1420,18 @@ function drawJpegAttachments(
         height,
       );
     } else {
-      context.fillStyle = "#475467";
-      setCanvasFont(context, 24, 700);
-      context.fillText("Файл макета", imageX + 16, imageY + 18);
+      drawJpegAttachmentPlaceholder(context, attachment, imageX, imageY, imageAreaWidth, imageAreaHeight);
     }
 
     const sizeText = getAttachmentSizeText(attachment);
     let textY = tileY + imageHeight + 10;
     if (sizeText) {
-      setCanvasFont(context, 15, 700);
-      const badgeWidth = Math.min(tileWidth - 28, context.measureText(sizeText).width + 20);
-      drawCanvasBox(context, x + 14, textY, badgeWidth, 24, "#111827", "#111827");
+      const badgeHeight = sizeText.length > 34 ? 42 : 26;
+      drawCanvasBox(context, x + 14, textY, tileWidth - 28, badgeHeight, "#111827", "#111827");
       context.fillStyle = "#ffffff";
-      context.fillText(sizeText, x + 24, textY + 4);
-      textY += 32;
+      setCanvasFont(context, 14, 700);
+      drawWrappedText(context, sizeText, x + 24, textY + 8, tileWidth - 48, 16, 2);
+      textY += badgeHeight + 8;
     }
 
     context.fillStyle = "#344054";
@@ -1573,6 +1658,21 @@ function AttachmentImagePreview({ attachment }: { attachment: LayoutAttachment }
   );
 }
 
+function AttachmentFilePreview({ attachment }: { attachment: LayoutAttachment }) {
+  const dimensionHint = getAttachmentDimensionHint(attachment);
+  const sizeText = getAttachmentSizeText(attachment);
+
+  return (
+    <div className={`tech-spec-file-tile ${isVectorAttachment(attachment) ? "vector" : ""}`}>
+      <span className="tech-spec-file-extension">{getAttachmentExtension(attachment)}</span>
+      <span className="tech-spec-file-kind">{getAttachmentKindLabel(attachment)}</span>
+      {dimensionHint ? (
+        <span className={`tech-spec-file-dimensions ${sizeText ? "" : "missing"}`}>{dimensionHint}</span>
+      ) : null}
+    </div>
+  );
+}
+
 function ProductionSpecDocument({
   draft,
   exportRef,
@@ -1636,7 +1736,9 @@ function ProductionSpecDocument({
                     </figure>
                   ) : (
                     <div className="tech-spec-doc-file" key={attachment.id}>
+                      <AttachmentFilePreview attachment={attachment} />
                       <strong>{attachment.name}</strong>
+                      {getAttachmentSizeText(attachment) ? <span>{getAttachmentSizeText(attachment)}</span> : null}
                       {attachment.note ? <span>{attachment.note}</span> : null}
                     </div>
                   ),
@@ -2247,10 +2349,7 @@ export function TechSpecBuilder({
                           {isImageAttachment(attachment) || isSvgAttachment(attachment) ? (
                             <AttachmentImagePreview attachment={attachment} />
                           ) : (
-                            <div className="tech-spec-file-tile">
-                              <Paperclip size={22} />
-                              <span>Файл</span>
-                            </div>
+                            <AttachmentFilePreview attachment={attachment} />
                           )}
                           <strong title={attachment.name}>{attachment.name}</strong>
                           <input
