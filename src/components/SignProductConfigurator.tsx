@@ -249,7 +249,7 @@ export function SignProductConfigurator() {
     "--letter-side-shift": `${Math.max(10, Math.min(30, letterDepth / 2.6))}px`,
     "--letter-side-step": `${Math.max(2, Math.min(5, letterDepth / 22))}px`,
     "--logo-outline-width": logoOutlineEnabled ? "7px" : "0px",
-    "--frame-profile-size": `${frameProfile}px`,
+    "--frame-profile-size": `${frameProfile === 15 ? 6 : 8}px`,
     "--halo-backer-color": haloBackerColor.value,
     "--acp-color": acpColor.value,
     "--panel-image-scale": panelImageScale / 100,
@@ -883,15 +883,15 @@ function LettersPreview({
         } as CSSProperties
       }
     >
-      {mountMode === "frame" && (
-        <div className="frame-rails" aria-hidden="true">
-          <i><span /></i>
-          <i><span /></i>
-        </div>
-      )}
       {mountMode === "acp" && <AcpPreviewPanel layout={acpLayout} />}
       {haloBackerEnabled && <div className="halo-backer-shape" aria-hidden="true" />}
       <div className="letter-content">
+        {mountMode === "frame" && (
+          <div className="frame-rails" aria-hidden="true">
+            <i />
+            <i />
+          </div>
+        )}
         <div className={`letter-logo ${logoShape} ${logoOutlineEnabled ? "outlined" : ""}`}>
           {logoImage ? <img alt="" src={logoImage} /> : <span>Лого</span>}
         </div>
