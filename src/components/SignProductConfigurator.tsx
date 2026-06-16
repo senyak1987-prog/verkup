@@ -80,6 +80,9 @@ const FRAME_PROFILES: Array<{ value: FrameProfile; label: string }> = [
   { value: 15, label: "15 x 15" },
   { value: 20, label: "20 x 20" },
 ];
+const LOGO_WIDTH_FACTOR = 0.72;
+const LETTER_GAP_FACTOR = 0.16;
+const LETTER_TEXT_WIDTH_FACTOR = 0.64;
 
 const LETTER_FONTS: FontOption[] = [
   { label: "Arial Black", value: "\"Arial Black\", Arial, sans-serif" },
@@ -213,6 +216,9 @@ export function SignProductConfigurator() {
   const [haloBackerColor, setHaloBackerColor] = useState<ColorOption>(ACP_COLORS[0]);
   const [mountMode, setMountMode] = useState<MountMode>("frame");
   const [frameProfile, setFrameProfile] = useState<FrameProfile>(20);
+  const [frameEdgeInset, setFrameEdgeInset] = useState(0);
+  const [frameTopPosition, setFrameTopPosition] = useState(47);
+  const [frameBottomPosition, setFrameBottomPosition] = useState(24);
   const [acpColor, setAcpColor] = useState<ColorOption>(ACP_COLORS[0]);
   const [acpWidth, setAcpWidth] = useState(2500);
   const [acpHeight, setAcpHeight] = useState(830);
@@ -225,10 +231,16 @@ export function SignProductConfigurator() {
     panelShape === "circle"
       ? (Math.PI * (panelSize / 2) ** 2) / 1_000_000
       : (panelSize * panelSize) / 1_000_000;
-  const lettersWidth = useMemo(
-    () => Math.max(900, lettersText.trim().length * letterHeight * 0.64 + (logoImage ? letterHeight * 0.56 : 0)),
-    [letterHeight, lettersText, logoImage],
-  );
+  const lettersWidth = useMemo(() => {
+    const textWidth = Math.max(letterHeight * 0.9, lettersText.trim().length * letterHeight * LETTER_TEXT_WIDTH_FACTOR);
+    const logoWidth = letterHeight * LOGO_WIDTH_FACTOR;
+    const constructionGap = letterHeight * LETTER_GAP_FACTOR;
+
+    return Math.max(900, textWidth + logoWidth + constructionGap);
+  }, [letterHeight, lettersText]);
+  const frameEdgeInsetSafe = Math.max(0, Math.min(120, frameEdgeInset));
+  const frameEdgeInsetPercent = Math.min(12, (frameEdgeInsetSafe / lettersWidth) * 100);
+  const frameVisibleLength = Math.max(0, lettersWidth - frameEdgeInsetSafe * 2);
   const lettersAreaM2 = (lettersWidth * letterHeight) / 1_000_000;
   const acpLayout = useMemo(() => createAcpLayout(acpWidth, acpHeight, acpDepth), [
     acpDepth,
@@ -250,6 +262,9 @@ export function SignProductConfigurator() {
     "--letter-side-step": `${Math.max(1, Math.min(3, letterDepth / 32))}px`,
     "--logo-outline-width": logoOutlineEnabled ? "7px" : "0px",
     "--frame-profile-size": `${frameProfile === 15 ? 6 : 8}px`,
+    "--frame-edge-inset": `${frameEdgeInsetPercent}%`,
+    "--frame-rail-top": `${frameTopPosition}%`,
+    "--frame-rail-bottom": `${frameBottomPosition}%`,
     "--halo-backer-color": haloBackerColor.value,
     "--acp-color": acpColor.value,
     "--panel-image-scale": panelImageScale / 100,
@@ -347,7 +362,10 @@ export function SignProductConfigurator() {
               depth={letterDepth}
               faceColor={letterFaceColor}
               font={letterFont}
+              frameBottomPosition={frameBottomPosition}
+              frameEdgeInset={frameEdgeInset}
               frameProfile={frameProfile}
+              frameTopPosition={frameTopPosition}
               glowMode={glowMode}
               haloBackerColor={haloBackerColor}
               haloBackerEnabled={haloBackerEnabled}
@@ -367,8 +385,11 @@ export function SignProductConfigurator() {
               onAcpWidthChange={setAcpWidth}
               onDepthChange={setLetterDepth}
               onFaceColorChange={setLetterFaceColor}
+              onFrameBottomPositionChange={setFrameBottomPosition}
+              onFrameEdgeInsetChange={setFrameEdgeInset}
               onFontChange={setLetterFont}
               onFrameProfileChange={setFrameProfile}
+              onFrameTopPositionChange={setFrameTopPosition}
               onGlowModeChange={setGlowMode}
               onHaloBackerColorChange={setHaloBackerColor}
               onHaloBackerEnabledChange={setHaloBackerEnabled}
@@ -402,6 +423,7 @@ export function SignProductConfigurator() {
               <LettersPreview
                 acpLayout={acpLayout}
                 depth={letterDepth}
+                frameLength={frameVisibleLength}
                 frameProfile={frameProfile}
                 glowMode={glowMode}
                 haloBackerEnabled={glowHasHalo && haloBackerEnabled && mountMode !== "frame"}
@@ -577,7 +599,10 @@ function LettersControls({
   depth,
   faceColor,
   font,
+  frameBottomPosition,
+  frameEdgeInset,
   frameProfile,
+  frameTopPosition,
   glowMode,
   haloBackerColor,
   haloBackerEnabled,
@@ -597,8 +622,11 @@ function LettersControls({
   onAcpWidthChange,
   onDepthChange,
   onFaceColorChange,
+  onFrameBottomPositionChange,
+  onFrameEdgeInsetChange,
   onFontChange,
   onFrameProfileChange,
+  onFrameTopPositionChange,
   onGlowModeChange,
   onHaloBackerColorChange,
   onHaloBackerEnabledChange,
@@ -620,7 +648,10 @@ function LettersControls({
   depth: number;
   faceColor: ColorOption;
   font: string;
+  frameBottomPosition: number;
+  frameEdgeInset: number;
   frameProfile: FrameProfile;
+  frameTopPosition: number;
   glowMode: GlowMode;
   haloBackerColor: ColorOption;
   haloBackerEnabled: boolean;
@@ -640,8 +671,11 @@ function LettersControls({
   onAcpWidthChange: (value: number) => void;
   onDepthChange: (value: number) => void;
   onFaceColorChange: (color: ColorOption) => void;
+  onFrameBottomPositionChange: (value: number) => void;
+  onFrameEdgeInsetChange: (value: number) => void;
   onFontChange: (font: string) => void;
   onFrameProfileChange: (value: FrameProfile) => void;
+  onFrameTopPositionChange: (value: number) => void;
   onGlowModeChange: (mode: GlowMode) => void;
   onHaloBackerColorChange: (color: ColorOption) => void;
   onHaloBackerEnabledChange: (value: boolean) => void;
@@ -725,6 +759,9 @@ function LettersControls({
               </button>
             ))}
           </div>
+          <RangeField label="Отступ рамы от края, мм" max={120} min={0} onChange={onFrameEdgeInsetChange} step={5} value={frameEdgeInset} />
+          <RangeField label="Верхняя труба, % высоты" max={60} min={25} onChange={onFrameTopPositionChange} value={frameTopPosition} />
+          <RangeField label="Нижняя труба от низа, %" max={45} min={12} onChange={onFrameBottomPositionChange} value={frameBottomPosition} />
           <small className="control-note">Две горизонтальные трубы за буквами, в пределах габарита вывески.</small>
         </ControlSection>
       )}
@@ -844,6 +881,7 @@ function PanelPreview({
 function LettersPreview({
   acpLayout,
   depth,
+  frameLength,
   frameProfile,
   glowMode,
   haloBackerEnabled,
@@ -856,6 +894,7 @@ function LettersPreview({
 }: {
   acpLayout: AcpLayout;
   depth: number;
+  frameLength: number;
   frameProfile: FrameProfile;
   glowMode: GlowMode;
   haloBackerEnabled: boolean;
@@ -887,7 +926,7 @@ function LettersPreview({
       {haloBackerEnabled && <div className="halo-backer-shape" aria-hidden="true" />}
       <div className="letter-content">
         {mountMode === "frame" && (
-          <div className="frame-rails" aria-hidden="true">
+          <div className="frame-rails" aria-hidden="true" data-frame-length={Math.round(frameLength)}>
             <i />
             <i />
           </div>

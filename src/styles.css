@@ -2998,7 +2998,7 @@ td small {
 
 .frame-rails {
   position: absolute;
-  inset: 0 7%;
+  inset: 0 var(--frame-edge-inset);
   z-index: 0;
   pointer-events: none;
 }
@@ -3021,11 +3021,11 @@ td small {
 }
 
 .frame-rails i:first-child {
-  top: 41%;
+  top: var(--frame-rail-top);
 }
 
 .frame-rails i:last-child {
-  bottom: 24%;
+  bottom: var(--frame-rail-bottom);
 }
 
 .acp-preview-panel {
@@ -4667,7 +4667,7 @@ td small {
   }
 
   .frame-rails {
-    inset: 0 9%;
+    inset: 0 var(--frame-edge-inset);
     width: auto;
     height: auto;
   }
