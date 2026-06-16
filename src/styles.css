@@ -2865,26 +2865,26 @@ td small {
 
 .builder-preview {
   background:
-    radial-gradient(circle at 52% 38%, rgba(255, 255, 255, 0.78), transparent 38%),
-    linear-gradient(180deg, #edf3f8, #dfe8f0);
+    linear-gradient(90deg, rgba(191, 205, 219, 0.34) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(191, 205, 219, 0.34) 1px, transparent 1px),
+    #eef4f8;
+  background-size: 44px 44px;
 }
 
 .builder-preview.day {
   background:
-    radial-gradient(circle at 50% 34%, rgba(255, 255, 255, 0.9), transparent 35%),
     linear-gradient(90deg, rgba(191, 205, 219, 0.42) 1px, transparent 1px),
     linear-gradient(0deg, rgba(191, 205, 219, 0.42) 1px, transparent 1px),
-    linear-gradient(180deg, #edf3f8, #dfe8f0);
-  background-size: auto, 44px 44px, 44px 44px, auto;
+    #eef4f8;
+  background-size: 44px 44px;
 }
 
 .builder-preview.night {
   background:
-    radial-gradient(circle at 50% 38%, rgba(28, 41, 62, 0.72), transparent 42%),
     linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
     linear-gradient(0deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
-    linear-gradient(180deg, #182133, #0d1320);
-  background-size: auto, 44px 44px, 44px 44px, auto;
+    #111827;
+  background-size: 44px 44px;
 }
 
 .preview-wall {
@@ -2893,37 +2893,29 @@ td small {
   overflow: visible;
   border: 1px solid rgba(148, 163, 184, 0.28);
   background:
-    radial-gradient(circle at 52% 45%, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.78) 42%, rgba(229, 236, 244, 0.92)),
-    repeating-linear-gradient(0deg, transparent 0 38px, rgba(148, 163, 184, 0.13) 38px 39px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 34px 70px rgba(37, 50, 70, 0.18);
+    linear-gradient(90deg, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(148, 163, 184, 0.16) 1px, transparent 1px),
+    #f8fafc;
+  background-size: 44px 44px;
+  box-shadow: none;
 }
 
 .preview-wall::before {
-  content: "";
-  position: absolute;
-  inset: 12%;
-  z-index: -1;
-  border-radius: 999px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.78), transparent 66%);
-  filter: blur(18px);
+  display: none;
 }
 
 .builder-preview.night .preview-wall {
   background:
-    radial-gradient(circle at 52% 45%, rgba(43, 56, 80, 0.92), rgba(20, 30, 46, 0.92) 44%, rgba(9, 14, 24, 0.96)),
-    repeating-linear-gradient(0deg, transparent 0 38px, rgba(148, 163, 184, 0.12) 38px 39px);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 36px 80px rgba(0, 0, 0, 0.42);
+    linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    #111827;
+  background-size: 44px 44px;
+  box-shadow: none;
 }
 
 .panel-face {
-  transform: rotateX(2deg) rotateY(-7deg);
-  box-shadow:
-    18px 22px 0 color-mix(in srgb, var(--side-color) 74%, #05070a),
-    0 28px 54px rgba(15, 23, 42, 0.28);
+  transform: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--side-color) 70%, transparent);
 }
 
 .panel-depth {
@@ -2932,10 +2924,8 @@ td small {
 
 .builder-preview.night .panel-face {
   box-shadow:
-    18px 22px 0 color-mix(in srgb, var(--side-color) 74%, #05070a),
-    0 0 36px color-mix(in srgb, var(--face-color) 58%, transparent),
-    0 0 90px color-mix(in srgb, var(--face-color) 34%, transparent),
-    0 30px 58px rgba(0, 0, 0, 0.42);
+    0 0 0 2px color-mix(in srgb, var(--side-color) 70%, transparent),
+    0 0 34px color-mix(in srgb, var(--face-color) 34%, transparent);
 }
 
 .letters-scene {
@@ -2946,7 +2936,7 @@ td small {
   width: min(96%, 880px);
   min-height: 430px;
   padding: 32px;
-  perspective: 1100px;
+  perspective: none;
 }
 
 .letter-content {
@@ -2957,8 +2947,8 @@ td small {
   justify-content: center;
   gap: clamp(16px, 3vw, 30px);
   max-width: 94%;
-  transform: rotateX(2deg) rotateY(-7deg);
-  transform-style: preserve-3d;
+  transform: none;
+  transform-style: flat;
 }
 
 .letter-content::before {
@@ -2976,19 +2966,7 @@ td small {
 }
 
 .mount-frame .letter-content::after {
-  content: "";
-  position: absolute;
-  top: 34%;
-  right: 1%;
-  bottom: 27%;
-  left: 5%;
-  z-index: 1;
-  border-radius: 999px;
-  background:
-    radial-gradient(ellipse at 48% 35%, rgba(15, 23, 42, 0.18), transparent 68%),
-    radial-gradient(ellipse at 54% 82%, rgba(15, 23, 42, 0.16), transparent 70%);
-  filter: blur(10px);
-  pointer-events: none;
+  display: none;
 }
 
 .builder-preview.night.glow-faceHalo .letter-content::before,
@@ -3011,13 +2989,8 @@ td small {
   height: var(--frame-profile-size);
   border: 1px solid rgba(15, 23, 42, 0.42);
   border-radius: 1px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.03) 45%, rgba(0, 0, 0, 0.2) 100%),
-    linear-gradient(90deg, #50545a, #777b80 48%, #4c5056);
-  box-shadow:
-    0 7px 12px rgba(15, 23, 42, 0.22),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  background: #6b7280;
+  box-shadow: none;
 }
 
 .frame-rails i:first-child {
@@ -3034,13 +3007,9 @@ td small {
   width: min(86%, 820px);
   aspect-ratio: var(--acp-preview-ratio);
   border: 1px solid rgba(148, 163, 184, 0.36);
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.52), transparent 38%),
-    var(--acp-color);
-  box-shadow:
-    var(--acp-depth-preview) var(--acp-depth-preview) 0 color-mix(in srgb, var(--acp-color) 72%, #475569),
-    0 34px 64px rgba(15, 23, 42, 0.2);
+  border-radius: 6px;
+  background: var(--acp-color);
+  box-shadow: none;
 }
 
 .acp-preview-panel::before {
@@ -3053,9 +3022,8 @@ td small {
 }
 
 .builder-preview.night .acp-preview-panel {
-  box-shadow:
-    var(--acp-depth-preview) var(--acp-depth-preview) 0 color-mix(in srgb, var(--acp-color) 65%, #020617),
-    0 30px 64px rgba(0, 0, 0, 0.38);
+  border-color: rgba(226, 232, 240, 0.32);
+  box-shadow: none;
 }
 
 .acp-preview-seam {
@@ -3084,19 +3052,13 @@ td small {
   height: clamp(150px, 32%, 250px);
   border: 1px solid rgba(148, 163, 184, 0.34);
   border-radius: 999px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.48), transparent 36%),
-    var(--halo-backer-color);
-  box-shadow:
-    10px 14px 0 color-mix(in srgb, var(--halo-backer-color) 76%, #64748b),
-    0 24px 52px rgba(15, 23, 42, 0.18);
+  background: color-mix(in srgb, var(--halo-backer-color) 74%, transparent);
+  box-shadow: none;
 }
 
 .builder-preview.night .halo-backer-shape {
   box-shadow:
-    10px 14px 0 color-mix(in srgb, var(--halo-backer-color) 70%, #020617),
-    0 0 44px color-mix(in srgb, var(--glow-color) 24%, transparent),
-    0 28px 58px rgba(0, 0, 0, 0.36);
+    0 0 38px color-mix(in srgb, var(--glow-color) 24%, transparent);
 }
 
 .letter-logo {
@@ -3105,23 +3067,14 @@ td small {
   flex: 0 0 auto;
   width: min(20vw, var(--logo-preview-size));
   border: var(--logo-outline-width) solid var(--outline-color);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 46%),
-    var(--face-color);
-  box-shadow:
-    calc(var(--letter-side-step) * 1) calc(var(--letter-side-step) * 0.6) 0 color-mix(in srgb, var(--side-color) 88%, #111827),
-    calc(var(--letter-side-step) * 2) calc(var(--letter-side-step) * 1.2) 0 color-mix(in srgb, var(--side-color) 82%, #111827),
-    var(--letter-side-shift) calc(var(--letter-side-shift) * 0.55) 0 color-mix(in srgb, var(--side-color) 72%, #05070a),
-    0 10px 16px rgba(15, 23, 42, 0.2);
+  background: var(--face-color);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--side-color) 72%, transparent);
 }
 
 .letter-logo.outlined {
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--outline-color) 68%, white),
-    calc(var(--letter-side-step) * 1) calc(var(--letter-side-step) * 0.6) 0 color-mix(in srgb, var(--side-color) 88%, #111827),
-    calc(var(--letter-side-step) * 2) calc(var(--letter-side-step) * 1.2) 0 color-mix(in srgb, var(--side-color) 82%, #111827),
-    var(--letter-side-shift) calc(var(--letter-side-shift) * 0.55) 0 color-mix(in srgb, var(--side-color) 72%, #05070a),
-    0 10px 16px rgba(15, 23, 42, 0.2);
+    0 0 0 2px color-mix(in srgb, var(--side-color) 72%, transparent),
+    0 0 0 calc(var(--logo-outline-width) + 2px) var(--outline-color);
 }
 
 .letter-logo.circle {
@@ -3155,33 +3108,20 @@ td small {
   -webkit-text-stroke: var(--letter-outline-width) var(--outline-color);
   paint-order: stroke fill;
   text-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.16),
-    0 9px 14px rgba(15, 23, 42, 0.16);
+    none;
 }
 
 .letter-word::after {
-  content: attr(data-text);
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  color: transparent;
-  -webkit-text-stroke: 0 transparent;
-  text-shadow:
-    calc(var(--letter-side-step) * 1) calc(var(--letter-side-step) * 0.5) 0 color-mix(in srgb, var(--side-color) 90%, #0f172a),
-    calc(var(--letter-side-step) * 2) calc(var(--letter-side-step) * 1) 0 color-mix(in srgb, var(--side-color) 84%, #0f172a),
-    calc(var(--letter-side-step) * 3) calc(var(--letter-side-step) * 1.5) 0 color-mix(in srgb, var(--side-color) 76%, #0f172a);
-  transform: skewY(-0.8deg);
+  display: none;
 }
 
 .letter-word::before {
-  z-index: -2;
-  color: var(--side-color);
-  transform:
-    translate(var(--letter-side-shift), calc(var(--letter-side-shift) * 0.48))
-    skewY(-1.6deg);
-  text-shadow:
-    0 1px 0 color-mix(in srgb, var(--side-color) 70%, white),
-    0 7px 10px rgba(15, 23, 42, 0.2);
+  display: none;
+}
+
+.builder-preview.night .letter-logo,
+.builder-preview.night .letter-word {
+  filter: none;
 }
 
 .builder-preview.night.glow-face .letter-word,
@@ -3195,9 +3135,7 @@ td small {
 
 .builder-preview.night.glow-faceSide .letter-word::before,
 .builder-preview.night.glow-faceSide .letter-logo {
-  filter:
-    drop-shadow(0 0 8px color-mix(in srgb, var(--side-color) 70%, white))
-    drop-shadow(0 0 24px color-mix(in srgb, var(--side-color) 70%, transparent));
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--side-color) 48%, transparent));
 }
 
 .builder-preview.night.glow-halo .letter-word {
@@ -3208,16 +3146,16 @@ td small {
 }
 
 .builder-preview.night.glow-halo .letter-logo {
-  filter: drop-shadow(0 0 26px color-mix(in srgb, var(--glow-color) 38%, transparent));
+  filter: drop-shadow(0 0 22px color-mix(in srgb, var(--glow-color) 32%, transparent));
 }
 
 .mount-frame .letter-content {
   padding-block: clamp(12px, 2.1vw, 24px);
-  transform: rotateX(1.2deg) rotateY(-3.5deg) translateZ(8px);
+  transform: none;
 }
 
 .mount-acp .letter-content {
-  transform: rotateX(1.4deg) rotateY(-4deg) translateZ(14px);
+  transform: none;
 }
 
 .preview-dimension {
@@ -4653,7 +4591,7 @@ td small {
     flex-direction: column;
     gap: 14px;
     max-width: 100%;
-    transform: rotateX(1deg) rotateY(-4deg);
+    transform: none;
   }
 
   .halo-backer-shape {
