@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-16T11:52:49.481Z",
+  "generatedAt": "2026-06-16T16:53:48.142Z",
   "specs": [
     {
       "dealId": "16986",
@@ -225,6 +225,43 @@
         ]
       },
       "updatedAt": "2026-06-16T11:52:49.481Z"
+    },
+    {
+      "dealId": "17024",
+      "draft": {
+        "dealNumber": "17024",
+        "projectName": "Briks.Art",
+        "manager": "Сергей Кирсанов",
+        "responsiblePhone": "704",
+        "deadline": "2026-06-22",
+        "date": "2026-06-16",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "e24732cd-cdcc-436b-a8bf-aadbe4fa49b3",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-16T16:53:48.142Z"
     }
   ]
 }
