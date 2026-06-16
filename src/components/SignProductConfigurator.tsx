@@ -1,5 +1,5 @@
-import { Moon, Sun, Upload } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Download, Moon, Sun, Upload } from "lucide-react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 
 type ProductId = "panel" | "letters";
@@ -31,6 +31,67 @@ type AcpLayout = {
   sheetsX: number;
   sheetsY: number;
   sheetCount: number;
+};
+
+type SvgBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type LettersSvgLayout = {
+  viewWidth: number;
+  viewHeight: number;
+  logoBox: SvgBox;
+  logoCornerRadius: number;
+  textX: number;
+  textBaseline: number;
+  fontSize: number;
+  signBox: SvgBox;
+  railX: number;
+  railWidth: number;
+  railTopY: number;
+  railBottomY: number;
+  railHeight: number;
+  panelBox: SvgBox;
+  panelCornerRadius: number;
+  haloBackerBox: SvgBox;
+  haloBackerRadius: number;
+  seamXs: number[];
+  seamYs: number[];
+};
+
+type LettersSvgLayoutConfig = {
+  acpLayout: AcpLayout;
+  estimatedWidth: number;
+  frameBottomPosition: number;
+  frameEdgeInset: number;
+  frameProfile: FrameProfile;
+  frameTopPosition: number;
+  height: number;
+  letterOutlineEnabled: boolean;
+  logoScale: number;
+  logoShape: LogoShape;
+  mountMode: MountMode;
+  text: string;
+  textBox: SvgBox | null;
+};
+
+type LettersSvgMarkupConfig = LettersSvgLayoutConfig & {
+  acpColor: string;
+  depth: number;
+  faceColor: string;
+  font: string;
+  glowMode: GlowMode;
+  haloBackerColor: string;
+  haloBackerEnabled: boolean;
+  layout: LettersSvgLayout;
+  logoImage: string;
+  logoOutlineEnabled: boolean;
+  logoShape: LogoShape;
+  outlineColor: string;
+  sideColor: string;
 };
 
 const PANEL_SIZES = Array.from({ length: 7 }, (_, index) => 400 + index * 50);
@@ -223,6 +284,11 @@ export function SignProductConfigurator() {
   const [acpWidth, setAcpWidth] = useState(2500);
   const [acpHeight, setAcpHeight] = useState(830);
   const [acpDepth, setAcpDepth] = useState(50);
+  const [letterTextBox, setLetterTextBox] = useState<SvgBox | null>(null);
+
+  useLayoutEffect(() => {
+    setLetterTextBox(null);
+  }, [letterFont, letterHeight, letterOutlineEnabled, lettersText, logoScale, logoShape]);
 
   const activeProduct = PRODUCTS.find((product) => product.id === productId) || PRODUCTS[0];
   const currentFaceColor = productId === "panel" ? panelFaceColor : letterFaceColor;
@@ -238,15 +304,44 @@ export function SignProductConfigurator() {
 
     return Math.max(900, textWidth + logoWidth + constructionGap);
   }, [letterHeight, lettersText]);
-  const frameEdgeInsetSafe = Math.max(0, Math.min(120, frameEdgeInset));
-  const frameEdgeInsetPercent = Math.min(12, (frameEdgeInsetSafe / lettersWidth) * 100);
-  const frameVisibleLength = Math.max(0, lettersWidth - frameEdgeInsetSafe * 2);
-  const lettersAreaM2 = (lettersWidth * letterHeight) / 1_000_000;
   const acpLayout = useMemo(() => createAcpLayout(acpWidth, acpHeight, acpDepth), [
     acpDepth,
     acpHeight,
     acpWidth,
   ]);
+  const lettersLayout = useMemo(() => createLettersSvgLayout({
+    acpLayout,
+    estimatedWidth: lettersWidth,
+    frameBottomPosition,
+    frameEdgeInset,
+    frameProfile,
+    frameTopPosition,
+    height: letterHeight,
+    letterOutlineEnabled,
+    logoScale,
+    logoShape,
+    mountMode,
+    text: lettersText,
+    textBox: letterTextBox,
+  }), [
+    acpLayout,
+    frameBottomPosition,
+    frameEdgeInset,
+    frameProfile,
+    frameTopPosition,
+    letterHeight,
+    letterOutlineEnabled,
+    lettersText,
+    lettersWidth,
+    letterTextBox,
+    logoScale,
+    logoShape,
+    mountMode,
+  ]);
+  const measuredLettersWidth = Math.max(1, Math.round(lettersLayout.signBox.width));
+  const frameEdgeInsetSafe = Math.max(0, Math.min(120, frameEdgeInset));
+  const frameEdgeInsetPercent = Math.min(12, (frameEdgeInsetSafe / Math.max(1, measuredLettersWidth)) * 100);
+  const lettersAreaM2 = (measuredLettersWidth * letterHeight) / 1_000_000;
   const glowHasHalo = hasHaloGlow(glowMode);
   const glowLabel = GLOW_MODES.find((item) => item.id === glowMode)?.label || "";
   const mountLabel = MOUNT_MODES.find((item) => item.id === mountMode)?.label || "";
@@ -287,6 +382,38 @@ export function SignProductConfigurator() {
     }
   }
 
+  function handleExportVector() {
+    const svg = createLettersSvgMarkup({
+      acpColor: acpColor.value,
+      acpLayout,
+      depth: letterDepth,
+      estimatedWidth: lettersWidth,
+      faceColor: letterFaceColor.value,
+      font: letterFont,
+      frameBottomPosition,
+      frameEdgeInset,
+      frameProfile,
+      frameTopPosition,
+      glowMode,
+      haloBackerColor: haloBackerColor.value,
+      haloBackerEnabled: glowHasHalo && haloBackerEnabled && mountMode !== "frame",
+      height: letterHeight,
+      layout: lettersLayout,
+      letterOutlineEnabled,
+      logoImage,
+      logoOutlineEnabled,
+      logoScale,
+      logoShape,
+      mountMode,
+      outlineColor: outlineColor.value,
+      sideColor: letterSideColor.value,
+      text: lettersText,
+      textBox: letterTextBox,
+    });
+
+    downloadTextFile(`verkup-sign-${Date.now()}.svg`, svg, "image/svg+xml;charset=utf-8");
+  }
+
   return (
     <main className="public-sign-configurator" style={visualStyle}>
       <header className="public-sign-topbar">
@@ -294,27 +421,51 @@ export function SignProductConfigurator() {
           <h1>Конфигуратор вывесок</h1>
           <p>{activeProduct.note}</p>
         </div>
-        <div className="scene-switch" role="tablist" aria-label="Режим визуализации">
-          <button
-            aria-selected={sceneMode === "day"}
-            className={sceneMode === "day" ? "active" : ""}
-            onClick={() => setSceneMode("day")}
-            role="tab"
-            type="button"
-          >
-            <Sun size={17} />
-            День
-          </button>
-          <button
-            aria-selected={sceneMode === "night"}
-            className={sceneMode === "night" ? "active" : ""}
-            onClick={() => setSceneMode("night")}
-            role="tab"
-            type="button"
-          >
-            <Moon size={17} />
-            Ночь
-          </button>
+        <div style={{ alignItems: "center", display: "flex", gap: 8 }}>
+          <div className="scene-switch" role="tablist" aria-label="Режим визуализации">
+            <button
+              aria-selected={sceneMode === "day"}
+              className={sceneMode === "day" ? "active" : ""}
+              onClick={() => setSceneMode("day")}
+              role="tab"
+              type="button"
+            >
+              <Sun size={17} />
+              День
+            </button>
+            <button
+              aria-selected={sceneMode === "night"}
+              className={sceneMode === "night" ? "active" : ""}
+              onClick={() => setSceneMode("night")}
+              role="tab"
+              type="button"
+            >
+              <Moon size={17} />
+              Ночь
+            </button>
+          </div>
+          {productId === "letters" && (
+            <button
+              onClick={handleExportVector}
+              style={{
+                alignItems: "center",
+                background: "#ffffff",
+                border: "1px solid #d7dde7",
+                borderRadius: 8,
+                color: "#17202f",
+                display: "inline-flex",
+                fontWeight: 800,
+                gap: 7,
+                minHeight: 46,
+                padding: "0 14px",
+              }}
+              title="Экспортировать вывеску в SVG"
+              type="button"
+            >
+              <Download size={17} />
+              SVG
+            </button>
+          )}
         </div>
       </header>
 
@@ -421,18 +572,26 @@ export function SignProductConfigurator() {
               />
             ) : (
               <LettersPreview
-                acpLayout={acpLayout}
+                acpColor={acpColor.value}
                 depth={letterDepth}
-                frameLength={frameVisibleLength}
+                faceColor={letterFaceColor.value}
+                font={letterFont}
                 frameProfile={frameProfile}
                 glowMode={glowMode}
+                haloBackerColor={haloBackerColor.value}
                 haloBackerEnabled={glowHasHalo && haloBackerEnabled && mountMode !== "frame"}
                 height={letterHeight}
+                layout={lettersLayout}
+                letterOutlineEnabled={letterOutlineEnabled}
                 logoImage={logoImage}
                 logoOutlineEnabled={logoOutlineEnabled}
                 logoShape={logoShape}
                 mountMode={mountMode}
+                outlineColor={outlineColor.value}
+                sideColor={letterSideColor.value}
                 text={lettersText}
+                textBox={letterTextBox}
+                onTextBoxChange={setLetterTextBox}
               />
             )}
           </div>
@@ -450,7 +609,7 @@ export function SignProductConfigurator() {
                 ? `${panelSize} x ${panelSize} мм`
                 : mountMode === "acp"
                   ? `${acpWidth} x ${acpHeight} x ${acpDepth} мм`
-                  : `${Math.round(lettersWidth)} x ${letterHeight} мм`}
+                  : `${measuredLettersWidth} x ${letterHeight} мм`}
             </strong>
           </div>
           <div className="summary-block">
@@ -879,68 +1038,276 @@ function PanelPreview({
 }
 
 function LettersPreview({
-  acpLayout,
+  acpColor,
   depth,
-  frameLength,
+  faceColor,
+  font,
   frameProfile,
   glowMode,
+  haloBackerColor,
   haloBackerEnabled,
   height,
+  layout,
+  letterOutlineEnabled,
   logoImage,
   logoOutlineEnabled,
   logoShape,
   mountMode,
+  outlineColor,
+  sideColor,
   text,
+  textBox,
+  onTextBoxChange,
 }: {
-  acpLayout: AcpLayout;
+  acpColor: string;
   depth: number;
-  frameLength: number;
+  faceColor: string;
+  font: string;
   frameProfile: FrameProfile;
   glowMode: GlowMode;
+  haloBackerColor: string;
   haloBackerEnabled: boolean;
   height: number;
+  layout: LettersSvgLayout;
+  letterOutlineEnabled: boolean;
   logoImage: string;
   logoOutlineEnabled: boolean;
   logoShape: LogoShape;
   mountMode: MountMode;
+  outlineColor: string;
+  sideColor: string;
   text: string;
+  textBox: SvgBox | null;
+  onTextBoxChange: (box: SvgBox) => void;
 }) {
-  const limitedHeight = Math.min(1200, Math.max(120, height));
-  const wordSize = 64 + (limitedHeight / 1200) * 118;
-  const logoSize = 92 + (limitedHeight / 1200) * 128;
-  const panelRatio = `${acpLayout.faceWidth} / ${acpLayout.faceHeight}`;
+  const textRef = useRef<SVGTextElement>(null);
+  const label = text.trim() || "Вывеска";
+  const clipId = "letters-logo-clip";
+  const textStrokeWidth = letterOutlineEnabled ? Math.max(5, height * 0.035) : 0;
+  const logoStrokeWidth = logoOutlineEnabled ? Math.max(6, height * 0.035) : 0;
+  const svgStyle = {
+    height: "auto",
+    maxHeight: "min(72vh, 520px)",
+    overflow: "visible",
+    width: "min(94%, 1120px)",
+  } as CSSProperties;
+
+  useLayoutEffect(() => {
+    const node = textRef.current;
+    if (!node) return;
+
+    const nextBox = normalizeSvgBox(node.getBBox());
+    if (!areSvgBoxesClose(nextBox, textBox)) {
+      onTextBoxChange(nextBox);
+    }
+  }, [
+    font,
+    label,
+    layout.fontSize,
+    layout.textBaseline,
+    layout.textX,
+    letterOutlineEnabled,
+    onTextBoxChange,
+    textBox,
+  ]);
 
   return (
     <div
       className={`letters-scene mount-${mountMode} ${haloBackerEnabled ? "with-halo-backer" : ""}`}
-      style={
-        {
-          "--letter-preview-size": `${wordSize}px`,
-          "--logo-preview-size": `${logoSize}px`,
-          "--acp-preview-ratio": panelRatio,
-          "--acp-depth-preview": `${Math.max(10, Math.min(30, depth / 2))}px`,
-        } as CSSProperties
-      }
     >
-      {mountMode === "acp" && <AcpPreviewPanel layout={acpLayout} />}
-      {haloBackerEnabled && <div className="halo-backer-shape" aria-hidden="true" />}
-      <div className="letter-content">
-        {mountMode === "frame" && (
-          <div className="frame-rails" aria-hidden="true" data-frame-length={Math.round(frameLength)}>
-            <i />
-            <i />
-          </div>
+      <svg
+        aria-label="2D визуализация вывески"
+        role="img"
+        style={svgStyle}
+        viewBox={`0 0 ${roundSvg(layout.viewWidth)} ${roundSvg(layout.viewHeight)}`}
+      >
+        <defs>
+          <clipPath id={clipId}>
+            {logoShape === "circle" ? (
+              <circle
+                cx={layout.logoBox.x + layout.logoBox.width / 2}
+                cy={layout.logoBox.y + layout.logoBox.height / 2}
+                r={layout.logoBox.width / 2}
+              />
+            ) : (
+              <rect
+                height={layout.logoBox.height}
+                rx={logoShape === "rounded" ? layout.logoCornerRadius : 0}
+                width={layout.logoBox.width}
+                x={layout.logoBox.x}
+                y={layout.logoBox.y}
+              />
+            )}
+          </clipPath>
+          <filter id="letters-soft-shadow" x="-20%" y="-25%" width="145%" height="155%">
+            <feDropShadow dx={depth * 0.04} dy={depth * 0.09} floodColor="#111827" floodOpacity="0.26" stdDeviation={Math.max(3, depth * 0.08)} />
+          </filter>
+          <filter id="letters-soft-glow" x="-35%" y="-35%" width="170%" height="170%">
+            <feDropShadow dx="0" dy="0" floodColor={faceColor} floodOpacity="0.42" stdDeviation={Math.max(7, height * 0.035)} />
+          </filter>
+        </defs>
+
+        {mountMode === "acp" && (
+          <g aria-hidden="true">
+            <rect
+              fill={sideColor}
+              height={layout.panelBox.height}
+              opacity="0.22"
+              rx={layout.panelCornerRadius}
+              width={layout.panelBox.width}
+              x={layout.panelBox.x + Math.max(10, depth * 0.18)}
+              y={layout.panelBox.y + Math.max(8, depth * 0.16)}
+            />
+            <rect
+              fill={acpColor}
+              height={layout.panelBox.height}
+              rx={layout.panelCornerRadius}
+              stroke="#cbd5e1"
+              strokeWidth={Math.max(2, height * 0.006)}
+              width={layout.panelBox.width}
+              x={layout.panelBox.x}
+              y={layout.panelBox.y}
+            />
+            {layout.seamXs.map((x) => (
+              <line
+                key={`preview-seam-x-${x}`}
+                opacity="0.55"
+                stroke="#ef4444"
+                strokeDasharray={`${Math.max(14, height * 0.04)} ${Math.max(10, height * 0.03)}`}
+                strokeWidth={Math.max(2, height * 0.006)}
+                x1={x}
+                x2={x}
+                y1={layout.panelBox.y}
+                y2={layout.panelBox.y + layout.panelBox.height}
+              />
+            ))}
+            {layout.seamYs.map((y) => (
+              <line
+                key={`preview-seam-y-${y}`}
+                opacity="0.55"
+                stroke="#ef4444"
+                strokeDasharray={`${Math.max(14, height * 0.04)} ${Math.max(10, height * 0.03)}`}
+                strokeWidth={Math.max(2, height * 0.006)}
+                x1={layout.panelBox.x}
+                x2={layout.panelBox.x + layout.panelBox.width}
+                y1={y}
+                y2={y}
+              />
+            ))}
+          </g>
         )}
-        <div className={`letter-logo ${logoShape} ${logoOutlineEnabled ? "outlined" : ""}`}>
-          {logoImage ? <img alt="" src={logoImage} /> : <span>Лого</span>}
-        </div>
-        <div className={`letter-word glow-mode-${glowMode}`} data-text={text || "Вывеска"}>
-          {text || "Вывеска"}
-        </div>
-      </div>
+
+        {haloBackerEnabled && (
+          <rect
+            fill={haloBackerColor}
+            filter={hasHaloGlow(glowMode) ? "url(#letters-soft-glow)" : undefined}
+            height={layout.haloBackerBox.height}
+            opacity="0.92"
+            rx={layout.haloBackerRadius}
+            stroke="#dbe4ef"
+            strokeWidth={Math.max(2, height * 0.006)}
+            width={layout.haloBackerBox.width}
+            x={layout.haloBackerBox.x}
+            y={layout.haloBackerBox.y}
+          />
+        )}
+
+        {mountMode === "frame" && (
+          <g aria-hidden="true" filter="url(#letters-soft-shadow)">
+            {[layout.railTopY, layout.railBottomY].map((railY, index) => (
+              <g key={`frame-rail-${index}`}>
+                <rect
+                  fill="#7b828a"
+                  height={layout.railHeight}
+                  rx={layout.railHeight / 2}
+                  stroke="#47515c"
+                  strokeWidth={Math.max(1.5, layout.railHeight * 0.12)}
+                  width={layout.railWidth}
+                  x={layout.railX}
+                  y={railY - layout.railHeight / 2}
+                />
+                <line
+                  opacity="0.45"
+                  stroke="#dbe3ea"
+                  strokeLinecap="round"
+                  strokeWidth={Math.max(1, layout.railHeight * 0.12)}
+                  x1={layout.railX + layout.railHeight}
+                  x2={layout.railX + layout.railWidth - layout.railHeight}
+                  y1={railY - layout.railHeight * 0.22}
+                  y2={railY - layout.railHeight * 0.22}
+                />
+              </g>
+            ))}
+          </g>
+        )}
+
+        <g filter={hasHaloGlow(glowMode) ? "url(#letters-soft-glow)" : undefined}>
+          {logoShape === "circle" ? (
+            <circle
+              cx={layout.logoBox.x + layout.logoBox.width / 2}
+              cy={layout.logoBox.y + layout.logoBox.height / 2}
+              fill={faceColor}
+              r={layout.logoBox.width / 2}
+              stroke={logoOutlineEnabled ? outlineColor : "none"}
+              strokeWidth={logoStrokeWidth}
+            />
+          ) : (
+            <rect
+              fill={faceColor}
+              height={layout.logoBox.height}
+              rx={logoShape === "rounded" ? layout.logoCornerRadius : 0}
+              stroke={logoOutlineEnabled ? outlineColor : "none"}
+              strokeWidth={logoStrokeWidth}
+              width={layout.logoBox.width}
+              x={layout.logoBox.x}
+              y={layout.logoBox.y}
+            />
+          )}
+          {logoImage ? (
+            <image
+              clipPath={`url(#${clipId})`}
+              height={layout.logoBox.height}
+              href={logoImage}
+              preserveAspectRatio="xMidYMid meet"
+              width={layout.logoBox.width}
+              x={layout.logoBox.x}
+              y={layout.logoBox.y}
+            />
+          ) : (
+            <text
+              dominantBaseline="middle"
+              fill="#475569"
+              fontFamily="Arial, sans-serif"
+              fontSize={Math.max(32, height * 0.13)}
+              fontWeight="800"
+              textAnchor="middle"
+              x={layout.logoBox.x + layout.logoBox.width / 2}
+              y={layout.logoBox.y + layout.logoBox.height / 2}
+            >
+              лого
+            </text>
+          )}
+          <text
+            ref={textRef}
+            fill={faceColor}
+            fontFamily={font}
+            fontSize={layout.fontSize}
+            fontWeight="900"
+            paintOrder="stroke fill"
+            stroke={letterOutlineEnabled ? outlineColor : "none"}
+            strokeLinejoin="round"
+            strokeWidth={textStrokeWidth}
+            x={layout.textX}
+            y={layout.textBaseline}
+          >
+            {label}
+          </text>
+        </g>
+      </svg>
+
       <div className="preview-dimension">
         h {height} мм · борт {depth} мм
-        {mountMode === "frame" ? ` · профиль ${frameProfile}x${frameProfile}` : ""}
+        {mountMode === "frame" ? ` · профиль ${frameProfile}x${frameProfile} · рама ${Math.round(layout.railWidth)} мм` : ""}
       </div>
     </div>
   );
@@ -1116,6 +1483,190 @@ function NumberField({
   );
 }
 
+function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayout {
+  const normalizedHeight = clamp(config.height, 120, 1200);
+  const margin = Math.max(80, normalizedHeight * 0.26);
+  const logoSize = clamp(
+    normalizedHeight * (config.logoScale / 100),
+    normalizedHeight * 0.5,
+    normalizedHeight * 1.16,
+  );
+  const gap = normalizedHeight * LETTER_GAP_FACTOR;
+  const fontSize = normalizedHeight * 1.03;
+  const label = config.text.trim() || "Вывеска";
+  const estimatedTextWidth = Math.max(
+    normalizedHeight * 0.9,
+    label.length * normalizedHeight * LETTER_TEXT_WIDTH_FACTOR,
+  );
+  const estimatedContentWidth = Math.max(config.estimatedWidth, logoSize + gap + estimatedTextWidth);
+  const panelRequired = config.mountMode === "acp";
+  const baseWidth = panelRequired
+    ? Math.max(config.acpLayout.faceWidth, estimatedContentWidth)
+    : estimatedContentWidth;
+  const baseHeight = panelRequired
+    ? Math.max(config.acpLayout.faceHeight, normalizedHeight * 1.3)
+    : normalizedHeight * 1.32;
+  const initialViewWidth = Math.max(720, baseWidth + margin * 2);
+  const initialViewHeight = Math.max(360, baseHeight + margin * 2);
+  const panelBox = {
+    height: config.acpLayout.faceHeight,
+    width: config.acpLayout.faceWidth,
+    x: margin,
+    y: (initialViewHeight - config.acpLayout.faceHeight) / 2,
+  };
+  const contentX = panelRequired
+    ? panelBox.x + Math.max(0, (panelBox.width - estimatedContentWidth) / 2)
+    : margin;
+  const logoBox = {
+    height: logoSize,
+    width: logoSize,
+    x: contentX,
+    y: panelRequired
+      ? panelBox.y + Math.max(0, (panelBox.height - logoSize) / 2)
+      : (initialViewHeight - logoSize) / 2,
+  };
+  const textX = logoBox.x + logoBox.width + gap;
+  const textBaseline = logoBox.y + logoBox.height * 0.76;
+  const fallbackTextBox = {
+    height: logoBox.height * 0.76,
+    width: estimatedTextWidth,
+    x: textX,
+    y: logoBox.y + logoBox.height * 0.12,
+  };
+  const measuredTextBox = config.textBox || fallbackTextBox;
+  const outlinePadding = config.letterOutlineEnabled ? Math.max(4, normalizedHeight * 0.035) : 0;
+  const paddedTextBox = {
+    height: measuredTextBox.height + outlinePadding * 2,
+    width: measuredTextBox.width + outlinePadding * 2,
+    x: measuredTextBox.x - outlinePadding,
+    y: measuredTextBox.y - outlinePadding,
+  };
+  const signBox = unionSvgBoxes(logoBox, paddedTextBox);
+  const railHeight = config.frameProfile;
+  const railTopPercent = clamp(config.frameTopPosition, 6, 92) / 100;
+  const railBottomPercent = 1 - clamp(config.frameBottomPosition, 6, 92) / 100;
+  let railTopY = signBox.y + signBox.height * railTopPercent;
+  let railBottomY = signBox.y + signBox.height * railBottomPercent;
+
+  if (railBottomY < railTopY) {
+    [railTopY, railBottomY] = [railBottomY, railTopY];
+  }
+
+  const minRailGap = railHeight * 3.2;
+  if (railBottomY - railTopY < minRailGap) {
+    const centerY = (railTopY + railBottomY) / 2;
+    railTopY = centerY - minRailGap / 2;
+    railBottomY = centerY + minRailGap / 2;
+  }
+
+  const railShapeAwareLeft = config.logoShape === "circle"
+    ? Math.max(getLogoRailLeft(logoBox, railTopY), getLogoRailLeft(logoBox, railBottomY))
+    : signBox.x;
+  const frameInset = clamp(Math.max(config.frameEdgeInset, railHeight * 0.45), 0, signBox.width * 0.38);
+  const railX = railShapeAwareLeft + frameInset;
+  const railRight = signBox.x + signBox.width - frameInset;
+  const railWidth = Math.max(railHeight * 2, railRight - railX);
+
+  const haloPaddingX = normalizedHeight * 0.16;
+  const haloPaddingY = normalizedHeight * 0.11;
+  const haloBackerBox = {
+    height: signBox.height + haloPaddingY * 2,
+    width: signBox.width + haloPaddingX * 2,
+    x: signBox.x - haloPaddingX,
+    y: signBox.y - haloPaddingY,
+  };
+  const requiredRight = Math.max(
+    initialViewWidth,
+    signBox.x + signBox.width + margin,
+    haloBackerBox.x + haloBackerBox.width + margin,
+  );
+  const requiredBottom = Math.max(
+    initialViewHeight,
+    signBox.y + signBox.height + margin,
+    haloBackerBox.y + haloBackerBox.height + margin,
+  );
+
+  return {
+    fontSize,
+    haloBackerBox,
+    haloBackerRadius: Math.min(normalizedHeight * 0.28, haloBackerBox.height / 2),
+    logoBox,
+    logoCornerRadius: logoSize * 0.16,
+    panelBox,
+    panelCornerRadius: Math.min(70, config.acpLayout.faceHeight * 0.08),
+    railBottomY,
+    railHeight,
+    railTopY,
+    railWidth,
+    railX,
+    seamXs: Array.from({ length: Math.max(0, config.acpLayout.sheetsX - 1) }, (_, index) =>
+      panelBox.x + ((index + 1) * ACP_SHEET_WIDTH_MM / config.acpLayout.faceWidth) * panelBox.width,
+    ),
+    seamYs: Array.from({ length: Math.max(0, config.acpLayout.sheetsY - 1) }, (_, index) =>
+      panelBox.y + ((index + 1) * ACP_SHEET_HEIGHT_MM / config.acpLayout.faceHeight) * panelBox.height,
+    ),
+    signBox,
+    textBaseline,
+    textX,
+    viewHeight: requiredBottom,
+    viewWidth: requiredRight,
+  };
+}
+
+function createLettersSvgMarkup(config: LettersSvgMarkupConfig) {
+  const layout = config.layout;
+  const label = escapeXml(config.text.trim() || "Вывеска");
+  const textStrokeWidth = config.letterOutlineEnabled ? Math.max(5, config.height * 0.035) : 0;
+  const logoStrokeWidth = config.logoOutlineEnabled ? Math.max(6, config.height * 0.035) : 0;
+  const glowFilter = hasHaloGlow(config.glowMode) ? ' filter="url(#letters-soft-glow)"' : "";
+  const clipShape = config.logoShape === "circle"
+    ? `<circle cx="${roundSvg(layout.logoBox.x + layout.logoBox.width / 2)}" cy="${roundSvg(layout.logoBox.y + layout.logoBox.height / 2)}" r="${roundSvg(layout.logoBox.width / 2)}" />`
+    : `<rect x="${roundSvg(layout.logoBox.x)}" y="${roundSvg(layout.logoBox.y)}" width="${roundSvg(layout.logoBox.width)}" height="${roundSvg(layout.logoBox.height)}" rx="${config.logoShape === "rounded" ? roundSvg(layout.logoCornerRadius) : 0}" />`;
+  const logoShape = config.logoShape === "circle"
+    ? `<circle cx="${roundSvg(layout.logoBox.x + layout.logoBox.width / 2)}" cy="${roundSvg(layout.logoBox.y + layout.logoBox.height / 2)}" r="${roundSvg(layout.logoBox.width / 2)}" fill="${config.faceColor}" stroke="${config.logoOutlineEnabled ? config.outlineColor : "none"}" stroke-width="${roundSvg(logoStrokeWidth)}" />`
+    : `<rect x="${roundSvg(layout.logoBox.x)}" y="${roundSvg(layout.logoBox.y)}" width="${roundSvg(layout.logoBox.width)}" height="${roundSvg(layout.logoBox.height)}" rx="${config.logoShape === "rounded" ? roundSvg(layout.logoCornerRadius) : 0}" fill="${config.faceColor}" stroke="${config.logoOutlineEnabled ? config.outlineColor : "none"}" stroke-width="${roundSvg(logoStrokeWidth)}" />`;
+  const logoImage = config.logoImage
+    ? `<image href="${escapeXml(config.logoImage)}" x="${roundSvg(layout.logoBox.x)}" y="${roundSvg(layout.logoBox.y)}" width="${roundSvg(layout.logoBox.width)}" height="${roundSvg(layout.logoBox.height)}" preserveAspectRatio="xMidYMid meet" clip-path="url(#logoClip)" />`
+    : `<text x="${roundSvg(layout.logoBox.x + layout.logoBox.width / 2)}" y="${roundSvg(layout.logoBox.y + layout.logoBox.height / 2)}" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="${roundSvg(Math.max(32, config.height * 0.13))}" font-weight="800" fill="#475569">лого</text>`;
+  const panelMarkup = config.mountMode === "acp"
+    ? [
+        `<g id="acp-backer">`,
+        `<rect x="${roundSvg(layout.panelBox.x + Math.max(10, config.depth * 0.18))}" y="${roundSvg(layout.panelBox.y + Math.max(8, config.depth * 0.16))}" width="${roundSvg(layout.panelBox.width)}" height="${roundSvg(layout.panelBox.height)}" rx="${roundSvg(layout.panelCornerRadius)}" fill="${config.sideColor}" opacity="0.22" />`,
+        `<rect x="${roundSvg(layout.panelBox.x)}" y="${roundSvg(layout.panelBox.y)}" width="${roundSvg(layout.panelBox.width)}" height="${roundSvg(layout.panelBox.height)}" rx="${roundSvg(layout.panelCornerRadius)}" fill="${config.acpColor}" stroke="#cbd5e1" stroke-width="${roundSvg(Math.max(2, config.height * 0.006))}" />`,
+        ...layout.seamXs.map((x) => `<line x1="${roundSvg(x)}" x2="${roundSvg(x)}" y1="${roundSvg(layout.panelBox.y)}" y2="${roundSvg(layout.panelBox.y + layout.panelBox.height)}" stroke="#ef4444" stroke-width="${roundSvg(Math.max(2, config.height * 0.006))}" stroke-dasharray="${roundSvg(Math.max(14, config.height * 0.04))} ${roundSvg(Math.max(10, config.height * 0.03))}" opacity="0.55" />`),
+        ...layout.seamYs.map((y) => `<line x1="${roundSvg(layout.panelBox.x)}" x2="${roundSvg(layout.panelBox.x + layout.panelBox.width)}" y1="${roundSvg(y)}" y2="${roundSvg(y)}" stroke="#ef4444" stroke-width="${roundSvg(Math.max(2, config.height * 0.006))}" stroke-dasharray="${roundSvg(Math.max(14, config.height * 0.04))} ${roundSvg(Math.max(10, config.height * 0.03))}" opacity="0.55" />`),
+        `</g>`,
+      ].join("\n")
+    : "";
+  const haloBackerMarkup = config.haloBackerEnabled
+    ? `<rect id="halo-backer" x="${roundSvg(layout.haloBackerBox.x)}" y="${roundSvg(layout.haloBackerBox.y)}" width="${roundSvg(layout.haloBackerBox.width)}" height="${roundSvg(layout.haloBackerBox.height)}" rx="${roundSvg(layout.haloBackerRadius)}" fill="${config.haloBackerColor}" stroke="#dbe4ef" stroke-width="${roundSvg(Math.max(2, config.height * 0.006))}" opacity="0.92"${glowFilter} />`
+    : "";
+  const frameMarkup = config.mountMode === "frame"
+    ? `<g id="frame-rails">
+${[layout.railTopY, layout.railBottomY].map((railY, index) => `<rect id="frame-rail-${index + 1}" x="${roundSvg(layout.railX)}" y="${roundSvg(railY - layout.railHeight / 2)}" width="${roundSvg(layout.railWidth)}" height="${roundSvg(layout.railHeight)}" rx="${roundSvg(layout.railHeight / 2)}" fill="#7b828a" stroke="#47515c" stroke-width="${roundSvg(Math.max(1.5, layout.railHeight * 0.12))}" />`).join("\n")}
+</g>`
+    : "";
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${roundSvg(layout.viewWidth)}mm" height="${roundSvg(layout.viewHeight)}mm" viewBox="0 0 ${roundSvg(layout.viewWidth)} ${roundSvg(layout.viewHeight)}">
+<title>Verkup sign configurator export</title>
+<defs>
+  <clipPath id="logoClip">${clipShape}</clipPath>
+  <filter id="letters-soft-glow" x="-35%" y="-35%" width="170%" height="170%">
+    <feDropShadow dx="0" dy="0" flood-color="${config.faceColor}" flood-opacity="0.42" stdDeviation="${roundSvg(Math.max(7, config.height * 0.035))}" />
+  </filter>
+</defs>
+${panelMarkup}
+${haloBackerMarkup}
+${frameMarkup}
+<g id="sign-face"${glowFilter}>
+${logoShape}
+${logoImage}
+<text x="${roundSvg(layout.textX)}" y="${roundSvg(layout.textBaseline)}" font-family="${escapeXml(config.font)}" font-size="${roundSvg(layout.fontSize)}" font-weight="900" fill="${config.faceColor}" stroke="${config.letterOutlineEnabled ? config.outlineColor : "none"}" stroke-width="${roundSvg(textStrokeWidth)}" stroke-linejoin="round" paint-order="stroke fill">${label}</text>
+</g>
+</svg>`;
+}
+
 function createAcpLayout(faceWidth: number, faceHeight: number, depth: number): AcpLayout {
   const unfoldedWidth = faceWidth + (depth + ACP_SECOND_RETURN_MM) * 2;
   const unfoldedHeight = faceHeight + (depth + ACP_SECOND_RETURN_MM) * 2;
@@ -1151,6 +1702,81 @@ function rectStyle(left: number, top: number, width: number, height: number): CS
     width: `${width}%`,
     height: `${height}%`,
   };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function unionSvgBoxes(first: SvgBox, second: SvgBox): SvgBox {
+  const left = Math.min(first.x, second.x);
+  const top = Math.min(first.y, second.y);
+  const right = Math.max(first.x + first.width, second.x + second.width);
+  const bottom = Math.max(first.y + first.height, second.y + second.height);
+
+  return {
+    height: bottom - top,
+    width: right - left,
+    x: left,
+    y: top,
+  };
+}
+
+function getLogoRailLeft(logoBox: SvgBox, railY: number) {
+  const radius = logoBox.width / 2;
+  const centerY = logoBox.y + radius;
+  const centerX = logoBox.x + radius;
+  const verticalDelta = railY - centerY;
+
+  if (Math.abs(verticalDelta) >= radius) {
+    return logoBox.x + radius;
+  }
+
+  return centerX - Math.sqrt(radius ** 2 - verticalDelta ** 2);
+}
+
+function normalizeSvgBox(box: DOMRect): SvgBox {
+  return {
+    height: box.height,
+    width: box.width,
+    x: box.x,
+    y: box.y,
+  };
+}
+
+function areSvgBoxesClose(first: SvgBox, second: SvgBox | null) {
+  if (!second) return false;
+  const tolerance = 0.5;
+
+  return Math.abs(first.x - second.x) < tolerance &&
+    Math.abs(first.y - second.y) < tolerance &&
+    Math.abs(first.width - second.width) < tolerance &&
+    Math.abs(first.height - second.height) < tolerance;
+}
+
+function roundSvg(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function downloadTextFile(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function readImageFile(file: File) {
