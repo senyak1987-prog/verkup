@@ -57,6 +57,7 @@ import {
   saveCatalogs,
   saveCalculations,
 } from "../lib/saveApi";
+import { EmployeeCard } from "./EmployeeCard";
 import { stageCodeForDeal } from "../lib/stages";
 
 type CostDrawerProps = {
@@ -339,7 +340,7 @@ const defectChildBlocks: CostBlock[] = [
   {
     id: "defects-materials",
     title: "Материалы / рама",
-    hint: "Косячные листы, профиль, металл и рама. Не попадает в чистый себес.",
+    hint: "Косячные листы, профиль, металл и рама. Не попадает в чистую себестоимость.",
     sections: ["defects"],
     catalogSections: ["materials"],
     catalogMaterialGroups: materialFrameGroups,
@@ -546,7 +547,7 @@ const defectChildBlocks: CostBlock[] = [
 const defectBlock: CostBlock = {
   id: "defects",
   title: "Косяки / брак",
-  hint: "Учет исправлений отдельно от чистого себеса.",
+  hint: "Учет исправлений отдельно от чистой себестоимости.",
   sections: ["defects"],
   actions: [],
   childBlocks: defectChildBlocks,
@@ -825,7 +826,12 @@ export function CostDrawer({
         <div>
           <span className="eyebrow">#{deal.number}</span>
           <h2>{deal.title}</h2>
-          <p>{deal.responsible || "Ответственный не указан"}</p>
+          <EmployeeCard
+            card={deal.responsibleCard}
+            fallbackName={deal.responsible}
+            fallbackPhone={deal.responsiblePhone}
+            showPhone
+          />
         </div>
         <div className="drawer-actions">
           <button className="secondary compact" onClick={onOpenCatalog}>
@@ -844,11 +850,11 @@ export function CostDrawer({
         <Summary label="Монтаж" value={formatMoney(sales.installSale)} />
         <Summary label="База без расходников" value={formatMoney(baseCleanCost(activeCalculation))} />
         <Summary label="Расходники 7%" value={formatMoney(autoConsumablesCost(activeCalculation))} />
-        <Summary label="Чистый себес" value={formatMoney(cleanCost(activeCalculation))} />
-        <Summary label="Себес изделия" value={formatMoney(manufacturingCost(activeCalculation))} />
-        <Summary label="Себес монтажа" value={formatMoney(mountingCost(activeCalculation))} />
+        <Summary label="Чистая себестоимость" value={formatMoney(cleanCost(activeCalculation))} />
+        <Summary label="Себестоимость изделия" value={formatMoney(manufacturingCost(activeCalculation))} />
+        <Summary label="Себестоимость монтажа" value={formatMoney(mountingCost(activeCalculation))} />
         <Summary label="Косяки" value={formatMoney(defectsCost(activeCalculation))} />
-        <Summary label="Итоговый себес" value={formatMoney(finalCost(activeCalculation))} />
+        <Summary label="Итоговая себестоимость" value={formatMoney(finalCost(activeCalculation))} />
         <Summary label="Прибыль" value={formatMoney(profit(deal, activeCalculation, storedCalculations.agentCostRatio))} />
         <Summary label="Маржа" value={formatPercent(margin(deal, activeCalculation, storedCalculations.agentCostRatio))} />
       </section>

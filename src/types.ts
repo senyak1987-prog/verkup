@@ -1,3 +1,15 @@
+export type ResponsibleCard = {
+  id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  position?: string;
+  department?: string;
+  supervisor?: string;
+  avatarUrl?: string;
+  bitrixUrl?: string;
+};
+
 export type Deal = {
   id: string;
   number: string;
@@ -9,8 +21,10 @@ export type Deal = {
   classification: string;
   saleAmount: number;
   installSaleAmount: number;
+  responsibleId?: string;
   responsible: string;
   responsiblePhone?: string;
+  responsibleCard?: ResponsibleCard;
   startDate: string;
   expectedFinishDate: string;
   createdDate: string;
@@ -134,6 +148,7 @@ export type TechSpecItem = {
   templateId: TemplateId;
   fields: Record<string, string>;
   attachments: LayoutAttachment[];
+  workCostPositionIds?: string[];
 };
 
 export type TechSpecDraft = {

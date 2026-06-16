@@ -20,6 +20,7 @@ import {
 } from "./lib/data";
 import { finalCost, formatMoney } from "./lib/costing";
 import { defaultSaveApiUrl, saveTechSpecs, uploadTechSpecToBitrix } from "./lib/saveApi";
+import { isUnresolvedResponsible } from "./lib/responsible";
 import { stageCodeForDeal, stageLabels } from "./lib/stages";
 import type {
   CatalogItem,
@@ -48,7 +49,7 @@ type PendingStageMove = {
 
 type AppTab = DealStageCode;
 
-type DealWorkspaceTab = "cost" | "techSpec" | "workCost";
+type DealWorkspaceTab = "cost" | "techSpec";
 
 type PendingCatalogInsert = {
   dealId: string;
@@ -206,6 +207,16 @@ export default function App() {
         .includes(needle),
     );
   }, [activeStage, deals, query]);
+
+  const unresolvedResponsibleIds = useMemo(
+    () =>
+      uniqueSortedValues(
+        deals
+          .filter((deal) => isUnresolvedResponsible(deal.responsible))
+          .map((deal) => deal.responsible),
+      ),
+    [deals],
+  );
 
   const selectedDeal = deals.find((deal) => deal.id === selectedDealId);
   const selectedCalculation = selectedDealId ? calculationsMap.get(selectedDealId) : undefined;
@@ -421,6 +432,16 @@ export default function App() {
   return (
     <div className="app">
       {loading && <div className="loading">Загружаю данные...</div>}
+      {unresolvedResponsibleIds.length > 0 && (
+        <div className="data-health-warning" role="status">
+          <strong>Ответственные не распознаны</strong>
+          <span>
+            В локальных данных остались Bitrix ID: {unresolvedResponsibleIds.slice(0, 8).join(", ")}
+            {unresolvedResponsibleIds.length > 8 ? " ..." : ""}. Запустите синхронизацию Bitrix и
+            проверьте доступ webhook к user.get.
+          </span>
+        </div>
+      )}
       <DealTable
         deals={filteredDeals}
         calculations={calculationsMap}
@@ -512,7 +533,7 @@ function DealWorkspace({
           role="tab"
           type="button"
         >
-          Себес
+          Себестоимость производства
         </button>
         <button
           aria-selected={activeTab === "techSpec"}
@@ -523,15 +544,6 @@ function DealWorkspace({
         >
           Подготовить ТЗ
         </button>
-        <button
-          aria-selected={activeTab === "workCost"}
-          className={activeTab === "workCost" ? "active" : ""}
-          onClick={() => setActiveTab("workCost")}
-          role="tab"
-          type="button"
-        >
-          Стоимость работы
-        </button>
       </div>
 
       <div className="deal-workspace-body">
@@ -540,6 +552,7 @@ function DealWorkspace({
             deal={deal}
             embedded
             costNote={costNote}
+            costPositions={calculation?.positions ?? []}
             storedSpec={storedSpec}
             onDraftChange={onTechSpecChange}
             onUploadToBitrix={(draft, fileName, fileBase64) =>
@@ -548,7 +561,6 @@ function DealWorkspace({
           />
         ) : (
           <CostDrawer
-            key={activeTab}
             deal={deal}
             calculation={calculation}
             catalogItems={catalogItems}
@@ -559,7 +571,6 @@ function DealWorkspace({
             onCatalogChange={onCatalogChange}
             onClose={onClose}
             onStageMoved={onStageMoved}
-            initialExpandedBlockId={activeTab === "workCost" ? "assembly" : undefined}
           />
         )}
       </div>
@@ -569,7 +580,7 @@ function DealWorkspace({
 
 function costNoteForCalculation(calculation?: DealCalculation) {
   if (!calculation?.positions.length) return "";
-  return `Итоговый себес по расчету: ${formatMoney(finalCost(calculation))}`;
+  return `Итоговая себестоимость производства по расчету: ${formatMoney(finalCost(calculation))}`;
 }
 
 function costPositionFromCatalogItem(item: CatalogItem, targetSection?: CostSection): CostPosition {
@@ -678,4 +689,10 @@ function createEmptyStageCounts(): Record<DealStageCode, number> {
 
 function hasCachedStartupData() {
   return Boolean(readCachedDeals() || readCachedCalculations() || readCachedCatalogs() || readCachedTechSpecs());
+}
+
+function uniqueSortedValues(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((a, b) =>
+    a.localeCompare(b, "ru"),
+  );
 }

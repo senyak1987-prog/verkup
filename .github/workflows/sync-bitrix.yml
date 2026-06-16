@@ -49,6 +49,9 @@ jobs:
           BITRIX_FIELD_EXPECTED_FINISH_DATE: ${{ secrets.BITRIX_FIELD_EXPECTED_FINISH_DATE }}
         run: npm run sync:bitrix
 
+      - name: Validate synced data
+        run: npm run validate:data
+
       - name: Commit updated data
         run: |
           git config user.name "github-actions[bot]"

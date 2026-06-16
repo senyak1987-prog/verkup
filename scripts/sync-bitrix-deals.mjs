@@ -117,16 +117,161 @@ async function fetchUsers(ids) {
         const response = await callRest("user.get", { ID: id });
         const user = response.result?.[0];
         if (user) {
-          const name = [user.NAME, user.LAST_NAME].filter(Boolean).join(" ");
-          const phone = extractBitrixUserPhone(user);
-          users.set(String(id), { name, phone });
+          users.set(String(id), normalizeBitrixUser(user, id));
+        } else {
+          console.warn(`Bitrix user.get did not return user ${id}; keeping ID as fallback.`);
+          users.set(String(id), createResponsibleFallback(id));
         }
-      } catch {
-        users.set(String(id), { name: String(id), phone: "" });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Cannot load Bitrix user ${id}; keeping ID as fallback. ${message}`);
+        users.set(String(id), createResponsibleFallback(id));
       }
     }),
   );
+
+  await hydrateDepartmentNames(users);
+
   return users;
+}
+
+function normalizeBitrixUser(user, id) {
+  const idText = String(id || "");
+  const name = [user.LAST_NAME, user.NAME, user.SECOND_NAME].filter(Boolean).join(" ").trim();
+  const departmentIds = normalizeIdList(user.UF_DEPARTMENT);
+
+  return {
+    id: idText,
+    name: name || idText,
+    phone: extractBitrixUserPhone(user),
+    email: firstText(user.EMAIL, user.WORK_EMAIL, user.PERSONAL_EMAIL),
+    position: firstText(user.WORK_POSITION, user.UF_POSITION, user.PERSONAL_PROFESSION),
+    department: departmentIds.length ? departmentIds.map((deptId) => `Отдел #${deptId}`).join(", ") : firstText(user.WORK_DEPARTMENT),
+    departmentIds,
+    supervisor: normalizeSupervisor(user.UF_HEAD),
+    avatarUrl: extractBitrixUserPhoto(user),
+    bitrixUrl: bitrixUserUrl(idText),
+  };
+}
+
+function createResponsibleFallback(id) {
+  const idText = String(id || "");
+  return {
+    id: idText,
+    name: idText,
+    phone: "",
+    bitrixUrl: idText ? bitrixUserUrl(idText) : "",
+  };
+}
+
+async function hydrateDepartmentNames(users) {
+  const departmentIds = [
+    ...new Set(
+      [...users.values()]
+        .flatMap((user) => user.departmentIds || [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean),
+    ),
+  ];
+
+  if (!departmentIds.length) return;
+
+  const departments = await fetchDepartments(departmentIds);
+  for (const user of users.values()) {
+    if (user.departmentIds?.length) {
+      user.department = user.departmentIds
+        .map((deptId) => departments.get(String(deptId)) || `Отдел #${deptId}`)
+        .join(", ");
+    }
+  }
+}
+
+async function fetchDepartments(ids) {
+  const departments = new Map();
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const response = await callRest("department.get", { ID: id });
+        const department = Array.isArray(response.result) ? response.result[0] : response.result;
+        if (department) {
+          departments.set(String(id), department.NAME || department.NAME_RU || department.TITLE || String(id));
+        }
+      } catch {
+        // Department names are nice to have; the employee card still works without them.
+      }
+    }),
+  );
+  return departments;
+}
+
+function bitrixUserUrl(id) {
+  return `https://${bitrixDomain}/company/personal/user/${id}/`;
+}
+
+function cleanResponsibleCard(user) {
+  if (!user) return undefined;
+  const { departmentIds, ...card } = user;
+  return card;
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    const text = normalizeTextValue(value);
+    if (text) return text;
+  }
+  return "";
+}
+
+function normalizeTextValue(value) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const text = normalizeTextValue(item);
+      if (text) return text;
+    }
+    return "";
+  }
+
+  if (value && typeof value === "object") {
+    for (const key of ["VALUE", "TEXT", "NAME", "TITLE", "URL", "SRC"]) {
+      const text = normalizeTextValue(value[key]);
+      if (text) return text;
+    }
+    return "";
+  }
+
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function normalizeIdList(value) {
+  if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
+  const text = String(value || "").trim();
+  if (!text) return [];
+  return text
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function normalizeSupervisor(value) {
+  const text = firstText(value);
+  if (!text) return "";
+  return /^\d+$/.test(text) ? `ID ${text}` : text;
+}
+
+function extractBitrixUserPhoto(user) {
+  for (const field of ["PERSONAL_PHOTO", "WORK_LOGO", "PERSONAL_PHOTO_URL"]) {
+    const url = firstText(user?.[field]);
+    if (url && !/^\d+$/.test(url)) return absoluteBitrixUrl(url);
+  }
+  return "";
+}
+
+function absoluteBitrixUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  if (/^(https?:|data:)/i.test(url)) return url;
+  if (url.startsWith("/")) return `https://${bitrixDomain}${url}`;
+  return url;
 }
 
 const BITRIX_USER_PHONE_FIELDS = [
@@ -262,7 +407,8 @@ function normalizeDeal(deal, users, stageMap) {
   const installSaleAmount = toNumber(valueByField(deal, customFields.installAmount));
   const productionSaleAmount =
     installSaleAmount > 0 ? Math.max(0, totalSaleAmount - installSaleAmount) : totalSaleAmount;
-  const responsibleUser = users.get(String(deal.ASSIGNED_BY_ID));
+  const responsibleId = String(deal.ASSIGNED_BY_ID || "");
+  const responsibleUser = users.get(responsibleId);
 
   return {
     id,
@@ -275,8 +421,10 @@ function normalizeDeal(deal, users, stageMap) {
     classification: displayValueByField(deal, customFields.classification),
     saleAmount: productionSaleAmount,
     installSaleAmount,
-    responsible: responsibleUser?.name || "",
+    responsibleId,
+    responsible: responsibleUser?.name || responsibleId,
     responsiblePhone: responsibleUser?.phone || "",
+    responsibleCard: cleanResponsibleCard(responsibleUser || (responsibleId ? createResponsibleFallback(responsibleId) : undefined)),
     startDate: valueByField(deal, customFields.startDate) || deal.BEGINDATE || "",
     expectedFinishDate: valueByField(deal, customFields.expectedFinishDate) || deal.CLOSEDATE || "",
     createdDate: deal.DATE_CREATE || "",

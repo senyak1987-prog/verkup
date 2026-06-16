@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ClipboardEvent, ReactNode, RefObject } from "react";
 import type {
   AttachmentDimensions,
+  CostPosition,
   Deal,
   DealTechSpec,
   LayoutAttachment,
@@ -25,6 +26,9 @@ import type {
   TechSpecItem,
   TemplateId,
 } from "../types";
+import { formatMoney, positionQuantity, positionTotal } from "../lib/costing";
+import { responsibleForDraft, responsiblePhoneFromCard } from "../lib/responsible";
+import { EmployeeCard } from "./EmployeeCard";
 
 type FieldKind = "text" | "number" | "select" | "textarea";
 
@@ -57,8 +61,11 @@ const JPEG_CANVAS_WIDTH = 1800;
 const JPEG_MARGIN = 48;
 const JPEG_CONTENT_WIDTH = JPEG_CANVAS_WIDTH - JPEG_MARGIN * 2;
 const JPEG_GRID_GAP = 14;
-const JPEG_ATTACHMENT_TILE_HEIGHT = 330;
-const JPEG_ATTACHMENT_IMAGE_HEIGHT = 226;
+const JPEG_BODY_GAP = 18;
+const JPEG_MEDIA_WIDTH = Math.round(JPEG_CONTENT_WIDTH / 3);
+const JPEG_TABLE_WIDTH = JPEG_CONTENT_WIDTH - JPEG_MEDIA_WIDTH - JPEG_BODY_GAP;
+const JPEG_ATTACHMENT_TILE_HEIGHT = 430;
+const EMPTY_COST_POSITIONS: CostPosition[] = [];
 
 const commonFields: FieldConfig[] = [
   { id: "name", label: "Название изделия", required: true, placeholder: "Вывеска, короб, табличка" },
@@ -513,6 +520,7 @@ function createItem(templateId: TemplateId): TechSpecItem {
     id: makeId(),
     templateId,
     attachments: [],
+    workCostPositionIds: [],
     fields: {
       name: template.defaultName,
       quantity: "1 шт",
@@ -542,8 +550,8 @@ function createDraftForDeal(deal?: Deal): TechSpecDraft {
     ...draft,
     dealNumber: deal.number || deal.id || "",
     projectName: deal.title || "",
-    manager: deal.responsible || "",
-    responsiblePhone: deal.responsiblePhone || "",
+    manager: responsibleForDraft(deal.responsibleCard?.name || deal.responsible),
+    responsiblePhone: responsiblePhoneFromCard(deal.responsibleCard, deal.responsiblePhone),
     deadline: dateValueFromDeal(deal.expectedFinishDate),
   };
 }
@@ -609,6 +617,9 @@ function normalizeItem(value: unknown): TechSpecItem | null {
       ...(rawItem.fields && typeof rawItem.fields === "object" ? rawItem.fields : {}),
     },
     attachments: normalizeAttachments(rawItem.attachments),
+    workCostPositionIds: Array.isArray(rawItem.workCostPositionIds)
+      ? rawItem.workCostPositionIds.filter((id): id is string => typeof id === "string")
+      : [],
   };
 }
 
@@ -626,7 +637,7 @@ function normalizeDraft(value: unknown, fallback = createInitialDraft()): TechSp
     ...parsed,
     dealNumber: stringOrFallback(parsed.dealNumber, fallback.dealNumber),
     projectName: stringOrFallback(parsed.projectName, fallback.projectName),
-    manager: stringOrFallback(parsed.manager, fallback.manager),
+    manager: responsibleForDraft(stringOrFallback(parsed.manager, fallback.manager)),
     responsiblePhone: stringOrFallback(parsed.responsiblePhone, fallback.responsiblePhone),
     deadline: stringOrFallback(parsed.deadline, fallback.deadline),
     date: typeof parsed.date === "string" ? parsed.date : fallback.date,
@@ -643,7 +654,7 @@ function hydrateDraftFromDeal(current: TechSpecDraft, fallback: TechSpecDraft): 
     ...current,
     dealNumber: valueOrFallback(current.dealNumber, fallback.dealNumber),
     projectName: valueOrFallback(current.projectName, fallback.projectName),
-    manager: valueOrFallback(current.manager, fallback.manager),
+    manager: valueOrFallback(responsibleForDraft(current.manager), responsibleForDraft(fallback.manager)),
     responsiblePhone: valueOrFallback(current.responsiblePhone, fallback.responsiblePhone),
     deadline: valueOrFallback(current.deadline, fallback.deadline),
   };
@@ -683,10 +694,69 @@ function getItemName(item: TechSpecItem) {
   return renderFieldValue(item, { id: "name", label: "Название изделия" }) || template.defaultName || template.title;
 }
 
-function getPrintableFields(item: TechSpecItem) {
-  return getItemFields(item)
+type PrintableField = {
+  label: string;
+  value: string;
+};
+
+type WorkCostOption = {
+  id: string;
+  title: string;
+  amount: number;
+  quantityText: string;
+  unit: string;
+  sectionLabel: string;
+  note?: string;
+};
+
+const WORK_COST_SECTIONS = new Set(["assembly", "milling", "mounting", "subcontract"]);
+
+const WORK_COST_SECTION_LABELS: Record<string, string> = {
+  assembly: "Сборка / работа",
+  milling: "Фрезеровка",
+  mounting: "Монтаж",
+  subcontract: "Подряд",
+};
+
+function formatQuantityText(value: number) {
+  return new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(value);
+}
+
+function buildWorkCostOptions(positions: CostPosition[] = []): WorkCostOption[] {
+  return positions
+    .filter((position) => WORK_COST_SECTIONS.has(position.section))
+    .map((position) => ({
+      id: position.id,
+      title: position.title || "Работа",
+      amount: positionTotal(position),
+      quantityText: formatQuantityText(positionQuantity(position)),
+      unit: position.unit || "шт",
+      sectionLabel: WORK_COST_SECTION_LABELS[position.section] || "Работа",
+      note: position.note,
+    }))
+    .filter((option) => option.amount > 0);
+}
+
+function getSelectedWorkCost(item: TechSpecItem, workCostOptions: WorkCostOption[]) {
+  const selectedIds = new Set(item.workCostPositionIds || []);
+  const selected = workCostOptions.filter((option) => selectedIds.has(option.id));
+  return {
+    selected,
+    total: selected.reduce((sum, option) => sum + option.amount, 0),
+  };
+}
+
+function getPrintableFields(item: TechSpecItem, workCostOptions: WorkCostOption[] = []): PrintableField[] {
+  const fields = getItemFields(item)
     .map((field) => ({ label: field.label, value: renderFieldValue(item, field) }))
-    .filter((field) => field.value);
+    .filter((field): field is PrintableField => Boolean(field.value));
+
+  const workCost = getSelectedWorkCost(item, workCostOptions);
+  if (workCost.total > 0) {
+    fields.push({ label: "Стоимость работ", value: formatMoney(workCost.total) });
+  }
+
+  return fields;
 }
 
 function isImageAttachment(attachment: LayoutAttachment) {
@@ -916,6 +986,14 @@ function getExportFilename(draft: TechSpecDraft, extension: "txt" | "jpg") {
   return `${sanitizeFilePart(techSpecTitle(draft) || "TZ")}.${extension}`;
 }
 
+function getItemExportFilename(draft: TechSpecDraft, item: TechSpecItem, index: number, total: number, extension: "jpg") {
+  const mainName = sanitizeFilePart(techSpecTitle(draft) || "TZ");
+  if (total <= 1) return `${mainName}.${extension}`;
+
+  const itemName = sanitizeFilePart(getItemName(item));
+  return `${mainName} - ${index + 1}${itemName ? ` ${itemName}` : ""}.${extension}`;
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (char) => {
     const map: Record<string, string> = {
@@ -932,7 +1010,9 @@ function escapeHtml(value: string) {
 const EXPORT_DOCUMENT_CSS = `
   * { box-sizing: border-box; }
   body { margin: 0; background: #eef2f6; color: #111827; font-family: Arial, Helvetica, sans-serif; }
-  .tech-spec-document { width: 100%; max-width: 1180px; margin: 0 auto; border: 1px solid #d7dde7; border-radius: 8px; background: #fff; padding: 22px; }
+  .tech-spec-document { width: 100%; max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; }
+  .tech-spec-doc-page { border: 1px solid #d7dde7; border-radius: 8px; background: #fff; padding: 22px; break-after: page; page-break-after: always; }
+  .tech-spec-doc-page:last-child { break-after: auto; page-break-after: auto; }
   .tech-spec-doc-title { display: flex; justify-content: space-between; gap: 18px; border-bottom: 2px solid #111827; padding-bottom: 14px; }
   .tech-spec-doc-title span, .tech-spec-doc-item-head span { display: block; color: #667085; font-size: 12px; font-weight: 700; text-transform: uppercase; }
   .tech-spec-doc-title h2 { margin: 3px 0 0; color: #111827; font-size: 34px; line-height: 1.05; }
@@ -943,19 +1023,21 @@ const EXPORT_DOCUMENT_CSS = `
   .tech-spec-doc-item-head h3 { margin: 3px 0 0; color: #101828; font-size: 22px; line-height: 1.15; }
   .tech-spec-doc-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
   .tech-spec-doc-chips span { border: 1px solid #ccd5df; border-radius: 999px; background: #fff; padding: 5px 9px; color: #1f2937; font-size: 12px; font-weight: 700; text-transform: none; }
-  .tech-spec-doc-media-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px; }
+  .tech-spec-doc-item-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: stretch; }
+  .tech-spec-doc-item-body.no-media { display: block; }
+  .tech-spec-doc-media-grid { display: grid; grid-template-columns: 1fr; gap: 10px; padding: 12px; border-right: 1px solid #d7dde7; }
   .tech-spec-doc-media-grid figure, .tech-spec-doc-file, .tech-spec-doc-empty { margin: 0; border: 1px solid #d7dde7; border-radius: 7px; background: #f8fafc; padding: 8px; }
-  .tech-spec-media-frame { position: relative; display: grid; place-items: center; min-height: 180px; overflow: hidden; border: 1px solid #d7dde7; border-radius: 7px; background: linear-gradient(135deg, #e9eef5 0%, #f8fafc 100%); }
-  .tech-spec-media-frame img { display: block; width: 100%; height: 100%; max-height: 360px; object-fit: contain; padding: 8px; }
-  .tech-spec-size-badge { position: absolute; left: 8px; bottom: 8px; border-radius: 999px; background: rgba(17, 24, 39, 0.9); padding: 4px 8px; color: #fff; font-size: 11px; font-weight: 700; line-height: 1.2; }
+  .tech-spec-media-frame { position: relative; display: grid; place-items: center; min-height: 320px; overflow: hidden; border: 1px solid #d7dde7; border-radius: 7px; background: linear-gradient(135deg, #e9eef5 0%, #f8fafc 100%); }
+  .tech-spec-media-frame img { display: block; width: 100%; height: 100%; max-height: 520px; object-fit: contain; padding: 8px; }
+  .tech-spec-size-badge { display: none; }
   .tech-spec-file-tile { display: grid; align-content: center; justify-items: center; gap: 7px; min-height: 150px; border: 1px solid #d7dde7; border-radius: 7px; background: #fff; padding: 14px; text-align: center; }
   .tech-spec-file-tile.vector { background: linear-gradient(135deg, #ecfdf3 0%, #f8fafc 100%); }
   .tech-spec-file-extension { display: inline-grid; min-width: 58px; place-items: center; border-radius: 6px; background: #111827; padding: 7px 10px; color: #fff; font-size: 18px; font-weight: 800; line-height: 1; }
   .tech-spec-file-kind { color: #344054; font-size: 12px; font-weight: 700; }
   .tech-spec-file-dimensions { color: #0f766e; font-size: 11px; font-weight: 800; line-height: 1.25; }
   .tech-spec-file-dimensions.missing { color: #b54708; }
-  .tech-spec-doc-media-grid figcaption, .tech-spec-doc-file, .tech-spec-doc-empty { color: #344054; font-size: 12px; line-height: 1.35; }
-  .tech-spec-doc-media-grid figcaption { margin-top: 6px; }
+  .tech-spec-doc-file, .tech-spec-doc-empty { color: #344054; font-size: 12px; line-height: 1.35; }
+  .tech-spec-doc-media-grid figcaption { display: none; }
   .tech-spec-doc-file { display: grid; gap: 6px; align-content: start; }
   .tech-spec-doc-file strong { display: block; color: #111827; }
   .tech-spec-doc-file small { color: #667085; }
@@ -967,36 +1049,38 @@ const EXPORT_DOCUMENT_CSS = `
   @page { size: A4 landscape; margin: 10mm; }
   @media print {
     body { background: #fff; }
-    .tech-spec-document { max-width: none; width: 100%; border: 0; border-radius: 0; padding: 0; }
-    .tech-spec-doc-media-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .tech-spec-document { max-width: none; width: 100%; display: block; }
+    .tech-spec-doc-page { border: 0; border-radius: 0; padding: 0; break-after: page; page-break-after: always; }
+    .tech-spec-doc-page:last-child { break-after: auto; page-break-after: auto; }
   }
 `;
 
 function buildAttachmentImageHtml(attachment: LayoutAttachment) {
-  const sizeText = getAttachmentSizeText(attachment);
   return `<div class="tech-spec-media-frame"><img alt="${escapeHtml(attachment.name)}" src="${escapeHtml(
     attachment.dataUrl,
-  )}" />${sizeText ? `<span class="tech-spec-size-badge">${escapeHtml(sizeText)}</span>` : ""}</div>`;
+  )}" /></div>`;
 }
 
 function buildAttachmentFileHtml(attachment: LayoutAttachment) {
-  const dimensionHint = getAttachmentDimensionHint(attachment);
-  const sizeText = getAttachmentSizeText(attachment);
-  const caption = [attachment.name, attachment.note].filter(Boolean).join(" - ");
-
   return `<div class="tech-spec-doc-file tech-spec-doc-file-card">
     <span class="tech-spec-file-extension">${escapeHtml(getAttachmentExtension(attachment))}</span>
     <strong>${escapeHtml(getAttachmentKindLabel(attachment))}</strong>
-    ${
-      dimensionHint
-        ? `<span class="${sizeText ? "tech-spec-file-dimensions" : "tech-spec-file-dimensions missing"}">${escapeHtml(dimensionHint)}</span>`
-        : ""
-    }
-    <small>${escapeHtml(caption)}</small>
   </div>`;
 }
 
-function buildPrintableBody(draft: TechSpecDraft) {
+function buildPrintableHeader(draft: TechSpecDraft, metaHtml: string) {
+  return `
+    <div class="tech-spec-doc-title">
+      <div>
+        <span>ТЗ для производства</span>
+        <h2>${escapeHtml(techSpecTitle(draft) || "ТЗ без номера")}</h2>
+      </div>
+      <div class="tech-spec-doc-meta">${metaHtml}</div>
+    </div>
+    ${draft.globalNote ? `<div class="tech-spec-doc-note">${escapeHtml(draft.globalNote)}</div>` : ""}`;
+}
+
+function buildPrintableBody(draft: TechSpecDraft, workCostOptions: WorkCostOption[] = []) {
   const meta = [
     draft.deadline ? ["Срок сдачи", draft.deadline] : null,
     draft.manager ? ["Ответственный", draft.manager] : null,
@@ -1018,17 +1102,16 @@ function buildPrintableBody(draft: TechSpecDraft) {
       const mediaHtml = attachments.length
         ? `<div class="tech-spec-doc-media-grid">${attachments
             .map((attachment) => {
-              const caption = [attachment.name, attachment.note].filter(Boolean).join(" - ");
               if (!isImageAttachment(attachment)) {
                 return buildAttachmentFileHtml(attachment);
               }
 
-              return `<figure>${buildAttachmentImageHtml(attachment)}<figcaption>${escapeHtml(caption)}</figcaption></figure>`;
+              return `<figure>${buildAttachmentImageHtml(attachment)}</figure>`;
             })
             .join("")}</div>`
         : `<div class="tech-spec-doc-empty">Макет не приложен. Добавьте изображение, SVG или файл схемы перед передачей в цех.</div>`;
 
-      const tableRows = getPrintableFields(item)
+      const tableRows = getPrintableFields(item, workCostOptions)
         .map(
           ({ label, value }) =>
             `<tr><th>${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>`,
@@ -1036,41 +1119,38 @@ function buildPrintableBody(draft: TechSpecDraft) {
         .join("");
 
       return `
-        <section class="tech-spec-doc-item">
-          <div class="tech-spec-doc-item-head">
-            <div>
-              <span>Изделие ${index + 1} / ${escapeHtml(template.title)}</span>
-              <h3>${escapeHtml(getItemName(item))}</h3>
+        <section class="tech-spec-doc-page">
+          ${buildPrintableHeader(draft, metaHtml)}
+          <section class="tech-spec-doc-item">
+            <div class="tech-spec-doc-item-head">
+              <div>
+                <span>Изделие ${index + 1} / ${escapeHtml(template.title)}</span>
+                <h3>${escapeHtml(getItemName(item))}</h3>
+              </div>
+              <div class="tech-spec-doc-chips">${chips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}</div>
             </div>
-            <div class="tech-spec-doc-chips">${chips.map((chip) => `<span>${escapeHtml(chip)}</span>`).join("")}</div>
-          </div>
-          ${mediaHtml}
-          <table class="tech-spec-doc-table"><tbody>${tableRows}</tbody></table>
+            <div class="tech-spec-doc-item-body${attachments.length ? "" : " no-media"}">
+              ${mediaHtml}
+              <table class="tech-spec-doc-table"><tbody>${tableRows}</tbody></table>
+            </div>
+          </section>
         </section>`;
     })
     .join("");
 
   return `
     <section class="tech-spec-document">
-      <div class="tech-spec-doc-title">
-        <div>
-          <span>ТЗ для производства</span>
-          <h2>${escapeHtml(techSpecTitle(draft) || "ТЗ без номера")}</h2>
-        </div>
-        <div class="tech-spec-doc-meta">${metaHtml}</div>
-      </div>
-      ${draft.globalNote ? `<div class="tech-spec-doc-note">${escapeHtml(draft.globalNote)}</div>` : ""}
       ${itemsHtml}
     </section>`;
 }
 
-function buildPrintableDocument(draft: TechSpecDraft) {
+function buildPrintableDocument(draft: TechSpecDraft, workCostOptions: WorkCostOption[] = []) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8" /><title>${escapeHtml(
     techSpecTitle(draft) || "ТЗ",
-  )}</title><style>${EXPORT_DOCUMENT_CSS}</style></head><body>${buildPrintableBody(draft)}</body></html>`;
+  )}</title><style>${EXPORT_DOCUMENT_CSS}</style></head><body>${buildPrintableBody(draft, workCostOptions)}</body></html>`;
 }
 
-function buildSpecText(draft: TechSpecDraft) {
+function buildSpecText(draft: TechSpecDraft, workCostOptions: WorkCostOption[] = []) {
   const header = [
     techSpecTitle(draft) || "ТЗ",
     draft.deadline ? `Срок сдачи: ${draft.deadline}` : "",
@@ -1081,17 +1161,9 @@ function buildSpecText(draft: TechSpecDraft) {
 
   const itemBlocks = draft.items.map((item, index) => {
     const template = getItemTemplate(item);
-    const lines = getItemFields(item)
-      .map((field) => {
-        const value = renderFieldValue(item, field);
-        return value ? `${field.label}: ${value}` : "";
-      })
-      .filter(Boolean);
-    const attachments = item.attachments?.length
-      ? ["Макеты:", ...item.attachments.map((attachment) => `- ${getAttachmentSummary(attachment)}`)]
-      : [];
+    const lines = getPrintableFields(item, workCostOptions).map(({ label, value }) => `${label}: ${value}`);
 
-    return [`${index + 1}. ${template.title}`, ...lines, ...attachments].join("\n");
+    return [`${index + 1}. ${template.title}`, ...lines].join("\n");
   });
 
   return [...header, ...itemBlocks].join("\n\n");
@@ -1260,18 +1332,27 @@ async function loadCanvasAttachmentImages(draft: TechSpecDraft) {
 }
 
 function measureJpegAttachments(item: TechSpecItem) {
-  if (!item.attachments.length) return 62;
+  if (!item.attachments.length) return 140;
 
-  const columns = 3;
-  const rows = Math.ceil(item.attachments.length / columns);
-  return 16 + rows * JPEG_ATTACHMENT_TILE_HEIGHT + Math.max(0, rows - 1) * JPEG_GRID_GAP + 16;
+  return (
+    24 +
+    item.attachments.length * JPEG_ATTACHMENT_TILE_HEIGHT +
+    Math.max(0, item.attachments.length - 1) * JPEG_GRID_GAP +
+    24
+  );
 }
 
-function measureJpegTable(context: CanvasRenderingContext2D, item: TechSpecItem) {
-  const labelWidth = 360;
-  const valueWidth = JPEG_CONTENT_WIDTH - labelWidth;
+function measureJpegTable(
+  context: CanvasRenderingContext2D,
+  item: TechSpecItem,
+  workCostOptions: WorkCostOption[] = [],
+) {
+  const labelWidth = 330;
+  const valueWidth = JPEG_TABLE_WIDTH - labelWidth;
+  const fields = getPrintableFields(item, workCostOptions);
+  if (!fields.length) return 64;
 
-  return getPrintableFields(item).reduce((height, { label, value }) => {
+  return fields.reduce((height, { label, value }) => {
     setCanvasFont(context, 18, 700);
     const labelHeight = measureWrappedText(context, label, labelWidth - 24, 22);
     setCanvasFont(context, 19, 400);
@@ -1280,21 +1361,28 @@ function measureJpegTable(context: CanvasRenderingContext2D, item: TechSpecItem)
   }, 0);
 }
 
-function measureJpegItem(context: CanvasRenderingContext2D, item: TechSpecItem) {
-  return 72 + measureJpegAttachments(item) + measureJpegTable(context, item);
+function measureJpegItem(
+  context: CanvasRenderingContext2D,
+  item: TechSpecItem,
+  workCostOptions: WorkCostOption[] = [],
+) {
+  return 72 + Math.max(measureJpegAttachments(item), measureJpegTable(context, item, workCostOptions));
 }
 
-function measureJpegDraftHeight(context: CanvasRenderingContext2D, draft: TechSpecDraft) {
-  let height = JPEG_MARGIN + 86;
+function measureJpegPageHeight(
+  context: CanvasRenderingContext2D,
+  draft: TechSpecDraft,
+  item: TechSpecItem,
+  workCostOptions: WorkCostOption[] = [],
+) {
+  let height = JPEG_MARGIN + 118;
 
   if (draft.globalNote) {
     setCanvasFont(context, 20, 400);
     height += measureWrappedText(context, draft.globalNote, JPEG_CONTENT_WIDTH - 28, 25) + 26;
   }
 
-  draft.items.forEach((item) => {
-    height += measureJpegItem(context, item) + 24;
-  });
+  height += measureJpegItem(context, item, workCostOptions) + 24;
 
   return Math.max(980, Math.ceil(height + JPEG_MARGIN));
 }
@@ -1355,7 +1443,8 @@ function drawJpegAttachmentPlaceholder(
 
   context.fillStyle = "#344054";
   setCanvasFont(context, 17, 700);
-  drawWrappedText(context, getAttachmentKindLabel(attachment), x + 16, y + 20, width - 32, 20, 2);
+  context.textAlign = "center";
+  drawWrappedText(context, getAttachmentKindLabel(attachment), x + 16, y + 22, width - 32, 20, 2);
 
   const extension = getAttachmentExtension(attachment);
   setCanvasFont(context, 48, 800);
@@ -1369,6 +1458,8 @@ function drawJpegAttachmentPlaceholder(
     context.fillStyle = getAttachmentSizeText(attachment) ? "#0f766e" : "#b54708";
     drawWrappedText(context, dimensionHint, x + 16, y + height - 44, width - 32, 18, 2);
   }
+
+  context.textAlign = "left";
 }
 
 function drawJpegAttachments(
@@ -1376,100 +1467,84 @@ function drawJpegAttachments(
   item: TechSpecItem,
   images: Map<string, HTMLImageElement>,
   y: number,
+  x: number,
+  width: number,
 ) {
   if (!item.attachments.length) {
-    drawCanvasBox(context, JPEG_MARGIN, y, JPEG_CONTENT_WIDTH, 62, "#f8fafc");
+    drawCanvasBox(context, x, y, width, 140, "#f8fafc");
     context.fillStyle = "#667085";
     setCanvasFont(context, 20, 400);
-    context.fillText("Макет не приложен. Добавьте изображение, SVG или файл схемы перед передачей в цех.", JPEG_MARGIN + 16, y + 18);
-    return y + 62;
+    drawWrappedText(context, "Макет не приложен.", x + 16, y + 18, width - 32, 25);
+    return y + 140;
   }
 
-  const columns = 3;
-  const tileWidth = (JPEG_CONTENT_WIDTH - JPEG_GRID_GAP * (columns - 1)) / columns;
-  const tileHeight = JPEG_ATTACHMENT_TILE_HEIGHT;
-  const imageHeight = JPEG_ATTACHMENT_IMAGE_HEIGHT;
-  const startY = y + 16;
+  let currentY = y + 24;
 
-  item.attachments.forEach((attachment, index) => {
-    const column = index % columns;
-    const row = Math.floor(index / columns);
-    const x = JPEG_MARGIN + column * (tileWidth + JPEG_GRID_GAP);
-    const tileY = startY + row * (tileHeight + JPEG_GRID_GAP);
-
-    drawCanvasBox(context, x, tileY, tileWidth, tileHeight, "#f8fafc");
+  item.attachments.forEach((attachment) => {
+    const tileHeight = JPEG_ATTACHMENT_TILE_HEIGHT;
+    drawCanvasBox(context, x, currentY, width, tileHeight, "#f8fafc");
 
     const imageX = x + 12;
-    const imageY = tileY + 12;
-    const imageAreaWidth = tileWidth - 24;
-    const imageAreaHeight = imageHeight - 24;
+    const imageY = currentY + 12;
+    const imageAreaWidth = width - 24;
+    const imageAreaHeight = tileHeight - 24;
     drawCanvasBox(context, imageX, imageY, imageAreaWidth, imageAreaHeight, "#eef2f6", "#d7dde7");
 
     const image = images.get(attachment.id);
     if (image) {
+      const naturalWidth = image.naturalWidth || image.width;
+      const naturalHeight = image.naturalHeight || image.height;
       const maxWidth = imageAreaWidth - 12;
       const maxHeight = imageAreaHeight - 12;
-      const ratio = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight, 1);
-      const width = image.naturalWidth * ratio;
-      const height = image.naturalHeight * ratio;
+      const ratio = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight, 1);
+      const renderedWidth = naturalWidth * ratio;
+      const renderedHeight = naturalHeight * ratio;
       context.drawImage(
         image,
-        imageX + (imageAreaWidth - width) / 2,
-        imageY + (imageAreaHeight - height) / 2,
-        width,
-        height,
+        imageX + (imageAreaWidth - renderedWidth) / 2,
+        imageY + (imageAreaHeight - renderedHeight) / 2,
+        renderedWidth,
+        renderedHeight,
       );
     } else {
       drawJpegAttachmentPlaceholder(context, attachment, imageX, imageY, imageAreaWidth, imageAreaHeight);
     }
 
-    const sizeText = getAttachmentSizeText(attachment);
-    let textY = tileY + imageHeight + 10;
-    if (sizeText) {
-      const badgeHeight = sizeText.length > 34 ? 42 : 26;
-      drawCanvasBox(context, x + 14, textY, tileWidth - 28, badgeHeight, "#111827", "#111827");
-      context.fillStyle = "#ffffff";
-      setCanvasFont(context, 14, 700);
-      drawWrappedText(context, sizeText, x + 24, textY + 8, tileWidth - 48, 16, 2);
-      textY += badgeHeight + 8;
-    }
-
-    context.fillStyle = "#344054";
-    setCanvasFont(context, 17, 700);
-    drawWrappedText(context, attachment.name, x + 14, textY, tileWidth - 28, 20, 2);
-
-    if (attachment.note) {
-      context.fillStyle = "#667085";
-      setCanvasFont(context, 16, 400);
-      drawWrappedText(context, attachment.note, x + 14, textY + 42, tileWidth - 28, 19, 2);
-    }
+    currentY += tileHeight + JPEG_GRID_GAP;
   });
 
-  return y + measureJpegAttachments(item);
+  return currentY - JPEG_GRID_GAP + 24;
 }
 
-function drawJpegTable(context: CanvasRenderingContext2D, item: TechSpecItem, y: number) {
-  const labelWidth = 360;
-  const valueWidth = JPEG_CONTENT_WIDTH - labelWidth;
+function drawJpegTable(
+  context: CanvasRenderingContext2D,
+  item: TechSpecItem,
+  y: number,
+  x: number,
+  width: number,
+  workCostOptions: WorkCostOption[] = [],
+) {
+  const labelWidth = 330;
+  const valueWidth = width - labelWidth;
   let currentY = y;
 
-  getPrintableFields(item).forEach(({ label, value }) => {
+  getPrintableFields(item, workCostOptions).forEach(({ label, value }) => {
     setCanvasFont(context, 18, 700);
     const labelHeight = measureWrappedText(context, label, labelWidth - 24, 22);
     setCanvasFont(context, 19, 400);
     const valueHeight = measureWrappedText(context, value, valueWidth - 24, 24);
     const rowHeight = Math.max(46, labelHeight, valueHeight) + 16;
 
-    drawCanvasBox(context, JPEG_MARGIN, currentY, labelWidth, rowHeight, "#fbfcfd");
-    drawCanvasBox(context, JPEG_MARGIN + labelWidth, currentY, valueWidth, rowHeight, "#ffffff");
+    drawCanvasBox(context, x, currentY, labelWidth, rowHeight, "#fbfcfd");
+    drawCanvasBox(context, x + labelWidth, currentY, valueWidth, rowHeight, "#ffffff");
 
     context.fillStyle = "#475467";
     setCanvasFont(context, 18, 700);
-    drawWrappedText(context, label, JPEG_MARGIN + 12, currentY + 12, labelWidth - 24, 22);
+    drawWrappedText(context, label, x + 12, currentY + 12, labelWidth - 24, 22);
 
     context.fillStyle = "#111827";
     setCanvasFont(context, 19, 400);
-    drawWrappedText(context, value, JPEG_MARGIN + labelWidth + 12, currentY + 12, valueWidth - 24, 24);
+    drawWrappedText(context, value, x + labelWidth + 12, currentY + 12, valueWidth - 24, 24);
 
     currentY += rowHeight;
   });
@@ -1483,9 +1558,10 @@ function drawJpegItem(
   index: number,
   y: number,
   images: Map<string, HTMLImageElement>,
+  workCostOptions: WorkCostOption[] = [],
 ) {
   const template = getItemTemplate(item);
-  const itemHeight = measureJpegItem(context, item);
+  const itemHeight = measureJpegItem(context, item, workCostOptions);
   drawCanvasBox(context, JPEG_MARGIN, y, JPEG_CONTENT_WIDTH, itemHeight, "#ffffff");
   drawCanvasBox(context, JPEG_MARGIN, y, JPEG_CONTENT_WIDTH, 72, "#f7fafc");
 
@@ -1517,18 +1593,32 @@ function drawJpegItem(
       chipX -= 8;
     });
 
-  const afterAttachmentsY = drawJpegAttachments(context, item, images, y + 72);
-  return drawJpegTable(context, item, afterAttachmentsY);
+  const bodyY = y + 72;
+  const mediaBottom = drawJpegAttachments(context, item, images, bodyY, JPEG_MARGIN, JPEG_MEDIA_WIDTH);
+  const tableBottom = drawJpegTable(
+    context,
+    item,
+    bodyY,
+    JPEG_MARGIN + JPEG_MEDIA_WIDTH + JPEG_BODY_GAP,
+    JPEG_TABLE_WIDTH,
+    workCostOptions,
+  );
+  return Math.max(mediaBottom, tableBottom);
 }
 
-async function renderDraftToJpegBlob(draft: TechSpecDraft) {
-  const images = await loadCanvasAttachmentImages(draft);
+async function renderDraftItemToJpegBlob(
+  draft: TechSpecDraft,
+  item: TechSpecItem,
+  index: number,
+  images: Map<string, HTMLImageElement>,
+  workCostOptions: WorkCostOption[] = [],
+) {
   const measureCanvas = document.createElement("canvas");
   measureCanvas.width = JPEG_CANVAS_WIDTH;
   const measureContext = measureCanvas.getContext("2d");
   if (!measureContext) throw new Error("Canvas недоступен.");
 
-  const height = measureJpegDraftHeight(measureContext, draft);
+  const height = measureJpegPageHeight(measureContext, draft, item, workCostOptions);
   const canvas = document.createElement("canvas");
   canvas.width = JPEG_CANVAS_WIDTH * IMAGE_EXPORT_SCALE;
   canvas.height = height * IMAGE_EXPORT_SCALE;
@@ -1543,13 +1633,28 @@ async function renderDraftToJpegBlob(draft: TechSpecDraft) {
 
   let y = drawJpegHeader(context, draft);
   y = drawJpegNote(context, draft, y);
-  draft.items.forEach((item, index) => {
-    y = drawJpegItem(context, item, index, y, images) + 24;
-  });
+  drawJpegItem(context, item, index, y, images, workCostOptions);
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("JPEG не сформирован."))), "image/jpeg", 0.92);
   });
+}
+
+async function renderDraftToJpegBlobs(draft: TechSpecDraft, workCostOptions: WorkCostOption[] = []) {
+  const images = await loadCanvasAttachmentImages(draft);
+  const blobs: Blob[] = [];
+
+  for (const [index, item] of draft.items.entries()) {
+    blobs.push(await renderDraftItemToJpegBlob(draft, item, index, images, workCostOptions));
+  }
+
+  return blobs;
+}
+
+async function renderDraftToJpegBlob(draft: TechSpecDraft, workCostOptions: WorkCostOption[] = []) {
+  const [blob] = await renderDraftToJpegBlobs(draft, workCostOptions);
+  if (!blob) throw new Error("JPEG не сформирован.");
+  return blob;
 }
 
 function readFileAsDataUrl(file: File) {
@@ -1647,8 +1752,14 @@ async function blobToAttachment(blob: Blob, name: string) {
   return fileToAttachment(file);
 }
 
-function AttachmentImagePreview({ attachment }: { attachment: LayoutAttachment }) {
-  const sizeText = getAttachmentSizeText(attachment);
+function AttachmentImagePreview({
+  attachment,
+  showSize = true,
+}: {
+  attachment: LayoutAttachment;
+  showSize?: boolean;
+}) {
+  const sizeText = showSize ? getAttachmentSizeText(attachment) : "";
 
   return (
     <div className="tech-spec-media-frame">
@@ -1658,7 +1769,13 @@ function AttachmentImagePreview({ attachment }: { attachment: LayoutAttachment }
   );
 }
 
-function AttachmentFilePreview({ attachment }: { attachment: LayoutAttachment }) {
+function AttachmentFilePreview({
+  attachment,
+  showDetails = true,
+}: {
+  attachment: LayoutAttachment;
+  showDetails?: boolean;
+}) {
   const dimensionHint = getAttachmentDimensionHint(attachment);
   const sizeText = getAttachmentSizeText(attachment);
 
@@ -1666,7 +1783,7 @@ function AttachmentFilePreview({ attachment }: { attachment: LayoutAttachment })
     <div className={`tech-spec-file-tile ${isVectorAttachment(attachment) ? "vector" : ""}`}>
       <span className="tech-spec-file-extension">{getAttachmentExtension(attachment)}</span>
       <span className="tech-spec-file-kind">{getAttachmentKindLabel(attachment)}</span>
-      {dimensionHint ? (
+      {showDetails && dimensionHint ? (
         <span className={`tech-spec-file-dimensions ${sizeText ? "" : "missing"}`}>{dimensionHint}</span>
       ) : null}
     </div>
@@ -1676,9 +1793,11 @@ function AttachmentFilePreview({ attachment }: { attachment: LayoutAttachment })
 function ProductionSpecDocument({
   draft,
   exportRef,
+  workCostOptions,
 }: {
   draft: TechSpecDraft;
   exportRef: RefObject<HTMLElement>;
+  workCostOptions: WorkCostOption[];
 }) {
   const meta = [
     draft.deadline ? ["Срок сдачи", draft.deadline] : null,
@@ -1688,78 +1807,76 @@ function ProductionSpecDocument({
 
   return (
     <section className="tech-spec-document" ref={exportRef}>
-      <div className="tech-spec-doc-title">
-        <div>
-          <span>ТЗ для производства</span>
-          <h2>{techSpecTitle(draft) || "ТЗ без номера"}</h2>
-        </div>
-        <div className="tech-spec-doc-meta">
-          {meta.map(([label, value]) => (
-            <div key={label}>
-              <strong>{label}:</strong> {value}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {draft.globalNote ? <div className="tech-spec-doc-note">{draft.globalNote}</div> : null}
-
       {draft.items.map((item, index) => {
         const template = getItemTemplate(item);
         const quantity = renderFieldValue(item, { id: "quantity", label: "Количество" });
         const size = renderFieldValue(item, { id: "size", label: "Габариты" });
         const chips = [template.shortTitle, quantity, size].filter(Boolean);
+        const attachments = item.attachments || [];
+        const fields = getPrintableFields(item, workCostOptions);
 
         return (
-          <section className="tech-spec-doc-item" key={item.id}>
-            <div className="tech-spec-doc-item-head">
+          <section className="tech-spec-doc-page" key={item.id}>
+            <div className="tech-spec-doc-title">
               <div>
-                <span>
-                  Изделие {index + 1} / {template.title}
-                </span>
-                <h3>{getItemName(item)}</h3>
+                <span>ТЗ для производства</span>
+                <h2>{techSpecTitle(draft) || "ТЗ без номера"}</h2>
               </div>
-              <div className="tech-spec-doc-chips">
-                {chips.map((chip) => (
-                  <span key={chip}>{chip}</span>
+              <div className="tech-spec-doc-meta">
+                {meta.map(([label, value]) => (
+                  <div key={label}>
+                    <strong>{label}:</strong> {value}
+                  </div>
                 ))}
               </div>
             </div>
 
-            {item.attachments.length ? (
-              <div className="tech-spec-doc-media-grid">
-                {item.attachments.map((attachment) =>
-                  isImageAttachment(attachment) || isSvgAttachment(attachment) ? (
-                    <figure key={attachment.id}>
-                      <AttachmentImagePreview attachment={attachment} />
-                      <figcaption>{[attachment.name, attachment.note].filter(Boolean).join(" - ")}</figcaption>
-                    </figure>
-                  ) : (
-                    <div className="tech-spec-doc-file" key={attachment.id}>
-                      <AttachmentFilePreview attachment={attachment} />
-                      <strong>{attachment.name}</strong>
-                      {getAttachmentSizeText(attachment) ? <span>{getAttachmentSizeText(attachment)}</span> : null}
-                      {attachment.note ? <span>{attachment.note}</span> : null}
-                    </div>
-                  ),
-                )}
-              </div>
-            ) : (
-              <div className="tech-spec-doc-empty">
-                Макет не приложен. Добавьте изображение, SVG или файл схемы перед передачей в цех.
-              </div>
-            )}
+            {draft.globalNote ? <div className="tech-spec-doc-note">{draft.globalNote}</div> : null}
 
-            <table className="tech-spec-doc-table">
-              <tbody>
-                {getPrintableFields(item).map(({ label, value }) => (
-                  <tr key={label}>
-                    <th>{label}</th>
-                    <td>{value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <section className="tech-spec-doc-item">
+              <div className="tech-spec-doc-item-head">
+                <div>
+                  <span>
+                    Изделие {index + 1} / {template.title}
+                  </span>
+                  <h3>{getItemName(item)}</h3>
+                </div>
+                <div className="tech-spec-doc-chips">
+                  {chips.map((chip) => (
+                    <span key={chip}>{chip}</span>
+                  ))}
+                </div>
+              </div>
+
+              <div className={`tech-spec-doc-item-body${attachments.length ? "" : " no-media"}`}>
+                {attachments.length ? (
+                  <div className="tech-spec-doc-media-grid">
+                    {attachments.map((attachment) =>
+                      isImageAttachment(attachment) || isSvgAttachment(attachment) ? (
+                        <figure key={attachment.id}>
+                          <AttachmentImagePreview attachment={attachment} showSize={false} />
+                        </figure>
+                      ) : (
+                        <div className="tech-spec-doc-file" key={attachment.id}>
+                          <AttachmentFilePreview attachment={attachment} showDetails={false} />
+                        </div>
+                      ),
+                    )}
+                  </div>
+                ) : null}
+
+                <table className="tech-spec-doc-table">
+                  <tbody>
+                    {fields.map(({ label, value }) => (
+                      <tr key={label}>
+                        <th>{label}</th>
+                        <td>{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </section>
         );
       })}
@@ -1772,6 +1889,7 @@ type TechSpecBuilderProps = {
   deal?: Deal;
   storedSpec?: DealTechSpec;
   costNote?: string;
+  costPositions?: CostPosition[];
   embedded?: boolean;
   onDraftChange?: (spec: DealTechSpec) => void;
   onUploadToBitrix?: (draft: TechSpecDraft, fileName: string, fileBase64: string) => Promise<void>;
@@ -1782,6 +1900,7 @@ export function TechSpecBuilder({
   deal,
   storedSpec,
   costNote,
+  costPositions = EMPTY_COST_POSITIONS,
   embedded = false,
   onDraftChange,
   onUploadToBitrix,
@@ -1798,7 +1917,8 @@ export function TechSpecBuilder({
   const [bitrixUploadError, setBitrixUploadError] = useState("");
   const exportRef = useRef<HTMLElement>(null);
 
-  const specText = useMemo(() => buildSpecText(draft), [draft]);
+  const workCostOptions = useMemo(() => buildWorkCostOptions(costPositions), [costPositions]);
+  const specText = useMemo(() => buildSpecText(draft, workCostOptions), [draft, workCostOptions]);
   const missingItems = useMemo(
     () =>
       draft.items.map((item) => ({
@@ -1809,6 +1929,7 @@ export function TechSpecBuilder({
     [draft.items],
   );
   const missingCount = missingItems.reduce((sum, item) => sum + item.missing.length, 0);
+  const dealResponsiblePhone = responsiblePhoneFromCard(deal?.responsibleCard, deal?.responsiblePhone);
 
   useEffect(() => {
     const dealFallback = createDraftForDeal(deal);
@@ -1836,6 +1957,7 @@ export function TechSpecBuilder({
     deal?.title,
     deal?.responsible,
     deal?.responsiblePhone,
+    deal?.responsibleCard,
     deal?.expectedFinishDate,
   ]);
 
@@ -1898,6 +2020,7 @@ export function TechSpecBuilder({
           ...nextItem,
           id: item.id,
           attachments: item.attachments || [],
+          workCostPositionIds: item.workCostPositionIds || [],
           fields: {
             ...nextItem.fields,
             name: item.fields.name || nextItem.fields.name,
@@ -2036,6 +2159,23 @@ export function TechSpecBuilder({
     }));
   }
 
+  function toggleItemWorkCost(itemId: string, positionId: string, checked: boolean) {
+    setDraft((current) => ({
+      ...current,
+      items: current.items.map((item) => {
+        if (item.id !== itemId) return item;
+
+        const currentIds = item.workCostPositionIds || [];
+        return {
+          ...item,
+          workCostPositionIds: checked
+            ? Array.from(new Set([...currentIds, positionId]))
+            : currentIds.filter((id) => id !== positionId),
+        };
+      }),
+    }));
+  }
+
   async function copySpec() {
     await navigator.clipboard.writeText(specText);
     setCopyState("copied");
@@ -2060,7 +2200,7 @@ export function TechSpecBuilder({
 
     setExportState("working");
     printWindow.document.open();
-    printWindow.document.write(buildPrintableDocument(draft));
+    printWindow.document.write(buildPrintableDocument(draft, workCostOptions));
     printWindow.document.close();
     printWindow.focus();
     window.setTimeout(() => {
@@ -2074,8 +2214,12 @@ export function TechSpecBuilder({
     setExportState("working");
 
     try {
-      const jpegBlob = await renderDraftToJpegBlob(draft);
-      downloadBlob(getExportFilename(draft, "jpg"), jpegBlob);
+      const jpegBlobs = await renderDraftToJpegBlobs(draft, workCostOptions);
+      jpegBlobs.forEach((jpegBlob, index) => {
+        const item = draft.items[index];
+        if (!item) return;
+        downloadBlob(getItemExportFilename(draft, item, index, jpegBlobs.length, "jpg"), jpegBlob);
+      });
       setExportState("done");
       window.setTimeout(() => setExportState("idle"), 1600);
     } catch {
@@ -2090,8 +2234,16 @@ export function TechSpecBuilder({
     setBitrixUploadError("");
 
     try {
-      const jpegBlob = await renderDraftToJpegBlob(draft);
-      await onUploadToBitrix(draft, getExportFilename(draft, "jpg"), await blobToBase64(jpegBlob));
+      const jpegBlobs = await renderDraftToJpegBlobs(draft, workCostOptions);
+      for (const [index, jpegBlob] of jpegBlobs.entries()) {
+        const item = draft.items[index];
+        if (!item) continue;
+        await onUploadToBitrix(
+          draft,
+          getItemExportFilename(draft, item, index, jpegBlobs.length, "jpg"),
+          await blobToBase64(jpegBlob),
+        );
+      }
       setBitrixUploadState("done");
       window.setTimeout(() => setBitrixUploadState("idle"), 2200);
     } catch (error) {
@@ -2116,7 +2268,7 @@ export function TechSpecBuilder({
           {costNote ? (
             <button className="secondary compact" onClick={addCostNote} type="button">
               <Plus size={16} />
-              Сумму себеса в ТЗ
+              Стоимость работ в ТЗ
             </button>
           ) : null}
           <button className="primary compact" onClick={downloadSpec} type="button">
@@ -2200,6 +2352,25 @@ export function TechSpecBuilder({
             value={draft.globalNote}
           />
         </label>
+        {deal ? (
+          <div className="tech-spec-contact-card">
+            <EmployeeCard
+              card={deal.responsibleCard}
+              fallbackName={deal.responsible}
+              fallbackPhone={deal.responsiblePhone}
+              showPhone
+            />
+            {dealResponsiblePhone && draft.responsiblePhone !== dealResponsiblePhone ? (
+              <button
+                className="secondary compact"
+                onClick={() => updateDraftField("responsiblePhone", dealResponsiblePhone)}
+                type="button"
+              >
+                Взять телефон в ТЗ
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {storageIssue ||
@@ -2275,6 +2446,7 @@ export function TechSpecBuilder({
             const template = templateById.get(item.templateId) ?? productTemplates[0];
             const fields = [...commonFields, ...template.fields];
             const missing = new Set(getRequiredMissing(item));
+            const selectedWorkCost = getSelectedWorkCost(item, workCostOptions);
 
             return (
               <article className="tech-spec-item" key={item.id}>
@@ -2368,6 +2540,40 @@ export function TechSpecBuilder({
                   )}
                 </div>
 
+                {workCostOptions.length ? (
+                  <div className="tech-spec-work-cost-link">
+                    <div>
+                      <h3>Стоимость работ в ТЗ</h3>
+                      <p>Выберите позиции из себестоимости, которые нужно вывести в лист этого изделия.</p>
+                    </div>
+                    <div className="tech-spec-work-cost-options">
+                      {workCostOptions.map((option) => {
+                        const checked = item.workCostPositionIds?.includes(option.id) ?? false;
+
+                        return (
+                          <label key={option.id}>
+                            <input
+                              checked={checked}
+                              onChange={(event) => toggleItemWorkCost(item.id, option.id, event.target.checked)}
+                              type="checkbox"
+                            />
+                            <span>
+                              <strong>{option.title}</strong>
+                              <small>
+                                {option.sectionLabel} - {option.quantityText} {option.unit} - {formatMoney(option.amount)}
+                              </small>
+                              {option.note ? <em>{option.note}</em> : null}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <strong className="tech-spec-work-cost-total">
+                      {selectedWorkCost.total ? formatMoney(selectedWorkCost.total) : "Не выводить"}
+                    </strong>
+                  </div>
+                ) : null}
+
                 <div className="tech-spec-item-grid">
                   {fields.map((field) => {
                     const value = renderFieldValue(item, field);
@@ -2447,7 +2653,7 @@ export function TechSpecBuilder({
                 </button>
               </div>
             </div>
-            <ProductionSpecDocument draft={draft} exportRef={exportRef} />
+            <ProductionSpecDocument draft={draft} exportRef={exportRef} workCostOptions={workCostOptions} />
           </div>
         </aside>
       </div>

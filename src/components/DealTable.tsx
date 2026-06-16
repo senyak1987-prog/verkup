@@ -12,6 +12,8 @@ import {
   saleBreakdownForDeal,
   saleAmountForDeal,
 } from "../lib/costing";
+import { displayResponsible, isUnresolvedResponsible } from "../lib/responsible";
+import { EmployeeCard } from "./EmployeeCard";
 
 const COLUMN_STORAGE_KEY = "verkupDealColumnWidths";
 
@@ -19,7 +21,7 @@ const tableColumns = [
   { id: "deal", label: "Сделка", defaultWidth: 250, minWidth: 170 },
   { id: "source", label: "Источник", defaultWidth: 150, minWidth: 120 },
   { id: "type", label: "Тип", defaultWidth: 200, minWidth: 130 },
-  { id: "responsible", label: "Ответственный", defaultWidth: 165, minWidth: 130 },
+  { id: "responsible", label: "Ответственный", defaultWidth: 190, minWidth: 150 },
   { id: "startDate", label: "Дата запуска", defaultWidth: 125, minWidth: 110 },
   { id: "finishDate", label: "Предп. закрытия", defaultWidth: 145, minWidth: 125 },
   { id: "sales", label: "Продажа / монтаж", defaultWidth: 195, minWidth: 145 },
@@ -324,7 +326,20 @@ export function DealTable({
                     </td>
                     <td>{deal.source || "-"}</td>
                     <td>{deal.type || "-"}</td>
-                    <td>{deal.responsible || "-"}</td>
+                    <td
+                      className={
+                        isUnresolvedResponsible(deal.responsible)
+                          ? "responsible-cell unresolved"
+                          : "responsible-cell"
+                      }
+                    >
+                      <EmployeeCard
+                        card={deal.responsibleCard}
+                        compact
+                        fallbackName={deal.responsible}
+                        fallbackPhone={deal.responsiblePhone}
+                      />
+                    </td>
                     <td>{formatDate(deal.startDate) || "Не указана"}</td>
                     <td>{formatDate(deal.expectedFinishDate) || "Не указана"}</td>
                     <td>
@@ -445,7 +460,7 @@ function ColumnHeader({
           <option value="">Все</option>
           {options.responsibles.map((responsible) => (
             <option key={responsible} value={responsible}>
-              {responsible}
+              {displayResponsible(responsible)}
             </option>
           ))}
         </select>
