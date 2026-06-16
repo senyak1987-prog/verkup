@@ -27,7 +27,7 @@ import type {
   TemplateId,
 } from "../types";
 import { formatMoney, positionQuantity, positionTotal } from "../lib/costing";
-import { responsibleForDraft, responsiblePhoneFromCard } from "../lib/responsible";
+import { responsibleForDraft, responsibleInternalPhoneFromCard, responsiblePhoneFromCard } from "../lib/responsible";
 import { EmployeeCard } from "./EmployeeCard";
 
 type FieldKind = "text" | "number" | "select" | "textarea";
@@ -1930,6 +1930,7 @@ export function TechSpecBuilder({
   );
   const missingCount = missingItems.reduce((sum, item) => sum + item.missing.length, 0);
   const dealResponsiblePhone = responsiblePhoneFromCard(deal?.responsibleCard, deal?.responsiblePhone);
+  const dealResponsibleInternalPhone = responsibleInternalPhoneFromCard(deal?.responsibleCard, deal?.responsiblePhone);
 
   useEffect(() => {
     const dealFallback = createDraftForDeal(deal);
@@ -2368,6 +2369,11 @@ export function TechSpecBuilder({
               >
                 Взять телефон в ТЗ
               </button>
+            ) : null}
+            {!dealResponsiblePhone && dealResponsibleInternalPhone ? (
+              <p className="tech-spec-contact-note">
+                В Bitrix найден только внутренний номер: {dealResponsibleInternalPhone}. Полный телефон можно вписать вручную.
+              </p>
             ) : null}
           </div>
         ) : null}

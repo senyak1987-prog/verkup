@@ -305,6 +305,12 @@ function extractBitrixUserPhone(user) {
     if (phone) return phone;
   }
 
+  for (const [field, value] of Object.entries(user || {})) {
+    if (isIgnoredPhoneFallbackField(field)) continue;
+    const phone = extractPhoneValue(value);
+    if (phone) return phone;
+  }
+
   return "";
 }
 
@@ -334,6 +340,14 @@ function isInternalPhoneFieldName(field) {
     name.includes("INNER_PHONE") ||
     name.includes("INTERNAL_PHONE") ||
     /(^|[_-])(INNER|INTERNAL|EXT|EXTENSION)([_-]|$)/.test(name)
+  );
+}
+
+function isIgnoredPhoneFallbackField(field) {
+  const name = String(field || "").toUpperCase();
+  return (
+    isInternalPhoneFieldName(name) ||
+    /EMAIL|PHOTO|AVATAR|LOGO|URL|WWW|SITE|TIME|DATE|BIRTH|LAST|LOGIN|XML|ACTIVE|DEPARTMENT|POSITION|NAME/.test(name)
   );
 }
 

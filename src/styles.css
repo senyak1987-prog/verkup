@@ -3936,6 +3936,15 @@ td small {
   max-width: min(100%, 560px);
 }
 
+.tech-spec-contact-note {
+  max-width: 420px;
+  margin: 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: right;
+}
+
 .tech-spec-header span,
 .tech-spec-item-grid span {
   display: inline-flex;
