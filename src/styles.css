@@ -2982,25 +2982,55 @@ td small {
 
 .frame-rails {
   position: absolute;
-  z-index: 1;
+  z-index: 4;
   display: grid;
   align-content: center;
-  gap: min(15vh, 118px);
-  width: min(76%, 760px);
-  height: 64%;
+  gap: clamp(86px, 18vh, 138px);
+  width: min(72%, 720px);
+  height: 58%;
   pointer-events: none;
 }
 
 .frame-rails i {
+  position: relative;
   display: block;
-  height: 18px;
-  border-radius: 999px;
+  height: var(--frame-profile-size);
+  border-radius: 3px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), transparent 48%),
-    linear-gradient(90deg, #202936, #4b5563 48%, #1e293b);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.04) 42%, rgba(0, 0, 0, 0.26) 100%),
+    linear-gradient(90deg, #1d2633, #536174 48%, #202a39);
   box-shadow:
-    0 8px 14px rgba(15, 23, 42, 0.28),
-    inset 0 -4px 7px rgba(0, 0, 0, 0.24);
+    0 9px 16px rgba(15, 23, 42, 0.28),
+    inset 0 -4px 7px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.frame-rails i::before,
+.frame-rails i::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--frame-profile-size) * -0.4);
+  width: calc(var(--frame-profile-size) * 0.75);
+  height: calc(var(--frame-profile-size) * 1.8);
+  border-radius: 2px;
+  background: #2f3a4a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.frame-rails i::before {
+  left: 12%;
+}
+
+.frame-rails i::after {
+  right: 12%;
+}
+
+.frame-rails i span {
+  position: absolute;
+  inset: 2px 8px auto;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
 }
 
 .acp-preview-panel {
@@ -3054,7 +3084,7 @@ td small {
 
 .halo-backer-shape {
   position: absolute;
-  z-index: 3;
+  z-index: 2;
   width: min(78%, 710px);
   height: clamp(150px, 32%, 250px);
   border: 1px solid rgba(148, 163, 184, 0.34);
@@ -3084,14 +3114,20 @@ td small {
     linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 46%),
     var(--face-color);
   box-shadow:
-    var(--letter-side-shift) calc(var(--letter-side-shift) * 0.8) 0 color-mix(in srgb, var(--side-color) 78%, #05070a),
+    calc(var(--letter-side-step) * 1) calc(var(--letter-side-step) * 0.8) 0 color-mix(in srgb, var(--side-color) 88%, #111827),
+    calc(var(--letter-side-step) * 2) calc(var(--letter-side-step) * 1.6) 0 color-mix(in srgb, var(--side-color) 84%, #111827),
+    calc(var(--letter-side-step) * 3) calc(var(--letter-side-step) * 2.4) 0 color-mix(in srgb, var(--side-color) 80%, #111827),
+    var(--letter-side-shift) calc(var(--letter-side-shift) * 0.8) 0 color-mix(in srgb, var(--side-color) 74%, #05070a),
     0 18px 30px rgba(15, 23, 42, 0.22);
 }
 
 .letter-logo.outlined {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--outline-color) 68%, white),
-    var(--letter-side-shift) calc(var(--letter-side-shift) * 0.8) 0 color-mix(in srgb, var(--side-color) 78%, #05070a),
+    calc(var(--letter-side-step) * 1) calc(var(--letter-side-step) * 0.8) 0 color-mix(in srgb, var(--side-color) 88%, #111827),
+    calc(var(--letter-side-step) * 2) calc(var(--letter-side-step) * 1.6) 0 color-mix(in srgb, var(--side-color) 84%, #111827),
+    calc(var(--letter-side-step) * 3) calc(var(--letter-side-step) * 2.4) 0 color-mix(in srgb, var(--side-color) 80%, #111827),
+    var(--letter-side-shift) calc(var(--letter-side-shift) * 0.8) 0 color-mix(in srgb, var(--side-color) 74%, #05070a),
     0 18px 30px rgba(15, 23, 42, 0.22);
 }
 
@@ -3130,15 +3166,31 @@ td small {
     0 20px 26px rgba(15, 23, 42, 0.16);
 }
 
+.letter-word::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  color: transparent;
+  -webkit-text-stroke: 0 transparent;
+  text-shadow:
+    calc(var(--letter-side-step) * 1) calc(var(--letter-side-step) * 0.72) 0 color-mix(in srgb, var(--side-color) 92%, #0f172a),
+    calc(var(--letter-side-step) * 2) calc(var(--letter-side-step) * 1.44) 0 color-mix(in srgb, var(--side-color) 88%, #0f172a),
+    calc(var(--letter-side-step) * 3) calc(var(--letter-side-step) * 2.16) 0 color-mix(in srgb, var(--side-color) 84%, #0f172a),
+    calc(var(--letter-side-step) * 4) calc(var(--letter-side-step) * 2.88) 0 color-mix(in srgb, var(--side-color) 78%, #0f172a);
+  transform: skewY(-1.5deg);
+}
+
 .letter-word::before {
   z-index: -2;
   color: var(--side-color);
   transform:
-    translate(var(--letter-side-shift), calc(var(--letter-side-shift) * 0.78))
-    skewY(-2deg);
+    translate(var(--letter-side-shift), calc(var(--letter-side-shift) * 0.68))
+    skewY(-3deg);
   text-shadow:
     0 1px 0 color-mix(in srgb, var(--side-color) 70%, white),
-    0 18px 18px rgba(15, 23, 42, 0.18);
+    0 2px 0 color-mix(in srgb, var(--side-color) 60%, white),
+    0 18px 18px rgba(15, 23, 42, 0.2);
 }
 
 .builder-preview.night.glow-face .letter-word,

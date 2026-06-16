@@ -8,6 +8,7 @@ type PanelShape = "circle" | "square" | "rounded";
 type LogoShape = "circle" | "square" | "rounded";
 type GlowMode = "face" | "faceSide" | "faceHalo" | "halo";
 type MountMode = "wall" | "frame" | "acp";
+type FrameProfile = 15 | 20;
 
 type ColorOption = {
   code: string;
@@ -73,6 +74,11 @@ const MOUNT_MODES: Array<{ id: MountMode; label: string; note: string }> = [
   { id: "wall", label: "На стене", note: "без общей основы" },
   { id: "frame", label: "На раме", note: "две трубы за буквами" },
   { id: "acp", label: "На подложке АКП", note: "короб с подворотами" },
+];
+
+const FRAME_PROFILES: Array<{ value: FrameProfile; label: string }> = [
+  { value: 15, label: "15 x 15" },
+  { value: 20, label: "20 x 20" },
 ];
 
 const LETTER_FONTS: FontOption[] = [
@@ -174,6 +180,7 @@ const ACP_COLORS: ColorOption[] = [
   { code: "ACP-B", name: "Черный АКП", value: "#151922" },
   { code: "ACP-S", name: "Серебро АКП", value: "#c8ced8" },
   { code: "ACP-G", name: "Графит АКП", value: "#4b5563" },
+  { code: "ACP-DG", name: "Зеленый АКП", value: "#173f38" },
   { code: "ACP-R", name: "Красный АКП", value: "#c9282d" },
   { code: "ACP-L", name: "Молочный АКП", value: "#efe9dc" },
 ];
@@ -204,7 +211,8 @@ export function SignProductConfigurator() {
   const [outlineColor, setOutlineColor] = useState<ColorOption>(ORACAL_641_COLORS[1]);
   const [haloBackerEnabled, setHaloBackerEnabled] = useState(true);
   const [haloBackerColor, setHaloBackerColor] = useState<ColorOption>(ACP_COLORS[0]);
-  const [mountMode, setMountMode] = useState<MountMode>("wall");
+  const [mountMode, setMountMode] = useState<MountMode>("frame");
+  const [frameProfile, setFrameProfile] = useState<FrameProfile>(20);
   const [acpColor, setAcpColor] = useState<ColorOption>(ACP_COLORS[0]);
   const [acpWidth, setAcpWidth] = useState(2500);
   const [acpHeight, setAcpHeight] = useState(830);
@@ -238,8 +246,10 @@ export function SignProductConfigurator() {
     "--glow-color": currentFaceColor.value,
     "--letter-font": letterFont,
     "--letter-outline-width": letterOutlineEnabled ? "0.045em" : "0px",
-    "--letter-side-shift": `${Math.max(6, Math.min(22, letterDepth / 4))}px`,
+    "--letter-side-shift": `${Math.max(10, Math.min(30, letterDepth / 2.6))}px`,
+    "--letter-side-step": `${Math.max(2, Math.min(5, letterDepth / 22))}px`,
     "--logo-outline-width": logoOutlineEnabled ? "7px" : "0px",
+    "--frame-profile-size": `${frameProfile}px`,
     "--halo-backer-color": haloBackerColor.value,
     "--acp-color": acpColor.value,
     "--panel-image-scale": panelImageScale / 100,
@@ -337,6 +347,7 @@ export function SignProductConfigurator() {
               depth={letterDepth}
               faceColor={letterFaceColor}
               font={letterFont}
+              frameProfile={frameProfile}
               glowMode={glowMode}
               haloBackerColor={haloBackerColor}
               haloBackerEnabled={haloBackerEnabled}
@@ -357,6 +368,7 @@ export function SignProductConfigurator() {
               onDepthChange={setLetterDepth}
               onFaceColorChange={setLetterFaceColor}
               onFontChange={setLetterFont}
+              onFrameProfileChange={setFrameProfile}
               onGlowModeChange={setGlowMode}
               onHaloBackerColorChange={setHaloBackerColor}
               onHaloBackerEnabledChange={setHaloBackerEnabled}
@@ -390,8 +402,9 @@ export function SignProductConfigurator() {
               <LettersPreview
                 acpLayout={acpLayout}
                 depth={letterDepth}
+                frameProfile={frameProfile}
                 glowMode={glowMode}
-                haloBackerEnabled={glowHasHalo && haloBackerEnabled}
+                haloBackerEnabled={glowHasHalo && haloBackerEnabled && mountMode !== "frame"}
                 height={letterHeight}
                 logoImage={logoImage}
                 logoOutlineEnabled={logoOutlineEnabled}
@@ -424,7 +437,13 @@ export function SignProductConfigurator() {
           </div>
           <div className="summary-block">
             <span>Монтаж</span>
-            <strong>{productId === "letters" ? mountLabel : "Кронштейн"}</strong>
+            <strong>
+              {productId === "letters"
+                ? mountMode === "frame"
+                  ? `${mountLabel}, профиль ${frameProfile} x ${frameProfile}`
+                  : mountLabel
+                : "Кронштейн"}
+            </strong>
           </div>
           <div className="summary-block">
             <span>Лицевая пленка</span>
@@ -558,6 +577,7 @@ function LettersControls({
   depth,
   faceColor,
   font,
+  frameProfile,
   glowMode,
   haloBackerColor,
   haloBackerEnabled,
@@ -578,6 +598,7 @@ function LettersControls({
   onDepthChange,
   onFaceColorChange,
   onFontChange,
+  onFrameProfileChange,
   onGlowModeChange,
   onHaloBackerColorChange,
   onHaloBackerEnabledChange,
@@ -599,6 +620,7 @@ function LettersControls({
   depth: number;
   faceColor: ColorOption;
   font: string;
+  frameProfile: FrameProfile;
   glowMode: GlowMode;
   haloBackerColor: ColorOption;
   haloBackerEnabled: boolean;
@@ -619,6 +641,7 @@ function LettersControls({
   onDepthChange: (value: number) => void;
   onFaceColorChange: (color: ColorOption) => void;
   onFontChange: (font: string) => void;
+  onFrameProfileChange: (value: FrameProfile) => void;
   onGlowModeChange: (mode: GlowMode) => void;
   onHaloBackerColorChange: (color: ColorOption) => void;
   onHaloBackerEnabledChange: (value: boolean) => void;
@@ -688,6 +711,24 @@ function LettersControls({
         </div>
       </ControlSection>
 
+      {mountMode === "frame" && (
+        <ControlSection title="Рама">
+          <div className="option-grid two">
+            {FRAME_PROFILES.map((profile) => (
+              <button
+                className={frameProfile === profile.value ? "active" : ""}
+                key={profile.value}
+                onClick={() => onFrameProfileChange(profile.value)}
+                type="button"
+              >
+                Профиль {profile.label}
+              </button>
+            ))}
+          </div>
+          <small className="control-note">Две горизонтальные трубы за буквами, в пределах габарита вывески.</small>
+        </ControlSection>
+      )}
+
       {mountMode === "acp" && (
         <ControlSection title="Подложка АКП">
           <div className="sign-size-grid">
@@ -700,7 +741,7 @@ function LettersControls({
         </ControlSection>
       )}
 
-      {glowHasHalo && (
+      {glowHasHalo && mountMode !== "frame" && (
         <ControlSection title="Контражурная подложка">
           <div className="toggle-grid">
             <button
@@ -803,6 +844,7 @@ function PanelPreview({
 function LettersPreview({
   acpLayout,
   depth,
+  frameProfile,
   glowMode,
   haloBackerEnabled,
   height,
@@ -814,6 +856,7 @@ function LettersPreview({
 }: {
   acpLayout: AcpLayout;
   depth: number;
+  frameProfile: FrameProfile;
   glowMode: GlowMode;
   haloBackerEnabled: boolean;
   height: number;
@@ -842,8 +885,8 @@ function LettersPreview({
     >
       {mountMode === "frame" && (
         <div className="frame-rails" aria-hidden="true">
-          <i />
-          <i />
+          <i><span /></i>
+          <i><span /></i>
         </div>
       )}
       {mountMode === "acp" && <AcpPreviewPanel layout={acpLayout} />}
@@ -856,7 +899,10 @@ function LettersPreview({
           {text || "Вывеска"}
         </div>
       </div>
-      <div className="preview-dimension">h {height} мм · борт {depth} мм</div>
+      <div className="preview-dimension">
+        h {height} мм · борт {depth} мм
+        {mountMode === "frame" ? ` · профиль ${frameProfile}x${frameProfile}` : ""}
+      </div>
     </div>
   );
 }
