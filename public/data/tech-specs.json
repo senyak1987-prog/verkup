@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-16T17:11:19.682Z",
+  "generatedAt": "2026-06-16T17:22:10.064Z",
   "specs": [
     {
       "dealId": "16986",
@@ -262,6 +262,43 @@
         ]
       },
       "updatedAt": "2026-06-16T17:11:19.682Z"
+    },
+    {
+      "dealId": "17050",
+      "draft": {
+        "dealNumber": "17050",
+        "projectName": "АТЛАНТ",
+        "manager": "Антон Исаков",
+        "responsiblePhone": "",
+        "deadline": "2026-06-23",
+        "date": "2026-06-16",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "8f19d053-11a4-46a8-ac17-c7e6af86e3cf",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-16T17:22:10.064Z"
     }
   ]
 }
