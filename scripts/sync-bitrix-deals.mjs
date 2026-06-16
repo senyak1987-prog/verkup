@@ -144,6 +144,7 @@ function normalizeBitrixUser(user, id) {
     id: idText,
     name: name || idText,
     phone: extractBitrixUserPhone(user),
+    internalPhone: extractBitrixUserInternalPhone(user),
     email: firstText(user.EMAIL, user.WORK_EMAIL, user.PERSONAL_EMAIL),
     position: firstText(user.WORK_POSITION, user.UF_POSITION, user.PERSONAL_PROFESSION),
     department: departmentIds.length ? departmentIds.map((deptId) => `Отдел #${deptId}`).join(", ") : firstText(user.WORK_DEPARTMENT),
@@ -276,23 +277,46 @@ function absoluteBitrixUrl(value) {
 
 const BITRIX_USER_PHONE_FIELDS = [
   "PERSONAL_MOBILE",
-  "WORK_PHONE",
-  "PERSONAL_PHONE",
-  "UF_PHONE_INNER",
-  "UF_PHONE",
   "UF_MOBILE",
-  "UF_WORK_PHONE",
   "UF_PERSONAL_MOBILE",
+  "PERSONAL_PHONE",
+  "UF_PHONE",
+  "WORK_PHONE",
+  "UF_WORK_PHONE",
+];
+
+const BITRIX_USER_INTERNAL_PHONE_FIELDS = [
+  "UF_PHONE_INNER",
+  "UF_PHONE_INTERNAL",
+  "UF_INNER_PHONE",
+  "UF_INTERNAL_PHONE",
+  "UF_EXTENSION",
 ];
 
 function extractBitrixUserPhone(user) {
   for (const field of BITRIX_USER_PHONE_FIELDS) {
-    const phone = extractPhoneValue(user[field], true);
+    const phone = extractPhoneValue(user[field]);
     if (phone) return phone;
   }
 
   for (const [field, value] of Object.entries(user || {})) {
-    const phone = extractPhoneValue(value, isPhoneFieldName(field));
+    if (!isPhoneFieldName(field)) continue;
+    const phone = extractPhoneValue(value);
+    if (phone) return phone;
+  }
+
+  return "";
+}
+
+function extractBitrixUserInternalPhone(user) {
+  for (const field of BITRIX_USER_INTERNAL_PHONE_FIELDS) {
+    const phone = extractExtensionValue(user[field]);
+    if (phone) return phone;
+  }
+
+  for (const [field, value] of Object.entries(user || {})) {
+    if (!isPhoneFieldName(field) && !isInternalPhoneFieldName(field)) continue;
+    const phone = extractExtensionValue(value);
     if (phone) return phone;
   }
 
@@ -300,13 +324,23 @@ function extractBitrixUserPhone(user) {
 }
 
 function isPhoneFieldName(field) {
-  return /PHONE|MOBILE|TEL|INNER|EXT/i.test(String(field || ""));
+  return /PHONE|MOBILE|TEL/i.test(String(field || "")) && !isInternalPhoneFieldName(field);
 }
 
-function extractPhoneValue(value, allowExtension) {
+function isInternalPhoneFieldName(field) {
+  const name = String(field || "").toUpperCase();
+  return (
+    name.includes("PHONE_INNER") ||
+    name.includes("INNER_PHONE") ||
+    name.includes("INTERNAL_PHONE") ||
+    /(^|[_-])(INNER|INTERNAL|EXT|EXTENSION)([_-]|$)/.test(name)
+  );
+}
+
+function extractPhoneValue(value) {
   if (Array.isArray(value)) {
     for (const item of value) {
-      const phone = extractPhoneValue(item, allowExtension);
+      const phone = extractPhoneValue(item);
       if (phone) return phone;
     }
     return "";
@@ -314,32 +348,66 @@ function extractPhoneValue(value, allowExtension) {
 
   if (value && typeof value === "object") {
     for (const item of Object.values(value)) {
-      const phone = extractPhoneValue(item, allowExtension);
+      const phone = extractPhoneValue(item);
       if (phone) return phone;
     }
     return "";
   }
 
-  return normalizePhoneText(value, allowExtension);
+  return normalizePhoneText(value);
 }
 
-function normalizePhoneText(value, allowExtension) {
+function extractExtensionValue(value) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const phone = extractExtensionValue(item);
+      if (phone) return phone;
+    }
+    return "";
+  }
+
+  if (value && typeof value === "object") {
+    for (const item of Object.values(value)) {
+      const phone = extractExtensionValue(item);
+      if (phone) return phone;
+    }
+    return "";
+  }
+
+  return normalizeExtensionText(value);
+}
+
+function normalizePhoneText(value) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   if (!text) return "";
 
   const digits = text.replace(/\D/g, "");
   const compact = text.replace(/[^\d+]/g, "");
-  const plainDigits = text.replace(/[^\d]/g, "");
-
-  if (allowExtension && /^\d{3,5}$/.test(digits) && digits === plainDigits && !/[T:.-]/.test(text)) {
-    return text;
-  }
+  if (digits.length < 10 || digits.length > 15) return "";
 
   if (/^\+?7\d{10}$/.test(compact) || (/^8\d{10}$/.test(digits) && digits.length === 11)) {
     return text;
   }
 
   if (/^(\+7|7|8)/.test(compact) && digits.length === 11) {
+    return text;
+  }
+
+  if (/^\+?\d[\d\s().-]{9,}$/.test(text)) {
+    return text;
+  }
+
+  return "";
+}
+
+function normalizeExtensionText(value) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+
+  const digits = text.replace(/\D/g, "");
+  const plainDigits = text.replace(/[^\d]/g, "");
+
+  if (/^\d{2,6}$/.test(digits) && digits === plainDigits) {
     return text;
   }
 

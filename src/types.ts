@@ -2,6 +2,7 @@ export type ResponsibleCard = {
   id: string;
   name: string;
   phone?: string;
+  internalPhone?: string;
   email?: string;
   position?: string;
   department?: string;

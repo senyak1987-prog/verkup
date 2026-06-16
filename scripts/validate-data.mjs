@@ -51,9 +51,15 @@ function responsibleName(deal) {
 }
 
 function responsiblePhone(deal) {
-  return String(deal.responsibleCard?.phone || deal.responsiblePhone || "").trim();
+  const phone = String(deal.responsibleCard?.phone || deal.responsiblePhone || "").trim();
+  return isFullPhone(phone) ? phone : "";
 }
 
 function isNumericResponsible(value) {
   return /^\d+$/.test(String(value || "").trim());
+}
+
+function isFullPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
 }

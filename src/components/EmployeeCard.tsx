@@ -1,6 +1,11 @@
-import { Building2, ExternalLink, Mail, Phone, UserRound } from "lucide-react";
+import { Building2, ExternalLink, Hash, Mail, Phone, UserRound } from "lucide-react";
 import type { ResponsibleCard } from "../types";
-import { displayResponsible, isUnresolvedResponsible, responsiblePhoneFromCard } from "../lib/responsible";
+import {
+  displayResponsible,
+  isUnresolvedResponsible,
+  responsibleInternalPhoneFromCard,
+  responsiblePhoneFromCard,
+} from "../lib/responsible";
 
 type EmployeeCardProps = {
   card?: ResponsibleCard;
@@ -21,9 +26,10 @@ export function EmployeeCard({
 }: EmployeeCardProps) {
   const name = displayResponsible(card?.name || fallbackName);
   const phone = responsiblePhoneFromCard(card, fallbackPhone);
+  const internalPhone = responsibleInternalPhoneFromCard(card, fallbackPhone);
   const isUnresolved = isUnresolvedResponsible(card?.name || fallbackName);
   const hasDetails = Boolean(
-    phone || card?.email || card?.position || card?.department || card?.supervisor || card?.bitrixUrl,
+    phone || internalPhone || card?.email || card?.position || card?.department || card?.supervisor || card?.bitrixUrl,
   );
   const classes = [
     "employee-card",
@@ -58,6 +64,12 @@ export function EmployeeCard({
                 <Phone size={15} />
                 <span>{phone}</span>
               </a>
+            ) : null}
+            {internalPhone ? (
+              <div>
+                <Hash size={15} />
+                <span>Внутренний: {internalPhone}</span>
+              </div>
             ) : null}
             {card?.email ? (
               <a href={`mailto:${card.email}`}>

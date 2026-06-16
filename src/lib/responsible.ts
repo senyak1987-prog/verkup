@@ -22,5 +22,28 @@ export function responsibleNameFromCard(card?: ResponsibleCard | null, fallbackN
 }
 
 export function responsiblePhoneFromCard(card?: ResponsibleCard | null, fallbackPhone?: string | null) {
-  return String(card?.phone || fallbackPhone || "").trim();
+  return [card?.phone, fallbackPhone].map(cleanPhoneText).find(isFullPhone) || "";
+}
+
+export function responsibleInternalPhoneFromCard(card?: ResponsibleCard | null, fallbackPhone?: string | null) {
+  return [card?.internalPhone, card?.phone, fallbackPhone].map(cleanPhoneText).find(isInternalPhone) || "";
+}
+
+export function isFullPhone(value?: string | null) {
+  const text = cleanPhoneText(value);
+  if (!text) return false;
+  const digits = text.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
+}
+
+export function isInternalPhone(value?: string | null) {
+  const text = cleanPhoneText(value);
+  if (!text) return false;
+  const digits = text.replace(/\D/g, "");
+  const plainDigits = text.replace(/[^\d]/g, "");
+  return /^\d{2,6}$/.test(digits) && digits === plainDigits;
+}
+
+function cleanPhoneText(value?: string | null) {
+  return String(value || "").replace(/\s+/g, " ").trim();
 }
