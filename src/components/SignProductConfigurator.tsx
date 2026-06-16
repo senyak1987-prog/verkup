@@ -6,6 +6,8 @@ type ProductId = "panel" | "letters";
 type SceneMode = "day" | "night";
 type PanelShape = "circle" | "square" | "rounded";
 type LogoShape = "circle" | "square" | "rounded";
+type GlowMode = "face" | "faceSide" | "faceHalo" | "halo";
+type MountMode = "wall" | "frame" | "acp";
 
 type ColorOption = {
   code: string;
@@ -18,7 +20,22 @@ type FontOption = {
   value: string;
 };
 
+type AcpLayout = {
+  faceWidth: number;
+  faceHeight: number;
+  depth: number;
+  secondReturn: number;
+  unfoldedWidth: number;
+  unfoldedHeight: number;
+  sheetsX: number;
+  sheetsY: number;
+  sheetCount: number;
+};
+
 const PANEL_SIZES = Array.from({ length: 7 }, (_, index) => 400 + index * 50);
+const ACP_SHEET_WIDTH_MM = 4000;
+const ACP_SHEET_HEIGHT_MM = 1500;
+const ACP_SECOND_RETURN_MM = 25;
 
 const PRODUCTS: Array<{ id: ProductId; title: string; note: string }> = [
   {
@@ -29,7 +46,7 @@ const PRODUCTS: Array<{ id: ProductId; title: string; note: string }> = [
   {
     id: "letters",
     title: "Объемные световые буквы",
-    note: "Текст, логотип, лицо и борта",
+    note: "Текст, логотип, лицо, борта, свечение и монтаж",
   },
 ];
 
@@ -43,6 +60,19 @@ const LOGO_SHAPES: Array<{ id: LogoShape; label: string }> = [
   { id: "circle", label: "Круг" },
   { id: "square", label: "Квадрат" },
   { id: "rounded", label: "Скругление" },
+];
+
+const GLOW_MODES: Array<{ id: GlowMode; label: string; note: string }> = [
+  { id: "face", label: "Лицевое", note: "светится только лицо" },
+  { id: "faceSide", label: "Лицевое/торцевое", note: "лицо и борт" },
+  { id: "faceHalo", label: "Лицевое/контражурное", note: "лицо и ореол назад" },
+  { id: "halo", label: "Контражурное", note: "ореол на стену или подложку" },
+];
+
+const MOUNT_MODES: Array<{ id: MountMode; label: string; note: string }> = [
+  { id: "wall", label: "На стене", note: "без общей основы" },
+  { id: "frame", label: "На раме", note: "две трубы за буквами" },
+  { id: "acp", label: "На подложке АКП", note: "короб с подворотами" },
 ];
 
 const LETTER_FONTS: FontOption[] = [
@@ -139,8 +169,17 @@ const ORACAL_641_COLORS: ColorOption[] = [
   { code: "091", name: "Золото", value: "#b99a51" },
 ];
 
+const ACP_COLORS: ColorOption[] = [
+  { code: "ACP-W", name: "Белый АКП", value: "#f8fafc" },
+  { code: "ACP-B", name: "Черный АКП", value: "#151922" },
+  { code: "ACP-S", name: "Серебро АКП", value: "#c8ced8" },
+  { code: "ACP-G", name: "Графит АКП", value: "#4b5563" },
+  { code: "ACP-R", name: "Красный АКП", value: "#c9282d" },
+  { code: "ACP-L", name: "Молочный АКП", value: "#efe9dc" },
+];
+
 export function SignProductConfigurator() {
-  const [productId, setProductId] = useState<ProductId>("panel");
+  const [productId, setProductId] = useState<ProductId>("letters");
   const [sceneMode, setSceneMode] = useState<SceneMode>("day");
   const [panelShape, setPanelShape] = useState<PanelShape>("circle");
   const [panelSize, setPanelSize] = useState(500);
@@ -152,13 +191,24 @@ export function SignProductConfigurator() {
   const [panelSideColor, setPanelSideColor] = useState<ColorOption>(ORACAL_641_COLORS[1]);
   const [lettersText, setLettersText] = useState("ЦВЕТЫ");
   const [letterFont, setLetterFont] = useState(LETTER_FONTS[0].value);
-  const [letterHeight, setLetterHeight] = useState(420);
-  const [letterDepth, setLetterDepth] = useState(80);
+  const [letterHeight, setLetterHeight] = useState(410);
+  const [letterDepth, setLetterDepth] = useState(40);
   const [letterFaceColor, setLetterFaceColor] = useState<ColorOption>(ORACAL_8500_COLORS[4]);
   const [letterSideColor, setLetterSideColor] = useState<ColorOption>(ORACAL_641_COLORS[1]);
-  const [logoShape, setLogoShape] = useState<LogoShape>("rounded");
+  const [glowMode, setGlowMode] = useState<GlowMode>("faceHalo");
+  const [logoShape, setLogoShape] = useState<LogoShape>("circle");
   const [logoImage, setLogoImage] = useState("");
   const [logoScale, setLogoScale] = useState(86);
+  const [letterOutlineEnabled, setLetterOutlineEnabled] = useState(false);
+  const [logoOutlineEnabled, setLogoOutlineEnabled] = useState(false);
+  const [outlineColor, setOutlineColor] = useState<ColorOption>(ORACAL_641_COLORS[1]);
+  const [haloBackerEnabled, setHaloBackerEnabled] = useState(true);
+  const [haloBackerColor, setHaloBackerColor] = useState<ColorOption>(ACP_COLORS[0]);
+  const [mountMode, setMountMode] = useState<MountMode>("wall");
+  const [acpColor, setAcpColor] = useState<ColorOption>(ACP_COLORS[0]);
+  const [acpWidth, setAcpWidth] = useState(2500);
+  const [acpHeight, setAcpHeight] = useState(830);
+  const [acpDepth, setAcpDepth] = useState(50);
 
   const activeProduct = PRODUCTS.find((product) => product.id === productId) || PRODUCTS[0];
   const currentFaceColor = productId === "panel" ? panelFaceColor : letterFaceColor;
@@ -167,16 +217,31 @@ export function SignProductConfigurator() {
     panelShape === "circle"
       ? (Math.PI * (panelSize / 2) ** 2) / 1_000_000
       : (panelSize * panelSize) / 1_000_000;
-  const lettersWidth = useMemo(() => Math.max(900, lettersText.trim().length * letterHeight * 0.64), [
-    letterHeight,
-    lettersText,
-  ]);
+  const lettersWidth = useMemo(
+    () => Math.max(900, lettersText.trim().length * letterHeight * 0.64 + (logoImage ? letterHeight * 0.56 : 0)),
+    [letterHeight, lettersText, logoImage],
+  );
   const lettersAreaM2 = (lettersWidth * letterHeight) / 1_000_000;
+  const acpLayout = useMemo(() => createAcpLayout(acpWidth, acpHeight, acpDepth), [
+    acpDepth,
+    acpHeight,
+    acpWidth,
+  ]);
+  const glowHasHalo = hasHaloGlow(glowMode);
+  const glowLabel = GLOW_MODES.find((item) => item.id === glowMode)?.label || "";
+  const mountLabel = MOUNT_MODES.find((item) => item.id === mountMode)?.label || "";
 
   const visualStyle = {
     "--face-color": currentFaceColor.value,
     "--side-color": currentSideColor.value,
+    "--outline-color": outlineColor.value,
+    "--glow-color": currentFaceColor.value,
     "--letter-font": letterFont,
+    "--letter-outline-width": letterOutlineEnabled ? "0.045em" : "0px",
+    "--letter-side-shift": `${Math.max(6, Math.min(22, letterDepth / 4))}px`,
+    "--logo-outline-width": logoOutlineEnabled ? "7px" : "0px",
+    "--halo-backer-color": haloBackerColor.value,
+    "--acp-color": acpColor.value,
     "--panel-image-scale": panelImageScale / 100,
     "--panel-image-x": `${panelImageX}%`,
     "--panel-image-y": `${panelImageY}%`,
@@ -265,29 +330,54 @@ export function SignProductConfigurator() {
             />
           ) : (
             <LettersControls
+              acpColor={acpColor}
+              acpDepth={acpDepth}
+              acpHeight={acpHeight}
+              acpWidth={acpWidth}
               depth={letterDepth}
               faceColor={letterFaceColor}
               font={letterFont}
+              glowMode={glowMode}
+              haloBackerColor={haloBackerColor}
+              haloBackerEnabled={haloBackerEnabled}
               height={letterHeight}
+              letterOutlineEnabled={letterOutlineEnabled}
               logoImage={logoImage}
+              logoOutlineEnabled={logoOutlineEnabled}
               logoScale={logoScale}
               logoShape={logoShape}
+              mountMode={mountMode}
+              outlineColor={outlineColor}
               sideColor={letterSideColor}
               text={lettersText}
+              onAcpColorChange={setAcpColor}
+              onAcpDepthChange={setAcpDepth}
+              onAcpHeightChange={setAcpHeight}
+              onAcpWidthChange={setAcpWidth}
               onDepthChange={setLetterDepth}
               onFaceColorChange={setLetterFaceColor}
               onFontChange={setLetterFont}
+              onGlowModeChange={setGlowMode}
+              onHaloBackerColorChange={setHaloBackerColor}
+              onHaloBackerEnabledChange={setHaloBackerEnabled}
               onHeightChange={setLetterHeight}
+              onLetterOutlineEnabledChange={setLetterOutlineEnabled}
               onLogoChange={(event) => void handleImageUpload(event, setLogoImage)}
+              onLogoOutlineEnabledChange={setLogoOutlineEnabled}
               onLogoScaleChange={setLogoScale}
               onLogoShapeChange={setLogoShape}
+              onMountModeChange={setMountMode}
+              onOutlineColorChange={setOutlineColor}
               onSideColorChange={setLetterSideColor}
               onTextChange={setLettersText}
             />
           )}
         </aside>
 
-        <section className={`builder-preview ${sceneMode}`} aria-label="Визуализация">
+        <section
+          className={`builder-preview ${sceneMode} glow-${glowMode}`}
+          aria-label="Визуализация"
+        >
           <div className="preview-wall">
             {productId === "panel" ? (
               <PanelPreview
@@ -298,10 +388,15 @@ export function SignProductConfigurator() {
               />
             ) : (
               <LettersPreview
+                acpLayout={acpLayout}
                 depth={letterDepth}
+                glowMode={glowMode}
+                haloBackerEnabled={glowHasHalo && haloBackerEnabled}
                 height={letterHeight}
                 logoImage={logoImage}
+                logoOutlineEnabled={logoOutlineEnabled}
                 logoShape={logoShape}
+                mountMode={mountMode}
                 text={lettersText}
               />
             )}
@@ -318,8 +413,18 @@ export function SignProductConfigurator() {
             <strong>
               {productId === "panel"
                 ? `${panelSize} x ${panelSize} мм`
-                : `${Math.round(lettersWidth)} x ${letterHeight} мм`}
+                : mountMode === "acp"
+                  ? `${acpWidth} x ${acpHeight} x ${acpDepth} мм`
+                  : `${Math.round(lettersWidth)} x ${letterHeight} мм`}
             </strong>
+          </div>
+          <div className="summary-block">
+            <span>Свечение</span>
+            <strong>{productId === "letters" ? glowLabel : "Лицевое"}</strong>
+          </div>
+          <div className="summary-block">
+            <span>Монтаж</span>
+            <strong>{productId === "letters" ? mountLabel : "Кронштейн"}</strong>
           </div>
           <div className="summary-block">
             <span>Лицевая пленка</span>
@@ -333,9 +438,22 @@ export function SignProductConfigurator() {
             <span>Площадь лица</span>
             <strong>{formatArea(productId === "panel" ? panelAreaM2 : lettersAreaM2)} м²</strong>
           </div>
+          {productId === "letters" && (
+            <div className="summary-block">
+              <span>Кантик</span>
+              <strong>
+                {letterOutlineEnabled || logoOutlineEnabled
+                  ? `${outlineColor.code} ${outlineColor.name}`
+                  : "без кантика"}
+              </strong>
+            </div>
+          )}
+          {productId === "letters" && mountMode === "acp" && (
+            <AcpLayoutCard layout={acpLayout} />
+          )}
           <div className="summary-block muted">
             <span>Следующий слой</span>
-            <strong>Диоды, блоки, материалы, раскладка</strong>
+            <strong>Диоды, блоки, материалы, раскладка, себестоимость</strong>
           </div>
         </aside>
       </section>
@@ -433,44 +551,90 @@ function PanelControls({
 }
 
 function LettersControls({
+  acpColor,
+  acpDepth,
+  acpHeight,
+  acpWidth,
   depth,
   faceColor,
   font,
+  glowMode,
+  haloBackerColor,
+  haloBackerEnabled,
   height,
+  letterOutlineEnabled,
   logoImage,
+  logoOutlineEnabled,
   logoScale,
   logoShape,
+  mountMode,
+  outlineColor,
   sideColor,
   text,
+  onAcpColorChange,
+  onAcpDepthChange,
+  onAcpHeightChange,
+  onAcpWidthChange,
   onDepthChange,
   onFaceColorChange,
   onFontChange,
+  onGlowModeChange,
+  onHaloBackerColorChange,
+  onHaloBackerEnabledChange,
   onHeightChange,
+  onLetterOutlineEnabledChange,
   onLogoChange,
+  onLogoOutlineEnabledChange,
   onLogoScaleChange,
   onLogoShapeChange,
+  onMountModeChange,
+  onOutlineColorChange,
   onSideColorChange,
   onTextChange,
 }: {
+  acpColor: ColorOption;
+  acpDepth: number;
+  acpHeight: number;
+  acpWidth: number;
   depth: number;
   faceColor: ColorOption;
   font: string;
+  glowMode: GlowMode;
+  haloBackerColor: ColorOption;
+  haloBackerEnabled: boolean;
   height: number;
+  letterOutlineEnabled: boolean;
   logoImage: string;
+  logoOutlineEnabled: boolean;
   logoScale: number;
   logoShape: LogoShape;
+  mountMode: MountMode;
+  outlineColor: ColorOption;
   sideColor: ColorOption;
   text: string;
+  onAcpColorChange: (color: ColorOption) => void;
+  onAcpDepthChange: (value: number) => void;
+  onAcpHeightChange: (value: number) => void;
+  onAcpWidthChange: (value: number) => void;
   onDepthChange: (value: number) => void;
   onFaceColorChange: (color: ColorOption) => void;
   onFontChange: (font: string) => void;
+  onGlowModeChange: (mode: GlowMode) => void;
+  onHaloBackerColorChange: (color: ColorOption) => void;
+  onHaloBackerEnabledChange: (value: boolean) => void;
   onHeightChange: (value: number) => void;
+  onLetterOutlineEnabledChange: (value: boolean) => void;
   onLogoChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onLogoOutlineEnabledChange: (value: boolean) => void;
   onLogoScaleChange: (value: number) => void;
   onLogoShapeChange: (shape: LogoShape) => void;
+  onMountModeChange: (mode: MountMode) => void;
+  onOutlineColorChange: (color: ColorOption) => void;
   onSideColorChange: (color: ColorOption) => void;
   onTextChange: (value: string) => void;
 }) {
+  const glowHasHalo = hasHaloGlow(glowMode);
+
   return (
     <>
       <ControlSection title="Надпись">
@@ -489,7 +653,90 @@ function LettersControls({
           </select>
         </label>
         <RangeField label="Высота букв, мм" max={1200} min={120} onChange={onHeightChange} step={10} value={height} />
-        <RangeField label="Глубина борта, мм" max={160} min={40} onChange={onDepthChange} step={5} value={depth} />
+        <RangeField label="Глубина борта, мм" max={160} min={30} onChange={onDepthChange} step={5} value={depth} />
+      </ControlSection>
+
+      <ControlSection title="Свечение">
+        <div className="option-grid glow-grid">
+          {GLOW_MODES.map((item) => (
+            <button
+              className={glowMode === item.id ? "active" : ""}
+              key={item.id}
+              onClick={() => onGlowModeChange(item.id)}
+              type="button"
+            >
+              <strong>{item.label}</strong>
+              <span>{item.note}</span>
+            </button>
+          ))}
+        </div>
+      </ControlSection>
+
+      <ControlSection title="Размещение">
+        <div className="option-grid mount-grid">
+          {MOUNT_MODES.map((item) => (
+            <button
+              className={mountMode === item.id ? "active" : ""}
+              key={item.id}
+              onClick={() => onMountModeChange(item.id)}
+              type="button"
+            >
+              <strong>{item.label}</strong>
+              <span>{item.note}</span>
+            </button>
+          ))}
+        </div>
+      </ControlSection>
+
+      {mountMode === "acp" && (
+        <ControlSection title="Подложка АКП">
+          <div className="sign-size-grid">
+            <NumberField label="Ширина, мм" min={400} onChange={onAcpWidthChange} value={acpWidth} />
+            <NumberField label="Высота, мм" min={250} onChange={onAcpHeightChange} value={acpHeight} />
+          </div>
+          <RangeField label="Глубина подложки, мм" max={100} min={30} onChange={onAcpDepthChange} step={5} value={acpDepth} />
+          <small className="control-note">В развертке учитывается второй подворот 25 мм.</small>
+          <ColorGrid colors={ACP_COLORS} selected={acpColor} onSelect={onAcpColorChange} compact />
+        </ControlSection>
+      )}
+
+      {glowHasHalo && (
+        <ControlSection title="Контражурная подложка">
+          <div className="toggle-grid">
+            <button
+              className={haloBackerEnabled ? "active" : ""}
+              onClick={() => onHaloBackerEnabledChange(!haloBackerEnabled)}
+              type="button"
+            >
+              Подложка контуром вокруг букв
+            </button>
+          </div>
+          {haloBackerEnabled && (
+            <ColorGrid colors={ACP_COLORS} selected={haloBackerColor} onSelect={onHaloBackerColorChange} compact />
+          )}
+        </ControlSection>
+      )}
+
+      <ControlSection title="Кантик">
+        <div className="toggle-grid">
+          <button
+            className={letterOutlineEnabled ? "active" : ""}
+            onClick={() => onLetterOutlineEnabledChange(!letterOutlineEnabled)}
+            type="button"
+          >
+            Кантик букв
+          </button>
+          <button
+            className={logoOutlineEnabled ? "active" : ""}
+            onClick={() => onLogoOutlineEnabledChange(!logoOutlineEnabled)}
+            type="button"
+          >
+            Кантик логотипа
+          </button>
+        </div>
+        {(letterOutlineEnabled || logoOutlineEnabled) && (
+          <ColorGrid colors={ORACAL_641_COLORS} selected={outlineColor} onSelect={onOutlineColorChange} compact />
+        )}
       </ControlSection>
 
       <ControlSection title="Логотип">
@@ -554,39 +801,138 @@ function PanelPreview({
 }
 
 function LettersPreview({
+  acpLayout,
   depth,
+  glowMode,
+  haloBackerEnabled,
   height,
   logoImage,
+  logoOutlineEnabled,
   logoShape,
+  mountMode,
   text,
 }: {
+  acpLayout: AcpLayout;
   depth: number;
+  glowMode: GlowMode;
+  haloBackerEnabled: boolean;
   height: number;
   logoImage: string;
+  logoOutlineEnabled: boolean;
   logoShape: LogoShape;
+  mountMode: MountMode;
   text: string;
 }) {
   const limitedHeight = Math.min(1200, Math.max(120, height));
   const wordSize = 64 + (limitedHeight / 1200) * 118;
   const logoSize = 92 + (limitedHeight / 1200) * 128;
+  const panelRatio = `${acpLayout.faceWidth} / ${acpLayout.faceHeight}`;
 
   return (
     <div
-      className="letters-scene"
+      className={`letters-scene mount-${mountMode} ${haloBackerEnabled ? "with-halo-backer" : ""}`}
       style={
         {
           "--letter-preview-size": `${wordSize}px`,
           "--logo-preview-size": `${logoSize}px`,
+          "--acp-preview-ratio": panelRatio,
+          "--acp-depth-preview": `${Math.max(10, Math.min(30, depth / 2))}px`,
         } as CSSProperties
       }
     >
-      <div className={`letter-logo ${logoShape}`}>
-        {logoImage ? <img alt="" src={logoImage} /> : <span>Лого</span>}
-      </div>
-      <div className="letter-word" data-text={text || "Вывеска"}>
-        {text || "Вывеска"}
+      {mountMode === "frame" && (
+        <div className="frame-rails" aria-hidden="true">
+          <i />
+          <i />
+        </div>
+      )}
+      {mountMode === "acp" && <AcpPreviewPanel layout={acpLayout} />}
+      {haloBackerEnabled && <div className="halo-backer-shape" aria-hidden="true" />}
+      <div className="letter-content">
+        <div className={`letter-logo ${logoShape} ${logoOutlineEnabled ? "outlined" : ""}`}>
+          {logoImage ? <img alt="" src={logoImage} /> : <span>Лого</span>}
+        </div>
+        <div className={`letter-word glow-mode-${glowMode}`} data-text={text || "Вывеска"}>
+          {text || "Вывеска"}
+        </div>
       </div>
       <div className="preview-dimension">h {height} мм · борт {depth} мм</div>
+    </div>
+  );
+}
+
+function AcpPreviewPanel({ layout }: { layout: AcpLayout }) {
+  return (
+    <div className="acp-preview-panel" aria-hidden="true">
+      {Array.from({ length: Math.max(0, layout.sheetsX - 1) }).map((_, index) => (
+        <i
+          className="acp-preview-seam vertical"
+          key={`x-${index}`}
+          style={{ left: `${((index + 1) * ACP_SHEET_WIDTH_MM / layout.faceWidth) * 100}%` }}
+        />
+      ))}
+      {Array.from({ length: Math.max(0, layout.sheetsY - 1) }).map((_, index) => (
+        <i
+          className="acp-preview-seam horizontal"
+          key={`y-${index}`}
+          style={{ top: `${((index + 1) * ACP_SHEET_HEIGHT_MM / layout.faceHeight) * 100}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function AcpLayoutCard({ layout }: { layout: AcpLayout }) {
+  const secondX = (layout.secondReturn / layout.unfoldedWidth) * 100;
+  const secondY = (layout.secondReturn / layout.unfoldedHeight) * 100;
+  const faceX = ((layout.secondReturn + layout.depth) / layout.unfoldedWidth) * 100;
+  const faceY = ((layout.secondReturn + layout.depth) / layout.unfoldedHeight) * 100;
+  const faceW = (layout.faceWidth / layout.unfoldedWidth) * 100;
+  const faceH = (layout.faceHeight / layout.unfoldedHeight) * 100;
+  const faceRight = faceX + faceW;
+  const faceBottom = faceY + faceH;
+
+  return (
+    <div className="summary-block acp-layout-summary">
+      <span>Раскладка АКП 1.5 x 4 м</span>
+      <strong>
+        {layout.sheetCount} {pluralizeSheet(layout.sheetCount)} · развертка {layout.unfoldedWidth} x {layout.unfoldedHeight} мм
+      </strong>
+      <div className="acp-layout-diagram" style={{ aspectRatio: `${layout.unfoldedWidth} / ${layout.unfoldedHeight}` }}>
+        <div className="acp-layout-face" style={rectStyle(faceX, faceY, faceW, faceH)}>
+          {layout.faceWidth} x {layout.faceHeight}
+        </div>
+        <i className="acp-line red vertical" style={{ left: `${faceX}%` }} />
+        <i className="acp-line red vertical" style={{ left: `${faceRight}%` }} />
+        <i className="acp-line red horizontal" style={{ top: `${faceY}%` }} />
+        <i className="acp-line red horizontal" style={{ top: `${faceBottom}%` }} />
+        <i className="acp-line gray vertical" style={{ left: `${secondX}%` }} />
+        <i className="acp-line gray vertical" style={{ right: `${secondX}%` }} />
+        <i className="acp-line gray horizontal" style={{ top: `${secondY}%` }} />
+        <i className="acp-line gray horizontal" style={{ bottom: `${secondY}%` }} />
+        {Array.from({ length: Math.max(0, layout.sheetsX - 1) }).map((_, index) => (
+          <i
+            className="acp-line seam vertical"
+            key={`layout-x-${index}`}
+            style={{ left: `${((index + 1) * ACP_SHEET_WIDTH_MM / layout.unfoldedWidth) * 100}%` }}
+          />
+        ))}
+        {Array.from({ length: Math.max(0, layout.sheetsY - 1) }).map((_, index) => (
+          <i
+            className="acp-line seam horizontal"
+            key={`layout-y-${index}`}
+            style={{ top: `${((index + 1) * ACP_SHEET_HEIGHT_MM / layout.unfoldedHeight) * 100}%` }}
+          />
+        ))}
+        <b className="acp-corner top-left" />
+        <b className="acp-corner top-right" />
+        <b className="acp-corner bottom-left" />
+        <b className="acp-corner bottom-right" />
+      </div>
+      <em>
+        Глубина {layout.depth} мм, второй подворот {layout.secondReturn} мм
+        {layout.sheetCount === 1 ? ", стыков нет" : ", стыки показаны пунктиром"}
+      </em>
     </div>
   );
 }
@@ -661,6 +1007,67 @@ function RangeField({
   );
 }
 
+function NumberField({
+  label,
+  min,
+  value,
+  onChange,
+}: {
+  label: string;
+  min: number;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="builder-field">
+      <span>{label}</span>
+      <input
+        min={min}
+        type="number"
+        value={value}
+        onChange={(event) => onChange(readPositiveInteger(event.target.value, value, min))}
+      />
+    </label>
+  );
+}
+
+function createAcpLayout(faceWidth: number, faceHeight: number, depth: number): AcpLayout {
+  const unfoldedWidth = faceWidth + (depth + ACP_SECOND_RETURN_MM) * 2;
+  const unfoldedHeight = faceHeight + (depth + ACP_SECOND_RETURN_MM) * 2;
+
+  return {
+    faceWidth,
+    faceHeight,
+    depth,
+    secondReturn: ACP_SECOND_RETURN_MM,
+    unfoldedWidth,
+    unfoldedHeight,
+    sheetsX: Math.max(1, Math.ceil(unfoldedWidth / ACP_SHEET_WIDTH_MM)),
+    sheetsY: Math.max(1, Math.ceil(unfoldedHeight / ACP_SHEET_HEIGHT_MM)),
+    sheetCount: Math.max(1, Math.ceil(unfoldedWidth / ACP_SHEET_WIDTH_MM)) *
+      Math.max(1, Math.ceil(unfoldedHeight / ACP_SHEET_HEIGHT_MM)),
+  };
+}
+
+function hasHaloGlow(mode: GlowMode) {
+  return mode === "faceHalo" || mode === "halo";
+}
+
+function readPositiveInteger(value: string, fallback: number, min: number) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.round(parsed));
+}
+
+function rectStyle(left: number, top: number, width: number, height: number): CSSProperties {
+  return {
+    left: `${left}%`,
+    top: `${top}%`,
+    width: `${width}%`,
+    height: `${height}%`,
+  };
+}
+
 function readImageFile(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -675,4 +1082,10 @@ function formatArea(value: number) {
     maximumFractionDigits: 2,
     minimumFractionDigits: 2,
   }).format(value);
+}
+
+function pluralizeSheet(count: number) {
+  if (count % 10 === 1 && count % 100 !== 11) return "лист";
+  if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) return "листа";
+  return "листов";
 }
