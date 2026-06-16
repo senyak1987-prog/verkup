@@ -152,6 +152,9 @@ function normalizeBitrixUser(user, id) {
     supervisor: normalizeSupervisor(user.UF_HEAD),
     avatarUrl: extractBitrixUserPhoto(user),
     bitrixUrl: bitrixUserUrl(idText),
+    chatUrl: bitrixChatUrl(idText),
+    videoUrl: bitrixChatUrl(idText),
+    lastSeenAt: extractBitrixUserLastSeen(user),
   };
 }
 
@@ -162,6 +165,8 @@ function createResponsibleFallback(id) {
     name: idText,
     phone: "",
     bitrixUrl: idText ? bitrixUserUrl(idText) : "",
+    chatUrl: idText ? bitrixChatUrl(idText) : "",
+    videoUrl: idText ? bitrixChatUrl(idText) : "",
   };
 }
 
@@ -209,6 +214,10 @@ function bitrixUserUrl(id) {
   return `https://${bitrixDomain}/company/personal/user/${id}/`;
 }
 
+function bitrixChatUrl(id) {
+  return `https://${bitrixDomain}/online/?IM_DIALOG=U${id}`;
+}
+
 function cleanResponsibleCard(user) {
   if (!user) return undefined;
   const { departmentIds, ...card } = user;
@@ -241,6 +250,14 @@ function normalizeTextValue(value) {
   }
 
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function normalizeDateText(value) {
+  const text = normalizeTextValue(value);
+  if (!text || /^\d+$/.test(text)) return "";
+  const timestamp = Date.parse(text);
+  if (Number.isNaN(timestamp)) return "";
+  return new Date(timestamp).toISOString();
 }
 
 function normalizeIdList(value) {
@@ -277,12 +294,16 @@ function absoluteBitrixUrl(value) {
 
 const BITRIX_USER_PHONE_FIELDS = [
   "PERSONAL_MOBILE",
+  "PERSONAL_MOBILE_PHONE",
   "UF_MOBILE",
+  "UF_MOBILE_PHONE",
   "UF_PERSONAL_MOBILE",
+  "UF_PERSONAL_PHONE",
   "PERSONAL_PHONE",
   "UF_PHONE",
   "WORK_PHONE",
   "UF_WORK_PHONE",
+  "UF_CRM_PHONE",
 ];
 
 const BITRIX_USER_INTERNAL_PHONE_FIELDS = [
@@ -291,6 +312,16 @@ const BITRIX_USER_INTERNAL_PHONE_FIELDS = [
   "UF_INNER_PHONE",
   "UF_INTERNAL_PHONE",
   "UF_EXTENSION",
+  "WORK_PHONE_INNER",
+  "UF_WORK_PHONE_INNER",
+];
+
+const BITRIX_USER_LAST_SEEN_FIELDS = [
+  "LAST_ACTIVITY_DATE",
+  "LAST_ACTIVITY",
+  "LAST_LOGIN",
+  "TIMESTAMP_X",
+  "DATE_REGISTER",
 ];
 
 function extractBitrixUserPhone(user) {
@@ -324,6 +355,21 @@ function extractBitrixUserInternalPhone(user) {
     if (!isPhoneFieldName(field) && !isInternalPhoneFieldName(field)) continue;
     const phone = extractExtensionValue(value);
     if (phone) return phone;
+  }
+
+  return "";
+}
+
+function extractBitrixUserLastSeen(user) {
+  for (const field of BITRIX_USER_LAST_SEEN_FIELDS) {
+    const value = normalizeDateText(user?.[field]);
+    if (value) return value;
+  }
+
+  for (const [field, rawValue] of Object.entries(user || {})) {
+    if (!/ACTIVITY|LAST_LOGIN|TIMESTAMP/i.test(field)) continue;
+    const value = normalizeDateText(rawValue);
+    if (value) return value;
   }
 
   return "";

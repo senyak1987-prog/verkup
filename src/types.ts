@@ -9,6 +9,10 @@ export type ResponsibleCard = {
   supervisor?: string;
   avatarUrl?: string;
   bitrixUrl?: string;
+  chatUrl?: string;
+  videoUrl?: string;
+  lastSeenAt?: string;
+  lastSeenText?: string;
 };
 
 export type Deal = {

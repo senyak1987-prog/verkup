@@ -27,7 +27,13 @@ import type {
   TemplateId,
 } from "../types";
 import { formatMoney, positionQuantity, positionTotal } from "../lib/costing";
-import { responsibleForDraft, responsibleInternalPhoneFromCard, responsiblePhoneFromCard } from "../lib/responsible";
+import {
+  hydrateResponsibleCard,
+  responsibleForDraft,
+  responsibleInternalPhoneFromCard,
+  responsiblePhoneForTechSpec,
+  responsiblePhoneFromCard,
+} from "../lib/responsible";
 import { EmployeeCard } from "./EmployeeCard";
 
 type FieldKind = "text" | "number" | "select" | "textarea";
@@ -545,13 +551,14 @@ function createInitialDraft(): TechSpecDraft {
 function createDraftForDeal(deal?: Deal): TechSpecDraft {
   const draft = createInitialDraft();
   if (!deal) return draft;
+  const responsibleCard = hydrateResponsibleCard(deal.responsibleCard, deal.responsible);
 
   return {
     ...draft,
     dealNumber: deal.number || deal.id || "",
     projectName: deal.title || "",
-    manager: responsibleForDraft(deal.responsibleCard?.name || deal.responsible),
-    responsiblePhone: responsiblePhoneFromCard(deal.responsibleCard, deal.responsiblePhone),
+    manager: responsibleForDraft(responsibleCard?.name || deal.responsible),
+    responsiblePhone: responsiblePhoneForTechSpec(responsibleCard, deal.responsiblePhone),
     deadline: dateValueFromDeal(deal.expectedFinishDate),
   };
 }
@@ -1929,8 +1936,10 @@ export function TechSpecBuilder({
     [draft.items],
   );
   const missingCount = missingItems.reduce((sum, item) => sum + item.missing.length, 0);
-  const dealResponsiblePhone = responsiblePhoneFromCard(deal?.responsibleCard, deal?.responsiblePhone);
-  const dealResponsibleInternalPhone = responsibleInternalPhoneFromCard(deal?.responsibleCard, deal?.responsiblePhone);
+  const dealResponsibleCard = hydrateResponsibleCard(deal?.responsibleCard, deal?.responsible);
+  const dealResponsiblePhone = responsiblePhoneFromCard(dealResponsibleCard, deal?.responsiblePhone);
+  const dealResponsibleInternalPhone = responsibleInternalPhoneFromCard(dealResponsibleCard, deal?.responsiblePhone);
+  const dealResponsibleContactPhone = responsiblePhoneForTechSpec(dealResponsibleCard, deal?.responsiblePhone);
 
   useEffect(() => {
     const dealFallback = createDraftForDeal(deal);
@@ -1961,6 +1970,15 @@ export function TechSpecBuilder({
     deal?.responsibleCard,
     deal?.expectedFinishDate,
   ]);
+
+  useEffect(() => {
+    if (!dealResponsibleContactPhone) return;
+
+    setDraft((current) => {
+      if (String(current.responsiblePhone || "").trim()) return current;
+      return { ...current, responsiblePhone: dealResponsibleContactPhone };
+    });
+  }, [dealResponsibleContactPhone]);
 
   useEffect(() => {
     if (deal?.id) {
@@ -2356,15 +2374,15 @@ export function TechSpecBuilder({
         {deal ? (
           <div className="tech-spec-contact-card">
             <EmployeeCard
-              card={deal.responsibleCard}
+              card={dealResponsibleCard}
               fallbackName={deal.responsible}
               fallbackPhone={deal.responsiblePhone}
               showPhone
             />
-            {dealResponsiblePhone && draft.responsiblePhone !== dealResponsiblePhone ? (
+            {dealResponsibleContactPhone && draft.responsiblePhone !== dealResponsibleContactPhone ? (
               <button
                 className="secondary compact"
-                onClick={() => updateDraftField("responsiblePhone", dealResponsiblePhone)}
+                onClick={() => updateDraftField("responsiblePhone", dealResponsibleContactPhone)}
                 type="button"
               >
                 Взять телефон в ТЗ
