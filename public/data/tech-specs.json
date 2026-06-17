@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T12:42:58.050Z",
+  "generatedAt": "2026-06-17T12:43:01.005Z",
   "specs": [
     {
       "dealId": "16986",
@@ -298,7 +298,6 @@
               }
             ],
             "workCostPositionIds": [
-              "58aca086-b9db-4f10-a113-099dea7cc438",
               "99d091dd-59b0-4302-812d-6bb89ae9caa9"
             ],
             "fields": {
@@ -327,7 +326,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-17T12:42:58.050Z"
+      "updatedAt": "2026-06-17T12:43:01.005Z"
     }
   ]
 }
