@@ -1,4 +1,6 @@
-import { ChevronDown, ExternalLink, MessageCircle, Video } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
+import { ChevronDown, Copy, ExternalLink, MessageCircle } from "lucide-react";
 import type { ResponsibleCard } from "../types";
 import {
   displayResponsible,
@@ -25,6 +27,14 @@ export function EmployeeCard({
   showPhone = false,
   className = "",
 }: EmployeeCardProps) {
+  const [open, setOpen] = useState(false);
+  const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState<CSSProperties>({ left: -9999, top: -9999, visibility: "hidden" });
+  const [arrowLeft, setArrowLeft] = useState(260);
+  const [placement, setPlacement] = useState<"above" | "below">("below");
+  const chipRef = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   const profileCard = hydrateResponsibleCard(card, fallbackName);
   const name = displayResponsible(profileCard?.name || fallbackName);
   const phone = responsiblePhoneFromCard(profileCard, fallbackPhone);
@@ -34,16 +44,17 @@ export function EmployeeCard({
   const lastSeen = formatLastSeen(profileCard?.lastSeenText || profileCard?.lastSeenAt);
   const profileUrl = profileCard?.bitrixUrl;
   const chatUrl = profileCard?.chatUrl || profileUrl;
-  const videoUrl = profileCard?.videoUrl || chatUrl;
   const hasDetails = Boolean(
-    phone ||
-      internalPhone ||
-      profileCard?.email ||
-      profileCard?.position ||
-      profileCard?.department ||
-      profileCard?.supervisor ||
-      profileUrl ||
-      lastSeen,
+    !isUnresolved &&
+      (phone ||
+        internalPhone ||
+        profileCard?.email ||
+        profileCard?.position ||
+        profileCard?.department ||
+        profileUrl ||
+        lastSeen ||
+        profileCard?.name ||
+        fallbackName),
   );
   const classes = [
     "employee-card",
@@ -54,80 +65,219 @@ export function EmployeeCard({
   ]
     .filter(Boolean)
     .join(" ");
+  const popoverCssVars = {
+    ...popoverStyle,
+    "--employee-arrow-left": `${arrowLeft}px`,
+  } as CSSProperties;
+
+  const clearCloseTimer = useCallback(() => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    clearCloseTimer();
+    closeTimerRef.current = window.setTimeout(() => {
+      setOpen(false);
+      setChatMenuOpen(false);
+    }, 180);
+  }, [clearCloseTimer]);
+
+  const openCard = useCallback(() => {
+    if (!hasDetails) return;
+    clearCloseTimer();
+    setOpen(true);
+  }, [clearCloseTimer, hasDetails]);
+
+  const updatePopoverPosition = useCallback(() => {
+    const chip = chipRef.current;
+    const popover = popoverRef.current;
+    if (!chip || !popover) return;
+
+    const viewportGap = 14;
+    const arrowGap = 18;
+    const chipRect = chip.getBoundingClientRect();
+    const width = Math.min(560, Math.max(320, window.innerWidth - viewportGap * 2));
+    const height = Math.min(popover.offsetHeight || 420, window.innerHeight - viewportGap * 2);
+    const centeredLeft = chipRect.left + chipRect.width / 2 - width / 2;
+    const left = clamp(centeredLeft, viewportGap, window.innerWidth - width - viewportGap);
+    const spaceBelow = window.innerHeight - chipRect.bottom;
+    const spaceAbove = chipRect.top;
+    const nextPlacement = spaceBelow < height + arrowGap && spaceAbove > spaceBelow ? "above" : "below";
+    const preferredTop = nextPlacement === "above" ? chipRect.top - height - arrowGap : chipRect.bottom + arrowGap;
+    const top = clamp(preferredTop, viewportGap, window.innerHeight - height - viewportGap);
+    const nextArrowLeft = clamp(chipRect.left + chipRect.width / 2 - left, 34, width - 34);
+
+    setPlacement(nextPlacement);
+    setArrowLeft(nextArrowLeft);
+    setPopoverStyle({
+      left,
+      top,
+      width,
+      visibility: "visible",
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePopoverPosition();
+    const frameId = window.requestAnimationFrame(updatePopoverPosition);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [open, updatePopoverPosition]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (chipRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
+      setOpen(false);
+      setChatMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    window.addEventListener("resize", updatePopoverPosition);
+    window.addEventListener("scroll", updatePopoverPosition, true);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      window.removeEventListener("resize", updatePopoverPosition);
+      window.removeEventListener("scroll", updatePopoverPosition, true);
+    };
+  }, [open, updatePopoverPosition]);
+
+  useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
+
+  const handleChatChoice = useCallback(async () => {
+    const contact = phone || internalPhone || profileCard?.email || "";
+    if (contact && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(contact);
+      } catch {
+        // Clipboard permissions vary by browser; opening Max is the important part.
+      }
+    }
+    window.open("https://web.max.ru/", "_blank", "noopener,noreferrer");
+  }, [internalPhone, phone, profileCard?.email]);
 
   return (
-    <div className={classes} onClick={(event) => event.stopPropagation()}>
-      <button className="employee-card-chip" type="button" aria-label={`Карточка сотрудника: ${name}`}>
+    <div
+      ref={chipRef}
+      className={classes}
+      onClick={(event) => event.stopPropagation()}
+      onPointerEnter={openCard}
+      onPointerLeave={scheduleClose}
+    >
+      <button
+        className="employee-card-chip"
+        type="button"
+        aria-expanded={open}
+        aria-label={`Карточка сотрудника: ${name}`}
+        onClick={() => {
+          if (!hasDetails) return;
+          clearCloseTimer();
+          setOpen((current) => !current);
+        }}
+        onFocus={openCard}
+      >
         <Avatar card={profileCard} name={name} />
         <span className="employee-card-name">{name}</span>
         {showPhone && visiblePhone ? <span className="employee-card-phone">{visiblePhone}</span> : null}
       </button>
 
-      {hasDetails ? (
-        <div className="employee-popover" role="dialog" aria-label={`Карточка сотрудника ${name}`}>
-          {profileUrl ? (
-            <a
-              aria-label="Открыть профиль в Bitrix"
-              className="employee-popover-open"
-              href={profileUrl}
-              rel="noreferrer"
-              target="_blank"
+      {open && hasDetails && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={popoverRef}
+              className={`employee-popover is-${placement}`}
+              style={popoverCssVars}
+              role="dialog"
+              aria-label={`Карточка сотрудника ${name}`}
+              onClick={(event) => event.stopPropagation()}
+              onPointerEnter={clearCloseTimer}
+              onPointerLeave={scheduleClose}
             >
-              <ExternalLink size={20} />
-            </a>
-          ) : null}
+              <div className="employee-popover-surface">
+                {profileUrl ? (
+                  <a
+                    aria-label="Открыть профиль в Bitrix"
+                    className="employee-popover-open"
+                    href={profileUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    <ExternalLink size={20} />
+                  </a>
+                ) : null}
 
-          <div className="employee-popover-head">
-            <Avatar card={profileCard} name={name} large />
-            <div className="employee-popover-title">
-              <strong>{name}</strong>
-              {profileCard?.position ? <span>{profileCard.position}</span> : null}
-              {lastSeen ? <small>{lastSeen}</small> : null}
-            </div>
-          </div>
+                <div className="employee-popover-head">
+                  <Avatar card={profileCard} name={name} large />
+                  <div className="employee-popover-title">
+                    <strong>{name}</strong>
+                    {profileCard?.position ? <span>{profileCard.position}</span> : null}
+                    {lastSeen ? <small>{lastSeen}</small> : null}
+                  </div>
+                </div>
 
-          <div className="employee-card-actions">
-            <a
-              className={`employee-card-action secondary${chatUrl ? "" : " disabled"}`}
-              href={chatUrl || "#"}
-              onClick={(event) => {
-                if (!chatUrl) event.preventDefault();
-              }}
-              rel={chatUrl ? "noreferrer" : undefined}
-              target={chatUrl ? "_blank" : undefined}
-            >
-              <MessageCircle size={18} />
-              Чат
-            </a>
-            <a
-              className={`employee-card-action primary${videoUrl ? "" : " disabled"}`}
-              href={videoUrl || "#"}
-              onClick={(event) => {
-                if (!videoUrl) event.preventDefault();
-              }}
-              rel={videoUrl ? "noreferrer" : undefined}
-              target={videoUrl ? "_blank" : undefined}
-            >
-              <Video size={18} />
-              Видеозвонок
-              <span className="employee-action-divider" />
-              <ChevronDown size={18} />
-            </a>
-          </div>
+                <div className="employee-card-actions">
+                  <div className="employee-chat-control">
+                    <button
+                      className="employee-card-action secondary"
+                      type="button"
+                      onClick={() => setChatMenuOpen((current) => !current)}
+                    >
+                      <MessageCircle size={18} />
+                      Чат
+                      <ChevronDown size={18} />
+                    </button>
+                    {chatMenuOpen ? (
+                      <div className="employee-chat-menu">
+                        <button className="employee-chat-option" type="button" onClick={handleChatChoice}>
+                          <MessageCircle size={17} />
+                          Открыть Max
+                        </button>
+                        {visiblePhone ? (
+                          <button
+                            className="employee-chat-option"
+                            type="button"
+                            onClick={() => navigator.clipboard?.writeText(visiblePhone)}
+                          >
+                            <Copy size={17} />
+                            Скопировать телефон
+                          </button>
+                        ) : null}
+                        {chatUrl ? (
+                          <a className="employee-chat-option" href={chatUrl} rel="noreferrer" target="_blank">
+                            <ExternalLink size={17} />
+                            Bitrix чат
+                          </a>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
 
-          <div className="employee-popover-divider" />
+                <div className="employee-popover-divider" />
 
-          <div className="employee-profile-fields">
-            <ProfileField href={phone ? `tel:${phone.replace(/[^\d+]/g, "")}` : undefined} label="Мобильный телефон" value={phone} />
-            <ProfileField label="Внутренний телефон" value={internalPhone} />
-            <ProfileField href={profileCard?.email ? `mailto:${profileCard.email}` : undefined} label="E-mail" value={profileCard?.email} />
-            <ProfileField label="Руководитель" value={profileCard?.supervisor} />
-            <ProfileField label="Отдел" value={profileCard?.department} />
-          </div>
-        </div>
-      ) : null}
+                <div className="employee-profile-fields">
+                  <ProfileField href={phone ? `tel:${phone.replace(/[^\d+]/g, "")}` : undefined} label="Мобильный телефон" value={phone} />
+                  <ProfileField label="Внутренний телефон" value={internalPhone} />
+                  <ProfileField href={profileCard?.email ? `mailto:${profileCard.email}` : undefined} label="E-mail" value={profileCard?.email} />
+                  <ProfileField label="Отдел" value={profileCard?.department} />
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
+}
+
+function clamp(value: number, min: number, max: number) {
+  if (max < min) return min;
+  return Math.min(Math.max(value, min), max);
 }
 
 function Avatar({ card, name, large = false }: { card?: ResponsibleCard; name: string; large?: boolean }) {

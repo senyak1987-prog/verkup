@@ -1894,7 +1894,6 @@ td small {
   display: inline-flex;
   max-width: 100%;
   vertical-align: middle;
-  isolation: isolate;
 }
 
 .employee-card-chip {
@@ -1909,7 +1908,7 @@ td small {
   padding: 5px 16px 5px 6px;
   font: inherit;
   font-weight: 800;
-  cursor: default;
+  cursor: pointer;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
 }
 
@@ -1971,43 +1970,76 @@ td small {
 }
 
 .employee-popover {
-  position: absolute;
-  z-index: 80;
-  top: calc(100% + 20px);
-  left: 50%;
-  width: min(520px, calc(100vw - 40px));
-  border: 1px solid #edf0f5;
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 24px 56px rgba(22, 33, 54, 0.22);
+  position: fixed;
+  z-index: 2147483647;
   color: #111827;
-  opacity: 0;
-  padding: 36px 42px 34px;
-  pointer-events: none;
-  transform: translate(-50%, -6px);
-  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
-  visibility: hidden;
+  transform-origin: var(--employee-arrow-left, 50%) top;
+  animation: employeePopoverEnter 0.14s ease-out both;
+  pointer-events: auto;
+}
+
+.employee-popover.is-above {
+  animation-name: employeePopoverEnterAbove;
+  transform-origin: var(--employee-arrow-left, 50%) bottom;
 }
 
 .employee-popover::before {
   content: "";
   position: absolute;
-  top: -14px;
-  left: 50%;
-  width: 28px;
-  height: 28px;
+  top: -12px;
+  left: var(--employee-arrow-left, 50%);
+  width: 24px;
+  height: 24px;
   transform: translateX(-50%) rotate(45deg);
   background: #fff;
   border-left: 1px solid #edf0f5;
   border-top: 1px solid #edf0f5;
+  z-index: 0;
 }
 
-.employee-card:hover .employee-popover,
-.employee-card:focus-within .employee-popover {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translate(-50%, 0);
-  visibility: visible;
+.employee-popover.is-above::before {
+  top: auto;
+  bottom: -12px;
+  border-top: 0;
+  border-right: 1px solid #edf0f5;
+  border-bottom: 1px solid #edf0f5;
+  border-left: 0;
+}
+
+.employee-popover-surface {
+  position: relative;
+  z-index: 1;
+  max-height: calc(100vh - 28px);
+  overflow: auto;
+  border: 1px solid #edf0f5;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 24px 56px rgba(22, 33, 54, 0.22);
+  padding: 36px 42px 34px;
+}
+
+@keyframes employeePopoverEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes employeePopoverEnterAbove {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .employee-popover-open {
@@ -2060,7 +2092,7 @@ td small {
 
 .employee-card-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-top: 28px;
   position: relative;
@@ -2068,15 +2100,18 @@ td small {
 }
 
 .employee-card-action {
+  width: 100%;
   min-height: 42px;
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  font: inherit;
   font-size: 18px;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
   transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
@@ -2111,6 +2146,47 @@ td small {
   height: 24px;
   margin-left: auto;
   background: rgba(255, 255, 255, 0.35);
+}
+
+.employee-chat-control {
+  position: relative;
+}
+
+.employee-chat-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 3;
+  display: grid;
+  gap: 4px;
+  width: min(280px, 100%);
+  border: 1px solid #dbe5f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(22, 33, 54, 0.16);
+  padding: 6px;
+}
+
+.employee-chat-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  padding: 8px 10px;
+}
+
+.employee-chat-option:hover {
+  background: #eef7ff;
+  color: #0066df;
 }
 
 .employee-popover-divider {
@@ -5116,21 +5192,14 @@ div.employee-profile-field .employee-profile-value {
     flex-direction: column;
   }
 
-  .employee-popover {
-    left: 0;
-    width: min(360px, calc(100vw - 32px));
+  .employee-popover-surface {
+    border-radius: 22px;
     padding: 26px 24px;
-    transform: translateY(-6px);
-  }
-
-  .employee-card:hover .employee-popover,
-  .employee-card:focus-within .employee-popover {
-    transform: translateY(0);
   }
 
   .employee-popover::before {
-    left: 40px;
-    transform: rotate(45deg);
+    width: 22px;
+    height: 22px;
   }
 
   .employee-popover-open {
