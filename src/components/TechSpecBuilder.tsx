@@ -2535,7 +2535,8 @@ export function TechSpecBuilder({
                       {item.attachments.map((attachment) => (
                         <div className="tech-spec-attachment-card" key={attachment.id}>
                           <button
-                            className="icon-button"
+                            aria-label="Удалить макет"
+                            className="icon-button tech-spec-attachment-remove"
                             onClick={() => removeAttachment(item.id, attachment.id)}
                             title="Удалить макет"
                             type="button"
