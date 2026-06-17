@@ -1,6 +1,7 @@
 import type { ResponsibleCard } from "../types";
 
 const numericResponsiblePattern = /^\d+$/;
+const bitrixUserBaseUrl = "https://verkup.bitrix24.ru/company/personal/user/";
 
 const knownResponsibleCardsByName: Record<string, Partial<ResponsibleCard>> = {
   "алексей федоренко": {
@@ -19,6 +20,10 @@ const knownResponsibleCardsByName: Record<string, Partial<ResponsibleCard>> = {
     email: "ai@verkup.ru",
     supervisor: "Никита Беспалов",
     lastSeenText: "Был в сети 16 июня в 19:40",
+  },
+  "сергей кирсанов": {
+    name: "Сергей Кирсанов",
+    internalPhone: "704",
   },
 };
 
@@ -49,9 +54,10 @@ export function hydrateResponsibleCard(card?: ResponsibleCard | null, fallbackNa
   const knownPhone = cleanPhoneText(knownCard?.phone);
   const cardInternalPhone = cleanPhoneText(card?.internalPhone);
   const knownInternalPhone = cleanPhoneText(knownCard?.internalPhone);
+  const cardId = String(card?.id || knownCard?.id || "").trim();
 
   return {
-    id: card?.id || "",
+    id: cardId,
     name: card?.name || knownCard?.name || String(fallbackName || "").trim(),
     avatarUrl: card?.avatarUrl || knownCard?.avatarUrl || "",
     position: card?.position || knownCard?.position || "",
@@ -60,7 +66,7 @@ export function hydrateResponsibleCard(card?: ResponsibleCard | null, fallbackNa
     email: card?.email || knownCard?.email || "",
     supervisor: card?.supervisor || knownCard?.supervisor || "",
     department: card?.department || knownCard?.department || "",
-    bitrixUrl: card?.bitrixUrl || knownCard?.bitrixUrl || "",
+    bitrixUrl: card?.bitrixUrl || knownCard?.bitrixUrl || bitrixProfileUrlFromId(cardId),
     chatUrl: card?.chatUrl || knownCard?.chatUrl || "",
     videoUrl: card?.videoUrl || knownCard?.videoUrl || "",
     lastSeenAt: card?.lastSeenAt || knownCard?.lastSeenAt || "",
@@ -101,6 +107,11 @@ export function isInternalPhone(value?: string | null) {
 
 function cleanPhoneText(value?: string | null) {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function bitrixProfileUrlFromId(value?: string | null) {
+  const id = String(value || "").trim();
+  return numericResponsiblePattern.test(id) ? `${bitrixUserBaseUrl}${id}/` : "";
 }
 
 function normalizeResponsibleKey(value?: string | null) {

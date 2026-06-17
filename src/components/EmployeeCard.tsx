@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Copy, ExternalLink, MessageCircle } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import type { ResponsibleCard } from "../types";
 import {
   displayResponsible,
@@ -28,9 +28,8 @@ export function EmployeeCard({
   className = "",
 }: EmployeeCardProps) {
   const [open, setOpen] = useState(false);
-  const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [popoverStyle, setPopoverStyle] = useState<CSSProperties>({ left: -9999, top: -9999, visibility: "hidden" });
-  const [arrowLeft, setArrowLeft] = useState(260);
+  const [arrowLeft, setArrowLeft] = useState(170);
   const [placement, setPlacement] = useState<"above" | "below">("below");
   const chipRef = useRef<HTMLDivElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -41,21 +40,8 @@ export function EmployeeCard({
   const internalPhone = responsibleInternalPhoneFromCard(profileCard, fallbackPhone);
   const visiblePhone = phone || internalPhone;
   const isUnresolved = isUnresolvedResponsible(profileCard?.name || fallbackName);
-  const lastSeen = formatLastSeen(profileCard?.lastSeenText || profileCard?.lastSeenAt);
   const profileUrl = profileCard?.bitrixUrl;
-  const chatUrl = profileCard?.chatUrl || profileUrl;
-  const hasDetails = Boolean(
-    !isUnresolved &&
-      (phone ||
-        internalPhone ||
-        profileCard?.email ||
-        profileCard?.position ||
-        profileCard?.department ||
-        profileUrl ||
-        lastSeen ||
-        profileCard?.name ||
-        fallbackName),
-  );
+  const hasDetails = Boolean(!isUnresolved && (visiblePhone || profileCard?.email || profileUrl));
   const classes = [
     "employee-card",
     compact ? "compact" : "",
@@ -81,7 +67,6 @@ export function EmployeeCard({
     clearCloseTimer();
     closeTimerRef.current = window.setTimeout(() => {
       setOpen(false);
-      setChatMenuOpen(false);
     }, 180);
   }, [clearCloseTimer]);
 
@@ -99,8 +84,8 @@ export function EmployeeCard({
     const viewportGap = 14;
     const arrowGap = 18;
     const chipRect = chip.getBoundingClientRect();
-    const width = Math.min(560, Math.max(320, window.innerWidth - viewportGap * 2));
-    const height = Math.min(popover.offsetHeight || 420, window.innerHeight - viewportGap * 2);
+    const width = Math.min(320, Math.max(260, window.innerWidth - viewportGap * 2));
+    const height = Math.min(popover.offsetHeight || 220, window.innerHeight - viewportGap * 2);
     const centeredLeft = chipRect.left + chipRect.width / 2 - width / 2;
     const left = clamp(centeredLeft, viewportGap, window.innerWidth - width - viewportGap);
     const spaceBelow = window.innerHeight - chipRect.bottom;
@@ -134,7 +119,6 @@ export function EmployeeCard({
       const target = event.target as Node;
       if (chipRef.current?.contains(target) || popoverRef.current?.contains(target)) return;
       setOpen(false);
-      setChatMenuOpen(false);
     };
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -148,18 +132,6 @@ export function EmployeeCard({
   }, [open, updatePopoverPosition]);
 
   useEffect(() => () => clearCloseTimer(), [clearCloseTimer]);
-
-  const handleChatChoice = useCallback(async () => {
-    const contact = phone || internalPhone || profileCard?.email || "";
-    if (contact && navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(contact);
-      } catch {
-        // Clipboard permissions vary by browser; opening Max is the important part.
-      }
-    }
-    window.open("https://web.max.ru/", "_blank", "noopener,noreferrer");
-  }, [internalPhone, phone, profileCard?.email]);
 
   return (
     <div
@@ -199,72 +171,32 @@ export function EmployeeCard({
               onPointerLeave={scheduleClose}
             >
               <div className="employee-popover-surface">
-                {profileUrl ? (
-                  <a
-                    aria-label="Открыть профиль в Bitrix"
-                    className="employee-popover-open"
-                    href={profileUrl}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    <ExternalLink size={20} />
-                  </a>
-                ) : null}
-
                 <div className="employee-popover-head">
                   <Avatar card={profileCard} name={name} large />
                   <div className="employee-popover-title">
                     <strong>{name}</strong>
-                    {profileCard?.position ? <span>{profileCard.position}</span> : null}
-                    {lastSeen ? <small>{lastSeen}</small> : null}
-                  </div>
-                </div>
-
-                <div className="employee-card-actions">
-                  <div className="employee-chat-control">
-                    <button
-                      className="employee-card-action secondary"
-                      type="button"
-                      onClick={() => setChatMenuOpen((current) => !current)}
-                    >
-                      <MessageCircle size={18} />
-                      Чат
-                      <ChevronDown size={18} />
-                    </button>
-                    {chatMenuOpen ? (
-                      <div className="employee-chat-menu">
-                        <button className="employee-chat-option" type="button" onClick={handleChatChoice}>
-                          <MessageCircle size={17} />
-                          Открыть Max
-                        </button>
-                        {visiblePhone ? (
-                          <button
-                            className="employee-chat-option"
-                            type="button"
-                            onClick={() => navigator.clipboard?.writeText(visiblePhone)}
-                          >
-                            <Copy size={17} />
-                            Скопировать телефон
-                          </button>
-                        ) : null}
-                        {chatUrl ? (
-                          <a className="employee-chat-option" href={chatUrl} rel="noreferrer" target="_blank">
-                            <ExternalLink size={17} />
-                            Bitrix чат
-                          </a>
-                        ) : null}
-                      </div>
-                    ) : null}
                   </div>
                 </div>
 
                 <div className="employee-popover-divider" />
 
                 <div className="employee-profile-fields">
-                  <ProfileField href={phone ? `tel:${phone.replace(/[^\d+]/g, "")}` : undefined} label="Мобильный телефон" value={phone} />
-                  <ProfileField label="Внутренний телефон" value={internalPhone} />
-                  <ProfileField href={profileCard?.email ? `mailto:${profileCard.email}` : undefined} label="E-mail" value={profileCard?.email} />
-                  <ProfileField label="Отдел" value={profileCard?.department} />
+                  <ProfileField
+                    href={visiblePhone ? `tel:${visiblePhone.replace(/[^\d+]/g, "")}` : undefined}
+                    label="Телефон"
+                    value={visiblePhone}
+                  />
+                  <ProfileField
+                    href={profileCard?.email ? `mailto:${profileCard.email}` : undefined}
+                    label="E-mail"
+                    value={profileCard?.email}
+                  />
+                  {profileUrl ? (
+                    <a className="employee-bitrix-link" href={profileUrl} rel="noreferrer" target="_blank">
+                      <ExternalLink size={16} />
+                      Контакт в Bitrix
+                    </a>
+                  ) : null}
                 </div>
               </div>
             </div>,
@@ -317,27 +249,4 @@ function initials(name: string) {
   if (!parts.length) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-}
-
-function formatLastSeen(value?: string | null) {
-  const text = String(value || "").trim();
-  if (!text) return "";
-  if (!/\d{4}-\d{2}-\d{2}|T|\d{2}:\d{2}/.test(text)) return text;
-
-  const date = new Date(text);
-  if (Number.isNaN(date.getTime())) return text;
-
-  const datePart = new Intl.DateTimeFormat("ru-RU", {
-    day: "numeric",
-    month: "long",
-    timeZone: "Europe/Moscow",
-  }).format(date);
-  const timePart = new Intl.DateTimeFormat("ru-RU", {
-    hour: "2-digit",
-    hour12: false,
-    minute: "2-digit",
-    timeZone: "Europe/Moscow",
-  }).format(date);
-
-  return `Был в сети ${datePart} в ${timePart}`;
 }

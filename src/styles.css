@@ -1960,9 +1960,9 @@ td small {
 }
 
 .employee-avatar.large {
-  width: 104px;
-  height: 104px;
-  font-size: 28px;
+  width: 48px;
+  height: 48px;
+  font-size: 17px;
 }
 
 .employee-avatar.placeholder {
@@ -2012,10 +2012,10 @@ td small {
   max-height: calc(100vh - 28px);
   overflow: auto;
   border: 1px solid #edf0f5;
-  border-radius: 24px;
+  border-radius: 14px;
   background: #fff;
-  box-shadow: 0 24px 56px rgba(22, 33, 54, 0.22);
-  padding: 36px 42px 34px;
+  box-shadow: 0 16px 34px rgba(22, 33, 54, 0.18);
+  padding: 14px 16px 16px;
 }
 
 @keyframes employeePopoverEnter {
@@ -2042,40 +2042,24 @@ td small {
   }
 }
 
-.employee-popover-open {
-  position: absolute;
-  top: 32px;
-  right: 36px;
-  z-index: 2;
-  color: #a7b0bd;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-}
-
-.employee-popover-open:hover {
-  color: #0075ff;
-}
-
 .employee-popover-head {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 12px;
   position: relative;
   z-index: 1;
 }
 
 .employee-popover-title {
   display: grid;
-  gap: 6px;
-  padding-right: 44px;
+  gap: 2px;
+  padding-right: 0;
 }
 
 .employee-popover-title strong {
   color: #202530;
-  font-size: 26px;
-  line-height: 1.12;
+  font-size: 18px;
+  line-height: 1.15;
 }
 
 .employee-popover-title span {
@@ -2090,137 +2074,55 @@ td small {
   line-height: 1.35;
 }
 
-.employee-card-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-  margin-top: 28px;
-  position: relative;
-  z-index: 1;
-}
-
-.employee-card-action {
-  width: 100%;
-  min-height: 42px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font: inherit;
-  font-size: 18px;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
-}
-
-.employee-card-action.secondary {
-  border: 2px solid #158fff;
-  background: #fff;
-  color: #0075ff;
-}
-
-.employee-card-action.secondary:hover {
-  background: #eef7ff;
-}
-
-.employee-card-action.primary {
-  border: 2px solid #0075ff;
-  background: #0075ff;
-  color: #fff;
-}
-
-.employee-card-action.primary:hover {
-  border-color: #0066df;
-  background: #0066df;
-}
-
-.employee-card-action.disabled {
-  cursor: default;
-  opacity: 0.55;
-}
-
-.employee-action-divider {
-  width: 1px;
-  height: 24px;
-  margin-left: auto;
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.employee-chat-control {
-  position: relative;
-}
-
-.employee-chat-menu {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 3;
-  display: grid;
-  gap: 4px;
-  width: min(280px, 100%);
-  border: 1px solid #dbe5f0;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 14px 32px rgba(22, 33, 54, 0.16);
-  padding: 6px;
-}
-
-.employee-chat-option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  border: 0;
-  border-radius: 8px;
-  background: #fff;
-  color: #172033;
-  font: inherit;
-  font-weight: 700;
-  text-align: left;
-  text-decoration: none;
-  cursor: pointer;
-  padding: 8px 10px;
-}
-
-.employee-chat-option:hover {
-  background: #eef7ff;
-  color: #0066df;
-}
-
 .employee-popover-divider {
   height: 1px;
-  margin: 30px 0 24px;
+  margin: 12px 0;
   background: #e9edf3;
 }
 
 .employee-profile-fields {
   display: grid;
-  gap: 18px;
+  gap: 8px;
 }
 
 .employee-profile-field {
   display: grid;
-  gap: 5px;
+  gap: 3px;
   text-decoration: none;
 }
 
 .employee-profile-label {
   color: #a4adb9;
-  font-size: 18px;
+  font-size: 12px;
   line-height: 1.15;
 }
 
 .employee-profile-value {
   color: #0668d8;
-  font-size: 18px;
+  font-size: 14px;
   line-height: 1.25;
   word-break: break-word;
 }
 
 div.employee-profile-field .employee-profile-value {
   color: #364152;
+}
+
+.employee-bitrix-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  margin-top: 0;
+  color: #0668d8;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.employee-bitrix-link:hover {
+  color: #0057bd;
+  text-decoration: underline;
 }
 
 .catalog-sidebar {
@@ -5193,8 +5095,8 @@ div.employee-profile-field .employee-profile-value {
   }
 
   .employee-popover-surface {
-    border-radius: 22px;
-    padding: 26px 24px;
+    border-radius: 14px;
+    padding: 14px;
   }
 
   .employee-popover::before {
@@ -5202,33 +5104,24 @@ div.employee-profile-field .employee-profile-value {
     height: 22px;
   }
 
-  .employee-popover-open {
-    top: 24px;
-    right: 24px;
-  }
-
   .employee-popover-head {
-    gap: 16px;
+    gap: 12px;
   }
 
   .employee-avatar.large {
-    width: 84px;
-    height: 84px;
-    font-size: 24px;
+    width: 46px;
+    height: 46px;
+    font-size: 16px;
   }
 
   .employee-popover-title strong {
-    font-size: 22px;
+    font-size: 17px;
   }
 
   .employee-popover-title span,
   .employee-profile-label,
   .employee-profile-value {
-    font-size: 16px;
-  }
-
-  .employee-card-actions {
-    grid-template-columns: 1fr;
+    font-size: 13px;
   }
 
   .tech-spec-doc-page {
