@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T14:27:26.281Z",
+  "generatedAt": "2026-06-17T14:38:25.360Z",
   "specs": [
     {
       "dealId": "16986",
@@ -299,7 +299,8 @@
               }
             ],
             "workCostPositionIds": [
-              "99d091dd-59b0-4302-812d-6bb89ae9caa9"
+              "99d091dd-59b0-4302-812d-6bb89ae9caa9",
+              "58aca086-b9db-4f10-a113-099dea7cc438"
             ],
             "fields": {
               "name": "150",
@@ -327,7 +328,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-17T14:27:26.281Z",
+      "updatedAt": "2026-06-17T14:38:25.360Z",
       "bitrixFile": {
         "field": "UF_CRM_1780210628536",
         "name": "ТЗ 16888 Тест 2 - 2 150.jpg",
