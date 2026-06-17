@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T12:51:00.344Z",
+  "generatedAt": "2026-06-17T12:52:54.756Z",
   "specs": [
     {
       "dealId": "16986",
@@ -260,7 +260,8 @@
             "templateId": "letters",
             "attachments": [],
             "workCostPositionIds": [
-              "58aca086-b9db-4f10-a113-099dea7cc438"
+              "58aca086-b9db-4f10-a113-099dea7cc438",
+              "99d091dd-59b0-4302-812d-6bb89ae9caa9"
             ],
             "fields": {
               "name": "Вывеска",
@@ -326,7 +327,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-17T12:51:00.344Z",
+      "updatedAt": "2026-06-17T12:52:54.756Z",
       "bitrixFile": {
         "field": "UF_CRM_1780210628536",
         "name": "ТЗ 16888 Тест 2 - 2 150.jpg",
