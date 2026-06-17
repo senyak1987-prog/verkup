@@ -126,7 +126,6 @@ export type TemplateId =
   | "panelBracket"
   | "plate"
   | "sticker"
-  | "banner"
   | "neon"
   | "incrustation"
   | "milling"

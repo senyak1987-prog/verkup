@@ -106,7 +106,7 @@ const productTemplates: ProductTemplate[] = [
   {
     id: "letters",
     title: "Объемные буквы / логотип",
-    shortTitle: "Буквы",
+    shortTitle: "Вывеска",
     summary: "Стандартная таблица для световых и несветовых букв, логотипов и подложек.",
     defaultName: "Вывеска",
     fields: [
@@ -227,10 +227,10 @@ const productTemplates: ProductTemplate[] = [
   },
   {
     id: "panelBracket",
-    title: "Панель-кронштейн",
-    shortTitle: "ПК",
+    title: "Панель Кронштейн",
+    shortTitle: "Панель Кронштейн",
     summary: "Двусторонние консоли и лайтбоксы на кронштейне.",
-    defaultName: "Панель-кронштейн",
+    defaultName: "Панель Кронштейн",
     fields: [
       {
         id: "constructionType",
@@ -272,10 +272,10 @@ const productTemplates: ProductTemplate[] = [
   },
   {
     id: "plate",
-    title: "Табличка / режимник",
-    shortTitle: "Табличка",
+    title: "Табличка / стенд",
+    shortTitle: "Табличка/Стенд",
     summary: "ПВХ, АКП, акрил, стекло, режимники, карманы и указатели.",
-    defaultName: "Табличка",
+    defaultName: "Табличка/Стенд",
     fields: [
       { id: "baseMaterial", label: "Материал основы", kind: "select", required: true, options: ["ПВХ", "АКП", "ПРОЗРАЧНЫЙ АКРИЛ", "МОЛОЧНЫЙ АКРИЛ", "ПОЛИСТИРОЛ", "ДРУГОЕ"] },
       { id: "baseThickness", label: "Толщина основы", required: true, placeholder: "3 мм, 5 мм, 6 мм" },
@@ -310,10 +310,10 @@ const productTemplates: ProductTemplate[] = [
   },
   {
     id: "sticker",
-    title: "Наклейка / пленка / плоттер",
-    shortTitle: "Наклейка",
+    title: "Печать / плоттерка",
+    shortTitle: "Печать/Плоттерка",
     summary: "Печать на пленке, плоттерная резка, переноска и наклейки на стекло.",
-    defaultName: "Наклейка",
+    defaultName: "Печать/Плоттерка",
     fields: [
       { id: "film", label: "Материал / пленка", required: true, placeholder: "Oracal 641, 8500, прозрачная глянцевая, матовая" },
       { id: "printType", label: "Тип печати", kind: "select", options: ["Полноцветная печать", "УФ печать", "Сольвент", "Плоттерная резка", "Без печати"] },
@@ -341,33 +341,6 @@ const productTemplates: ProductTemplate[] = [
       "Для нумерации и серийных наклеек прописать номера и упаковку.",
     ],
     hints: ["Частые ТЗ: плоттерка, Smoking Shop наклейки, РЖД пленка, QR."],
-  },
-  {
-    id: "banner",
-    title: "Баннер",
-    shortTitle: "Баннер",
-    summary: "Баннерная ткань, люверсы, проклейка, карманы и стыки.",
-    defaultName: "Баннер",
-    fields: [
-      { id: "material", label: "Материал", required: true, placeholder: "баннер 440 г/м, 400 г/м, блэкаут" },
-      { id: "print", label: "Печать", placeholder: "односторонняя, без стыков, CMYK" },
-      { id: "hemming", label: "Подворот / проклейка", kind: "select", options: ["По периметру", "Сверху и снизу", "Без подворота", "С загибом", "Уточнить"] },
-      { id: "eyelets", label: "Люверсы", placeholder: "каждые 30 см, по углам, по контуру" },
-      { id: "pockets", label: "Карманы", placeholder: "верх/низ, под трубу" },
-      { id: "joining", label: "Стыки", placeholder: "без стыков, горизонтальный стык, из 2 частей" },
-      { id: "notes", label: "Примечание", kind: "textarea", wide: true },
-    ],
-    defaults: {
-      material: "Баннер 440 г/м",
-      hemming: "По периметру",
-      eyelets: "люверсы каждые 30 см",
-    },
-    checklist: [
-      "Указать плотность баннера и наличие стыков.",
-      "Прописать люверсы: шаг, по периметру или только по углам.",
-      "Отдельно указать карманы, подвороты и проклейку.",
-    ],
-    hints: ["Частые ТЗ: храм, цирк, продажа, Рузская долина."],
   },
   {
     id: "neon",
@@ -471,10 +444,10 @@ const productTemplates: ProductTemplate[] = [
   },
   {
     id: "metal",
-    title: "Рама / металлокаркас",
-    shortTitle: "Металл",
+    title: "Металлоконструкция",
+    shortTitle: "Металлоконструкция",
     summary: "Каркасы, рамы, кронштейны, профили, уголки и покраска.",
-    defaultName: "Металлокаркас",
+    defaultName: "Металлоконструкция",
     fields: [
       { id: "profile", label: "Профиль / материал", required: true, placeholder: "20x20, 25x25x2, 40x20, полоса 25x3" },
       { id: "dimensions", label: "Размеры", required: true, placeholder: "длина, высота, вылет, номера кассет" },
