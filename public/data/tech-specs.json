@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T12:42:45.690Z",
+  "generatedAt": "2026-06-17T12:42:54.362Z",
   "specs": [
     {
       "dealId": "16986",
@@ -256,6 +256,28 @@
         "globalNote": "Итоговая себестоимость производства по расчету: 27 345 ₽",
         "items": [
           {
+            "id": "c050277e-580d-4f11-ba5d-f10d8aed0071",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          },
+          {
             "id": "f1465a1c-a72f-44db-81fe-ffa771342d7e",
             "templateId": "letters",
             "attachments": [
@@ -273,7 +295,10 @@
                 }
               }
             ],
-            "workCostPositionIds": [],
+            "workCostPositionIds": [
+              "58aca086-b9db-4f10-a113-099dea7cc438",
+              "99d091dd-59b0-4302-812d-6bb89ae9caa9"
+            ],
             "fields": {
               "name": "150",
               "quantity": "1 шт",
@@ -300,7 +325,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-17T12:42:45.690Z"
+      "updatedAt": "2026-06-17T12:42:54.362Z"
     }
   ]
 }
