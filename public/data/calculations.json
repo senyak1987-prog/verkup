@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-15T13:03:32.848Z",
+  "generatedAt": "2026-06-17T15:21:37.675Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -8,8 +8,51 @@
       "positions": []
     },
     {
+      "dealId": "16986",
+      "updatedAt": "2026-06-15T11:47:05.006Z",
+      "positions": [
+        {
+          "id": "2b5016ec-5c53-4168-8c14-9b58ae86c8c7",
+          "catalogId": "assembly-буква-6-7-см-склейка-42",
+          "qty": 5,
+          "unit": "шт",
+          "unitCost": 675,
+          "section": "assembly",
+          "title": "Буква 6-7 см: Склейка",
+          "calcMode": "letterAssembly",
+          "note": "Прайс сборка.xlsx / Буквы",
+          "addons": [
+            "assembly-установка-диодов-44",
+            "assembly-закатка-лица-48",
+            "assembly-установка-на-раму-46",
+            "assembly-закатка-борта-50"
+          ],
+          "baseUnitCost": 350
+        }
+      ]
+    },
+    {
+      "dealId": "17012",
+      "updatedAt": "2026-06-15T13:03:31.982Z",
+      "positions": [
+        {
+          "id": "4b3270fe-465e-465e-8d23-9afd6a6c05d3",
+          "catalogId": "assembly-буква-110-119см-склейка-143",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 10000,
+          "section": "assembly",
+          "title": "Буква 110-119см: Склейка",
+          "calcMode": "letterAssembly",
+          "note": "Прайс сборка.xlsx / Буквы",
+          "addons": [],
+          "baseUnitCost": 600
+        }
+      ]
+    },
+    {
       "dealId": "16888",
-      "updatedAt": "2026-06-08T14:09:08.688Z",
+      "updatedAt": "2026-06-17T15:21:36.815Z",
       "positions": [
         {
           "id": "ff0e95c9-28b3-47d0-aba8-a4296d0a6644",
@@ -36,7 +79,7 @@
         {
           "id": "4bfa7c99-317a-43ce-abc0-8112e57facd7",
           "catalogId": "materials-профиль-тюбинг-алюм-тюбинг-20х20х1х6000-мм-1975",
-          "qty": 3,
+          "qty": 1,
           "unit": "шт",
           "unitCost": 500,
           "section": "materials",
@@ -173,49 +216,6 @@
           "note": "Прайс по материалам.xlsx; строка 840; столбец G",
           "width": 1,
           "height": 2
-        }
-      ]
-    },
-    {
-      "dealId": "16986",
-      "updatedAt": "2026-06-15T11:47:05.006Z",
-      "positions": [
-        {
-          "id": "2b5016ec-5c53-4168-8c14-9b58ae86c8c7",
-          "catalogId": "assembly-буква-6-7-см-склейка-42",
-          "qty": 5,
-          "unit": "шт",
-          "unitCost": 675,
-          "section": "assembly",
-          "title": "Буква 6-7 см: Склейка",
-          "calcMode": "letterAssembly",
-          "note": "Прайс сборка.xlsx / Буквы",
-          "addons": [
-            "assembly-установка-диодов-44",
-            "assembly-закатка-лица-48",
-            "assembly-установка-на-раму-46",
-            "assembly-закатка-борта-50"
-          ],
-          "baseUnitCost": 350
-        }
-      ]
-    },
-    {
-      "dealId": "17012",
-      "updatedAt": "2026-06-15T13:03:31.982Z",
-      "positions": [
-        {
-          "id": "4b3270fe-465e-465e-8d23-9afd6a6c05d3",
-          "catalogId": "assembly-буква-110-119см-склейка-143",
-          "qty": 1,
-          "unit": "шт",
-          "unitCost": 10000,
-          "section": "assembly",
-          "title": "Буква 110-119см: Склейка",
-          "calcMode": "letterAssembly",
-          "note": "Прайс сборка.xlsx / Буквы",
-          "addons": [],
-          "baseUnitCost": 600
         }
       ]
     }
