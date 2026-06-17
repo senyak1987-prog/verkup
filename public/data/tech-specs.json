@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T12:37:43.055Z",
+  "generatedAt": "2026-06-17T12:37:53.499Z",
   "specs": [
     {
       "dealId": "16986",
@@ -273,7 +273,9 @@
                 }
               }
             ],
-            "workCostPositionIds": [],
+            "workCostPositionIds": [
+              "58aca086-b9db-4f10-a113-099dea7cc438"
+            ],
             "fields": {
               "name": "150",
               "quantity": "1 шт",
@@ -300,7 +302,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-17T12:37:43.055Z"
+      "updatedAt": "2026-06-17T12:37:53.499Z"
     }
   ]
 }
