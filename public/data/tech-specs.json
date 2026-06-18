@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T15:04:40.419Z",
+  "generatedAt": "2026-06-18T17:09:27.139Z",
   "specs": [
     {
       "dealId": "16986",
@@ -351,48 +351,6 @@
       "updatedAt": "2026-06-18T11:09:32.218Z"
     },
     {
-      "dealId": "16874",
-      "draft": {
-        "dealNumber": "16874",
-        "projectName": "Тест",
-        "manager": "Семён Рябов",
-        "responsiblePhone": "",
-        "deadline": "2026-06-09",
-        "date": "2026-06-15",
-        "globalNote": "",
-        "items": [
-          {
-            "id": "24ada386-d1a4-491e-ab87-1f5369212456",
-            "templateId": "letters",
-            "attachments": [],
-            "workCostPositionIds": [],
-            "fields": {
-              "name": "Вывеска",
-              "quantity": "1 шт",
-              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "ЛИЦЕВОЕ",
-              "glowColor": "НЕЙТРАЛЬНОЕ",
-              "faceMaterial": "Молочный акрил 3 мм",
-              "sideMaterial": "Алюминий",
-              "backMaterial": "ПВХ Strong 6 мм",
-              "depth": "60 мм",
-              "returnSide": "НЕТ",
-              "mountType": "НА РАМЕ",
-              "wireExit": "ПОСЕРЕДИНЕ",
-              "psu": "УЛИЧНЫЙ",
-              "cableLength": "3 метра"
-            }
-          }
-        ]
-      },
-      "updatedAt": "2026-06-18T12:00:51.535Z",
-      "bitrixFile": {
-        "field": "UF_CRM_1780210628536",
-        "name": "TZ-16874-Тест.jpg",
-        "uploadedAt": "2026-06-15T12:52:10.841Z"
-      }
-    },
-    {
       "dealId": "17074",
       "draft": {
         "dealNumber": "17074",
@@ -465,6 +423,48 @@
         ]
       },
       "updatedAt": "2026-06-18T15:04:40.419Z"
+    },
+    {
+      "dealId": "16874",
+      "draft": {
+        "dealNumber": "16874",
+        "projectName": "Тест",
+        "manager": "Семён Рябов",
+        "responsiblePhone": "",
+        "deadline": "2026-06-09",
+        "date": "2026-06-15",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "24ada386-d1a4-491e-ab87-1f5369212456",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-18T17:09:27.139Z",
+      "bitrixFile": {
+        "field": "UF_CRM_1780210628536",
+        "name": "TZ-16874-Тест.jpg",
+        "uploadedAt": "2026-06-15T12:52:10.841Z"
+      }
     }
   ]
 }
