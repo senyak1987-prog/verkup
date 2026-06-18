@@ -1,6 +1,17 @@
 {
   "generatedAt": "2026-06-18T00:00:00.000Z",
-  "employees": [],
+  "employees": [
+    {
+      "id": "leader-semen",
+      "name": "Семен",
+      "login": "semen",
+      "role": "maker",
+      "accessRole": "leader",
+      "active": true,
+      "createdAt": "2026-06-18T14:20:00.000Z",
+      "pinHash": "c3b016a5f93cc9a0d3bb69fbac53140dbca7afefb0a269a49a6ab256f433ad97"
+    }
+  ],
   "registrations": [],
   "registrationLinks": [],
   "assignments": [],
