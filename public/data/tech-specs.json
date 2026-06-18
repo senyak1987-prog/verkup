@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T12:00:51.535Z",
+  "generatedAt": "2026-06-18T14:51:43.795Z",
   "specs": [
     {
       "dealId": "16986",
@@ -391,6 +391,43 @@
         "name": "TZ-16874-Тест.jpg",
         "uploadedAt": "2026-06-15T12:52:10.841Z"
       }
+    },
+    {
+      "dealId": "17074",
+      "draft": {
+        "dealNumber": "17074",
+        "projectName": "ТАМАКИ неон",
+        "manager": "Александра Рябова",
+        "responsiblePhone": "",
+        "deadline": "2026-06-29",
+        "date": "2026-06-18",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "af6eef66-83ea-4d86-85a2-0e65b93997f1",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-18T14:51:43.795Z"
     }
   ]
 }
