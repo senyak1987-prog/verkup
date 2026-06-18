@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T09:20:22.925Z",
+  "generatedAt": "2026-06-18T11:09:21.339Z",
   "specs": [
     {
       "dealId": "16986",
@@ -317,6 +317,43 @@
         "name": "TZ-16874-Тест.jpg",
         "uploadedAt": "2026-06-15T12:52:10.841Z"
       }
+    },
+    {
+      "dealId": "17070",
+      "draft": {
+        "dealNumber": "17070",
+        "projectName": "Smoking Shop - Краснотурьинск",
+        "manager": "Вячеслав Воробьев",
+        "responsiblePhone": "",
+        "deadline": "2026-06-29",
+        "date": "2026-06-18",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "da0f9e79-4570-45fe-9efb-0aa6e0bcb9a3",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-18T11:09:21.339Z"
     }
   ]
 }
