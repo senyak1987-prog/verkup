@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T11:09:21.339Z",
+  "generatedAt": "2026-06-18T11:09:32.218Z",
   "specs": [
     {
       "dealId": "16986",
@@ -354,6 +354,43 @@
         ]
       },
       "updatedAt": "2026-06-18T11:09:21.339Z"
+    },
+    {
+      "dealId": "16880",
+      "draft": {
+        "dealNumber": "16880",
+        "projectName": "IMPERIAL GARDEN (А)",
+        "manager": "Алексей Федоренко",
+        "responsiblePhone": "89995543801",
+        "deadline": "2026-06-30",
+        "date": "2026-06-18",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "affc5858-5896-4f20-a8cd-e658890b4a12",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-18T11:09:32.218Z"
     }
   ]
 }
