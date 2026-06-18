@@ -63,7 +63,7 @@ export function normalizedLogin(value?: string) {
   return (value || "")
     .trim()
     .toLowerCase()
-    .replace(/[()\-\s]/g, "");
+    .replace(/[()+\-\s]/g, "");
 }
 
 export async function pinHashForEmployee(employeeId: string, pin: string) {
