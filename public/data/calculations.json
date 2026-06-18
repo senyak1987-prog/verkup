@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T14:51:25.768Z",
+  "generatedAt": "2026-06-18T14:51:52.107Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -232,8 +232,21 @@
     },
     {
       "dealId": "17074",
-      "updatedAt": "2026-06-18T14:51:24.907Z",
+      "updatedAt": "2026-06-18T14:51:51.240Z",
       "positions": [
+        {
+          "id": "8c474ad0-fab8-46b2-96bd-7878f1c0a48f",
+          "catalogId": "assembly-буква-60-69см-склейка-83",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 350,
+          "section": "assembly",
+          "title": "Буква 60-69см: Склейка",
+          "calcMode": "letterAssembly",
+          "note": "Прайс сборка.xlsx / Буквы",
+          "addons": [],
+          "baseUnitCost": 350
+        },
         {
           "id": "a7ef888f-1073-4d4d-82f5-4c45fd2af9a9",
           "catalogId": "metall-dk-труба-профильная-труба-20х20-труба-профильная-20х20х1-2",
