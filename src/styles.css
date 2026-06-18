@@ -1155,6 +1155,38 @@ td small {
   padding-right: 4px;
 }
 
+.block-favorite-group {
+  display: grid;
+  gap: 5px;
+}
+
+.block-favorite-group + .block-favorite-group {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e5ebf3;
+}
+
+.block-favorite-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.block-favorite-group-title small {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.block-favorite-group .empty-state.compact {
+  margin: 0;
+  padding: 8px;
+}
+
 .block-favorite-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 30px;

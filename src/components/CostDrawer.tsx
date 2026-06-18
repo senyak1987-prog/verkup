@@ -140,9 +140,10 @@ const printMaterialGroups = [
 const costBlocks: CostBlock[] = [
   {
     id: "materials",
-    title: "Материалы / рама",
-    hint: "Листы считаются по м2, рама по погонным метрам.",
-    sections: ["materials"],
+    title: "Материалы / рама / фрезеровка",
+    hint: "Листы считаются по м2, рама и фрезеровка по погонным метрам.",
+    sections: ["materials", "milling"],
+    catalogSections: ["materials", "milling"],
     catalogMaterialGroups: materialFrameGroups,
     actions: [
       {
@@ -163,6 +164,19 @@ const costBlocks: CostBlock[] = [
           calcMode: "linear",
           unit: "п/м",
           unitCost: 0,
+        },
+      },
+      {
+        label: "Фрезеровка",
+        template: {
+          section: "milling",
+          title: "Фрезеровка: Материал 2-3мм",
+          calcMode: "milling",
+          unit: "п/м",
+          unitCost: 45,
+          thickness: 3,
+          qty: 1,
+          note: "Фрезеровка",
         },
       },
     ],
@@ -241,9 +255,9 @@ const costBlocks: CostBlock[] = [
   },
   {
     id: "assembly",
-    title: "Сборка / работа / фрезеровка",
-    hint: "Объемные буквы с наборами операций, АКП, фрезеровка по длине реза, монтаж и работа по часам.",
-    sections: ["assembly", "milling", "mounting", "subcontract"],
+    title: "Стоимость сборки",
+    hint: "Объемные буквы с наборами операций, АКП, монтаж и работа по часам.",
+    sections: ["assembly", "mounting", "subcontract"],
     catalogSections: ["assembly"],
     catalogTargetSection: "assembly",
     actions: [
@@ -277,19 +291,6 @@ const costBlocks: CostBlock[] = [
           calcMode: "hourly",
           unit: "ч",
           unitCost: 0,
-        },
-      },
-      {
-        label: "Фрезеровка",
-        template: {
-          section: "milling",
-          title: "Фрезеровка: Материал 2-3мм",
-          calcMode: "milling",
-          unit: "п/м",
-          unitCost: 45,
-          thickness: 3,
-          qty: 1,
-          note: "Фрезеровка",
         },
       },
       {
@@ -339,10 +340,10 @@ const costBlocks: CostBlock[] = [
 const defectChildBlocks: CostBlock[] = [
   {
     id: "defects-materials",
-    title: "Материалы / рама",
-    hint: "Косячные листы, профиль, металл и рама. Не попадает в чистую себестоимость.",
+    title: "Материалы / рама / фрезеровка",
+    hint: "Косячные листы, профиль, металл, рама и фрезеровка. Не попадает в чистую себестоимость.",
     sections: ["defects"],
-    catalogSections: ["materials"],
+    catalogSections: ["materials", "milling"],
     catalogMaterialGroups: materialFrameGroups,
     catalogTargetSection: "defects",
     catalogCreateSection: "materials",
@@ -365,6 +366,19 @@ const defectChildBlocks: CostBlock[] = [
           calcMode: "linear",
           unit: "п/м",
           unitCost: 0,
+        },
+      },
+      {
+        label: "Фрезеровка",
+        template: {
+          section: "defects",
+          title: "Брак: фрезеровка: Материал 2-3мм",
+          calcMode: "milling",
+          unit: "п/м",
+          unitCost: 45,
+          thickness: 3,
+          qty: 1,
+          note: "Фрезеровка",
         },
       },
     ],
@@ -445,10 +459,10 @@ const defectChildBlocks: CostBlock[] = [
   },
   {
     id: "defects-assembly",
-    title: "Сборка / работа / фрезеровка",
-    hint: "Косячная сборка, фрезеровка, монтаж, подряд и работа по часам.",
+    title: "Стоимость сборки",
+    hint: "Косячная сборка, монтаж, подряд и работа по часам.",
     sections: ["defects"],
-    catalogSections: ["assembly", "milling", "mounting", "subcontract"],
+    catalogSections: ["assembly", "mounting", "subcontract"],
     catalogTargetSection: "defects",
     catalogCreateSection: "assembly",
     actions: [
@@ -482,19 +496,6 @@ const defectChildBlocks: CostBlock[] = [
           calcMode: "hourly",
           unit: "ч",
           unitCost: 0,
-        },
-      },
-      {
-        label: "Фрезеровка",
-        template: {
-          section: "defects",
-          title: "Брак: фрезеровка: Материал 2-3мм",
-          calcMode: "milling",
-          unit: "п/м",
-          unitCost: 45,
-          thickness: 3,
-          qty: 1,
-          note: "Фрезеровка",
         },
       },
       {
@@ -554,13 +555,13 @@ const defectBlock: CostBlock = {
 };
 
 const blockAddLabels: Record<string, string> = {
-  materials: "материал",
+  materials: "материал / раму / фрезеровку",
   lighting: "светотехнику",
   print: "печать / пленку",
   assembly: "работу",
   other: "прочее",
   defects: "косяк",
-  "defects-materials": "косячный материал",
+  "defects-materials": "косячный материал / раму / фрезеровку",
   "defects-lighting": "косячную светотехнику",
   "defects-print": "косячную печать / пленку",
   "defects-assembly": "косячную работу",
@@ -568,13 +569,13 @@ const blockAddLabels: Record<string, string> = {
 };
 
 const manualItemTitles: Record<string, string> = {
-  materials: "Новый материал",
+  materials: "Новый материал / рама / фрезеровка",
   lighting: "Новая позиция светотехники",
   print: "Новая печать / пленка",
-  assembly: "Новая работа",
+  assembly: "Новая сборка",
   other: "Новое прочее",
   defects: "Новый косяк",
-  "defects-materials": "Новый брак: материал",
+  "defects-materials": "Новый брак: материал / рама / фрезеровка",
   "defects-lighting": "Новый брак: светотехника",
   "defects-print": "Новый брак: печать / пленка",
   "defects-assembly": "Новый брак: работа",
@@ -1241,6 +1242,7 @@ function BlockFavorites({
       ...positionFavoriteItems,
     ]),
   ).slice(0, 24);
+  const favoriteGroups = groupBlockFavoriteItems(block, favoriteItems);
   const [hoveredItem, setHoveredItem] = useState<{
     item: CatalogItem;
     left: number;
@@ -1303,77 +1305,89 @@ function BlockFavorites({
         <span>{favoriteItems.length}</span>
       </div>
       <div className="block-favorite-list">
-        {favoriteItems.map((item) => (
-          <div
-            className={[
-              "block-favorite-item",
-              draggingItemId === item.id ? "dragging" : "",
-              dragOverItemId === item.id && draggingItemId !== item.id ? "drag-over" : "",
-            ].filter(Boolean).join(" ")}
-            draggable
-            key={item.id}
-            onClick={() => addFavoriteItem(item)}
-            onDragEnd={finishDrag}
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.dataTransfer.dropEffect = "move";
-              if (draggingItemId && draggingItemId !== item.id) {
-                setDragOverItemId(item.id);
-              }
-            }}
-            onDragStart={(event) => {
-              suppressFavoriteClickRef.current = false;
-              setDraggingItemId(item.id);
-              setHoveredItem(null);
-              event.dataTransfer.effectAllowed = "move";
-              event.dataTransfer.setData("text/plain", item.id);
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              suppressFavoriteClickRef.current = true;
-              reorderFavoriteItem(item.id);
-              finishDrag();
-            }}
-            onFocus={(event) => showFavoriteInfo(item, event.currentTarget)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                addFavoriteItem(item);
-              }
-            }}
-            onMouseEnter={(event) => {
-              if (!draggingItemId) showFavoriteInfo(item, event.currentTarget);
-            }}
-            onMouseLeave={() => setHoveredItem(null)}
-            onBlur={() => setHoveredItem(null)}
-            role="button"
-            tabIndex={0}
-          >
-            <div className="block-favorite-main">
-              <div className="favorite-thumb">
-                {item.imageUrl ? (
-                  <img src={item.imageUrl} alt="" loading="lazy" />
-                ) : (
-                  <Database size={16} />
-                )}
+        {favoriteGroups.map((group) => (
+          <div className="block-favorite-group" key={group.label || "all"}>
+            {group.label && (
+              <div className="block-favorite-group-title">
+                <span>{group.label}</span>
+                <small>{group.items.length}</small>
               </div>
-              <div className="catalog-item-text">
-                <span>{item.title}</span>
-                <small>{formatMoney(item.unitCost)} / {item.unit}</small>
+            )}
+            {group.items.length ? group.items.map((item) => (
+              <div
+                className={[
+                  "block-favorite-item",
+                  draggingItemId === item.id ? "dragging" : "",
+                  dragOverItemId === item.id && draggingItemId !== item.id ? "drag-over" : "",
+                ].filter(Boolean).join(" ")}
+                draggable
+                key={item.id}
+                onClick={() => addFavoriteItem(item)}
+                onDragEnd={finishDrag}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "move";
+                  if (draggingItemId && draggingItemId !== item.id) {
+                    setDragOverItemId(item.id);
+                  }
+                }}
+                onDragStart={(event) => {
+                  suppressFavoriteClickRef.current = false;
+                  setDraggingItemId(item.id);
+                  setHoveredItem(null);
+                  event.dataTransfer.effectAllowed = "move";
+                  event.dataTransfer.setData("text/plain", item.id);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  suppressFavoriteClickRef.current = true;
+                  reorderFavoriteItem(item.id);
+                  finishDrag();
+                }}
+                onFocus={(event) => showFavoriteInfo(item, event.currentTarget)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    addFavoriteItem(item);
+                  }
+                }}
+                onMouseEnter={(event) => {
+                  if (!draggingItemId) showFavoriteInfo(item, event.currentTarget);
+                }}
+                onMouseLeave={() => setHoveredItem(null)}
+                onBlur={() => setHoveredItem(null)}
+                role="button"
+                tabIndex={0}
+              >
+                <div className="block-favorite-main">
+                  <div className="favorite-thumb">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="" loading="lazy" />
+                    ) : (
+                      <Database size={16} />
+                    )}
+                  </div>
+                  <div className="catalog-item-text">
+                    <span>{item.title}</span>
+                    <small>{formatMoney(item.unitCost)} / {item.unit}</small>
+                  </div>
+                </div>
+                <button
+                  className="favorite-toggle active"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onToggleFavorite(item);
+                  }}
+                  title="Убрать из избранного"
+                  type="button"
+                >
+                  <Star size={15} />
+                </button>
               </div>
-            </div>
-            <button
-              className="favorite-toggle active"
-              onClick={(event) => {
-                event.stopPropagation();
-                onToggleFavorite(item);
-              }}
-              title="Убрать из избранного"
-              type="button"
-            >
-              <Star size={15} />
-            </button>
+            )) : (
+              <p className="empty-state compact">Нет избранных позиций.</p>
+            )}
           </div>
         ))}
         {!favoriteItems.length && (
@@ -1975,6 +1989,68 @@ function filterBlockCatalogItems(
   });
 }
 
+type FavoriteGroup = { label: string; items: CatalogItem[] };
+
+function groupBlockFavoriteItems(block: CostBlock, items: CatalogItem[]): FavoriteGroup[] {
+  if (!items.length) return [];
+  if (block.id !== "materials" && block.id !== "defects-materials") {
+    return [{ label: "", items }];
+  }
+
+  const usedIds = new Set<string>();
+  const groups = block.actions.map((action) => {
+    const groupItems = items.filter((item) => {
+      if (usedIds.has(item.id)) return false;
+      const matches = favoriteItemMatchesAction(item, action);
+      if (matches) usedIds.add(item.id);
+      return matches;
+    });
+
+    return { label: action.label, items: groupItems };
+  });
+  const otherItems = items.filter((item) => !usedIds.has(item.id));
+
+  return otherItems.length ? [...groups, { label: "Другое", items: otherItems }] : groups;
+}
+
+function favoriteItemMatchesAction(item: CatalogItem, action: BlockAction) {
+  const label = action.label.toLowerCase();
+  const mode = modeForCatalogItem(item);
+  const group = (item.materialGroup || "").toLowerCase();
+  const text = [
+    item.title,
+    item.source,
+    item.materialFamily,
+    item.materialSubgroup,
+    item.materialGroupPath,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  const isFrameLike =
+    mode === "linear" ||
+    group.includes("рам") ||
+    group.includes("проф") ||
+    group.includes("металл") ||
+    text.includes("рама") ||
+    text.includes("профиль") ||
+    text.includes("металл");
+  const isMillingLike =
+    item.section === "milling" ||
+    mode === "milling" ||
+    text.includes("фрез") ||
+    text.includes("раскрой") ||
+    text.includes("паз");
+
+  if (label.includes("фрез")) return isMillingLike;
+  if (label.includes("рама")) return isFrameLike && !isMillingLike;
+  if (label.includes("материал")) {
+    return (item.section === "materials" || mode === "area") && !isFrameLike && !isMillingLike;
+  }
+
+  return false;
+}
+
 function defectChildPositions(positions: CostPosition[], block: CostBlock, catalogItems: CatalogItem[]) {
   return positions.filter((position) => defectPositionBelongsToBlock(position, block, catalogItems));
 }
@@ -2008,9 +2084,16 @@ function inferredDefectBlockId(position: CostPosition, catalogItem?: CatalogItem
 
   if (
     position.calcMode === "milling" ||
+    text.includes("фрез") ||
+    text.includes("раскрой") ||
+    text.includes("паз")
+  ) {
+    return "defects-materials";
+  }
+
+  if (
     position.calcMode === "hourly" ||
     position.calcMode === "letterAssembly" ||
-    text.includes("фрез") ||
     text.includes("сбор") ||
     text.includes("работ") ||
     text.includes("монтаж") ||

@@ -3,7 +3,7 @@ import type { CatalogItem, CostSection } from "../types";
 export const sectionLabels: Record<CostSection, string> = {
   materials: "Материалы",
   lighting: "Светотехника",
-  assembly: "Сборка",
+  assembly: "Стоимость сборки",
   consumables: "Расходники вручную",
   subcontract: "Подряд",
   milling: "Фрезеровка",
@@ -27,8 +27,8 @@ export type CatalogGroup = {
 export const catalogGroups: ReadonlyArray<CatalogGroup> = [
   {
     id: "materials",
-    label: "Материалы",
-    sections: ["materials"],
+    label: "Материалы / рама / фрезеровка",
+    sections: ["materials", "milling"],
     excludeMaterialGroups: lightingLegacyMaterialGroups,
   },
   {
@@ -37,7 +37,7 @@ export const catalogGroups: ReadonlyArray<CatalogGroup> = [
     sections: ["lighting", "consumables", "materials"],
     materialGroups: lightingLegacyMaterialGroups,
   },
-  { id: "assembly", label: "Сборка", sections: ["assembly"] },
+  { id: "assembly", label: "Стоимость сборки", sections: ["assembly"] },
   { id: "print", label: "Печать / Плоттер", sections: ["print", "plotter"] },
   { id: "other", label: "Прочие", sections: ["other", "mounting", "subcontract", "defects"] },
 ];

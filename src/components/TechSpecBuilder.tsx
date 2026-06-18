@@ -692,7 +692,7 @@ type WorkCostOption = {
 const WORK_COST_SECTIONS = new Set(["assembly", "milling", "mounting", "subcontract"]);
 
 const WORK_COST_SECTION_LABELS: Record<string, string> = {
-  assembly: "Сборка / работа",
+  assembly: "Стоимость сборки",
   milling: "Фрезеровка",
   mounting: "Монтаж",
   subcontract: "Подряд",
