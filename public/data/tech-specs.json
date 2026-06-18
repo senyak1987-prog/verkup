@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T17:10:53.451Z",
+  "generatedAt": "2026-06-18T17:11:01.824Z",
   "specs": [
     {
       "dealId": "16986",
@@ -439,7 +439,9 @@
             "id": "24ada386-d1a4-491e-ab87-1f5369212456",
             "templateId": "letters",
             "attachments": [],
-            "workCostPositionIds": [],
+            "workCostPositionIds": [
+              "174b9964-3453-4279-b0c2-2d0c845b30e6"
+            ],
             "fields": {
               "name": "Вывеска",
               "quantity": "1 шт",
@@ -459,7 +461,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-18T17:10:53.451Z",
+      "updatedAt": "2026-06-18T17:11:01.824Z",
       "bitrixFile": {
         "field": "UF_CRM_1780210628536",
         "name": "TZ-16874-Тест.jpg",
