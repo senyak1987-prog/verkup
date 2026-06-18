@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T09:19:37.262Z",
+  "generatedAt": "2026-06-18T09:20:11.740Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -52,8 +52,19 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-18T09:19:36.407Z",
+      "updatedAt": "2026-06-18T09:20:10.882Z",
       "positions": [
+        {
+          "id": "3efd0d71-6c32-43d9-a16b-158bcced10cd",
+          "qty": 1,
+          "unit": "п/м",
+          "unitCost": 45,
+          "section": "milling",
+          "title": "Фрезеровка: Материал 2-3мм",
+          "calcMode": "milling",
+          "thickness": 3,
+          "note": "Фрезеровка"
+        },
         {
           "id": "ff0e95c9-28b3-47d0-aba8-a4296d0a6644",
           "catalogId": "materials-пвх-белый-8мм-3050х2050х8-rexplast-light-g-1574",
