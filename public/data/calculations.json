@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T14:50:10.055Z",
+  "generatedAt": "2026-06-18T14:50:12.994Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -232,12 +232,12 @@
     },
     {
       "dealId": "17074",
-      "updatedAt": "2026-06-18T14:50:09.190Z",
+      "updatedAt": "2026-06-18T14:50:12.138Z",
       "positions": [
         {
           "id": "a6cab365-30c8-4c8f-9a45-fb9435a08761",
           "catalogId": "materials-пвх-белый-5мм-3050х2050х5-rexplast-light-g-1563",
-          "qty": 0,
+          "qty": 2,
           "unit": "м2",
           "unitCost": 478.59,
           "section": "materials",
