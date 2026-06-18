@@ -7,6 +7,7 @@ const APP_SHELL = [
   "./favicon-32.png",
   "./verkup-app-icon-192.png",
   "./verkup-app-icon-512.png",
+  "./verkup-logo-mark.png",
   "./verkup-logo.png",
   "./vendor/pdfjs/pdf.mjs",
   "./vendor/pdfjs/pdf.worker.mjs",
