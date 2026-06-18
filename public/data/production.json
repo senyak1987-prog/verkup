@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T00:00:00.000Z",
+  "generatedAt": "2026-06-18T16:28:29.864Z",
   "employees": [
     {
       "id": "leader-semen",
@@ -10,10 +10,63 @@
       "active": true,
       "createdAt": "2026-06-18T14:20:00.000Z",
       "pinHash": "c3b016a5f93cc9a0d3bb69fbac53140dbca7afefb0a269a49a6ab256f433ad97"
+    },
+    {
+      "id": "a46fc772-de87-4cf7-85e9-fcee1b99f9c3",
+      "name": "Иван",
+      "login": "123",
+      "role": "maker",
+      "accessRole": "none",
+      "phone": "",
+      "active": false,
+      "createdAt": "2026-06-18T14:42:34.028Z"
+    },
+    {
+      "id": "d53c0ab2-0fab-4fcd-a29c-c6a7d208bd7a",
+      "name": "Иван",
+      "phone": "123",
+      "role": "maker",
+      "accessRole": "none",
+      "active": false,
+      "createdAt": "2026-06-18T14:44:39.955Z",
+      "login": "123"
+    },
+    {
+      "id": "85be188e-706c-4193-ac75-b9d3f437c4d9",
+      "name": "Иван",
+      "login": "123",
+      "role": "maker",
+      "accessRole": "maker",
+      "phone": "",
+      "active": true,
+      "createdAt": "2026-06-18T15:09:59.903Z",
+      "pinHash": "d5be3f9df5bf90dcb57a9c98a7e459c58194f920c2925661fec82dc0b3345fec"
     }
   ],
-  "registrations": [],
-  "registrationLinks": [],
+  "registrations": [
+    {
+      "id": "07af68ba-c775-4a50-9ae3-588f5985ce5d",
+      "name": "Иван",
+      "phone": "123",
+      "note": "",
+      "status": "approved",
+      "requestedAt": "2026-06-18T14:44:10.295Z",
+      "employeeId": "d53c0ab2-0fab-4fcd-a29c-c6a7d208bd7a",
+      "reviewedAt": "2026-06-18T14:44:39.955Z",
+      "reviewedBy": "leader-semen"
+    }
+  ],
+  "registrationLinks": [
+    {
+      "id": "17271606-7411-4fc7-80dd-ca4ae4e9d718",
+      "token": "36f912753252066e7e1ff34b867ad6250029",
+      "createdAt": "2026-06-18T14:43:47.416Z",
+      "createdBy": "leader-semen",
+      "active": false,
+      "usedAt": "2026-06-18T14:44:10.295Z",
+      "usedByRegistrationId": "07af68ba-c775-4a50-9ae3-588f5985ce5d"
+    }
+  ],
   "assignments": [],
   "payouts": []
 }
