@@ -97,4 +97,5 @@ jobs:
 
       - name: Print test URL
         if: steps.cloudflare.outputs.enabled == 'true'
-        run: echo "Cloudflare Pages test URL: https://${CLOUDFLARE_PAGES_PROJECT}.pages.dev/"
+        run: |
+          echo "Cloudflare Pages test URL: https://${CLOUDFLARE_PAGES_PROJECT}.pages.dev/"
