@@ -87,7 +87,9 @@ type ProductionMobileAppProps = {
 const ROLE_STORAGE_KEY = "verkup-production-view";
 const EMPLOYEE_STORAGE_KEY = "verkup-production-employee";
 const ASSIGNMENT_NOTIFICATION_STORAGE_KEY = "verkup-production-notified-assignments";
-const PUSH_PUBLIC_KEY = (import.meta.env.VITE_PUSH_PUBLIC_KEY || "").trim();
+const DEFAULT_PUSH_PUBLIC_KEY =
+  "BBu6x_Htq9sij2gtsdAtVA_xlmulyX8ZMjsHRJJAE0QgPnuDx1KL7thxzQeBV9NWIR5YLb1CDEXJiho-tlezVEk";
+const PUSH_PUBLIC_KEY = (import.meta.env.VITE_PUSH_PUBLIC_KEY || DEFAULT_PUSH_PUBLIC_KEY).trim();
 
 const employeeRoleLabels: Record<ProductionEmployeeRole, string> = {
   maker: "Макетчик",
@@ -884,11 +886,17 @@ export function ProductionMobileApp({
     try {
       const registration = await navigator.serviceWorker.ready;
       const existingSubscription = await registration.pushManager.getSubscription();
-      if (existingSubscription) return pushSubscriptionFromBrowser(existingSubscription);
+      const applicationServerKey = urlBase64ToUint8Array(PUSH_PUBLIC_KEY);
+      if (existingSubscription) {
+        if (subscriptionUsesApplicationServerKey(existingSubscription, applicationServerKey)) {
+          return pushSubscriptionFromBrowser(existingSubscription);
+        }
+        await existingSubscription.unsubscribe();
+      }
 
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(PUSH_PUBLIC_KEY),
+        applicationServerKey,
       });
       return pushSubscriptionFromBrowser(subscription);
     } catch {
@@ -2500,6 +2508,18 @@ function mergePushSubscriptions(
     ...current.filter((item) => item.endpoint !== subscription.endpoint),
     subscription,
   ];
+}
+
+function subscriptionUsesApplicationServerKey(
+  subscription: PushSubscription,
+  applicationServerKey: Uint8Array,
+) {
+  const currentKey = subscription.options?.applicationServerKey;
+  if (!currentKey) return false;
+
+  const currentKeyBytes = new Uint8Array(currentKey);
+  if (currentKeyBytes.length !== applicationServerKey.length) return false;
+  return currentKeyBytes.every((byte, index) => byte === applicationServerKey[index]);
 }
 
 function removeRecordValue<T>(record: Record<string, T>, key: string) {

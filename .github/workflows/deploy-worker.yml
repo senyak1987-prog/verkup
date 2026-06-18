@@ -66,6 +66,20 @@ jobs:
             echo "BITRIX_WEBHOOK_URL is empty; keeping existing Worker secret."
           fi
 
+      - name: Put Worker VAPID private key secret
+        if: steps.cloudflare.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PUSH_VAPID_PRIVATE_KEY: ${{ secrets.PUSH_VAPID_PRIVATE_KEY }}
+        run: |
+          if [ -n "$PUSH_VAPID_PRIVATE_KEY" ]; then
+            printf "%s" "$PUSH_VAPID_PRIVATE_KEY" | npx --yes wrangler@4.97.0 secret put PUSH_VAPID_PRIVATE_KEY --config worker/wrangler.toml
+          else
+            echo "PUSH_VAPID_PRIVATE_KEY is empty; keeping existing Worker secret."
+          fi
+
       - name: Deploy Worker
         if: steps.cloudflare.outputs.enabled == 'true'
         env:

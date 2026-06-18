@@ -357,9 +357,43 @@ async function dispatchMoveWorkflow(env, dealId, targetStageId) {
 async function sendProductionPush(env, body, cors) {
   const serviceUrl = String(env.PUSH_SERVICE_URL || "").trim();
   const subscriptions = Array.isArray(body.subscriptions) ? body.subscriptions : [];
+  const payload = {
+    body: String(body.body || ""),
+    employeeId: String(body.employeeId || ""),
+    title: String(body.title || "Новая сборка Verkup"),
+    url: String(body.url || ""),
+  };
 
   if (!subscriptions.length) {
     return json({ ok: true, sent: 0 }, 200, cors);
+  }
+
+  if (env.PUSH_VAPID_PRIVATE_KEY && env.PUSH_VAPID_PUBLIC_KEY) {
+    const results = await Promise.allSettled(
+      subscriptions.map((subscription) => sendWebPushNotification(env, subscription, payload)),
+    );
+    const sent = results.filter(
+      (result) =>
+        result.status === "fulfilled" && result.value.status >= 200 && result.value.status < 300,
+    ).length;
+    const expired = results.filter(
+      (result) =>
+        result.status === "fulfilled" &&
+        (result.value.status === 404 || result.value.status === 410),
+    ).length;
+
+    return json(
+      {
+        ok: true,
+        configured: true,
+        sent,
+        expired,
+        failed: results.length - sent - expired,
+        service: "web-push",
+      },
+      200,
+      cors,
+    );
   }
 
   if (!serviceUrl) {
@@ -368,7 +402,7 @@ async function sendProductionPush(env, body, cors) {
         ok: true,
         configured: false,
         sent: 0,
-        message: "PUSH_SERVICE_URL is not configured",
+        message: "PUSH_SERVICE_URL or PUSH_VAPID_PRIVATE_KEY is not configured",
       },
       202,
       cors,
@@ -399,6 +433,130 @@ async function sendProductionPush(env, body, cors) {
   }
 
   return json({ ok: true, sent: subscriptions.length }, 200, cors);
+}
+
+async function sendWebPushNotification(env, subscription, payload) {
+  const endpoint = String(subscription?.endpoint || "");
+  if (!endpoint) return { status: 400 };
+
+  const audience = new URL(endpoint).origin;
+  const token = await createVapidToken(env, audience);
+  const publicKey = String(env.PUSH_VAPID_PUBLIC_KEY || "").trim();
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `vapid t=${token}, k=${publicKey}`,
+      TTL: String(env.PUSH_TTL_SECONDS || 60 * 60 * 24 * 7),
+      Urgency: "high",
+      Topic: webPushTopic(payload.employeeId || "assignment"),
+    },
+  });
+
+  return { status: response.status };
+}
+
+async function createVapidToken(env, audience) {
+  const publicKey = String(env.PUSH_VAPID_PUBLIC_KEY || "").trim();
+  const privateKey = String(env.PUSH_VAPID_PRIVATE_KEY || "").trim();
+  const subject = String(env.PUSH_VAPID_SUBJECT || "mailto:verkup@example.com").trim();
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64UrlEncodeJson({ typ: "JWT", alg: "ES256" });
+  const payload = base64UrlEncodeJson({
+    aud: audience,
+    exp: now + 12 * 60 * 60,
+    sub: subject,
+  });
+  const signingInput = `${header}.${payload}`;
+  const signature = await crypto.subtle.sign(
+    { name: "ECDSA", hash: "SHA-256" },
+    await importVapidPrivateKey(publicKey, privateKey),
+    new TextEncoder().encode(signingInput),
+  );
+
+  return `${signingInput}.${base64UrlEncode(normalizeEcdsaSignature(new Uint8Array(signature)))}`;
+}
+
+async function importVapidPrivateKey(publicKey, privateKey) {
+  const publicBytes = base64UrlDecode(publicKey);
+  if (publicBytes.length !== 65 || publicBytes[0] !== 4) {
+    throw new Error("PUSH_VAPID_PUBLIC_KEY must be an uncompressed P-256 public key");
+  }
+
+  return await crypto.subtle.importKey(
+    "jwk",
+    {
+      kty: "EC",
+      crv: "P-256",
+      x: base64UrlEncode(publicBytes.slice(1, 33)),
+      y: base64UrlEncode(publicBytes.slice(33, 65)),
+      d: privateKey,
+      ext: false,
+    },
+    { name: "ECDSA", namedCurve: "P-256" },
+    false,
+    ["sign"],
+  );
+}
+
+function normalizeEcdsaSignature(signature) {
+  if (signature.length === 64) return signature;
+  if (signature[0] !== 0x30) return signature;
+
+  let offset = signature[1] & 0x80 ? 2 + (signature[1] & 0x7f) : 2;
+  const r = readDerInteger(signature, offset);
+  offset = r.offset;
+  const s = readDerInteger(signature, offset);
+  return concatBytes(leftPad32(r.value), leftPad32(s.value));
+}
+
+function readDerInteger(bytes, offset) {
+  if (bytes[offset] !== 0x02) throw new Error("Invalid ECDSA signature");
+  const length = bytes[offset + 1];
+  const start = offset + 2;
+  const value = bytes.slice(start, start + length);
+  return {
+    offset: start + length,
+    value: value[0] === 0 ? value.slice(1) : value,
+  };
+}
+
+function leftPad32(bytes) {
+  if (bytes.length === 32) return bytes;
+  if (bytes.length > 32) return bytes.slice(bytes.length - 32);
+  const padded = new Uint8Array(32);
+  padded.set(bytes, 32 - bytes.length);
+  return padded;
+}
+
+function concatBytes(first, second) {
+  const result = new Uint8Array(first.length + second.length);
+  result.set(first);
+  result.set(second, first.length);
+  return result;
+}
+
+function base64UrlEncodeJson(value) {
+  return base64UrlEncode(new TextEncoder().encode(JSON.stringify(value)));
+}
+
+function base64UrlEncode(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function base64UrlDecode(value) {
+  const base64 = `${value}${"=".repeat((4 - (value.length % 4)) % 4)}`
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const binary = atob(base64);
+  return Uint8Array.from([...binary].map((char) => char.charCodeAt(0)));
+}
+
+function webPushTopic(value) {
+  return String(value || "assignment")
+    .replace(/[^A-Za-z0-9_-]/g, "")
+    .slice(0, 32) || "assignment";
 }
 
 async function loadLiveDeals(env) {
