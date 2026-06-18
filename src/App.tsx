@@ -14,12 +14,14 @@ import {
   loadProduction,
   loadTechSpecs,
   mergeStoredProduction,
+  embeddedProductionFromTechSpecs,
   readCachedCalculations,
   readCachedCatalogs,
   readCachedDeals,
   readCachedProduction,
   readCachedTechSpecs,
   rememberCatalogFavoriteChanges,
+  withEmbeddedProduction,
   writeCachedCalculations,
   writeCachedCatalogs,
   writeCachedDeals,
@@ -64,6 +66,7 @@ import "./styles.css";
 
 const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
 const DEAL_REFRESH_INTERVAL_MS = 2000;
+const PRODUCTION_REFRESH_INTERVAL_MS = 10000;
 const TECH_SPEC_SAVE_DELAY_MS = 900;
 const PRODUCTION_SAVE_DELAY_MS = 700;
 const DEAL_STAGE_TABS: DealStageCode[] = ["tz", "tzApproval", "launch", "production", "defect"];
@@ -154,6 +157,8 @@ export default function App() {
   const productionSaveTimerRef = useRef<number>();
   const productionSaveInFlightRef = useRef(false);
   const queuedProductionSaveRef = useRef<StoredProduction>();
+  const storedTechSpecsRef = useRef(storedTechSpecs);
+  const storedProductionRef = useRef(storedProduction);
 
   const activeEmployees = useMemo(
     () => storedProduction.employees.filter((employee) => employee.active !== false),
@@ -191,6 +196,14 @@ export default function App() {
   const availableModeCount = [canUseCosting, canUseProduction, canUseEmployees].filter(Boolean).length;
 
   useEffect(() => {
+    storedTechSpecsRef.current = storedTechSpecs;
+  }, [storedTechSpecs]);
+
+  useEffect(() => {
+    storedProductionRef.current = storedProduction;
+  }, [storedProduction]);
+
+  useEffect(() => {
     let canceled = false;
 
     async function loadInitialData() {
@@ -205,17 +218,20 @@ export default function App() {
         if (canceled) return;
 
         const nextDeals = applyPendingStageMoves(dealsData.items);
+        const nextProduction = productionWithEmbeddedFallback(productionData, techSpecsData);
         setDeals(nextDeals);
         setStoredCalculations(calculationsData);
         setCatalogItems(catalogsData.items);
         setStoredTechSpecs(techSpecsData);
-        setStoredProduction(productionData);
+        setStoredProduction(nextProduction);
+        storedTechSpecsRef.current = techSpecsData;
+        storedProductionRef.current = nextProduction;
         writeCachedDeals({ ...dealsData, items: nextDeals });
         writeCachedCalculations(calculationsData);
         writeCachedCatalogs(catalogsData);
-        writeCachedTechSpecs(techSpecsData);
-        writeCachedProduction(productionData);
-        void syncProductionCacheWithServer(productionData);
+        writeCachedTechSpecs(withEmbeddedProduction(techSpecsData, nextProduction));
+        writeCachedProduction(nextProduction);
+        void syncProductionCacheWithServer(nextProduction);
       } finally {
         if (!canceled) setLoading(false);
       }
@@ -240,6 +256,22 @@ export default function App() {
       }
     }
 
+    async function refreshProductionData() {
+      const [techSpecsData, productionData] = await Promise.all([
+        loadTechSpecs(),
+        loadProduction(),
+      ]);
+      if (canceled) return;
+
+      const nextProduction = productionWithEmbeddedFallback(productionData, techSpecsData);
+      setStoredTechSpecs(techSpecsData);
+      setStoredProduction(nextProduction);
+      storedTechSpecsRef.current = techSpecsData;
+      storedProductionRef.current = nextProduction;
+      writeCachedTechSpecs(withEmbeddedProduction(techSpecsData, nextProduction));
+      writeCachedProduction(nextProduction);
+    }
+
     async function refreshAllData() {
       const [dealsData, calculationsData, catalogsData, techSpecsData, productionData] = await Promise.all([
         loadDeals(),
@@ -251,26 +283,31 @@ export default function App() {
       if (canceled) return;
 
       const nextDeals = applyPendingStageMoves(dealsData.items);
+      const nextProduction = productionWithEmbeddedFallback(productionData, techSpecsData);
       setDeals(nextDeals);
       setStoredCalculations(calculationsData);
       setCatalogItems(catalogsData.items);
       setStoredTechSpecs(techSpecsData);
-      setStoredProduction(productionData);
+      setStoredProduction(nextProduction);
+      storedTechSpecsRef.current = techSpecsData;
+      storedProductionRef.current = nextProduction;
       writeCachedDeals({ ...dealsData, items: nextDeals });
       writeCachedCalculations(calculationsData);
       writeCachedCatalogs(catalogsData);
-      writeCachedTechSpecs(techSpecsData);
-      writeCachedProduction(productionData);
-      void syncProductionCacheWithServer(productionData);
+      writeCachedTechSpecs(withEmbeddedProduction(techSpecsData, nextProduction));
+      writeCachedProduction(nextProduction);
+      void syncProductionCacheWithServer(nextProduction);
     }
 
     const intervalId = window.setInterval(refreshDeals, DEAL_REFRESH_INTERVAL_MS);
+    const productionIntervalId = window.setInterval(refreshProductionData, PRODUCTION_REFRESH_INTERVAL_MS);
     window.addEventListener("focus", refreshAllData);
     window.addEventListener("online", refreshAllData);
 
     return () => {
       canceled = true;
       window.clearInterval(intervalId);
+      window.clearInterval(productionIntervalId);
       window.removeEventListener("focus", refreshAllData);
       window.removeEventListener("online", refreshAllData);
     };
@@ -399,7 +436,7 @@ export default function App() {
           spec,
         ],
       };
-      writeCachedTechSpecs(next);
+      writeCachedTechSpecs(withEmbeddedProduction(next, storedProductionRef.current));
       scheduleTechSpecSave(next);
       return next;
     });
@@ -407,7 +444,9 @@ export default function App() {
 
   function handleProductionChange(data: StoredProduction, options: ProductionSaveOptions = {}) {
     setStoredProduction(data);
+    storedProductionRef.current = data;
     writeCachedProduction(data);
+    writeCachedTechSpecs(withEmbeddedProduction(storedTechSpecsRef.current, data));
     if (options.saveNow) saveProductionNow(data);
     else scheduleProductionSave(data);
   }
@@ -418,7 +457,9 @@ export default function App() {
 
     const mergedProduction = mergeStoredProduction(serverProduction, localProduction);
     setStoredProduction(mergedProduction);
+    storedProductionRef.current = mergedProduction;
     writeCachedProduction(mergedProduction);
+    writeCachedTechSpecs(withEmbeddedProduction(storedTechSpecsRef.current, mergedProduction));
     saveProductionNow(mergedProduction);
   }
 
@@ -431,7 +472,9 @@ export default function App() {
 
     const freshProduction = await loadFreshProduction();
     setStoredProduction(freshProduction);
+    storedProductionRef.current = freshProduction;
     writeCachedProduction(freshProduction);
+    writeCachedTechSpecs(withEmbeddedProduction(storedTechSpecsRef.current, freshProduction));
 
     const freshEmployee = await findVerifiedLoginEmployee(
       freshProduction.employees.filter((item) => item.active !== false),
@@ -539,7 +582,7 @@ export default function App() {
           nextSpec,
         ],
       };
-      writeCachedTechSpecs(next);
+      writeCachedTechSpecs(withEmbeddedProduction(next, storedProductionRef.current));
       scheduleTechSpecSave(next);
       return next;
     });
@@ -554,7 +597,7 @@ export default function App() {
     }
 
     techSpecSaveTimerRef.current = window.setTimeout(() => {
-      void saveTechSpecs({ apiUrl }, data).catch(() => {
+      void saveTechSpecs({ apiUrl }, withEmbeddedProduction(data, storedProductionRef.current)).catch(() => {
         // Локальный черновик уже сохранен, повторим синхронизацию при следующем изменении.
       });
     }, TECH_SPEC_SAVE_DELAY_MS);
@@ -583,8 +626,9 @@ export default function App() {
 
     productionSaveInFlightRef.current = true;
     void saveProduction({ apiUrl }, data)
-      .catch(() => {
-        if (!queuedProductionSaveRef.current) scheduleProductionSave(data);
+      .catch(async () => {
+        const fallbackSaved = await saveProductionFallbackToTechSpecs(data);
+        if (!fallbackSaved && !queuedProductionSaveRef.current) scheduleProductionSave(data);
       })
       .finally(() => {
         productionSaveInFlightRef.current = false;
@@ -592,6 +636,21 @@ export default function App() {
         queuedProductionSaveRef.current = undefined;
         if (queuedProductionSave) requestProductionSave(queuedProductionSave);
       });
+  }
+
+  async function saveProductionFallbackToTechSpecs(data: StoredProduction) {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return false;
+
+    try {
+      await saveTechSpecs(
+        { apiUrl },
+        withEmbeddedProduction(storedTechSpecsRef.current, data),
+      );
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   function scheduleProductionSave(data: StoredProduction) {
@@ -1142,6 +1201,14 @@ function createEmptyStoredProduction(): StoredProduction {
     assignments: [],
     payouts: [],
   };
+}
+
+function productionWithEmbeddedFallback(
+  production: StoredProduction,
+  techSpecs: StoredTechSpecs,
+) {
+  const embeddedProduction = embeddedProductionFromTechSpecs(techSpecs);
+  return embeddedProduction ? mergeStoredProduction(production, embeddedProduction) : production;
 }
 
 function createEmptyStageCounts(): Record<DealStageCode, number> {

@@ -13,10 +13,15 @@ const CATALOG_FAVORITES_KEY = `${CACHE_PREFIX}catalog:favorites`;
 const REQUEST_TIMEOUT_MS = 6000;
 const DEAL_CACHE_RETAIN_MS = 24 * 60 * 60 * 1000;
 const DEAL_CACHE_VERSION = 2;
+const EMBEDDED_PRODUCTION_KEY = "__production";
 
 type CatalogFavoriteOverride = {
   favorite: boolean;
   favoriteOrder?: number;
+};
+
+type StoredTechSpecsWithEmbeddedProduction = StoredTechSpecs & {
+  [EMBEDDED_PRODUCTION_KEY]?: StoredProduction;
 };
 
 type CacheRecord<T> = {
@@ -89,16 +94,18 @@ export async function loadTechSpecs() {
 }
 
 export async function loadProduction() {
-  return loadJson<StoredProduction>("/data/production.json", fallbackProduction, {
+  const production = await loadJson<StoredProduction>("/data/production.json", fallbackProduction, {
     preferApi: true,
   });
+  return withLoadedEmbeddedProduction(production);
 }
 
 export async function loadFreshProduction() {
-  return loadJson<StoredProduction>("/data/production.json", fallbackProduction, {
+  const production = await loadJson<StoredProduction>("/data/production.json", fallbackProduction, {
     ignoreCache: true,
     preferApi: true,
   });
+  return withLoadedEmbeddedProduction(production, true);
 }
 
 export async function loadCatalogs() {
@@ -120,7 +127,13 @@ export function readCachedTechSpecs() {
 }
 
 export function readCachedProduction() {
-  return readCache<StoredProduction>("data/production.json");
+  const production = readCache<StoredProduction>("data/production.json");
+  const embeddedProduction = embeddedProductionFromTechSpecs(
+    readCache<StoredTechSpecsWithEmbeddedProduction>("data/tech-specs.json"),
+  );
+
+  if (production && embeddedProduction) return mergeStoredProduction(production, embeddedProduction);
+  return embeddedProduction || production;
 }
 
 export function readCachedCatalogs() {
@@ -138,6 +151,24 @@ export function writeCachedCalculations(data: StoredCalculations) {
 
 export function writeCachedTechSpecs(data: StoredTechSpecs) {
   writeCache("data/tech-specs.json", data);
+}
+
+export function embeddedProductionFromTechSpecs(
+  data?: StoredTechSpecs | StoredTechSpecsWithEmbeddedProduction,
+) {
+  const production = (data as StoredTechSpecsWithEmbeddedProduction | undefined)?.[EMBEDDED_PRODUCTION_KEY];
+  return isStoredProduction(production) ? production : undefined;
+}
+
+export function withEmbeddedProduction(
+  data: StoredTechSpecs,
+  production?: StoredProduction,
+): StoredTechSpecsWithEmbeddedProduction {
+  if (!isStoredProduction(production)) return data as StoredTechSpecsWithEmbeddedProduction;
+  return {
+    ...data,
+    [EMBEDDED_PRODUCTION_KEY]: production,
+  };
 }
 
 export function writeCachedProduction(data: StoredProduction) {
@@ -382,6 +413,22 @@ function reconcileFetchedProduction<T>(data: T, cachedData?: T): T {
   if (!isStoredProduction(data) || !isStoredProduction(cachedData)) return data;
 
   return mergeStoredProduction(data, cachedData) as T;
+}
+
+async function withLoadedEmbeddedProduction(
+  production: StoredProduction,
+  ignoreCache = false,
+) {
+  const techSpecs = await loadJson<StoredTechSpecsWithEmbeddedProduction>(
+    "/data/tech-specs.json",
+    fallbackTechSpecs,
+    {
+      ignoreCache,
+      preferApi: true,
+    },
+  );
+  const embeddedProduction = embeddedProductionFromTechSpecs(techSpecs);
+  return embeddedProduction ? mergeStoredProduction(production, embeddedProduction) : production;
 }
 
 export function mergeStoredProduction(
