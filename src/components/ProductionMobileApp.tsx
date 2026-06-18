@@ -69,6 +69,10 @@ type WorkerMoneySummary = {
   paid: number;
 };
 
+type ProductionCommitOptions = {
+  saveNow?: boolean;
+};
+
 type ProductionMobileAppProps = {
   calculations?: Map<string, DealCalculation>;
   currentUser: ProductionEmployee;
@@ -77,7 +81,7 @@ type ProductionMobileAppProps = {
   saveApiUrl?: string;
   techSpecs: Map<string, DealTechSpec>;
   storedProduction: StoredProduction;
-  onChange: (data: StoredProduction) => void;
+  onChange: (data: StoredProduction, options?: ProductionCommitOptions) => void;
 };
 
 const ROLE_STORAGE_KEY = "verkup-production-view";
@@ -359,11 +363,14 @@ export function ProductionMobileApp({
     }
   }, [currentUser, newEmployeeAccessRole]);
 
-  function commitProduction(updater: (current: StoredProduction) => StoredProduction) {
+  function commitProduction(
+    updater: (current: StoredProduction) => StoredProduction,
+    options: ProductionCommitOptions = {},
+  ) {
     onChange({
       ...updater(storedProduction),
       generatedAt: new Date().toISOString(),
-    });
+    }, options);
   }
 
   async function addEmployee() {
@@ -395,7 +402,7 @@ export function ProductionMobileApp({
     commitProduction((current) => ({
       ...current,
       employees: [...current.employees, employee],
-    }));
+    }), { saveNow: true });
     setNewEmployeeName("");
     setNewEmployeePhone("");
     setNewEmployeeLogin("");
@@ -416,7 +423,7 @@ export function ProductionMobileApp({
     commitProduction((current) => ({
       ...current,
       registrationLinks: [...(current.registrationLinks || []), link],
-    }));
+    }), { saveNow: true });
     await copyText(registrationUrl(link));
     setNotice("Ссылка регистрации создана и скопирована.");
     window.setTimeout(() => setNotice(""), 2600);
@@ -428,7 +435,7 @@ export function ProductionMobileApp({
       registrationLinks: (current.registrationLinks || []).map((link) =>
         link.id === linkId ? { ...link, active: false } : link,
       ),
-    }));
+    }), { saveNow: true });
   }
 
   async function approveRegistration(request: ProductionRegistrationRequest) {
@@ -473,7 +480,7 @@ export function ProductionMobileApp({
             }
           : item,
       ),
-    }));
+    }), { saveNow: true });
     setRegistrationLogins((current) => ({ ...current, [request.id]: "" }));
     setRegistrationPins((current) => ({ ...current, [request.id]: "" }));
     setNotice(`Доступ выдан: ${request.name}`);
@@ -493,7 +500,7 @@ export function ProductionMobileApp({
             }
           : item,
       ),
-    }));
+    }), { saveNow: true });
   }
 
   async function saveEmployeeAccess(employee: ProductionEmployee) {
@@ -534,7 +541,7 @@ export function ProductionMobileApp({
             }
           : item,
       ),
-    }));
+    }), { saveNow: true });
     setEmployeeLogins((current) => ({ ...current, [employee.id]: "" }));
     setEmployeePins((current) => ({ ...current, [employee.id]: "" }));
   }
@@ -552,7 +559,7 @@ export function ProductionMobileApp({
             }
           : item,
       ),
-    }));
+    }), { saveNow: true });
   }
 
   function deleteEmployee(employee: ProductionEmployee) {
@@ -570,7 +577,7 @@ export function ProductionMobileApp({
           : item,
       ),
       assignments: current.assignments.filter((assignment) => assignment.employeeId !== employee.id),
-    }));
+    }), { saveNow: true });
   }
 
   async function updateEmployeeAvatar(employee: ProductionEmployee, file?: File) {
@@ -581,7 +588,7 @@ export function ProductionMobileApp({
       employees: current.employees.map((item) =>
         item.id === employee.id ? { ...item, avatarDataUrl } : item,
       ),
-    }));
+    }), { saveNow: true });
   }
 
   function addEmployeePayout(employee: ProductionEmployee) {
@@ -604,7 +611,7 @@ export function ProductionMobileApp({
     commitProduction((current) => ({
       ...current,
       payouts: [...(current.payouts || []), payout],
-    }));
+    }), { saveNow: true });
     setEmployeePayouts((current) => ({ ...current, [employee.id]: "" }));
     setNotice(`Выплата сохранена: ${employee.name} · ${formatMoney(amount)}`);
     window.setTimeout(() => setNotice(""), 2400);
@@ -687,7 +694,7 @@ export function ProductionMobileApp({
         ...current,
         assignments: nextAssignments,
       };
-    });
+    }, { saveNow: true });
 
     setSelectedDealIds(new Set());
     setNotice(`Назначено: ${dealIds.length} сделок -> ${employee.name}`);
@@ -718,13 +725,14 @@ export function ProductionMobileApp({
   function patchAssignment(
     assignmentId: string,
     updater: (assignment: ProductionAssignment) => ProductionAssignment,
+    options: ProductionCommitOptions = {},
   ) {
     commitProduction((current) => ({
       ...current,
       assignments: current.assignments.map((assignment) =>
         assignment.id === assignmentId ? updater(assignment) : assignment,
       ),
-    }));
+    }), options);
   }
 
   function startAssignment(assignment: ProductionAssignment) {
@@ -734,7 +742,7 @@ export function ProductionMobileApp({
       status: "inProgress",
       startedAt: current.startedAt || new Date().toISOString(),
       history: [...current.history, createEvent("started", actor)],
-    }));
+    }), { saveNow: true });
   }
 
   function updateCompletion(assignmentId: string, patch: Partial<ProductionCompletion>) {
@@ -788,7 +796,7 @@ export function ProductionMobileApp({
       submittedAt: new Date().toISOString(),
       completion,
       history: [...current.history, createEvent("submitted", actor)],
-    }));
+    }), { saveNow: true });
   }
 
   function markReadyForShipment(assignment: ProductionAssignment) {
@@ -797,7 +805,7 @@ export function ProductionMobileApp({
       status: "readyForShipment",
       readyForShipmentAt: new Date().toISOString(),
       history: [...current.history, createEvent("readyForShipment", "Руководитель")],
-    }));
+    }), { saveNow: true });
   }
 
   function toggleDealSelection(dealId: string, checked: boolean) {
@@ -887,7 +895,7 @@ export function ProductionMobileApp({
             }
           : employee,
       ),
-    }));
+    }), { saveNow: true });
   }
 
   function renderEmployeeAccessPanel() {

@@ -77,6 +77,10 @@ type WorkspaceMode = "costing" | "production" | "employees";
 
 type DealWorkspaceTab = "cost" | "techSpec";
 
+type ProductionSaveOptions = {
+  saveNow?: boolean;
+};
+
 type PendingCatalogInsert = {
   dealId: string;
   item: CatalogItem;
@@ -395,10 +399,11 @@ export default function App() {
     });
   }
 
-  function handleProductionChange(data: StoredProduction) {
+  function handleProductionChange(data: StoredProduction, options: ProductionSaveOptions = {}) {
     setStoredProduction(data);
     writeCachedProduction(data);
-    scheduleProductionSave(data);
+    if (options.saveNow) saveProductionNow(data);
+    else scheduleProductionSave(data);
   }
 
   async function handleEmployeeLogin(login: string, password: string) {
@@ -445,22 +450,25 @@ export default function App() {
       employeeId,
     };
 
-    handleProductionChange({
-      ...storedProduction,
-      generatedAt: new Date().toISOString(),
-      employees: [...storedProduction.employees, employee],
-      registrations: [...(storedProduction.registrations || []), request],
-      registrationLinks: (storedProduction.registrationLinks || []).map((link) =>
-        link.id === activeRegistrationLink.id
-          ? {
-              ...link,
-              active: false,
-              usedAt: new Date().toISOString(),
-              usedByRegistrationId: request.id,
-            }
-          : link,
-      ),
-    });
+    handleProductionChange(
+      {
+        ...storedProduction,
+        generatedAt: new Date().toISOString(),
+        employees: [...storedProduction.employees, employee],
+        registrations: [...(storedProduction.registrations || []), request],
+        registrationLinks: (storedProduction.registrationLinks || []).map((link) =>
+          link.id === activeRegistrationLink.id
+            ? {
+                ...link,
+                active: false,
+                usedAt: new Date().toISOString(),
+                usedByRegistrationId: request.id,
+              }
+            : link,
+        ),
+      },
+      { saveNow: true },
+    );
   }
 
   async function handleTechSpecUpload(
@@ -518,6 +526,20 @@ export default function App() {
         // Локальный черновик уже сохранен, повторим синхронизацию при следующем изменении.
       });
     }, TECH_SPEC_SAVE_DELAY_MS);
+  }
+
+  function saveProductionNow(data: StoredProduction) {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+
+    if (productionSaveTimerRef.current) {
+      window.clearTimeout(productionSaveTimerRef.current);
+      productionSaveTimerRef.current = undefined;
+    }
+
+    void saveProduction({ apiUrl }, data).catch(() => {
+      scheduleProductionSave(data);
+    });
   }
 
   function scheduleProductionSave(data: StoredProduction) {

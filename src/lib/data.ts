@@ -351,6 +351,10 @@ function reconcileFetchedData<T>(
   cachedData?: T,
   cachedSavedAt?: string,
 ): T {
+  if (isProductionPath(path)) {
+    return reconcileFetchedProduction(data, cachedData);
+  }
+
   if (!isDealsPath(path)) return data;
   if (!isAppData<Deal>(data) || !isAppData<Deal>(cachedData)) return data;
   if (!cachedData.items.length || isCacheTooOld(cachedSavedAt)) return data;
@@ -365,6 +369,47 @@ function reconcileFetchedData<T>(
     ...data,
     items: [...data.items, ...missingCachedDeals],
   } as T;
+}
+
+function reconcileFetchedProduction<T>(data: T, cachedData?: T): T {
+  if (!isStoredProduction(data) || !isStoredProduction(cachedData)) return data;
+
+  const preferCachedRecords = isGeneratedAtNewer(cachedData.generatedAt, data.generatedAt);
+
+  return {
+    ...data,
+    generatedAt: preferCachedRecords ? cachedData.generatedAt : data.generatedAt,
+    employees: mergeProductionRecords(data.employees || [], cachedData.employees || [], preferCachedRecords),
+    registrations: mergeProductionRecords(
+      data.registrations || [],
+      cachedData.registrations || [],
+      preferCachedRecords,
+    ),
+    registrationLinks: mergeProductionRecords(
+      data.registrationLinks || [],
+      cachedData.registrationLinks || [],
+      preferCachedRecords,
+    ),
+    assignments: mergeProductionRecords(
+      data.assignments || [],
+      cachedData.assignments || [],
+      preferCachedRecords,
+    ),
+    payouts: mergeProductionRecords(data.payouts || [], cachedData.payouts || [], preferCachedRecords),
+  } as T;
+}
+
+function mergeProductionRecords<T extends { id: string }>(
+  fetchedRecords: T[],
+  cachedRecords: T[],
+  preferCachedRecords: boolean,
+) {
+  const records = new Map<string, T>();
+  for (const record of fetchedRecords) records.set(record.id, record);
+  for (const record of cachedRecords) {
+    if (preferCachedRecords || !records.has(record.id)) records.set(record.id, record);
+  }
+  return Array.from(records.values());
 }
 
 function shouldMergeCachedDeals(data: AppData<Deal>, cachedData: AppData<Deal>) {
@@ -474,4 +519,8 @@ function isGeneratedAtNewer(candidate?: string, baseline?: string) {
 
 function isDealsPath(path: string) {
   return path.replace(/^\//, "") === "data/deals.json";
+}
+
+function isProductionPath(path: string) {
+  return path.replace(/^\//, "") === "data/production.json";
 }
