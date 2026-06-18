@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T14:51:53.969Z",
+  "generatedAt": "2026-06-18T17:10:48.637Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -214,23 +214,6 @@
       ]
     },
     {
-      "dealId": "16874",
-      "updatedAt": "2026-06-18T09:29:38.677Z",
-      "positions": [
-        {
-          "id": "e456e5ae-452f-4769-b993-2e8fba65fa2d",
-          "qty": 1,
-          "unit": "п/м",
-          "unitCost": 45,
-          "section": "milling",
-          "title": "Фрезеровка: Материал 2-3мм",
-          "calcMode": "milling",
-          "thickness": 3,
-          "note": "Фрезеровка"
-        }
-      ]
-    },
-    {
       "dealId": "17074",
       "updatedAt": "2026-06-18T14:51:53.114Z",
       "positions": [
@@ -291,6 +274,36 @@
           "thickness": 3,
           "note": "",
           "length": 100
+        }
+      ]
+    },
+    {
+      "dealId": "16874",
+      "updatedAt": "2026-06-18T17:10:47.770Z",
+      "positions": [
+        {
+          "id": "174b9964-3453-4279-b0c2-2d0c845b30e6",
+          "catalogId": "assembly-буква-60-69см-склейка-83",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 350,
+          "section": "assembly",
+          "title": "Буква 60-69см: Склейка",
+          "calcMode": "letterAssembly",
+          "note": "Прайс сборка.xlsx / Буквы",
+          "addons": [],
+          "baseUnitCost": 350
+        },
+        {
+          "id": "e456e5ae-452f-4769-b993-2e8fba65fa2d",
+          "qty": 1,
+          "unit": "п/м",
+          "unitCost": 45,
+          "section": "milling",
+          "title": "Фрезеровка: Материал 2-3мм",
+          "calcMode": "milling",
+          "thickness": 3,
+          "note": "Фрезеровка"
         }
       ]
     }
