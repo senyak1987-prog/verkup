@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-17T15:21:37.675Z",
+  "generatedAt": "2026-06-18T09:19:37.262Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -52,7 +52,7 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-17T15:21:36.815Z",
+      "updatedAt": "2026-06-18T09:19:36.407Z",
       "positions": [
         {
           "id": "ff0e95c9-28b3-47d0-aba8-a4296d0a6644",
@@ -97,18 +97,6 @@
           "title": "Блок питания LIGHT 150W 12V IP20",
           "calcMode": "pieces",
           "note": "promo.pdf / Блоки питания / LIGHT IP20"
-        },
-        {
-          "id": "58aca086-b9db-4f10-a113-099dea7cc438",
-          "qty": 1,
-          "unit": "п/м",
-          "unitCost": 45,
-          "section": "milling",
-          "title": "Фрезеровка: Материал 2-3мм",
-          "calcMode": "milling",
-          "thickness": 3,
-          "note": "Фрезеровка",
-          "length": 120
         },
         {
           "id": "26a2abf0-732a-4daa-9bd9-220726fa675c",
