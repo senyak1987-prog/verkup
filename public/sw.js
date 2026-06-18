@@ -1,12 +1,12 @@
-const CACHE_NAME = "verkup-offline-v5";
+const CACHE_NAME = "verkup-offline-v6";
 const APP_SHELL = [
   "./",
   "./manifest.webmanifest",
-  "./apple-touch-icon.png",
-  "./favicon-16.png",
-  "./favicon-32.png",
-  "./verkup-app-icon-192.png",
-  "./verkup-app-icon-512.png",
+  "./verkup-mark-apple-touch-icon.png",
+  "./verkup-mark-favicon-16.png",
+  "./verkup-mark-favicon-32.png",
+  "./verkup-mark-icon-192.png",
+  "./verkup-mark-icon-512.png",
   "./verkup-logo-mark.png",
   "./verkup-logo.png",
   "./vendor/pdfjs/pdf.mjs",
@@ -59,8 +59,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Новая сборка Verkup";
   const options = {
     body: payload.body || "Вам назначили изделие на сборку.",
-    icon: "./verkup-app-icon-192.png",
-    badge: "./favicon-32.png",
+    icon: "./verkup-mark-icon-192.png",
+    badge: "./verkup-mark-favicon-32.png",
     tag: payload.tag || "verkup-production-assignment",
     requireInteraction: true,
     data: {
