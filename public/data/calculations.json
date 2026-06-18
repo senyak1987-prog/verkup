@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T14:49:10.020Z",
+  "generatedAt": "2026-06-18T14:49:19.517Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -232,8 +232,17 @@
     },
     {
       "dealId": "17074",
-      "updatedAt": "2026-06-18T14:49:09.163Z",
+      "updatedAt": "2026-06-18T14:49:18.658Z",
       "positions": [
+        {
+          "id": "545a242a-91b8-4b5a-9169-c695f3a71bcc",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 0,
+          "section": "materials",
+          "title": "Материал",
+          "calcMode": "area"
+        },
         {
           "id": "32d2c7ab-270f-4777-8520-9b92510e9090",
           "qty": 1,
