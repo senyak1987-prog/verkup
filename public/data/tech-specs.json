@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T17:11:56.357Z",
+  "generatedAt": "2026-06-18T17:12:15.730Z",
   "specs": [
     {
       "dealId": "16986",
@@ -203,80 +203,6 @@
       "updatedAt": "2026-06-16T17:22:29.816Z"
     },
     {
-      "dealId": "16888",
-      "draft": {
-        "dealNumber": "16888",
-        "projectName": "Тест 2",
-        "manager": "Алексей Купоров",
-        "responsiblePhone": "",
-        "deadline": "2026-06-12",
-        "date": "2026-06-15",
-        "globalNote": "Итоговая себестоимость производства по расчету: 27 345 ₽",
-        "items": [
-          {
-            "id": "c050277e-580d-4f11-ba5d-f10d8aed0071",
-            "templateId": "letters",
-            "attachments": [],
-            "workCostPositionIds": [],
-            "fields": {
-              "name": "Вывеска",
-              "quantity": "1 шт",
-              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "ЛИЦЕВОЕ",
-              "glowColor": "НЕЙТРАЛЬНОЕ",
-              "faceMaterial": "Молочный акрил 3 мм",
-              "sideMaterial": "Алюминий",
-              "backMaterial": "ПВХ Strong 6 мм",
-              "depth": "60 мм",
-              "returnSide": "НЕТ",
-              "mountType": "НА РАМЕ",
-              "wireExit": "ПОСЕРЕДИНЕ",
-              "psu": "УЛИЧНЫЙ",
-              "cableLength": "3 метра"
-            }
-          },
-          {
-            "id": "f1465a1c-a72f-44db-81fe-ffa771342d7e",
-            "templateId": "letters",
-            "attachments": [],
-            "workCostPositionIds": [
-              "99d091dd-59b0-4302-812d-6bb89ae9caa9",
-              "58aca086-b9db-4f10-a113-099dea7cc438"
-            ],
-            "fields": {
-              "name": "150",
-              "quantity": "1 шт",
-              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "КОНТРАЖУР",
-              "glowColor": "ТЕПЛОЕ",
-              "faceMaterial": "Молочный акрил 3 мм",
-              "sideMaterial": "Алюминий",
-              "backMaterial": "ПВХ Strong 6 мм",
-              "depth": "100 мм",
-              "returnSide": "НЕТ",
-              "mountType": "ОТДЕЛЬНОСТОЯЩИЕ",
-              "wireExit": "ПОСЕРЕДИНЕ",
-              "psu": "ИНТЕРЬЕРНЫЙ",
-              "cableLength": "3 метра",
-              "size": "",
-              "layout": "",
-              "installPlace": "",
-              "faceFilm": "641-091",
-              "sideFilm": "641-091",
-              "backingDepth": "30мм",
-              "frameColor": "641-070м"
-            }
-          }
-        ]
-      },
-      "updatedAt": "2026-06-18T06:07:38.314Z",
-      "bitrixFile": {
-        "field": "UF_CRM_1780210628536",
-        "name": "ТЗ 16888 Тест 2 - 2 150.jpg",
-        "uploadedAt": "2026-06-17T12:43:55.249Z"
-      }
-    },
-    {
       "dealId": "17070",
       "draft": {
         "dealNumber": "17070",
@@ -466,6 +392,80 @@
         "field": "UF_CRM_1780210628536",
         "name": "TZ-16874-Тест.jpg",
         "uploadedAt": "2026-06-15T12:52:10.841Z"
+      }
+    },
+    {
+      "dealId": "16888",
+      "draft": {
+        "dealNumber": "16888",
+        "projectName": "Тест 2",
+        "manager": "Алексей Купоров",
+        "responsiblePhone": "",
+        "deadline": "2026-06-12",
+        "date": "2026-06-15",
+        "globalNote": "Итоговая себестоимость производства по расчету: 27 345 ₽",
+        "items": [
+          {
+            "id": "c050277e-580d-4f11-ba5d-f10d8aed0071",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          },
+          {
+            "id": "f1465a1c-a72f-44db-81fe-ffa771342d7e",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [
+              "99d091dd-59b0-4302-812d-6bb89ae9caa9",
+              "58aca086-b9db-4f10-a113-099dea7cc438"
+            ],
+            "fields": {
+              "name": "150",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "КОНТРАЖУР",
+              "glowColor": "ТЕПЛОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "100 мм",
+              "returnSide": "НЕТ",
+              "mountType": "ОТДЕЛЬНОСТОЯЩИЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "ИНТЕРЬЕРНЫЙ",
+              "cableLength": "3 метра",
+              "size": "",
+              "layout": "",
+              "installPlace": "",
+              "faceFilm": "641-091",
+              "sideFilm": "641-091",
+              "backingDepth": "30мм",
+              "frameColor": "641-070м"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-18T17:12:15.730Z",
+      "bitrixFile": {
+        "field": "UF_CRM_1780210628536",
+        "name": "ТЗ 16888 Тест 2 - 2 150.jpg",
+        "uploadedAt": "2026-06-17T12:43:55.249Z"
       }
     }
   ]
