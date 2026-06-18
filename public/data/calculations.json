@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-18T09:28:42.873Z",
+  "generatedAt": "2026-06-18T09:29:39.532Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -215,10 +215,10 @@
     },
     {
       "dealId": "16874",
-      "updatedAt": "2026-06-18T09:28:42.015Z",
+      "updatedAt": "2026-06-18T09:29:38.677Z",
       "positions": [
         {
-          "id": "b9962f7d-0d1e-461d-87c4-ee325be35578",
+          "id": "e456e5ae-452f-4769-b993-2e8fba65fa2d",
           "qty": 1,
           "unit": "п/м",
           "unitCost": 45,
