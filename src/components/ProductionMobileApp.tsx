@@ -142,6 +142,7 @@ export function ProductionMobileApp({
   onChange,
 }: ProductionMobileAppProps) {
   const [view, setView] = useState<ProductionView>(() => readStoredView());
+  const storedProductionRef = useRef(storedProduction);
   const notifiedAssignmentIdsRef = useRef<Set<string>>(readNotifiedAssignmentIds(currentUser.id));
   const [supervisorTab, setSupervisorTab] = useState<SupervisorTab>("active");
   const [workerTab, setWorkerTab] = useState<WorkerTab>("assigned");
@@ -175,6 +176,10 @@ export function ProductionMobileApp({
   const canAssignDeals = canAssignProduction(currentUser);
   const canSwitchProductionView = false;
   const effectiveView = currentAccessRole === "maker" ? "worker" : "supervisor";
+
+  useEffect(() => {
+    storedProductionRef.current = storedProduction;
+  }, [storedProduction]);
 
   const employees = useMemo(
     () => storedProduction.employees.filter((employee) => employee.active !== false),
@@ -367,10 +372,12 @@ export function ProductionMobileApp({
     updater: (current: StoredProduction) => StoredProduction,
     options: ProductionCommitOptions = {},
   ) {
-    onChange({
-      ...updater(storedProduction),
+    const nextProduction = {
+      ...updater(storedProductionRef.current),
       generatedAt: new Date().toISOString(),
-    }, options);
+    };
+    storedProductionRef.current = nextProduction;
+    onChange(nextProduction, options);
   }
 
   async function addEmployee() {
@@ -505,7 +512,8 @@ export function ProductionMobileApp({
 
   async function saveEmployeeAccess(employee: ProductionEmployee) {
     const accessRole = employeeAccessRoles[employee.id] ?? accessRoleFor(employee);
-    const login = (employeeLogins[employee.id] ?? employee.login ?? employee.phone ?? employee.name).trim();
+    const loginDraft = employeeLogins[employee.id];
+    const login = (loginDraft === undefined ? employee.login ?? employee.phone ?? employee.name : loginDraft).trim();
     const workerRole = employeeWorkerRoles[employee.id] ?? employee.role;
     const pin = (employeePins[employee.id] || "").trim();
 
@@ -542,8 +550,12 @@ export function ProductionMobileApp({
           : item,
       ),
     }), { saveNow: true });
-    setEmployeeLogins((current) => ({ ...current, [employee.id]: "" }));
-    setEmployeePins((current) => ({ ...current, [employee.id]: "" }));
+    setEmployeeAccessRoles((current) => removeRecordValue(current, employee.id));
+    setEmployeeLogins((current) => removeRecordValue(current, employee.id));
+    setEmployeeWorkerRoles((current) => removeRecordValue(current, employee.id));
+    setEmployeePins((current) => removeRecordValue(current, employee.id));
+    setNotice(`Доступ сохранен: ${employee.name}`);
+    window.setTimeout(() => setNotice(""), 2200);
   }
 
   function closeEmployeeAccess(employee: ProductionEmployee) {
@@ -2488,6 +2500,12 @@ function mergePushSubscriptions(
     ...current.filter((item) => item.endpoint !== subscription.endpoint),
     subscription,
   ];
+}
+
+function removeRecordValue<T>(record: Record<string, T>, key: string) {
+  const nextRecord = { ...record };
+  delete nextRecord[key];
+  return nextRecord;
 }
 
 function urlBase64ToUint8Array(value: string) {

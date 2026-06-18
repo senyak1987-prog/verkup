@@ -6073,13 +6073,17 @@ div.employee-profile-field .employee-profile-value {
 
 .employee-access-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
   gap: 6px;
 }
 
 .employee-access-actions button {
   justify-content: center;
   min-width: 0;
+  min-height: 42px;
+  padding-right: 8px;
+  padding-left: 8px;
+  white-space: nowrap;
 }
 
 .employee-access-actions button:disabled {
@@ -6124,9 +6128,25 @@ div.employee-profile-field .employee-profile-value {
 
   .employee-management-shell .employee-access-controls {
     grid-column: auto;
-    grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) minmax(130px, 1fr) auto;
+    grid-template-columns:
+      minmax(150px, 0.85fr)
+      minmax(170px, 1fr)
+      minmax(150px, 0.85fr)
+      minmax(170px, 1fr);
     align-items: center;
     margin-top: 0;
+  }
+
+  .employee-management-shell .employee-access-actions {
+    grid-column: 1 / -1;
+    justify-self: end;
+    width: min(100%, 360px);
+  }
+
+  .employee-management-shell .employee-payout-controls {
+    grid-column: 1 / -1;
+    justify-self: start;
+    width: min(100%, 360px);
   }
 }
 

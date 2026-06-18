@@ -150,6 +150,8 @@ export default function App() {
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
   const techSpecSaveTimerRef = useRef<number>();
   const productionSaveTimerRef = useRef<number>();
+  const productionSaveInFlightRef = useRef(false);
+  const queuedProductionSaveRef = useRef<StoredProduction>();
 
   const activeEmployees = useMemo(
     () => storedProduction.employees.filter((employee) => employee.active !== false),
@@ -537,9 +539,29 @@ export default function App() {
       productionSaveTimerRef.current = undefined;
     }
 
-    void saveProduction({ apiUrl }, data).catch(() => {
-      scheduleProductionSave(data);
-    });
+    requestProductionSave(data);
+  }
+
+  function requestProductionSave(data: StoredProduction) {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+
+    if (productionSaveInFlightRef.current) {
+      queuedProductionSaveRef.current = data;
+      return;
+    }
+
+    productionSaveInFlightRef.current = true;
+    void saveProduction({ apiUrl }, data)
+      .catch(() => {
+        if (!queuedProductionSaveRef.current) scheduleProductionSave(data);
+      })
+      .finally(() => {
+        productionSaveInFlightRef.current = false;
+        const queuedProductionSave = queuedProductionSaveRef.current;
+        queuedProductionSaveRef.current = undefined;
+        if (queuedProductionSave) requestProductionSave(queuedProductionSave);
+      });
   }
 
   function scheduleProductionSave(data: StoredProduction) {
@@ -551,9 +573,7 @@ export default function App() {
     }
 
     productionSaveTimerRef.current = window.setTimeout(() => {
-      void saveProduction({ apiUrl }, data).catch(() => {
-        // Локальный производственный журнал уже сохранен, повторим синхронизацию при следующем изменении.
-      });
+      requestProductionSave(data);
     }, PRODUCTION_SAVE_DELAY_MS);
   }
 
