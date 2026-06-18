@@ -97,13 +97,7 @@ export default {
 
       if (url.pathname === "/save-production") {
         const body = await request.json();
-        return await saveJsonToGitHub(
-          env,
-          "public/data/production.json",
-          `Update Verkup production ${new Date().toISOString()}`,
-          body.data,
-          cors,
-        );
+        return await saveProductionToGitHub(env, body.data, cors);
       }
 
       if (url.pathname === "/upload-tech-spec") {
@@ -245,6 +239,80 @@ async function saveJsonToGitHub(env, path, message, data, cors) {
   }
 
   return json({ ok: true, result: await response.json() }, 200, cors);
+}
+
+async function saveProductionToGitHub(env, data, cors) {
+  let nextData = data;
+
+  try {
+    const currentData = await readJsonFromGitHub(env, "public/data/production.json");
+    if (isStoredProductionData(currentData) && isStoredProductionData(data)) {
+      nextData = mergeStoredProductionData(currentData, data);
+    }
+  } catch {
+    // If the current file cannot be read, save the incoming production snapshot.
+  }
+
+  return await saveJsonToGitHub(
+    env,
+    "public/data/production.json",
+    `Update Verkup production ${new Date().toISOString()}`,
+    nextData,
+    cors,
+  );
+}
+
+async function readJsonFromGitHub(env, path) {
+  const response = await loadJsonFromGitHub(env, path, {});
+  if (!response.ok) throw new Error("GitHub data load failed");
+  return await response.json();
+}
+
+function mergeStoredProductionData(base, incoming) {
+  const preferIncomingRecords = isDateNewer(incoming.generatedAt, base.generatedAt);
+
+  return {
+    ...base,
+    generatedAt: preferIncomingRecords ? incoming.generatedAt : base.generatedAt,
+    employees: mergeRecordsById(base.employees || [], incoming.employees || [], preferIncomingRecords),
+    registrations: mergeRecordsById(
+      base.registrations || [],
+      incoming.registrations || [],
+      preferIncomingRecords,
+    ),
+    registrationLinks: mergeRecordsById(
+      base.registrationLinks || [],
+      incoming.registrationLinks || [],
+      preferIncomingRecords,
+    ),
+    assignments: mergeRecordsById(base.assignments || [], incoming.assignments || [], preferIncomingRecords),
+    payouts: mergeRecordsById(base.payouts || [], incoming.payouts || [], preferIncomingRecords),
+  };
+}
+
+function mergeRecordsById(baseRecords, incomingRecords, preferIncomingRecords) {
+  const records = new Map();
+  for (const record of baseRecords) records.set(String(record.id), record);
+  for (const record of incomingRecords) {
+    const key = String(record.id);
+    if (preferIncomingRecords || !records.has(key)) records.set(key, record);
+  }
+  return [...records.values()];
+}
+
+function isStoredProductionData(value) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      Array.isArray(value.employees) &&
+      Array.isArray(value.assignments),
+  );
+}
+
+function isDateNewer(candidate, baseline) {
+  const candidateMs = Date.parse(candidate || "");
+  const baselineMs = Date.parse(baseline || "");
+  return Number.isFinite(candidateMs) && Number.isFinite(baselineMs) && candidateMs > baselineMs;
 }
 
 async function dispatchSyncWorkflow(env) {

@@ -10,8 +10,10 @@ import {
   loadCalculations,
   loadCatalogs,
   loadDeals,
+  loadFreshProduction,
   loadProduction,
   loadTechSpecs,
+  mergeStoredProduction,
   readCachedCalculations,
   readCachedCatalogs,
   readCachedDeals,
@@ -213,6 +215,7 @@ export default function App() {
         writeCachedCatalogs(catalogsData);
         writeCachedTechSpecs(techSpecsData);
         writeCachedProduction(productionData);
+        void syncProductionCacheWithServer(productionData);
       } finally {
         if (!canceled) setLoading(false);
       }
@@ -258,6 +261,7 @@ export default function App() {
       writeCachedCatalogs(catalogsData);
       writeCachedTechSpecs(techSpecsData);
       writeCachedProduction(productionData);
+      void syncProductionCacheWithServer(productionData);
     }
 
     const intervalId = window.setInterval(refreshDeals, DEAL_REFRESH_INTERVAL_MS);
@@ -408,12 +412,38 @@ export default function App() {
     else scheduleProductionSave(data);
   }
 
+  async function syncProductionCacheWithServer(localProduction: StoredProduction) {
+    const serverProduction = await loadFreshProduction();
+    if (!shouldSyncProductionToServer(serverProduction, localProduction)) return;
+
+    const mergedProduction = mergeStoredProduction(serverProduction, localProduction);
+    setStoredProduction(mergedProduction);
+    writeCachedProduction(mergedProduction);
+    saveProductionNow(mergedProduction);
+  }
+
   async function handleEmployeeLogin(login: string, password: string) {
-    const employee = activeEmployees.find((item) => matchesEmployeeLogin(item, login));
-    if (!employee) return false;
-    const ok = await verifyEmployeePin(employee, password);
-    if (ok) setCurrentEmployeeId(employee.id);
-    return ok;
+    const employee = await findVerifiedLoginEmployee(activeEmployees, login, password);
+    if (employee) {
+      setCurrentEmployeeId(employee.id);
+      return true;
+    }
+
+    const freshProduction = await loadFreshProduction();
+    setStoredProduction(freshProduction);
+    writeCachedProduction(freshProduction);
+
+    const freshEmployee = await findVerifiedLoginEmployee(
+      freshProduction.employees.filter((item) => item.active !== false),
+      login,
+      password,
+    );
+    if (freshEmployee) {
+      setCurrentEmployeeId(freshEmployee.id);
+      return true;
+    }
+
+    return false;
   }
 
   function handleLogout() {
@@ -1199,6 +1229,61 @@ function normalizeDealLookupId(value?: string) {
     .replace(/^deal_/i, "")
     .replace(/^D_/i, "")
     .toLowerCase();
+}
+
+async function findVerifiedLoginEmployee(
+  employees: ProductionEmployee[],
+  login: string,
+  password: string,
+) {
+  const employee = employees.find((item) => matchesEmployeeLogin(item, login));
+  if (!employee) return undefined;
+  return (await verifyEmployeePin(employee, password)) ? employee : undefined;
+}
+
+function shouldSyncProductionToServer(
+  serverProduction: StoredProduction,
+  localProduction: StoredProduction,
+) {
+  const preferLocalRecords = isDateNewer(localProduction.generatedAt, serverProduction.generatedAt);
+
+  return (
+    hasMissingOrNewerRecords(serverProduction.employees || [], localProduction.employees || [], preferLocalRecords) ||
+    hasMissingOrNewerRecords(
+      serverProduction.registrations || [],
+      localProduction.registrations || [],
+      preferLocalRecords,
+    ) ||
+    hasMissingOrNewerRecords(
+      serverProduction.registrationLinks || [],
+      localProduction.registrationLinks || [],
+      preferLocalRecords,
+    ) ||
+    hasMissingOrNewerRecords(
+      serverProduction.assignments || [],
+      localProduction.assignments || [],
+      preferLocalRecords,
+    ) ||
+    hasMissingOrNewerRecords(serverProduction.payouts || [], localProduction.payouts || [], preferLocalRecords)
+  );
+}
+
+function hasMissingOrNewerRecords<T extends { id: string }>(
+  serverRecords: T[],
+  localRecords: T[],
+  preferLocalRecords: boolean,
+) {
+  const serverById = new Map(serverRecords.map((record) => [record.id, record]));
+  return localRecords.some((record) => {
+    const serverRecord = serverById.get(record.id);
+    return !serverRecord || (preferLocalRecords && JSON.stringify(serverRecord) !== JSON.stringify(record));
+  });
+}
+
+function isDateNewer(candidate?: string, baseline?: string) {
+  const candidateMs = Date.parse(candidate || "");
+  const baselineMs = Date.parse(baseline || "");
+  return Number.isFinite(candidateMs) && Number.isFinite(baselineMs) && candidateMs > baselineMs;
 }
 
 function createId() {

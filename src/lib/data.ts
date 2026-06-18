@@ -94,6 +94,13 @@ export async function loadProduction() {
   });
 }
 
+export async function loadFreshProduction() {
+  return loadJson<StoredProduction>("/data/production.json", fallbackProduction, {
+    ignoreCache: true,
+    preferApi: true,
+  });
+}
+
 export async function loadCatalogs() {
   return withCatalogFavoriteOverrides(
     await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs),
@@ -176,11 +183,11 @@ export function rememberCatalogFavoriteChanges(previousItems: CatalogItem[], nex
 async function loadJson<T>(
   path: string,
   fallback: T,
-  options: { preferApi?: boolean } = {},
+  options: { ignoreCache?: boolean; preferApi?: boolean } = {},
 ): Promise<T> {
   const normalizedPath = path.replace(/^\//, "");
   const cachedRecord = readCacheRecord<T>(normalizedPath);
-  const cachedData = cachedRecord?.data;
+  const cachedData = options.ignoreCache ? undefined : cachedRecord?.data;
 
   if (isBrowserOffline() && cachedData) {
     return cachedData;
@@ -374,29 +381,36 @@ function reconcileFetchedData<T>(
 function reconcileFetchedProduction<T>(data: T, cachedData?: T): T {
   if (!isStoredProduction(data) || !isStoredProduction(cachedData)) return data;
 
-  const preferCachedRecords = isGeneratedAtNewer(cachedData.generatedAt, data.generatedAt);
+  return mergeStoredProduction(data, cachedData) as T;
+}
+
+export function mergeStoredProduction(
+  base: StoredProduction,
+  incoming: StoredProduction,
+): StoredProduction {
+  const preferIncomingRecords = isGeneratedAtNewer(incoming.generatedAt, base.generatedAt);
 
   return {
-    ...data,
-    generatedAt: preferCachedRecords ? cachedData.generatedAt : data.generatedAt,
-    employees: mergeProductionRecords(data.employees || [], cachedData.employees || [], preferCachedRecords),
+    ...base,
+    generatedAt: preferIncomingRecords ? incoming.generatedAt : base.generatedAt,
+    employees: mergeProductionRecords(base.employees || [], incoming.employees || [], preferIncomingRecords),
     registrations: mergeProductionRecords(
-      data.registrations || [],
-      cachedData.registrations || [],
-      preferCachedRecords,
+      base.registrations || [],
+      incoming.registrations || [],
+      preferIncomingRecords,
     ),
     registrationLinks: mergeProductionRecords(
-      data.registrationLinks || [],
-      cachedData.registrationLinks || [],
-      preferCachedRecords,
+      base.registrationLinks || [],
+      incoming.registrationLinks || [],
+      preferIncomingRecords,
     ),
     assignments: mergeProductionRecords(
-      data.assignments || [],
-      cachedData.assignments || [],
-      preferCachedRecords,
+      base.assignments || [],
+      incoming.assignments || [],
+      preferIncomingRecords,
     ),
-    payouts: mergeProductionRecords(data.payouts || [], cachedData.payouts || [], preferCachedRecords),
-  } as T;
+    payouts: mergeProductionRecords(base.payouts || [], incoming.payouts || [], preferIncomingRecords),
+  };
 }
 
 function mergeProductionRecords<T extends { id: string }>(
