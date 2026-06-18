@@ -596,7 +596,11 @@ export function ProductionMobileApp({
 
   async function updateEmployeeAvatar(employee: ProductionEmployee, file?: File) {
     if (!file) return;
-    const avatarDataUrl = await readFileAsDataUrl(file);
+    const avatarDataUrl = await readImageFileAsDataUrl(file, {
+      maxHeight: 640,
+      maxWidth: 640,
+      quality: 0.86,
+    });
     commitProduction((current) => ({
       ...current,
       employees: current.employees.map((item) =>
@@ -759,7 +763,11 @@ export function ProductionMobileApp({
     }), { saveNow: true });
   }
 
-  function updateCompletion(assignmentId: string, patch: Partial<ProductionCompletion>) {
+  function updateCompletion(
+    assignmentId: string,
+    patch: Partial<ProductionCompletion>,
+    options: ProductionCommitOptions = {},
+  ) {
     patchAssignment(assignmentId, (assignment) => ({
       ...assignment,
       completion: {
@@ -767,7 +775,7 @@ export function ProductionMobileApp({
         ...assignment.completion,
         ...patch,
       },
-    }));
+    }), options);
   }
 
   async function addPhoto(
@@ -776,7 +784,11 @@ export function ProductionMobileApp({
     file?: File,
   ) {
     if (!file) return;
-    const dataUrl = await readFileAsDataUrl(file);
+    const dataUrl = await readImageFileAsDataUrl(file, {
+      maxHeight: 1800,
+      maxWidth: 1800,
+      quality: 0.78,
+    });
     const nextPhoto: ProductionPhoto = {
       kind,
       name: file.name,
@@ -789,14 +801,14 @@ export function ProductionMobileApp({
         ...completion.photos.filter((photo) => photo.kind !== kind),
         nextPhoto,
       ],
-    });
+    }, { saveNow: true });
   }
 
   function removePhoto(assignment: ProductionAssignment, kind: ProductionPhotoKind) {
     const completion = completionFor(assignment);
     updateCompletion(assignment.id, {
       photos: completion.photos.filter((photo) => photo.kind !== kind),
-    });
+    }, { saveNow: true });
   }
 
   function submitAssignment(assignment: ProductionAssignment) {
@@ -2586,5 +2598,52 @@ function readFileAsDataUrl(file: File) {
     reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = () => reject(reader.error || new Error("Не удалось прочитать файл"));
     reader.readAsDataURL(file);
+  });
+}
+
+async function readImageFileAsDataUrl(
+  file: File,
+  options: { maxHeight: number; maxWidth: number; quality: number },
+) {
+  if (!file.type.startsWith("image/")) return readFileAsDataUrl(file);
+
+  try {
+    const image = await loadImageElement(file);
+    const ratio = Math.min(
+      1,
+      options.maxWidth / image.naturalWidth,
+      options.maxHeight / image.naturalHeight,
+    );
+    const width = Math.max(1, Math.round(image.naturalWidth * ratio));
+    const height = Math.max(1, Math.round(image.naturalHeight * ratio));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return readFileAsDataUrl(file);
+
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", options.quality);
+  } catch {
+    return readFileAsDataUrl(file);
+  }
+}
+
+function loadImageElement(file: File) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Image load failed"));
+    };
+    image.src = objectUrl;
   });
 }
