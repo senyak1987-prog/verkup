@@ -1,4 +1,11 @@
-import type { AppData, CatalogItem, Deal, StoredCalculations, StoredTechSpecs } from "../types";
+import type {
+  AppData,
+  CatalogItem,
+  Deal,
+  StoredCalculations,
+  StoredProduction,
+  StoredTechSpecs,
+} from "../types";
 
 const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim().replace(/\/+$/, "");
 const CACHE_PREFIX = "verkup:data:";
@@ -32,6 +39,15 @@ const fallbackCalculations: StoredCalculations = {
 const fallbackTechSpecs: StoredTechSpecs = {
   generatedAt: new Date().toISOString(),
   specs: [],
+};
+
+const fallbackProduction: StoredProduction = {
+  generatedAt: new Date().toISOString(),
+  employees: [],
+  registrations: [],
+  registrationLinks: [],
+  assignments: [],
+  payouts: [],
 };
 
 const fallbackCatalogs: AppData<CatalogItem> = {
@@ -72,6 +88,12 @@ export async function loadTechSpecs() {
   });
 }
 
+export async function loadProduction() {
+  return loadJson<StoredProduction>("/data/production.json", fallbackProduction, {
+    preferApi: true,
+  });
+}
+
 export async function loadCatalogs() {
   return withCatalogFavoriteOverrides(
     await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs),
@@ -90,6 +112,10 @@ export function readCachedTechSpecs() {
   return readCache<StoredTechSpecs>("data/tech-specs.json");
 }
 
+export function readCachedProduction() {
+  return readCache<StoredProduction>("data/production.json");
+}
+
 export function readCachedCatalogs() {
   const data = readCache<AppData<CatalogItem>>("data/catalogs.json");
   return data ? withCatalogFavoriteOverrides(data) : undefined;
@@ -105,6 +131,10 @@ export function writeCachedCalculations(data: StoredCalculations) {
 
 export function writeCachedTechSpecs(data: StoredTechSpecs) {
   writeCache("data/tech-specs.json", data);
+}
+
+export function writeCachedProduction(data: StoredProduction) {
+  writeCache("data/production.json", data);
 }
 
 export function writeCachedCatalogs(data: AppData<CatalogItem>) {
@@ -357,7 +387,11 @@ function isCacheTooOld(savedAt?: string) {
 function shouldKeepCachedData<T>(data: T, cachedData?: T): cachedData is T {
   return (
     (isEmptyAppData(data) && isNonEmptyAppData(cachedData)) ||
-    (isEmptyStoredTechSpecs(data) && isNonEmptyStoredTechSpecs(cachedData))
+    (isEmptyStoredTechSpecs(data) && isNonEmptyStoredTechSpecs(cachedData)) ||
+    (isEmptyStoredProduction(data) && isNonEmptyStoredProduction(cachedData)) ||
+    (isStoredProduction(data) &&
+      isStoredProduction(cachedData) &&
+      isGeneratedAtNewer(cachedData.generatedAt, data.generatedAt))
   );
 }
 
@@ -381,6 +415,28 @@ function isNonEmptyStoredTechSpecs(value: unknown): value is StoredTechSpecs {
   return isStoredTechSpecs(value) && value.specs.length > 0;
 }
 
+function isEmptyStoredProduction(value: unknown): value is StoredProduction {
+  return (
+    isStoredProduction(value) &&
+    !value.assignments.length &&
+    !(value.payouts || []).length &&
+    !value.employees.length &&
+    !(value.registrations || []).length &&
+    !(value.registrationLinks || []).length
+  );
+}
+
+function isNonEmptyStoredProduction(value: unknown): value is StoredProduction {
+  return (
+    isStoredProduction(value) &&
+    (value.assignments.length > 0 ||
+      (value.payouts || []).length > 0 ||
+      value.employees.length > 0 ||
+      (value.registrations || []).length > 0 ||
+      (value.registrationLinks || []).length > 0)
+  );
+}
+
 function isAppData<T>(value: unknown): value is AppData<T> {
   return Boolean(
     value &&
@@ -395,6 +451,25 @@ function isStoredTechSpecs(value: unknown): value is StoredTechSpecs {
       typeof value === "object" &&
       Array.isArray((value as StoredTechSpecs).specs),
   );
+}
+
+function isStoredProduction(value: unknown): value is StoredProduction {
+  return Boolean(
+      value &&
+      typeof value === "object" &&
+      Array.isArray((value as StoredProduction).employees) &&
+      (!("registrations" in value) || Array.isArray((value as StoredProduction).registrations)) &&
+      (!("registrationLinks" in value) ||
+        Array.isArray((value as StoredProduction).registrationLinks)) &&
+      (!("payouts" in value) || Array.isArray((value as StoredProduction).payouts)) &&
+      Array.isArray((value as StoredProduction).assignments),
+  );
+}
+
+function isGeneratedAtNewer(candidate?: string, baseline?: string) {
+  const candidateMs = Date.parse(candidate || "");
+  const baselineMs = Date.parse(baseline || "");
+  return Number.isFinite(candidateMs) && Number.isFinite(baselineMs) && candidateMs > baselineMs;
 }
 
 function isDealsPath(path: string) {

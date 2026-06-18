@@ -120,12 +120,39 @@ const millingOptions = [
   { id: "acp-4", label: "АКП 4мм", thickness: 4, unitCost: 85 },
 ] as const;
 
-const materialFrameGroups = [
+const materialGroups = [
   "Листовые материалы",
+];
+
+const frameGroups = [
   "Профили",
   "Металл",
   "Моб.стенды, стойки, штендеры",
 ];
+
+const materialFrameGroups = [...materialGroups, ...frameGroups];
+
+type MaterialCompositeSubBlockId = "materials" | "frame" | "milling";
+
+const materialCompositeSubBlocks = [
+  {
+    id: "materials",
+    title: "Материалы",
+    hint: "Листы и плиты, расчет по м2.",
+  },
+  {
+    id: "frame",
+    title: "Рама",
+    hint: "Профиль, металл и рама, расчет по погонным метрам.",
+  },
+  {
+    id: "milling",
+    title: "Фрезеровка",
+    hint: "Длина реза и ручная цена за п/м.",
+  },
+] satisfies Array<{ id: MaterialCompositeSubBlockId; title: string; hint: string }>;
+
+const materialCompositeBlockIds = new Set(["materials", "defects-materials"]);
 
 const lightingMaterialGroups = [
   "Светодиоды и аксессуары",
@@ -556,12 +583,16 @@ const defectBlock: CostBlock = {
 
 const blockAddLabels: Record<string, string> = {
   materials: "материал / раму / фрезеровку",
+  "materials-materials": "материал",
+  "materials-frame": "раму",
   lighting: "светотехнику",
   print: "печать / пленку",
   assembly: "работу",
   other: "прочее",
   defects: "косяк",
   "defects-materials": "косячный материал / раму / фрезеровку",
+  "defects-materials-materials": "косячный материал",
+  "defects-materials-frame": "косячную раму",
   "defects-lighting": "косячную светотехнику",
   "defects-print": "косячную печать / пленку",
   "defects-assembly": "косячную работу",
@@ -570,17 +601,64 @@ const blockAddLabels: Record<string, string> = {
 
 const manualItemTitles: Record<string, string> = {
   materials: "Новый материал / рама / фрезеровка",
+  "materials-materials": "Новый материал",
+  "materials-frame": "Новая рама",
   lighting: "Новая позиция светотехники",
   print: "Новая печать / пленка",
   assembly: "Новая сборка",
   other: "Новое прочее",
   defects: "Новый косяк",
   "defects-materials": "Новый брак: материал / рама / фрезеровка",
+  "defects-materials-materials": "Новый брак: материал",
+  "defects-materials-frame": "Новый брак: рама",
   "defects-lighting": "Новый брак: светотехника",
   "defects-print": "Новый брак: печать / пленка",
   "defects-assembly": "Новый брак: работа",
   "defects-other": "Новый брак: прочее",
 };
+
+type MaterialCompositeSubBlockDefinition = (typeof materialCompositeSubBlocks)[number];
+
+function materialCompositeActionType(action: BlockAction): MaterialCompositeSubBlockId | null {
+  if (action.template.calcMode === "milling" || action.template.section === "milling") return "milling";
+  if (action.template.calcMode === "linear") return "frame";
+  if (action.template.section === "materials" || action.template.section === "defects") return "materials";
+  return null;
+}
+
+function positionMaterialCompositeType(position: CostPosition): MaterialCompositeSubBlockId | null {
+  if (position.section === "milling" || position.calcMode === "milling") return "milling";
+  if (position.section !== "materials" && position.section !== "defects") return null;
+  if (position.calcMode === "linear") return "frame";
+  if (position.calcMode === "area" || position.calcMode === "pieces") return "materials";
+  return null;
+}
+
+function buildMaterialCompositeSubBlock(
+  block: CostBlock,
+  definition: MaterialCompositeSubBlockDefinition,
+): CostBlock {
+  const actions = block.actions.filter((action) => materialCompositeActionType(action) === definition.id);
+  const firstSection = actions[0]?.template.section;
+  const catalogSourceSection =
+    block.catalogTargetSection === "defects" && firstSection === "defects"
+      ? block.catalogCreateSection || "materials"
+      : firstSection;
+  const sections: CostSection[] = firstSection ? [firstSection] : definition.id === "milling" ? ["milling"] : ["materials"];
+
+  return {
+    ...block,
+    id: `${block.id}-${definition.id}`,
+    title: definition.title,
+    hint: definition.hint,
+    sections,
+    actions,
+    childBlocks: undefined,
+    catalogSections: definition.id === "milling" || !catalogSourceSection ? undefined : [catalogSourceSection],
+    catalogMaterialGroups:
+      definition.id === "materials" ? materialGroups : definition.id === "frame" ? frameGroups : undefined,
+  };
+}
 
 export function CostDrawer({
   deal,
@@ -999,10 +1077,24 @@ function CostBlockView({
   onDelete: (id: string) => void;
 }) {
   const total = positions.reduce((sum, position) => sum + positionTotal(position), 0);
-  const inlineActions = block.actions.filter((action) => action.template.calcMode === "milling");
+  const isMaterialCompositeBlock = materialCompositeBlockIds.has(block.id);
+  const materialSubBlocks = isMaterialCompositeBlock
+    ? materialCompositeSubBlocks.map((definition) => ({
+        definition,
+        block: buildMaterialCompositeSubBlock(block, definition),
+      }))
+    : [];
+  const inlineActions = isMaterialCompositeBlock
+    ? []
+    : block.actions.filter((action) => action.template.calcMode === "milling");
   const childBlocks = block.childBlocks || [];
   const hasChildBlocks = childBlocks.length > 0;
   const [openChildBlockId, setOpenChildBlockId] = useState<string | null>(() => childBlocks[0]?.id || null);
+  const [openMaterialSubBlocks, setOpenMaterialSubBlocks] = useState<Record<MaterialCompositeSubBlockId, boolean>>({
+    materials: false,
+    frame: false,
+    milling: false,
+  });
   const [shouldRenderBody, setShouldRenderBody] = useState(isOpen);
   const isBodyClosing = !isOpen && shouldRenderBody;
 
@@ -1025,6 +1117,23 @@ function CostBlockView({
 
     return () => window.clearTimeout(timeoutId);
   }, [isOpen, shouldRenderBody]);
+
+  function toggleMaterialSubBlock(subBlockId: MaterialCompositeSubBlockId, subBlockModel: CostBlock) {
+    const willOpen = !openMaterialSubBlocks[subBlockId];
+
+    setOpenMaterialSubBlocks((current) => ({
+      ...current,
+      [subBlockId]: !current[subBlockId],
+    }));
+
+    if (!willOpen || subBlockId !== "milling") return;
+
+    const hasMillingPosition = positions.some((position) => positionMaterialCompositeType(position) === "milling");
+    const template = subBlockModel.actions[0]?.template;
+    if (!hasMillingPosition && template) {
+      onAddPosition(template);
+    }
+  }
 
   return (
     <section className={`calc-block ${isOpen || shouldRenderBody ? "open" : "collapsed"}`}>
@@ -1066,6 +1175,86 @@ function CostBlockView({
                       }
                       onToggleFavorite={onToggleFavorite}
                     />
+                  );
+                })}
+              </div>
+            ) : isMaterialCompositeBlock ? (
+              <div className="material-subblocks">
+                {materialSubBlocks.map(({ definition, block: subBlockModel }) => {
+                  const subPositions = positions.filter(
+                    (position) => positionMaterialCompositeType(position) === definition.id,
+                  );
+                  const subTotal = subPositions.reduce((sum, position) => sum + positionTotal(position), 0);
+                  const isSubOpen = openMaterialSubBlocks[definition.id];
+                  const showCatalogTools = definition.id !== "milling";
+
+                  return (
+                    <section className={`material-subblock ${isSubOpen ? "open" : ""}`} key={definition.id}>
+                      <button
+                        className="material-subblock-row"
+                        type="button"
+                        onClick={() => toggleMaterialSubBlock(definition.id, subBlockModel)}
+                      >
+                        <div>
+                          <h4>{definition.title}</h4>
+                          <p>{definition.hint}</p>
+                        </div>
+                        <span className="material-subblock-row-meta">
+                          <small>{subPositions.length} поз.</small>
+                          <strong>{formatMoney(subTotal)}</strong>
+                          {isSubOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                        </span>
+                      </button>
+                      {isSubOpen && (
+                        <div className="material-subblock-body">
+                          {showCatalogTools && (
+                            <BlockCatalogPicker
+                              block={subBlockModel}
+                              catalogItems={catalogItems}
+                              onAdd={(item) => onAddCatalog(item, subBlockModel.catalogTargetSection)}
+                              onToggleFavorite={onToggleFavorite}
+                            />
+                          )}
+                          <div className="calc-block-workspace">
+                            <div className="calc-lines-column">
+                              <PositionList
+                                catalogItems={catalogItems}
+                                emptyText="Пока нет позиций в этом блоке."
+                                newPositionId={newPositionId}
+                                positions={subPositions}
+                                onDelete={onDelete}
+                                onPatch={onPatch}
+                                onToggleFavorite={onToggleFavorite}
+                              />
+                              {showCatalogTools && (
+                                <div className="calc-block-actions">
+                                  {subBlockModel.actions.map((action) => (
+                                    <button key={action.label} onClick={() => onAddPosition(action.template)}>
+                                      <CirclePlus size={16} />
+                                      {action.label}
+                                    </button>
+                                  ))}
+                                  <button onClick={() => onAddManualCatalogItem(subBlockModel)}>
+                                    <CirclePlus size={16} />
+                                    {manualCatalogButtonLabel(subBlockModel)}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                            {showCatalogTools && (
+                              <BlockFavorites
+                                block={subBlockModel}
+                                catalogItems={catalogItems}
+                                positions={subPositions}
+                                onAdd={(item) => onAddCatalog(item, subBlockModel.catalogTargetSection)}
+                                onReorderFavorites={onReorderFavorites}
+                                onToggleFavorite={onToggleFavorite}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </section>
                   );
                 })}
               </div>
@@ -1812,6 +2001,7 @@ function millingOptionForPosition(position: CostPosition) {
   return (
     millingOptions.find((option) => option.unitCost === unitCost && option.thickness === thickness) ||
     millingOptions.find((option) => option.unitCost === unitCost) ||
+    millingOptions.find((option) => option.thickness === thickness) ||
     millingOptions[0]
   );
 }
@@ -1819,12 +2009,13 @@ function millingOptionForPosition(position: CostPosition) {
 function millingPatchForOption(
   position: CostPosition,
   option: (typeof millingOptions)[number],
+  unitCost: number = option.unitCost,
 ): Partial<CostPosition> {
   return {
     title: millingTitleForPosition(position, option),
     calcMode: "milling",
     unit: "п/м",
-    unitCost: option.unitCost,
+    unitCost,
     thickness: option.thickness,
     qty: 1,
   };
@@ -1882,15 +2073,27 @@ function MillingTableEditor({
 }) {
   const selectedOption = millingOptionForPosition(position);
   const length = Number(position.length) || 0;
+  const selectedUnitCost = Number.isFinite(Number(position.unitCost)) ? Number(position.unitCost) : selectedOption.unitCost;
+
+  function unitCostForOption(option: (typeof millingOptions)[number]) {
+    return option.id === selectedOption.id ? selectedUnitCost : option.unitCost;
+  }
 
   function selectOption(option: (typeof millingOptions)[number]) {
-    onPatch(millingPatchForOption(position, option));
+    onPatch(millingPatchForOption(position, option, unitCostForOption(option)));
   }
 
   function patchLength(option: (typeof millingOptions)[number], value: string) {
     onPatch({
-      ...millingPatchForOption(position, option),
+      ...millingPatchForOption(position, option, unitCostForOption(option)),
       length: inputNumber(value),
+    });
+  }
+
+  function patchUnitCost(option: (typeof millingOptions)[number], value: string, keepLength: boolean) {
+    onPatch({
+      ...millingPatchForOption(position, option, inputNumber(value) ?? 0),
+      length: keepLength ? position.length : undefined,
     });
   }
 
@@ -1905,13 +2108,25 @@ function MillingTableEditor({
       {millingOptions.map((option) => {
         const isActive = option.id === selectedOption.id;
         const rowLength = isActive ? length : 0;
+        const rowUnitCost = unitCostForOption(option);
 
         return (
           <div className={isActive ? "milling-table-row active" : "milling-table-row"} key={option.id}>
             <button className="milling-row-title" type="button" onClick={() => selectOption(option)}>
               {option.label}
             </button>
-            <strong>{formatMoney(option.unitCost)}</strong>
+            <input
+              aria-label={`Цена за п/м: ${option.label}`}
+              className="milling-price-input"
+              inputMode="decimal"
+              min="0"
+              type="number"
+              value={isActive ? selectedUnitCost : option.unitCost}
+              onFocus={() => {
+                if (!isActive) selectOption(option);
+              }}
+              onChange={(event) => patchUnitCost(option, event.target.value, isActive)}
+            />
             <input
               aria-label={`Длина реза: ${option.label}`}
               disabled={!isActive}
@@ -1920,7 +2135,7 @@ function MillingTableEditor({
               value={isActive ? position.length ?? "" : ""}
               onChange={(event) => patchLength(option, event.target.value)}
             />
-            <strong>{formatMoney(rowLength * option.unitCost)}</strong>
+            <strong>{formatMoney(rowLength * rowUnitCost)}</strong>
           </div>
         );
       })}

@@ -42,12 +42,22 @@ export default {
         return await loadJsonFromGitHub(env, "public/data/tech-specs.json", cors);
       }
 
+      if (request.method === "GET" && url.pathname === "/data/production.json") {
+        requireEnv(env, "GITHUB_TOKEN");
+        return await loadJsonFromGitHub(env, "public/data/production.json", cors);
+      }
+
       if (request.method === "GET" && url.pathname === "/data/catalogs.json") {
         return json({ error: "Use static catalogs from GitHub Pages" }, 503, noStoreHeaders(cors));
       }
 
       if (request.method !== "POST") {
         return json({ error: "Method not allowed" }, 405, cors);
+      }
+
+      if (url.pathname === "/send-production-push") {
+        const body = await request.json();
+        return await sendProductionPush(env, body, cors);
       }
 
       requireEnv(env, "GITHUB_TOKEN");
@@ -80,6 +90,17 @@ export default {
           env,
           "public/data/tech-specs.json",
           `Update Verkup tech specs ${new Date().toISOString()}`,
+          body.data,
+          cors,
+        );
+      }
+
+      if (url.pathname === "/save-production") {
+        const body = await request.json();
+        return await saveJsonToGitHub(
+          env,
+          "public/data/production.json",
+          `Update Verkup production ${new Date().toISOString()}`,
           body.data,
           cors,
         );
@@ -263,6 +284,53 @@ async function dispatchMoveWorkflow(env, dealId, targetStageId) {
   if (!response.ok) {
     throw await githubError(response, "GitHub workflow dispatch failed");
   }
+}
+
+async function sendProductionPush(env, body, cors) {
+  const serviceUrl = String(env.PUSH_SERVICE_URL || "").trim();
+  const subscriptions = Array.isArray(body.subscriptions) ? body.subscriptions : [];
+
+  if (!subscriptions.length) {
+    return json({ ok: true, sent: 0 }, 200, cors);
+  }
+
+  if (!serviceUrl) {
+    return json(
+      {
+        ok: true,
+        configured: false,
+        sent: 0,
+        message: "PUSH_SERVICE_URL is not configured",
+      },
+      202,
+      cors,
+    );
+  }
+
+  const headers = {
+    "Content-Type": "application/json; charset=utf-8",
+  };
+  if (env.PUSH_SERVICE_TOKEN) {
+    headers.Authorization = `Bearer ${env.PUSH_SERVICE_TOKEN}`;
+  }
+
+  const response = await fetch(serviceUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      body: String(body.body || ""),
+      employeeId: String(body.employeeId || ""),
+      subscriptions,
+      title: String(body.title || "Новая сборка Verkup"),
+      url: String(body.url || ""),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Push service responded ${response.status}`);
+  }
+
+  return json({ ok: true, sent: subscriptions.length }, 200, cors);
 }
 
 async function loadLiveDeals(env) {
@@ -775,7 +843,7 @@ function corsHeaders(request, env) {
   const allowOrigin =
     allowed.includes("*") || !origin
       ? "*"
-      : allowed.includes(origin)
+      : originMatchesAllowed(origin, allowed)
         ? origin
         : allowed[0] || origin;
 
@@ -784,6 +852,18 @@ function corsHeaders(request, env) {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
+}
+
+function originMatchesAllowed(origin, allowed) {
+  return allowed.some((pattern) => {
+    if (pattern === origin) return true;
+    if (!pattern.includes("*")) return false;
+
+    const escaped = pattern
+      .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/\*/g, ".*");
+    return new RegExp(`^${escaped}$`).test(origin);
+  });
 }
 
 function noStoreHeaders(headers) {

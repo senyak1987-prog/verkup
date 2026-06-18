@@ -1,25 +1,45 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Calculator, Factory, LogOut, UsersRound } from "lucide-react";
+import { AccessGate } from "./components/AccessGate";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
 import { DealTable } from "./components/DealTable";
+import { ProductionMobileApp } from "./components/ProductionMobileApp";
 import { TechSpecBuilder } from "./components/TechSpecBuilder";
 import {
   loadCalculations,
   loadCatalogs,
   loadDeals,
+  loadProduction,
   loadTechSpecs,
   readCachedCalculations,
   readCachedCatalogs,
   readCachedDeals,
+  readCachedProduction,
   readCachedTechSpecs,
   rememberCatalogFavoriteChanges,
   writeCachedCalculations,
   writeCachedCatalogs,
   writeCachedDeals,
+  writeCachedProduction,
   writeCachedTechSpecs,
 } from "./lib/data";
 import { finalCost, formatMoney } from "./lib/costing";
-import { defaultSaveApiUrl, saveTechSpecs, uploadTechSpecToBitrix } from "./lib/saveApi";
+import {
+  accessRoleFor,
+  accessRoleLabels,
+  canAccessCosting,
+  canAccessProduction,
+  canManageEmployees,
+  matchesEmployeeLogin,
+  verifyEmployeePin,
+} from "./lib/access";
+import {
+  defaultSaveApiUrl,
+  saveProduction,
+  saveTechSpecs,
+  uploadTechSpecToBitrix,
+} from "./lib/saveApi";
 import { isUnresolvedResponsible } from "./lib/responsible";
 import { stageCodeForDeal, stageLabels } from "./lib/stages";
 import type {
@@ -31,7 +51,10 @@ import type {
   DealCalculation,
   DealStageCode,
   DealTechSpec,
+  ProductionEmployee,
+  ProductionRegistrationRequest,
   StoredCalculations,
+  StoredProduction,
   StoredTechSpecs,
   TechSpecDraft,
 } from "./types";
@@ -40,6 +63,7 @@ import "./styles.css";
 const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
 const DEAL_REFRESH_INTERVAL_MS = 2000;
 const TECH_SPEC_SAVE_DELAY_MS = 900;
+const PRODUCTION_SAVE_DELAY_MS = 700;
 const DEAL_STAGE_TABS: DealStageCode[] = ["tz", "tzApproval", "launch", "production", "defect"];
 
 type PendingStageMove = {
@@ -48,6 +72,8 @@ type PendingStageMove = {
 };
 
 type AppTab = DealStageCode;
+
+type WorkspaceMode = "costing" | "production" | "employees";
 
 type DealWorkspaceTab = "cost" | "techSpec";
 
@@ -80,6 +106,19 @@ type DealWorkspaceProps = {
   ) => Promise<void>;
 };
 
+type ManagerDealPortalProps = {
+  deal?: Deal;
+  loading: boolean;
+  storedSpec?: DealTechSpec;
+  onTechSpecChange: (spec: DealTechSpec) => void;
+  onTechSpecUpload: (
+    dealId: string,
+    draft: TechSpecDraft,
+    fileName: string,
+    fileBase64: string,
+  ) => Promise<void>;
+};
+
 export default function App() {
   const [deals, setDeals] = useState<Deal[]>(() => readCachedDeals()?.items || []);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>(
@@ -91,25 +130,69 @@ export default function App() {
   const [storedTechSpecs, setStoredTechSpecs] = useState<StoredTechSpecs>(
     () => readCachedTechSpecs() || createEmptyStoredTechSpecs(),
   );
+  const [storedProduction, setStoredProduction] = useState<StoredProduction>(
+    () => readCachedProduction() || createEmptyStoredProduction(),
+  );
   const [selectedDealId, setSelectedDealId] = useState<string>();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(() => !hasCachedStartupData());
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [pendingCatalogInsert, setPendingCatalogInsert] = useState<PendingCatalogInsert>();
   const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
+  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => defaultWorkspaceMode());
+  const [currentEmployeeId, setCurrentEmployeeId] = useState(
+    () => localStorage.getItem("verkup-current-employee-id") || "",
+  );
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
   const techSpecSaveTimerRef = useRef<number>();
+  const productionSaveTimerRef = useRef<number>();
+
+  const activeEmployees = useMemo(
+    () => storedProduction.employees.filter((employee) => employee.active !== false),
+    [storedProduction.employees],
+  );
+
+  const currentEmployee = useMemo(
+    () => activeEmployees.find((employee) => employee.id === currentEmployeeId),
+    [activeEmployees, currentEmployeeId],
+  );
+
+  const loginEmployees = useMemo(
+    () =>
+      activeEmployees.filter(
+        (employee) => accessRoleFor(employee) !== "none" && Boolean(employee.pinHash),
+      ),
+    [activeEmployees],
+  );
+
+  const registrationToken = registrationTokenFromUrl();
+  const activeRegistrationLink = useMemo(
+    () =>
+      registrationToken
+        ? (storedProduction.registrationLinks || []).find(
+            (link) => link.active && link.token === registrationToken,
+          )
+        : undefined,
+    [registrationToken, storedProduction.registrationLinks],
+  );
+  const managerDealId = useMemo(() => managerDealIdFromUrl(), []);
+
+  const canUseCosting = canAccessCosting(currentEmployee);
+  const canUseProduction = canAccessProduction(currentEmployee);
+  const canUseEmployees = canManageEmployees(currentEmployee);
+  const availableModeCount = [canUseCosting, canUseProduction, canUseEmployees].filter(Boolean).length;
 
   useEffect(() => {
     let canceled = false;
 
     async function loadInitialData() {
       try {
-        const [dealsData, calculationsData, catalogsData, techSpecsData] = await Promise.all([
+        const [dealsData, calculationsData, catalogsData, techSpecsData, productionData] = await Promise.all([
           loadDeals(),
           loadCalculations(),
           loadCatalogs(),
           loadTechSpecs(),
+          loadProduction(),
         ]);
         if (canceled) return;
 
@@ -118,10 +201,12 @@ export default function App() {
         setStoredCalculations(calculationsData);
         setCatalogItems(catalogsData.items);
         setStoredTechSpecs(techSpecsData);
+        setStoredProduction(productionData);
         writeCachedDeals({ ...dealsData, items: nextDeals });
         writeCachedCalculations(calculationsData);
         writeCachedCatalogs(catalogsData);
         writeCachedTechSpecs(techSpecsData);
+        writeCachedProduction(productionData);
       } finally {
         if (!canceled) setLoading(false);
       }
@@ -147,11 +232,12 @@ export default function App() {
     }
 
     async function refreshAllData() {
-      const [dealsData, calculationsData, catalogsData, techSpecsData] = await Promise.all([
+      const [dealsData, calculationsData, catalogsData, techSpecsData, productionData] = await Promise.all([
         loadDeals(),
         loadCalculations(),
         loadCatalogs(),
         loadTechSpecs(),
+        loadProduction(),
       ]);
       if (canceled) return;
 
@@ -160,10 +246,12 @@ export default function App() {
       setStoredCalculations(calculationsData);
       setCatalogItems(catalogsData.items);
       setStoredTechSpecs(techSpecsData);
+      setStoredProduction(productionData);
       writeCachedDeals({ ...dealsData, items: nextDeals });
       writeCachedCalculations(calculationsData);
       writeCachedCatalogs(catalogsData);
       writeCachedTechSpecs(techSpecsData);
+      writeCachedProduction(productionData);
     }
 
     const intervalId = window.setInterval(refreshDeals, DEAL_REFRESH_INTERVAL_MS);
@@ -178,6 +266,44 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem("verkup-workspace-mode", workspaceMode);
+  }, [workspaceMode]);
+
+  useEffect(() => {
+    if (!currentEmployeeId) return;
+    if (currentEmployee) {
+      localStorage.setItem("verkup-current-employee-id", currentEmployee.id);
+      return;
+    }
+    localStorage.removeItem("verkup-current-employee-id");
+    setCurrentEmployeeId("");
+  }, [currentEmployee, currentEmployeeId]);
+
+  useEffect(() => {
+    if (!currentEmployee) return;
+    if (accessRoleFor(currentEmployee) === "none" || !currentEmployee.pinHash) {
+      localStorage.removeItem("verkup-current-employee-id");
+      setCurrentEmployeeId("");
+      return;
+    }
+    const availableModes: WorkspaceMode[] = [
+      ...(canUseCosting ? (["costing"] as const) : []),
+      ...(canUseProduction ? (["production"] as const) : []),
+      ...(canUseEmployees ? (["employees"] as const) : []),
+    ];
+    if (!availableModes.includes(workspaceMode) && availableModes[0]) {
+      setWorkspaceMode(availableModes[0]);
+      return;
+    }
+    if (workspaceMode === "costing" && !canUseCosting && canUseProduction) {
+      setWorkspaceMode("production");
+    }
+    if (workspaceMode === "production" && !canUseProduction && canUseCosting) {
+      setWorkspaceMode("costing");
+    }
+  }, [canUseCosting, canUseEmployees, canUseProduction, currentEmployee, workspaceMode]);
+
   const calculationsMap = useMemo(() => {
     return new Map(storedCalculations.calculations.map((calculation) => [calculation.dealId, calculation]));
   }, [storedCalculations.calculations]);
@@ -185,6 +311,12 @@ export default function App() {
   const techSpecsMap = useMemo(() => {
     return new Map(storedTechSpecs.specs.map((spec) => [spec.dealId, spec]));
   }, [storedTechSpecs.specs]);
+
+  const managerDeal = useMemo(
+    () => (managerDealId ? findDealForManagerLink(deals, managerDealId) : undefined),
+    [deals, managerDealId],
+  );
+  const managerDealSpec = managerDeal ? techSpecsMap.get(managerDeal.id) : undefined;
 
   const stageCounts = useMemo(() => {
     return deals.reduce(
@@ -263,6 +395,74 @@ export default function App() {
     });
   }
 
+  function handleProductionChange(data: StoredProduction) {
+    setStoredProduction(data);
+    writeCachedProduction(data);
+    scheduleProductionSave(data);
+  }
+
+  async function handleEmployeeLogin(login: string, password: string) {
+    const employee = activeEmployees.find((item) => matchesEmployeeLogin(item, login));
+    if (!employee) return false;
+    const ok = await verifyEmployeePin(employee, password);
+    if (ok) setCurrentEmployeeId(employee.id);
+    return ok;
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("verkup-current-employee-id");
+    setCurrentEmployeeId("");
+  }
+
+  function handleRegistrationRequest({
+    name,
+    phone,
+    note,
+  }: {
+    name: string;
+    phone: string;
+    note: string;
+  }) {
+    if (!activeRegistrationLink) return;
+
+    const employeeId = createId();
+    const employee: ProductionEmployee = {
+      id: employeeId,
+      name,
+      phone,
+      role: "maker",
+      accessRole: "none",
+      active: true,
+      createdAt: new Date().toISOString(),
+    };
+    const request: ProductionRegistrationRequest = {
+      id: createId(),
+      name,
+      phone,
+      note,
+      status: "pending",
+      requestedAt: new Date().toISOString(),
+      employeeId,
+    };
+
+    handleProductionChange({
+      ...storedProduction,
+      generatedAt: new Date().toISOString(),
+      employees: [...storedProduction.employees, employee],
+      registrations: [...(storedProduction.registrations || []), request],
+      registrationLinks: (storedProduction.registrationLinks || []).map((link) =>
+        link.id === activeRegistrationLink.id
+          ? {
+              ...link,
+              active: false,
+              usedAt: new Date().toISOString(),
+              usedByRegistrationId: request.id,
+            }
+          : link,
+      ),
+    });
+  }
+
   async function handleTechSpecUpload(
     dealId: string,
     draft: TechSpecDraft,
@@ -318,6 +518,21 @@ export default function App() {
         // Локальный черновик уже сохранен, повторим синхронизацию при следующем изменении.
       });
     }, TECH_SPEC_SAVE_DELAY_MS);
+  }
+
+  function scheduleProductionSave(data: StoredProduction) {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+
+    if (productionSaveTimerRef.current) {
+      window.clearTimeout(productionSaveTimerRef.current);
+    }
+
+    productionSaveTimerRef.current = window.setTimeout(() => {
+      void saveProduction({ apiUrl }, data).catch(() => {
+        // Локальный производственный журнал уже сохранен, повторим синхронизацию при следующем изменении.
+      });
+    }, PRODUCTION_SAVE_DELAY_MS);
   }
 
   function handleCatalogChange(items: CatalogItem[]) {
@@ -429,6 +644,42 @@ export default function App() {
     });
   }
 
+  if (loading && !activeEmployees.length) {
+    return (
+      <div className="app">
+        <div className="loading">Загружаю данные...</div>
+      </div>
+    );
+  }
+
+  if (managerDealId) {
+    return (
+      <div className="app">
+        <ManagerDealPortal
+          deal={managerDeal}
+          loading={loading}
+          storedSpec={managerDealSpec}
+          onTechSpecChange={handleTechSpecChange}
+          onTechSpecUpload={handleTechSpecUpload}
+        />
+      </div>
+    );
+  }
+
+  if (!currentEmployee) {
+    return (
+      <div className="app">
+        <AccessGate
+          employees={loginEmployees}
+          registrationAllowed={Boolean(activeRegistrationLink)}
+          registrationToken={registrationToken}
+          onLogin={handleEmployeeLogin}
+          onRegister={handleRegistrationRequest}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       {loading && <div className="loading">Загружаю данные...</div>}
@@ -442,46 +693,128 @@ export default function App() {
           </span>
         </div>
       )}
-      <DealTable
-        deals={filteredDeals}
-        calculations={calculationsMap}
-        agentRatio={storedCalculations.agentCostRatio}
-        selectedDealId={selectedDealId}
-        topTabs={
-          <AppTopTabs
-            activeTab={activeStage}
-            stageCounts={stageCounts}
-            onChange={handleTabChange}
-          />
-        }
-        onSelect={handleDealToggle}
-        onOpenCatalog={openCatalog}
-        catalogCount={catalogItems.length}
-        query={query}
-        onQueryChange={setQuery}
-        expandedRow={
-          selectedDeal ? (
-            <DealWorkspace
-              activeStage={activeStage}
-              catalogItems={catalogItems}
-              calculation={selectedCalculation}
-              costNote={costNoteForCalculation(selectedCalculation)}
-              deal={selectedDeal}
-              storedCalculations={storedCalculations}
-              storedSpec={selectedTechSpec}
-              onCatalogChange={handleCatalogChange}
-              onChange={handleCalculationChange}
-              onClose={() => setSelectedDealId(undefined)}
-              onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
-              onOpenCatalog={openCatalog}
-              onStageMoved={handleDealStageChanged}
-              onTechSpecChange={handleTechSpecChange}
-              onTechSpecUpload={handleTechSpecUpload}
+      <div className="access-bar">
+        <div>
+          <strong>{currentEmployee.name}</strong>
+          {accessRoleFor(currentEmployee) !== "maker" ? (
+            <span>{accessRoleLabels[accessRoleFor(currentEmployee)]}</span>
+          ) : null}
+        </div>
+        <button className="secondary compact" onClick={handleLogout} type="button">
+          <LogOut size={16} />
+          Выйти
+        </button>
+      </div>
+      {availableModeCount > 1 ? (
+      <div className="app-mode-switch" role="tablist" aria-label="Режим приложения">
+        {canUseCosting ? (
+          <button
+            aria-selected={workspaceMode === "costing"}
+            className={workspaceMode === "costing" ? "active" : ""}
+            onClick={() => setWorkspaceMode("costing")}
+            role="tab"
+            type="button"
+          >
+            <Calculator size={17} />
+            Себестоимость
+          </button>
+        ) : null}
+        {canUseProduction ? (
+          <button
+            aria-selected={workspaceMode === "production"}
+            className={workspaceMode === "production" ? "active" : ""}
+            onClick={() => setWorkspaceMode("production")}
+            role="tab"
+            type="button"
+          >
+            <Factory size={17} />
+            Производство
+          </button>
+        ) : null}
+        {canUseEmployees ? (
+          <button
+            aria-selected={workspaceMode === "employees"}
+            className={workspaceMode === "employees" ? "active" : ""}
+            onClick={() => setWorkspaceMode("employees")}
+            role="tab"
+            type="button"
+          >
+            <UsersRound size={17} />
+            Сотрудники
+          </button>
+        ) : null}
+      </div>
+      ) : null}
+      {workspaceMode === "employees" && canUseEmployees ? (
+        <ProductionMobileApp
+          calculations={calculationsMap}
+          currentUser={currentEmployee}
+          deals={deals}
+          mode="employees"
+          saveApiUrl={defaultSaveApiUrl()}
+          techSpecs={techSpecsMap}
+          storedProduction={storedProduction}
+          onChange={handleProductionChange}
+        />
+      ) : workspaceMode === "production" && canUseProduction ? (
+        <ProductionMobileApp
+          calculations={calculationsMap}
+          currentUser={currentEmployee}
+          deals={deals}
+          mode="production"
+          saveApiUrl={defaultSaveApiUrl()}
+          techSpecs={techSpecsMap}
+          storedProduction={storedProduction}
+          onChange={handleProductionChange}
+        />
+      ) : canUseCosting ? (
+        <DealTable
+          deals={filteredDeals}
+          calculations={calculationsMap}
+          agentRatio={storedCalculations.agentCostRatio}
+          selectedDealId={selectedDealId}
+          topTabs={
+            <AppTopTabs
+              activeTab={activeStage}
+              stageCounts={stageCounts}
+              onChange={handleTabChange}
             />
-          ) : undefined
-        }
-      />
-      {catalogOpen && (
+          }
+          onSelect={handleDealToggle}
+          onOpenCatalog={openCatalog}
+          catalogCount={catalogItems.length}
+          query={query}
+          onQueryChange={setQuery}
+          expandedRow={
+            selectedDeal ? (
+              <DealWorkspace
+                activeStage={activeStage}
+                catalogItems={catalogItems}
+                calculation={selectedCalculation}
+                costNote={costNoteForCalculation(selectedCalculation)}
+                deal={selectedDeal}
+                storedCalculations={storedCalculations}
+                storedSpec={selectedTechSpec}
+                onCatalogChange={handleCatalogChange}
+                onChange={handleCalculationChange}
+                onClose={() => setSelectedDealId(undefined)}
+                onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
+                onOpenCatalog={openCatalog}
+                onStageMoved={handleDealStageChanged}
+                onTechSpecChange={handleTechSpecChange}
+                onTechSpecUpload={handleTechSpecUpload}
+              />
+            ) : undefined
+          }
+        />
+      ) : (
+        <main className="access-denied">
+          {accessRoleFor(currentEmployee) === "manager"
+            ? "Для менеджера откройте конкретную сделку из Bitrix. В этом режиме видна только она и ее ТЗ."
+            : "Для этой роли нет доступных разделов."}
+        </main>
+      )}
+      {catalogOpen && workspaceMode === "costing" && (
         <CatalogManager
           items={catalogItems}
           initialDraft={pendingCatalogInsert?.item}
@@ -496,6 +829,57 @@ export default function App() {
 
 function defaultDealWorkspaceTab(stage: DealStageCode): DealWorkspaceTab {
   return stage === "tz" || stage === "tzApproval" ? "techSpec" : "cost";
+}
+
+function ManagerDealPortal({
+  deal,
+  loading,
+  storedSpec,
+  onTechSpecChange,
+  onTechSpecUpload,
+}: ManagerDealPortalProps) {
+  if (loading && !deal) {
+    return (
+      <main className="manager-deal-portal">
+        <div className="loading">Загружаю сделку...</div>
+      </main>
+    );
+  }
+
+  if (!deal) {
+    return (
+      <main className="manager-deal-portal">
+        <section className="manager-deal-empty">
+          <strong>Сделка не найдена</strong>
+          <span>Проверьте ID в ссылке из Bitrix или обновите синхронизацию сделок.</span>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="manager-deal-portal">
+      <header className="manager-deal-head">
+        <div>
+          <span className="eyebrow">ТЗ для менеджера</span>
+          <h1>Сделка #{deal.number}</h1>
+          <p>{deal.title || deal.classification || "Подготовка технического задания"}</p>
+        </div>
+        <a href={deal.bitrixUrl} rel="noreferrer" target="_blank">
+          Открыть в Bitrix
+        </a>
+      </header>
+      <TechSpecBuilder
+        deal={deal}
+        embedded
+        storedSpec={storedSpec}
+        onDraftChange={onTechSpecChange}
+        onUploadToBitrix={(draft, fileName, fileBase64) =>
+          onTechSpecUpload(deal.id, draft, fileName, fileBase64)
+        }
+      />
+    </main>
+  );
 }
 
 function DealWorkspace({
@@ -677,6 +1061,17 @@ function createEmptyStoredTechSpecs(): StoredTechSpecs {
   };
 }
 
+function createEmptyStoredProduction(): StoredProduction {
+  return {
+    generatedAt: new Date().toISOString(),
+    employees: [],
+    registrations: [],
+    registrationLinks: [],
+    assignments: [],
+    payouts: [],
+  };
+}
+
 function createEmptyStageCounts(): Record<DealStageCode, number> {
   return {
     tz: 0,
@@ -688,11 +1083,84 @@ function createEmptyStageCounts(): Record<DealStageCode, number> {
 }
 
 function hasCachedStartupData() {
-  return Boolean(readCachedDeals() || readCachedCalculations() || readCachedCatalogs() || readCachedTechSpecs());
+  return Boolean(
+    readCachedDeals() ||
+      readCachedCalculations() ||
+      readCachedCatalogs() ||
+      readCachedTechSpecs() ||
+      readCachedProduction(),
+  );
 }
 
 function uniqueSortedValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "ru"),
   );
+}
+
+function defaultWorkspaceMode(): WorkspaceMode {
+  if (typeof window === "undefined") return "costing";
+
+  const saved = localStorage.getItem("verkup-workspace-mode");
+  if (saved === "costing" || saved === "production" || saved === "employees") return saved;
+
+  const url = new URL(window.location.href);
+  const requestedMode = url.searchParams.get("mode") || url.hash.replace(/^#/, "");
+  if (requestedMode === "production" || requestedMode === "ceh" || requestedMode === "shop") {
+    return "production";
+  }
+  if (requestedMode === "employees" || requestedMode === "staff" || requestedMode === "sotrudniki") {
+    return "employees";
+  }
+
+  return window.matchMedia("(max-width: 760px)").matches ? "production" : "costing";
+}
+
+function registrationTokenFromUrl() {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  return (
+    url.searchParams.get("invite") ||
+    url.searchParams.get("registration") ||
+    url.searchParams.get("reg") ||
+    ""
+  ).trim();
+}
+
+function managerDealIdFromUrl() {
+  if (typeof window === "undefined") return "";
+  const url = new URL(window.location.href);
+  const mode = (url.searchParams.get("mode") || "").trim().toLowerCase();
+  const dealId =
+    url.searchParams.get("dealId") ||
+    url.searchParams.get("deal_id") ||
+    url.searchParams.get("DEAL_ID") ||
+    url.searchParams.get("bitrixDealId") ||
+    url.searchParams.get("managerDeal") ||
+    "";
+
+  return mode === "manager" || dealId ? dealId.trim() : "";
+}
+
+function findDealForManagerLink(deals: Deal[], requestedDealId: string) {
+  const requested = normalizeDealLookupId(requestedDealId);
+  if (!requested) return undefined;
+
+  return deals.find((deal) =>
+    [deal.id, deal.number].some((value) => normalizeDealLookupId(value) === requested),
+  );
+}
+
+function normalizeDealLookupId(value?: string) {
+  return (value || "")
+    .trim()
+    .replace(/^deal_/i, "")
+    .replace(/^D_/i, "")
+    .toLowerCase();
+}
+
+function createId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }

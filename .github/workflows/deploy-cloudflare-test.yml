@@ -1,0 +1,100 @@
+name: Deploy Cloudflare Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CLOUDFLARE_PAGES_PROJECT: verkup-test
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm install
+
+      - name: Check Cloudflare credentials
+        id: cloudflare
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Cloudflare secrets are missing; skipping Cloudflare deploy."
+          fi
+
+      - name: Put Worker GitHub token secret
+        if: steps.cloudflare.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKER_GITHUB_TOKEN: ${{ secrets.WORKER_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$WORKER_GITHUB_TOKEN" ]; then
+            printf "%s" "$WORKER_GITHUB_TOKEN" | npx --yes wrangler@4.97.0 secret put GITHUB_TOKEN --config worker/wrangler.toml
+          else
+            echo "WORKER_GITHUB_TOKEN is empty; keeping existing Worker secret."
+          fi
+
+      - name: Put Worker Bitrix webhook secret
+        if: steps.cloudflare.outputs.enabled == 'true'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BITRIX_WEBHOOK_URL: ${{ secrets.BITRIX_WEBHOOK_URL }}
+        run: |
+          if [ -n "$BITRIX_WEBHOOK_URL" ]; then
+            printf "%s" "$BITRIX_WEBHOOK_URL" | npx --yes wrangler@4.97.0 secret put BITRIX_WEBHOOK_URL --config worker/wrangler.toml
+          else
+            echo "BITRIX_WEBHOOK_URL is empty; keeping existing Worker secret."
+          fi
+
+      - name: Deploy Worker
+        if: steps.cloudflare.outputs.enabled == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run worker:deploy
+
+      - name: Build Cloudflare Pages app
+        if: steps.cloudflare.outputs.enabled == 'true'
+        env:
+          VITE_BASE_PATH: /
+          VITE_SAVE_API_URL: ${{ vars.VITE_SAVE_API_URL }}
+          VITE_PUSH_PUBLIC_KEY: ${{ vars.VITE_PUSH_PUBLIC_KEY }}
+        run: npm run build
+
+      - name: Ensure Cloudflare Pages project exists
+        if: steps.cloudflare.outputs.enabled == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4.97.0 pages project create "$CLOUDFLARE_PAGES_PROJECT" --production-branch main || true
+
+      - name: Deploy Cloudflare Pages
+        if: steps.cloudflare.outputs.enabled == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@4.97.0 pages deploy dist --project-name "$CLOUDFLARE_PAGES_PROJECT" --branch main
+
+      - name: Print test URL
+        if: steps.cloudflare.outputs.enabled == 'true'
+        run: echo "Cloudflare Pages test URL: https://${CLOUDFLARE_PAGES_PROJECT}.pages.dev/"

@@ -1,0 +1,19 @@
+{
+  "name": "Verkup Производство",
+  "short_name": "Verkup",
+  "description": "Мобильное приложение Verkup для назначения, сборки и проверки сделок.",
+  "start_url": "./?mode=production",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f8",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "./verkup-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

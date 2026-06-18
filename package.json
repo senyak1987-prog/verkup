@@ -14,6 +14,7 @@
     "bitrix:stages": "node scripts/inspect-bitrix-stages.mjs",
     "catalogs:build": "node scripts/build-catalogs.mjs",
     "catalogs:remex-images": "node scripts/enrich-remex-images.mjs",
+    "pages:deploy": "npx --yes wrangler@4.97.0 pages deploy dist --project-name verkup-test --branch main",
     "worker:deploy": "npx --yes wrangler@4.97.0 deploy --config worker/wrangler.toml"
   },
   "dependencies": {

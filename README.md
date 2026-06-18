@@ -11,6 +11,7 @@
 - для агентов целевой коэффициент себестоимости `0.58`: изготовление считается от себестоимости изделия, монтаж - от себестоимости монтажных позиций;
 - сохранение расчетов в `public/data/calculations.json` через закрытый API-посредник;
 - редактируемый справочник позиций в `public/data/catalogs.json` через закрытый API-посредник;
+- мобильный цеховой режим: сотрудники, назначения, старт работы, обязательные фото и статус `Готово к отгрузке` в `public/data/production.json`;
 - деплой на GitHub Pages;
 - синхронизация Bitrix24 каждые 5 минут и ручной запуск workflow.
 
@@ -145,6 +146,48 @@ VITE_SAVE_API_URL = https://verkup-save-api.<ваш-аккаунт>.workers.dev
 После следующего деплоя поле адреса API исчезнет с сайта, сохранение будет работать без дополнительных полей, а сделки будут обновляться через Worker без ожидания деплоя GitHub Pages.
 
 Если приложение будет размещено не на GitHub Pages, а на вашем домене, добавьте этот домен в `ALLOWED_ORIGIN` в `worker/wrangler.toml`, например `https://ваш-сайт.ru`.
+
+## Тестовое приложение на Cloudflare Pages
+
+Для проверки мобильного приложения на iOS/Android можно выкладывать сборку на бесплатный Cloudflare Pages. В репозитории добавлен workflow:
+
+```text
+.github/workflows/deploy-cloudflare-test.yml
+```
+
+Он деплоит:
+
+- Cloudflare Worker `verkup-save-api`;
+- Cloudflare Pages проект `verkup-test`;
+- сборку с `VITE_BASE_PATH=/`, чтобы приложение работало в корне `pages.dev`.
+
+Тестовый адрес после деплоя:
+
+```text
+https://verkup-test.pages.dev/
+```
+
+В GitHub нужно добавить секреты `Settings -> Secrets and variables -> Actions -> Secrets`:
+
+- `CLOUDFLARE_API_TOKEN` - токен Cloudflare с правами на Workers и Pages;
+- `CLOUDFLARE_ACCOUNT_ID` - Account ID из Cloudflare;
+- `WORKER_GITHUB_TOKEN` - GitHub token с доступом к содержимому репозитория;
+- `BITRIX_WEBHOOK_URL` - webhook Bitrix24.
+
+В GitHub Variables добавьте:
+
+```text
+VITE_SAVE_API_URL = https://verkup-save-api.<ваш-аккаунт>.workers.dev
+VITE_BASE_PATH = /verkup/
+```
+
+Для push-уведомлений позже добавьте:
+
+```text
+VITE_PUSH_PUBLIC_KEY = <публичный VAPID ключ>
+```
+
+Если используется другой Pages-проект, поменяйте `CLOUDFLARE_PAGES_PROJECT` в workflow и добавьте его домен в `ALLOWED_ORIGIN` в `worker/wrangler.toml`.
 
 ## Сохранение расчетов
 

@@ -473,6 +473,37 @@ const productTemplates: ProductTemplate[] = [
 
 const templateById = new Map(productTemplates.map((template) => [template.id, template]));
 
+export function techSpecTemplateTitle(templateId: TemplateId) {
+  return templateById.get(templateId)?.title || "Изделие";
+}
+
+export function techSpecFieldLabel(templateId: TemplateId, fieldId: string) {
+  const template = templateById.get(templateId) ?? productTemplates[0];
+  const field = [...commonFields, ...template.fields].find((item) => item.id === fieldId);
+  return field?.label || humanizeTechSpecFieldId(fieldId);
+}
+
+export function orderedTechSpecFieldIds(item: TechSpecItem) {
+  const template = templateById.get(item.templateId) ?? productTemplates[0];
+  const configuredIds = [...commonFields, ...template.fields].map((field) => field.id);
+  const seen = new Set<string>();
+  return [
+    ...configuredIds.filter((fieldId) => {
+      if (seen.has(fieldId)) return false;
+      seen.add(fieldId);
+      return Object.prototype.hasOwnProperty.call(item.fields, fieldId);
+    }),
+    ...Object.keys(item.fields).filter((fieldId) => !seen.has(fieldId)),
+  ];
+}
+
+function humanizeTechSpecFieldId(fieldId: string) {
+  return fieldId
+    .replace(/([a-zа-яё])([A-ZА-ЯЁ])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim();
+}
+
 function makeId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;

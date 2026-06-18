@@ -2,7 +2,9 @@ import type {
   AppData,
   CatalogItem,
   DealStageCode,
+  ProductionPushSubscription,
   StoredCalculations,
+  StoredProduction,
   StoredTechSpecs,
   TechSpecDraft,
 } from "../types";
@@ -42,6 +44,23 @@ export async function saveCatalogs(
 
 export async function saveTechSpecs(settings: SaveApiSettings, data: StoredTechSpecs) {
   return postToSaveApi(settings, "/save-tech-specs", { data });
+}
+
+export async function saveProduction(settings: SaveApiSettings, data: StoredProduction) {
+  return postToSaveApi(settings, "/save-production", { data });
+}
+
+export async function sendProductionPush(
+  settings: SaveApiSettings,
+  payload: {
+    body: string;
+    employeeId: string;
+    subscriptions: ProductionPushSubscription[];
+    title: string;
+    url: string;
+  },
+) {
+  return postToSaveApi(settings, "/send-production-push", payload);
 }
 
 export async function moveDealToStage(
