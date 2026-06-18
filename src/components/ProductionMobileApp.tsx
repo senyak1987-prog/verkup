@@ -2438,8 +2438,8 @@ async function showAssignmentNotification(body: string) {
 
   const options: NotificationOptions = {
     body,
-    icon: `${import.meta.env.BASE_URL}verkup-icon.svg`,
-    badge: `${import.meta.env.BASE_URL}verkup-icon.svg`,
+    icon: `${import.meta.env.BASE_URL}verkup-app-icon-192.png`,
+    badge: `${import.meta.env.BASE_URL}favicon-32.png`,
     data: {
       url: productionAppUrl(),
     },
