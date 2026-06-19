@@ -452,5 +452,96 @@
         "uploadedAt": "2026-06-17T12:43:55.249Z"
       }
     }
-  ]
+  ],
+  "__production": {
+    "generatedAt": "2026-06-19T06:27:17.893Z",
+    "employees": [
+      {
+        "id": "leader-semen",
+        "name": "Семен",
+        "login": "semen",
+        "role": "maker",
+        "accessRole": "leader",
+        "active": true,
+        "createdAt": "2026-06-18T14:20:00.000Z",
+        "pinHash": "c3b016a5f93cc9a0d3bb69fbac53140dbca7afefb0a269a49a6ab256f433ad97"
+      },
+      {
+        "id": "a46fc772-de87-4cf7-85e9-fcee1b99f9c3",
+        "name": "Иван",
+        "login": "123",
+        "role": "maker",
+        "accessRole": "none",
+        "phone": "",
+        "active": false,
+        "createdAt": "2026-06-18T14:42:34.028Z"
+      },
+      {
+        "id": "d53c0ab2-0fab-4fcd-a29c-c6a7d208bd7a",
+        "name": "Иван",
+        "phone": "123",
+        "role": "maker",
+        "accessRole": "none",
+        "active": false,
+        "createdAt": "2026-06-18T14:44:39.955Z",
+        "login": "123"
+      },
+      {
+        "id": "85be188e-706c-4193-ac75-b9d3f437c4d9",
+        "name": "Иван",
+        "login": "123",
+        "role": "maker",
+        "accessRole": "maker",
+        "phone": "",
+        "active": true,
+        "createdAt": "2026-06-18T15:09:59.903Z",
+        "pinHash": "d5be3f9df5bf90dcb57a9c98a7e459c58194f920c2925661fec82dc0b3345fec"
+      }
+    ],
+    "registrations": [
+      {
+        "id": "07af68ba-c775-4a50-9ae3-588f5985ce5d",
+        "name": "Иван",
+        "phone": "123",
+        "note": "",
+        "status": "approved",
+        "requestedAt": "2026-06-18T14:44:10.295Z",
+        "employeeId": "d53c0ab2-0fab-4fcd-a29c-c6a7d208bd7a",
+        "reviewedAt": "2026-06-18T14:44:39.955Z",
+        "reviewedBy": "leader-semen"
+      }
+    ],
+    "registrationLinks": [
+      {
+        "id": "17271606-7411-4fc7-80dd-ca4ae4e9d718",
+        "token": "36f912753252066e7e1ff34b867ad6250029",
+        "createdAt": "2026-06-18T14:43:47.416Z",
+        "createdBy": "leader-semen",
+        "active": false,
+        "usedAt": "2026-06-18T14:44:10.295Z",
+        "usedByRegistrationId": "07af68ba-c775-4a50-9ae3-588f5985ce5d"
+      }
+    ],
+    "assignments": [
+      {
+        "id": "b61bd265-df8c-40d7-8933-25d630dbab04",
+        "dealId": "16888",
+        "employeeId": "85be188e-706c-4193-ac75-b9d3f437c4d9",
+        "status": "assigned",
+        "assignedAt": "2026-06-18T17:13:01.910Z",
+        "assignedBy": "Руководитель",
+        "notificationText": "Вам назначили на сборку изделие #16888: Тест 2",
+        "history": [
+          {
+            "id": "25dd540e-4916-4e04-b46f-d2012e5f6450",
+            "type": "assigned",
+            "at": "2026-06-18T17:13:01.910Z",
+            "actor": "Руководитель",
+            "note": "Иван"
+          }
+        ]
+      }
+    ],
+    "payouts": []
+  }
 }
