@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T20:02:44.731Z",
+  "generatedAt": "2026-06-19T20:04:02.265Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -134,6 +134,23 @@
           "title": "Оргстекло 3мм 3000х2000х3 молочный 30% REXGLASS CH 425 XT",
           "calcMode": "area",
           "note": "Прайс по материалам.xlsx; строка 920; столбец G"
+        }
+      ]
+    },
+    {
+      "dealId": "16888",
+      "updatedAt": "2026-06-19T20:04:01.400Z",
+      "positions": [
+        {
+          "id": "e5bb07a1-eec7-4d9a-8aea-2bbe73e0f02b",
+          "catalogId": "materials-пвх-белый-3мм-3050х1560х3-unext-str-1545",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 716.06,
+          "section": "materials",
+          "title": "ПВХ белый 3мм 3050х1560х3 \"UNEXT\" STR",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 840; столбец G"
         }
       ]
     }
