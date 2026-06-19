@@ -975,6 +975,56 @@ export default function App() {
     }
   }
 
+  function renderWorkspaceModeButtons() {
+    return (
+      <>
+        {canUseCosting ? (
+          <button
+            aria-selected={workspaceMode === "costing"}
+            className={workspaceMode === "costing" ? "active" : ""}
+            onClick={() => handleWorkspaceModeChange("costing")}
+            role="tab"
+            type="button"
+          >
+            <Calculator size={18} />
+            <span>Себестоимость</span>
+          </button>
+        ) : null}
+        {canUseProduction ? (
+          <button
+            aria-selected={workspaceMode === "production"}
+            className={workspaceMode === "production" ? "active" : ""}
+            onClick={() => handleWorkspaceModeChange("production")}
+            role="tab"
+            type="button"
+          >
+            <Factory size={18} />
+            <span>Производство</span>
+          </button>
+        ) : null}
+        {canUseEmployees ? (
+          <button
+            aria-selected={workspaceMode === "employees"}
+            className={workspaceMode === "employees" ? "active" : ""}
+            onClick={() => handleWorkspaceModeChange("employees")}
+            role="tab"
+            type="button"
+          >
+            <UsersRound size={18} />
+            <span>Сотрудники</span>
+          </button>
+        ) : null}
+      </>
+    );
+  }
+
+  const workspaceTitle =
+    workspaceMode === "costing"
+      ? "Себестоимость"
+      : workspaceMode === "production"
+        ? "Производство"
+        : "Сотрудники";
+
   function applyPendingStageMoves(items: Deal[]) {
     const now = Date.now();
 
@@ -1035,9 +1085,9 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app workspace-app workspace-${workspaceMode}`}>
       {loading && <div className="loading">Загружаю данные...</div>}
-      {unresolvedResponsibleIds.length > 0 && (
+      {workspaceMode === "costing" && canUseCosting && unresolvedResponsibleIds.length > 0 && (
         <div className="data-health-warning" role="status">
           <strong>Ответственные не распознаны</strong>
           <span>
@@ -1060,45 +1110,34 @@ export default function App() {
         </div>
       ) : null}
       {availableModeCount > 1 ? (
-      <div className="app-mode-switch" role="tablist" aria-label="Режим приложения">
-        {canUseCosting ? (
-          <button
-            aria-selected={workspaceMode === "costing"}
-            className={workspaceMode === "costing" ? "active" : ""}
-            onClick={() => handleWorkspaceModeChange("costing")}
-            role="tab"
-            type="button"
-          >
-            <Calculator size={17} />
-            Себестоимость
-          </button>
-        ) : null}
-        {canUseProduction ? (
-          <button
-            aria-selected={workspaceMode === "production"}
-            className={workspaceMode === "production" ? "active" : ""}
-            onClick={() => handleWorkspaceModeChange("production")}
-            role="tab"
-            type="button"
-          >
-            <Factory size={17} />
-            Производство
-          </button>
-        ) : null}
-        {canUseEmployees ? (
-          <button
-            aria-selected={workspaceMode === "employees"}
-            className={workspaceMode === "employees" ? "active" : ""}
-            onClick={() => handleWorkspaceModeChange("employees")}
-            role="tab"
-            type="button"
-          >
-            <UsersRound size={17} />
-            Сотрудники
-          </button>
-        ) : null}
-      </div>
+        <aside className="app-mode-sidebar" aria-label="Навигация Verkup">
+          <div className="workspace-brand">
+            <img alt="Verkup" src={`${import.meta.env.BASE_URL}verkup-logo-vector.svg`} />
+            <span>Рабочее пространство</span>
+          </div>
+          <div className="app-mode-switch" role="tablist" aria-label="Режим приложения">
+            {renderWorkspaceModeButtons()}
+          </div>
+          {accessRoleFor(currentEmployee) !== "maker" ? (
+            <div className="workspace-user-card">
+              <span>{accessRoleLabels[accessRoleFor(currentEmployee)]}</span>
+              <strong>{currentEmployee.name}</strong>
+              <button className="secondary compact" onClick={handleLogout} type="button">
+                <LogOut size={16} />
+                Выйти
+              </button>
+            </div>
+          ) : null}
+        </aside>
       ) : null}
+      <div className="workspace-shell">
+        <section className="workspace-content" aria-label={workspaceTitle}>
+          {availableModeCount > 1 ? (
+            <header className="workspace-mobile-title">
+              <span>Verkup</span>
+              <strong>{workspaceTitle}</strong>
+            </header>
+          ) : null}
       {workspaceMode === "employees" && canUseEmployees ? (
         <ProductionMobileApp
           calculations={calculationsMap}
@@ -1188,6 +1227,13 @@ export default function App() {
             : "Для этой роли нет доступных разделов."}
         </main>
       )}
+        </section>
+        {availableModeCount > 1 ? (
+          <nav className="workspace-bottom-nav app-mode-switch" role="tablist" aria-label="Режим приложения">
+            {renderWorkspaceModeButtons()}
+          </nav>
+        ) : null}
+      </div>
       {catalogOpen && workspaceMode === "costing" && (
         <CatalogManager
           items={catalogItems}
