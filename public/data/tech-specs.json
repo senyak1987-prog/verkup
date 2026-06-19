@@ -471,7 +471,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T19:55:02.688Z",
+    "generatedAt": "2026-06-19T20:05:36.837Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -544,18 +544,7 @@
         "phone": "",
         "active": true,
         "createdAt": "2026-06-19T19:33:44.872Z",
-        "pinHash": "62f113b3150608685c8cfc1a0943861093e48f8d5722a5488bab2996515a8ff9",
-        "pushSubscriptions": [
-          {
-            "endpoint": "https://web.push.apple.com/QM4ndwPxLSyfRJtzbAa860UrlYIrHVpRCbFAigb0vYKRlXq16o_c7xRijQufaC5dETukPPfMS00mNrLcIWsxSzFTDIHz8DpAfStnc77TmdjsCdgFhsMpajH2F186Ovsdl9muqK_Gf1H8CflivPcXSHOqh6NoglLSalpKtN91R7w",
-            "keys": {
-              "auth": "TcS8eq_esFpSCYGWfCFLBA",
-              "p256dh": "BKINJraI1iD9py2i1IMhxLwM1_zXJiaYs7Itpnu6dFJGqunHmx84VzH1MIr7ARljJ1BUE47cxACjV4ss1WlHTo0"
-            },
-            "subscribedAt": "2026-06-19T19:52:35.402Z",
-            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1"
-          }
-        ]
+        "pinHash": "62f113b3150608685c8cfc1a0943861093e48f8d5722a5488bab2996515a8ff9"
       }
     ],
     "registrations": [
@@ -596,7 +585,44 @@
         "active": false
       }
     ],
-    "assignments": [],
+    "assignments": [
+      {
+        "id": "db9df12c-ac27-441f-ab30-36e1b5c9bec6",
+        "dealId": "16874",
+        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
+        "status": "assigned",
+        "assignedAt": "2026-06-19T20:03:15.711Z",
+        "assignedBy": "Руководитель",
+        "notificationText": "Вам назначили на сборку изделие #16874: Тест",
+        "history": [
+          {
+            "id": "2a27471c-5a1d-4825-94f7-74ec50784222",
+            "type": "assigned",
+            "at": "2026-06-19T20:03:15.711Z",
+            "actor": "Руководитель",
+            "note": "Семен"
+          }
+        ]
+      },
+      {
+        "id": "77ac0d0a-a2e7-45f3-960e-50a038727427",
+        "dealId": "16888",
+        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
+        "status": "assigned",
+        "assignedAt": "2026-06-19T20:05:36.837Z",
+        "assignedBy": "Руководитель",
+        "notificationText": "Вам назначили на сборку изделие #16888: Тест 2",
+        "history": [
+          {
+            "id": "3cc1b8c9-0578-4f39-bdd0-826e49dc0adc",
+            "type": "assigned",
+            "at": "2026-06-19T20:05:36.837Z",
+            "actor": "Руководитель",
+            "note": "Семен"
+          }
+        ]
+      }
+    ],
     "payouts": []
   }
 }
