@@ -26,6 +26,8 @@ import type {
   Deal,
   DealCalculation,
   DealTechSpec,
+  CatalogItem,
+  CostPosition,
   ProductionAssignment,
   ProductionAssignmentEventType,
   ProductionAssignmentStatus,
@@ -60,7 +62,7 @@ import {
 
 type ProductionView = "supervisor" | "worker";
 type SupervisorTab = "active" | "done";
-type WorkerTab = "assigned" | "inProgress" | "ready" | "money";
+type WorkerTab = "assigned" | "inProgress" | "ready" | "money" | "gallery";
 
 type WorkerMoneySummary = {
   balance: number;
@@ -76,6 +78,7 @@ type ProductionCommitOptions = {
 
 type ProductionMobileAppProps = {
   calculations?: Map<string, DealCalculation>;
+  catalogItems?: CatalogItem[];
   currentUser: ProductionEmployee;
   deals: Deal[];
   mode?: "production" | "employees";
@@ -83,6 +86,7 @@ type ProductionMobileAppProps = {
   techSpecs: Map<string, DealTechSpec>;
   storedProduction: StoredProduction;
   onChange: (data: StoredProduction, options?: ProductionCommitOptions) => void;
+  onCalculationChange?: (calculation: DealCalculation) => void;
 };
 
 const ROLE_STORAGE_KEY = "verkup-production-view";
@@ -128,7 +132,11 @@ const photoSlots: Array<{
 
 const emptyCompletion: ProductionCompletion = {
   diodeCount: 0,
+  diodeCatalogId: "",
+  diodeCatalogTitle: "",
   powerSupply: "",
+  powerSupplyCatalogId: "",
+  powerSupplyCatalogTitle: "",
   noPowerSupply: false,
   note: "",
   photos: [],
@@ -136,6 +144,7 @@ const emptyCompletion: ProductionCompletion = {
 
 export function ProductionMobileApp({
   calculations = new Map(),
+  catalogItems = [],
   currentUser,
   deals,
   mode = "production",
@@ -143,6 +152,7 @@ export function ProductionMobileApp({
   techSpecs,
   storedProduction,
   onChange,
+  onCalculationChange,
 }: ProductionMobileAppProps) {
   const [view, setView] = useState<ProductionView>(() => readStoredView());
   const storedProductionRef = useRef(storedProduction);
@@ -202,6 +212,14 @@ export function ProductionMobileApp({
   const productionWorkers = useMemo(
     () => employees.filter((employee) => isProductionWorker(employee)),
     [employees],
+  );
+  const diodeCatalogItems = useMemo(
+    () => catalogItems.filter(isDiodeCatalogItem).sort(compareCatalogItems),
+    [catalogItems],
+  );
+  const powerSupplyCatalogItems = useMemo(
+    () => catalogItems.filter(isPowerSupplyCatalogItem).sort(compareCatalogItems),
+    [catalogItems],
   );
 
   const pendingRegistrations = useMemo(
@@ -785,24 +803,30 @@ export function ProductionMobileApp({
     file?: File,
   ) {
     if (!file) return;
-    const dataUrl = await readImageFileAsDataUrl(file, {
-      maxHeight: 1800,
-      maxWidth: 1800,
-      quality: 0.78,
-    });
-    const nextPhoto: ProductionPhoto = {
-      kind,
-      name: file.name,
-      dataUrl,
-      uploadedAt: new Date().toISOString(),
-    };
-    const completion = completionFor(assignment);
-    updateCompletion(assignment.id, {
-      photos: [
-        ...completion.photos.filter((photo) => photo.kind !== kind),
-        nextPhoto,
-      ],
-    }, { saveNow: true });
+    try {
+      const dataUrl = await readImageFileAsDataUrl(file, {
+        maxHeight: 1280,
+        maxWidth: 1280,
+        quality: 0.72,
+      });
+      const nextPhoto: ProductionPhoto = {
+        kind,
+        name: file.name,
+        dataUrl,
+        uploadedAt: new Date().toISOString(),
+      };
+      const completion = completionFor(assignment);
+      updateCompletion(assignment.id, {
+        photos: [
+          ...completion.photos.filter((photo) => photo.kind !== kind),
+          nextPhoto,
+        ],
+      }, { saveNow: true });
+      setNotice("Фото загружено.");
+    } catch {
+      setNotice("Фото не загрузилось. Выберите JPG, PNG или WebP и попробуйте еще раз.");
+    }
+    window.setTimeout(() => setNotice(""), 2600);
   }
 
   function removePhoto(assignment: ProductionAssignment, kind: ProductionPhotoKind) {
@@ -813,8 +837,22 @@ export function ProductionMobileApp({
   }
 
   function submitAssignment(assignment: ProductionAssignment) {
-    const completion = completionFor(assignment);
+    const completion = completionWithCatalogItems(
+      completionFor(assignment),
+      diodeCatalogItems,
+      powerSupplyCatalogItems,
+    );
     if (!canSubmitCompletion(completion)) return;
+
+    onCalculationChange?.(
+      calculationWithProductionLighting(
+        calculations.get(assignment.dealId),
+        assignment,
+        completion,
+        diodeCatalogItems,
+        powerSupplyCatalogItems,
+      ),
+    );
 
     const actor = employeesById.get(assignment.employeeId)?.name || "Макетчик";
     patchAssignment(assignment.id, (current) => ({
@@ -1416,7 +1454,6 @@ export function ProductionMobileApp({
           {selectedWorker ? (
             <WorkerProfile
               employee={selectedWorker}
-              galleryPhotos={workerGalleryPhotos}
               money={workerMoney}
               onAvatarChange={(file) => void updateEmployeeAvatar(selectedWorker, file)}
             />
@@ -1437,6 +1474,7 @@ export function ProductionMobileApp({
             <WorkerTabButton active={workerTab === "inProgress"} count={assignmentsForWorkerTab(workerAssignments, "inProgress").length} label="Сделки в работе" onClick={() => setWorkerTab("inProgress")} />
             <WorkerTabButton active={workerTab === "ready"} count={assignmentsForWorkerTab(workerAssignments, "ready").length} label="Готовые сделки" onClick={() => setWorkerTab("ready")} />
             <WorkerTabButton active={workerTab === "money"} label="Мой заработок" onClick={() => setWorkerTab("money")} />
+            <WorkerTabButton active={workerTab === "gallery"} count={workerGalleryPhotos.length} label="Галерея" onClick={() => setWorkerTab("gallery")} />
           </div>
 
           {!productionWorkers.length ? (
@@ -1447,6 +1485,8 @@ export function ProductionMobileApp({
 
           {workerTab === "money" ? (
             <WorkerMoneyPanel money={workerMoney} payouts={storedProduction.payouts || []} workerId={selectedWorker?.id || ""} />
+          ) : workerTab === "gallery" ? (
+            <WorkerGalleryPanel galleryPhotos={workerGalleryPhotos} />
           ) : (
             <div className="production-deal-list">
               {workerTabAssignments.map((assignment) => {
@@ -1457,8 +1497,10 @@ export function ProductionMobileApp({
                   <WorkerDealCard
                     assignment={assignment}
                     deal={deal}
+                    diodeCatalogItems={diodeCatalogItems}
                     expanded={expandedAssignmentIds.has(assignment.id)}
                     key={assignment.id}
+                    powerSupplyCatalogItems={powerSupplyCatalogItems}
                     techSpec={techSpecs.get(deal.id)}
                     onAddPhoto={(kind, file) => void addPhoto(assignment, kind, file)}
                     onRemovePhoto={(kind) => removePhoto(assignment, kind)}
@@ -1605,11 +1647,12 @@ function SupervisorDealCard({
             <div className="production-result-grid">
               <span>
                 Диоды
-                <strong>{completion.diodeCount}</strong>
+                <strong>{completion.diodeCatalogTitle || completion.diodeCatalogId || "-"}</strong>
+                <em>{completion.diodeCount} шт</em>
               </span>
               <span>
                 Блок
-                <strong>{completion.noPowerSupply ? "Не нужен" : completion.powerSupply || "-"}</strong>
+                <strong>{completion.noPowerSupply ? "Не нужен" : completion.powerSupplyCatalogTitle || completion.powerSupply || "-"}</strong>
               </span>
             </div>
             {completion.note ? <p>{completion.note}</p> : null}
@@ -1680,12 +1723,10 @@ function PartAssignmentPanel({
 
 function WorkerProfile({
   employee,
-  galleryPhotos,
   money,
   onAvatarChange,
 }: {
   employee: ProductionEmployee;
-  galleryPhotos: ProductionPhoto[];
   money: WorkerMoneySummary;
   onAvatarChange: (file?: File) => void;
 }) {
@@ -1727,8 +1768,15 @@ function WorkerProfile({
           </span>
         </div>
       </div>
+    </section>
+  );
+}
+
+function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[] }) {
+  return (
+    <section className="production-panel">
       <div className="worker-gallery">
-        {galleryPhotos.slice(0, 6).map((photo, index) => (
+        {galleryPhotos.map((photo, index) => (
           <img alt={`Готовая работа ${index + 1}`} key={`${photo.uploadedAt}-${index}`} src={photo.dataUrl} />
         ))}
         {!galleryPhotos.length ? <span>Галерея готовых работ пока пустая</span> : null}
@@ -1814,7 +1862,9 @@ function TechSpecThumbnail({ itemId, spec }: { itemId?: string; spec?: DealTechS
 function WorkerDealCard({
   assignment,
   deal,
+  diodeCatalogItems,
   expanded,
+  powerSupplyCatalogItems,
   techSpec,
   onAddPhoto,
   onRemovePhoto,
@@ -1826,7 +1876,9 @@ function WorkerDealCard({
 }: {
   assignment: ProductionAssignment;
   deal: Deal;
+  diodeCatalogItems: CatalogItem[];
   expanded: boolean;
+  powerSupplyCatalogItems: CatalogItem[];
   techSpec?: DealTechSpec;
   onAddPhoto: (kind: ProductionPhotoKind, file?: File) => void;
   onRemovePhoto: (kind: ProductionPhotoKind) => void;
@@ -1891,6 +1943,26 @@ function WorkerDealCard({
             <section className="production-completion-form">
               <div className="production-form-grid">
                 <label>
+                  <span>Диоды / модули*</span>
+                  <select
+                    onChange={(event) => {
+                      const item = diodeCatalogItems.find((option) => option.id === event.target.value);
+                      onUpdateCompletion({
+                        diodeCatalogId: item?.id || "",
+                        diodeCatalogTitle: item?.title || "",
+                      });
+                    }}
+                    value={completion.diodeCatalogId || ""}
+                  >
+                    <option value="">Выберите из справочника</option>
+                    {diodeCatalogItems.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title} - {formatMoney(item.unitCost)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
                   <span>Количество диодов*</span>
                   <input
                     min={0}
@@ -1904,12 +1976,25 @@ function WorkerDealCard({
                 </label>
                 <label>
                   <span>Блок питания*</span>
-                  <input
+                  <select
                     disabled={completion.noPowerSupply}
-                    onChange={(event) => onUpdateCompletion({ powerSupply: event.target.value })}
-                    placeholder="Например SANPU 150W 12V IP67"
-                    value={completion.powerSupply}
-                  />
+                    onChange={(event) => {
+                      const item = powerSupplyCatalogItems.find((option) => option.id === event.target.value);
+                      onUpdateCompletion({
+                        powerSupply: item?.title || "",
+                        powerSupplyCatalogId: item?.id || "",
+                        powerSupplyCatalogTitle: item?.title || "",
+                      });
+                    }}
+                    value={completion.powerSupplyCatalogId || ""}
+                  >
+                    <option value="">Выберите из справочника</option>
+                    {powerSupplyCatalogItems.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title} - {formatMoney(item.unitCost)}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 
@@ -1920,6 +2005,8 @@ function WorkerDealCard({
                     onUpdateCompletion({
                       noPowerSupply: event.target.checked,
                       powerSupply: event.target.checked ? "" : completion.powerSupply,
+                      powerSupplyCatalogId: event.target.checked ? "" : completion.powerSupplyCatalogId,
+                      powerSupplyCatalogTitle: event.target.checked ? "" : completion.powerSupplyCatalogTitle,
                     })
                   }
                   type="checkbox"
@@ -2137,10 +2224,9 @@ function PhotoInput({
       <small>{slot.hint}</small>
       <label className="secondary compact">
         <Camera size={15} />
-        {photo ? "Заменить" : "Сделать фото"}
+        {photo ? "Заменить" : "Загрузить фото"}
         <input
-          accept="image/*"
-          capture="environment"
+          accept="image/jpeg,image/png,image/webp,image/*"
           onChange={(event) => {
             onChange(event.target.files?.[0]);
             event.target.value = "";
@@ -2426,7 +2512,8 @@ function canSubmitCompletion(completion: ProductionCompletion) {
   const photoKinds = new Set(completion.photos.map((photo) => photo.kind));
   return (
     completion.diodeCount > 0 &&
-    (completion.noPowerSupply || completion.powerSupply.trim().length > 0) &&
+    Boolean(completion.diodeCatalogId) &&
+    (completion.noPowerSupply || Boolean(completion.powerSupplyCatalogId)) &&
     photoSlots.every((slot) => photoKinds.has(slot.kind))
   );
 }
@@ -2437,6 +2524,82 @@ function completionFor(assignment: ProductionAssignment): ProductionCompletion {
     ...assignment.completion,
     photos: assignment.completion?.photos || [],
   };
+}
+
+function completionWithCatalogItems(
+  completion: ProductionCompletion,
+  diodeCatalogItems: CatalogItem[],
+  powerSupplyCatalogItems: CatalogItem[],
+): ProductionCompletion {
+  const diode = diodeCatalogItems.find((item) => item.id === completion.diodeCatalogId);
+  const powerSupply = powerSupplyCatalogItems.find((item) => item.id === completion.powerSupplyCatalogId);
+
+  return {
+    ...completion,
+    diodeCatalogTitle: diode?.title || completion.diodeCatalogTitle || "",
+    powerSupply: completion.noPowerSupply ? "" : powerSupply?.title || completion.powerSupply || "",
+    powerSupplyCatalogTitle: completion.noPowerSupply
+      ? ""
+      : powerSupply?.title || completion.powerSupplyCatalogTitle || "",
+  };
+}
+
+function calculationWithProductionLighting(
+  calculation: DealCalculation | undefined,
+  assignment: ProductionAssignment,
+  completion: ProductionCompletion,
+  diodeCatalogItems: CatalogItem[],
+  powerSupplyCatalogItems: CatalogItem[],
+): DealCalculation {
+  const currentCalculation: DealCalculation = calculation || {
+    dealId: assignment.dealId,
+    positions: [],
+    updatedAt: new Date().toISOString(),
+  };
+  const autoIds = productionLightingPositionIds(assignment.id);
+  const nextPositions = currentCalculation.positions.filter((position) => !autoIds.has(position.id));
+  const diode = diodeCatalogItems.find((item) => item.id === completion.diodeCatalogId);
+  const powerSupply = powerSupplyCatalogItems.find((item) => item.id === completion.powerSupplyCatalogId);
+
+  if (diode && completion.diodeCount > 0) {
+    nextPositions.unshift(catalogPositionForCompletion(assignment.id, "diodes", diode, completion.diodeCount));
+  }
+
+  if (powerSupply && !completion.noPowerSupply) {
+    nextPositions.unshift(catalogPositionForCompletion(assignment.id, "power-supply", powerSupply, 1));
+  }
+
+  return {
+    ...currentCalculation,
+    updatedAt: new Date().toISOString(),
+    positions: nextPositions,
+  };
+}
+
+function catalogPositionForCompletion(
+  assignmentId: string,
+  kind: "diodes" | "power-supply",
+  item: CatalogItem,
+  qty: number,
+): CostPosition {
+  return {
+    id: `production-${assignmentId}-${kind}`,
+    section: "lighting",
+    title: item.title,
+    qty,
+    unit: item.unit || "шт",
+    unitCost: Number(item.unitCost) || 0,
+    note: "Добавлено макетчиком из приложения",
+    catalogId: item.id,
+    calcMode: "pieces",
+  };
+}
+
+function productionLightingPositionIds(assignmentId: string) {
+  return new Set([
+    `production-${assignmentId}-diodes`,
+    `production-${assignmentId}-power-supply`,
+  ]);
 }
 
 function createEvent(type: ProductionAssignmentEventType, actor: string, note?: string) {
@@ -2609,6 +2772,49 @@ function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("ru-RU").format(date);
+}
+
+function isPowerSupplyCatalogItem(item: CatalogItem) {
+  if (item.section !== "lighting" && item.section !== "consumables") return false;
+  const text = catalogItemSearchText(item);
+  return (
+    text.includes("блок") ||
+    text.includes("бп") ||
+    text.includes("power supply") ||
+    text.includes("sanpu") ||
+    text.includes("normal ip") ||
+    text.includes("light ip")
+  );
+}
+
+function isDiodeCatalogItem(item: CatalogItem) {
+  if (item.section !== "lighting" && item.section !== "consumables") return false;
+  const text = catalogItemSearchText(item);
+  if (isPowerSupplyCatalogItem(item)) return false;
+  return (
+    text.includes("светодиод") ||
+    text.includes("модул") ||
+    text.includes("лента") ||
+    text.includes("led") ||
+    text.includes("cob")
+  );
+}
+
+function catalogItemSearchText(item: CatalogItem) {
+  return [
+    item.title,
+    item.materialGroup,
+    item.materialFamily,
+    item.materialSubgroup,
+    item.source,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function compareCatalogItems(first: CatalogItem, second: CatalogItem) {
+  return first.title.localeCompare(second.title, "ru", { numeric: true });
 }
 
 function readFileAsDataUrl(file: File) {

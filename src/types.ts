@@ -257,7 +257,11 @@ export type ProductionPhoto = {
 
 export type ProductionCompletion = {
   diodeCount: number;
+  diodeCatalogId?: string;
+  diodeCatalogTitle?: string;
   powerSupply: string;
+  powerSupplyCatalogId?: string;
+  powerSupplyCatalogTitle?: string;
   noPowerSupply: boolean;
   note: string;
   photos: ProductionPhoto[];

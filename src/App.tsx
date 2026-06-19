@@ -40,6 +40,7 @@ import {
 } from "./lib/access";
 import {
   defaultSaveApiUrl,
+  saveCalculations,
   saveProduction,
   saveTechSpecs,
   uploadTechSpecToBitrix,
@@ -422,6 +423,27 @@ export default function App() {
         ],
       };
       writeCachedCalculations(next);
+      return next;
+    });
+  }
+
+  function handleProductionCalculationChange(calculation: DealCalculation) {
+    setStoredCalculations((current) => {
+      const next = {
+        ...current,
+        generatedAt: new Date().toISOString(),
+        calculations: [
+          ...current.calculations.filter((item) => item.dealId !== calculation.dealId),
+          calculation,
+        ],
+      };
+      writeCachedCalculations(next);
+      const apiUrl = defaultSaveApiUrl();
+      if (apiUrl) {
+        void saveCalculations({ apiUrl }, next).catch(() => {
+          // The local calculation is already cached; the next save will retry sync.
+        });
+      }
       return next;
     });
   }
@@ -879,23 +901,27 @@ export default function App() {
       {workspaceMode === "employees" && canUseEmployees ? (
         <ProductionMobileApp
           calculations={calculationsMap}
+          catalogItems={catalogItems}
           currentUser={currentEmployee}
           deals={deals}
           mode="employees"
           saveApiUrl={defaultSaveApiUrl()}
           techSpecs={techSpecsMap}
           storedProduction={storedProduction}
+          onCalculationChange={handleProductionCalculationChange}
           onChange={handleProductionChange}
         />
       ) : workspaceMode === "production" && canUseProduction ? (
         <ProductionMobileApp
           calculations={calculationsMap}
+          catalogItems={catalogItems}
           currentUser={currentEmployee}
           deals={deals}
           mode="production"
           saveApiUrl={defaultSaveApiUrl()}
           techSpecs={techSpecsMap}
           storedProduction={storedProduction}
+          onCalculationChange={handleProductionCalculationChange}
           onChange={handleProductionChange}
         />
       ) : canUseCosting ? (
