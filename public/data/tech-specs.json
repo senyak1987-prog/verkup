@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T19:28:45.193Z",
+  "generatedAt": "2026-06-19T19:29:00.988Z",
   "specs": [
     {
       "dealId": "16986",
@@ -421,7 +421,7 @@
         "items": [
           {
             "id": "24ada386-d1a4-491e-ab87-1f5369212456",
-            "templateId": "neon",
+            "templateId": "letters",
             "attachments": [],
             "workCostPositionIds": [
               "174b9964-3453-4279-b0c2-2d0c845b30e6"
@@ -429,13 +429,18 @@
             "fields": {
               "name": "Вывеска",
               "quantity": "1 шт",
-              "substrate": "ПРОЗРАЧНОЕ ОРГСТЕКЛО",
-              "substrateThickness": "4 мм",
-              "substrateFilm": "Нет",
-              "neonThickness": "6/12 мм",
-              "neonColor": "белый нейтральный",
-              "mountType": "ДИСТАНЦИОННЫЕ ДЕРЖАТЕЛИ",
-              "psu": "ИНТЕРЬЕРНЫЙ",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра",
               "size": "",
               "layout": "",
               "installPlace": ""
@@ -443,7 +448,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-19T19:28:45.193Z",
+      "updatedAt": "2026-06-19T19:29:00.988Z",
       "bitrixFile": {
         "field": "UF_CRM_1780210628536",
         "name": "TZ-16874-Тест.jpg",
