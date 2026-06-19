@@ -6150,6 +6150,97 @@ div.employee-profile-field .employee-profile-value {
   gap: 7px;
 }
 
+.employee-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 7px;
+}
+
+.employee-group-grid button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  min-height: 74px;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+  color: #17202f;
+  text-align: left;
+}
+
+.employee-group-grid button.active {
+  border-color: #0f766e;
+  background: #effaf8;
+  box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.12);
+}
+
+.employee-group-grid span {
+  overflow: hidden;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-group-grid strong {
+  display: grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  background: #e7f4f1;
+  color: #0f4f49;
+  font-size: 13px;
+}
+
+.employee-group-grid small {
+  grid-column: 1 / -1;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.employee-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid #edf0f5;
+  padding-top: 10px;
+}
+
+.employee-list-head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.employee-list-head strong {
+  font-size: 16px;
+}
+
+.employee-list-head span {
+  overflow: hidden;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employee-list-head em {
+  display: grid;
+  min-width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475467;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .registration-requests {
   display: grid;
   gap: 8px;
@@ -6252,7 +6343,21 @@ div.employee-profile-field .employee-profile-value {
   grid-template-columns: 34px minmax(0, 1fr);
 }
 
-.production-employee-row > span {
+.employee-row-summary {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.employee-row-avatar {
   display: grid;
   width: 34px;
   height: 34px;
@@ -6264,8 +6369,8 @@ div.employee-profile-field .employee-profile-value {
   text-transform: uppercase;
 }
 
-.production-employee-row strong,
-.production-employee-row small {
+.employee-row-summary strong,
+.employee-row-summary small {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6973,10 +7078,27 @@ div.employee-profile-field .employee-profile-value {
 .production-theme-night .worker-tabs,
 .production-theme-night .worker-password-panel,
 .production-theme-night .production-batch-bar,
-.production-theme-night .production-section-tabs {
+.production-theme-night .production-section-tabs,
+.production-theme-night .employee-group-grid button {
   border-color: #263241;
   background: #121821;
   color: #e5eef7;
+}
+
+.production-theme-night .employee-group-grid button.active {
+  border-color: #1e8078;
+  background: #0d2928;
+}
+
+.production-theme-night .employee-group-grid small,
+.production-theme-night .employee-list-head span,
+.production-theme-night .employee-row-summary small {
+  color: #9aa8ba;
+}
+
+.production-theme-night .employee-list-head em {
+  background: #0f151d;
+  color: #cbd5e1;
 }
 
 .production-theme-night .worker-profile-menu {

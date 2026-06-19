@@ -455,8 +455,14 @@ export function mergeStoredProduction(
       base.assignments || [],
       incoming.assignments || [],
       preferIncomingRecords,
+      { keepMissingIncomingRecords: preferIncomingRecords },
     ),
-    payouts: mergeProductionRecords(base.payouts || [], incoming.payouts || [], preferIncomingRecords),
+    payouts: mergeProductionRecords(
+      base.payouts || [],
+      incoming.payouts || [],
+      preferIncomingRecords,
+      { keepMissingIncomingRecords: preferIncomingRecords },
+    ),
   };
 }
 
@@ -464,11 +470,14 @@ function mergeProductionRecords<T extends { id: string }>(
   fetchedRecords: T[],
   cachedRecords: T[],
   preferCachedRecords: boolean,
+  options: { keepMissingIncomingRecords?: boolean } = {},
 ) {
   const records = new Map<string, T>();
   for (const record of fetchedRecords) records.set(record.id, record);
   for (const record of cachedRecords) {
-    if (preferCachedRecords || !records.has(record.id)) records.set(record.id, record);
+    if (preferCachedRecords || records.has(record.id) || options.keepMissingIncomingRecords) {
+      records.set(record.id, record);
+    }
   }
   return Array.from(records.values());
 }

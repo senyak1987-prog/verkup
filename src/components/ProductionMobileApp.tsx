@@ -70,6 +70,14 @@ type ProductionView = "supervisor" | "worker";
 type SupervisorTab = "active" | "done";
 type WorkerTab = "assigned" | "inProgress" | "ready" | "money" | "gallery";
 type ProductionTheme = "day" | "night";
+type EmployeeGroupId =
+  | "makers"
+  | "assemblers"
+  | "managers"
+  | "technologists"
+  | "shopChiefs"
+  | "leaders"
+  | "noAccess";
 
 type WorkerMoneySummary = {
   balance: number;
@@ -104,6 +112,13 @@ type ProductionMobileAppProps = {
   onOpenDeal?: (dealId: string, target: ProductionDealOpenTarget) => void;
 };
 
+type EmployeeGroup = {
+  id: EmployeeGroupId;
+  label: string;
+  description: string;
+  employees: ProductionEmployee[];
+};
+
 const ROLE_STORAGE_KEY = "verkup-production-view";
 const EMPLOYEE_STORAGE_KEY = "verkup-production-employee";
 const THEME_STORAGE_KEY = "verkup-production-theme";
@@ -123,6 +138,16 @@ const statusLabels: Record<ProductionAssignmentStatus, string> = {
   submitted: "На проверке",
   readyForShipment: "Готово к отгрузке",
 };
+
+const employeeGroupConfigs: Array<Omit<EmployeeGroup, "employees">> = [
+  { id: "makers", label: "Макетчики", description: "Сборка изделий и фотоотчеты" },
+  { id: "assemblers", label: "Сборщики", description: "Сборочные работы" },
+  { id: "managers", label: "Менеджеры", description: "Свои сделки из Битрикс" },
+  { id: "technologists", label: "Сметчики / технологи", description: "Себестоимость и ТЗ" },
+  { id: "shopChiefs", label: "Начальники цеха", description: "Распределение в работу" },
+  { id: "leaders", label: "Руководители", description: "Полный доступ" },
+  { id: "noAccess", label: "Без доступа", description: "Зарегистрированы, но не допущены" },
+];
 
 const photoSlots: Array<{
   kind: ProductionPhotoKind;
@@ -206,6 +231,7 @@ export function ProductionMobileApp({
   const [employeeWorkerRoles, setEmployeeWorkerRoles] = useState<Record<string, ProductionEmployeeRole>>({});
   const [employeePins, setEmployeePins] = useState<Record<string, string>>({});
   const [employeePayouts, setEmployeePayouts] = useState<Record<string, string>>({});
+  const [selectedEmployeeGroupId, setSelectedEmployeeGroupId] = useState<EmployeeGroupId>("makers");
   const [staffDetailEmployeeId, setStaffDetailEmployeeId] = useState("");
   const [notificationPermission, setNotificationPermission] = useState(() => notificationPermissionState());
   const [notice, setNotice] = useState("");
@@ -223,6 +249,11 @@ export function ProductionMobileApp({
     () => storedProduction.employees.filter((employee) => employee.active !== false),
     [storedProduction.employees],
   );
+
+  const employeeGroups = useMemo(() => buildEmployeeGroups(employees), [employees]);
+  const selectedEmployeeGroup =
+    employeeGroups.find((group) => group.id === selectedEmployeeGroupId) || employeeGroups[0];
+  const visibleEmployees = selectedEmployeeGroup?.employees || [];
 
   const employeesById = useMemo(
     () => new Map(employees.map((employee) => [employee.id, employee])),
@@ -1270,19 +1301,50 @@ export function ProductionMobileApp({
             Добавить вручную
           </button>
         </div>
+        <div className="employee-group-grid" role="tablist" aria-label="Группы сотрудников">
+          {employeeGroups.map((group) => (
+            <button
+              aria-selected={selectedEmployeeGroupId === group.id}
+              className={selectedEmployeeGroupId === group.id ? "active" : ""}
+              key={group.id}
+              onClick={() => setSelectedEmployeeGroupId(group.id)}
+              type="button"
+            >
+              <span>{group.label}</span>
+              <strong>{group.employees.length}</strong>
+              <small>{group.description}</small>
+            </button>
+          ))}
+        </div>
+
         <div className="production-employee-list">
-          {employees.map((employee) => (
-            <div className="production-employee-row employee-admin-row" key={employee.id}>
-              <span>{initials(employee.name)}</span>
+          {selectedEmployeeGroup ? (
+            <div className="employee-list-head">
               <div>
-                <strong>{employee.name}</strong>
-                <small>
-                  {accessRoleLabels[accessRoleFor(employee)]}
-                  {employee.login ? ` · ${employee.login}` : ""}
-                  {accessRoleFor(employee) === "maker" ? ` · ${employeeRoleLabels[employee.role]}` : ""}
-                  {employee.phone ? ` · ${employee.phone}` : ""}
-                </small>
+                <strong>{selectedEmployeeGroup.label}</strong>
+                <span>{selectedEmployeeGroup.description}</span>
               </div>
+              <em>{selectedEmployeeGroup.employees.length}</em>
+            </div>
+          ) : null}
+          {visibleEmployees.map((employee) => (
+            <div className="production-employee-row employee-admin-row" key={employee.id}>
+              <button
+                className="employee-row-summary"
+                onClick={() => setStaffDetailEmployeeId(employee.id)}
+                type="button"
+              >
+                <span className="employee-row-avatar">{initials(employee.name)}</span>
+                <div>
+                  <strong>{employee.name}</strong>
+                  <small>
+                    {accessRoleLabels[accessRoleFor(employee)]}
+                    {employee.login ? ` · ${employee.login}` : ""}
+                    {accessRoleFor(employee) === "maker" ? ` · ${employeeRoleLabels[employee.role]}` : ""}
+                    {employee.phone ? ` · ${employee.phone}` : ""}
+                  </small>
+                </div>
+              </button>
               <div className="employee-access-controls">
                 <select
                   onChange={(event) =>
@@ -1400,6 +1462,11 @@ export function ProductionMobileApp({
               </div>
             </div>
           ))}
+          {employees.length && !visibleEmployees.length ? (
+            <p className="production-muted">
+              В этом блоке пока нет сотрудников.
+            </p>
+          ) : null}
           {!employees.length ? (
             <p className="production-muted">
               Добавьте сотрудников, чтобы выдать им доступ и назначать сделки.
@@ -2729,6 +2796,23 @@ function ProductionKpi({ label, value }: { label: string; value: number }) {
       <strong>{value}</strong>
     </div>
   );
+}
+
+function buildEmployeeGroups(employees: ProductionEmployee[]): EmployeeGroup[] {
+  return employeeGroupConfigs.map((config) => ({
+    ...config,
+    employees: employees.filter((employee) => employeeGroupIdFor(employee) === config.id),
+  }));
+}
+
+function employeeGroupIdFor(employee: ProductionEmployee): EmployeeGroupId {
+  const role = accessRoleFor(employee);
+  if (role === "maker") return employee.role === "assembler" ? "assemblers" : "makers";
+  if (role === "manager") return "managers";
+  if (role === "technologist") return "technologists";
+  if (role === "shopChief") return "shopChiefs";
+  if (role === "leader") return "leaders";
+  return "noAccess";
 }
 
 function latestAssignmentByPart(assignments: ProductionAssignment[]) {
