@@ -6119,12 +6119,14 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .worker-tabs {
+  --worker-tab-drag: 0px;
   display: flex;
   gap: 6px;
-  overflow-x: auto;
-  border: 1px solid #dce4ee;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 117, 0, 0.24);
   border-radius: 8px;
-  background: #fff;
+  background: #fff7ed;
   padding: 5px;
   scrollbar-width: none;
 }
@@ -6135,35 +6137,98 @@ div.employee-profile-field .employee-profile-value {
 
 .worker-tabs button {
   display: inline-flex;
-  flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-width: 0;
   min-height: 34px;
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #475467;
+  color: #7c3b00;
   padding: 0 11px;
   font-size: 13px;
   font-weight: 900;
   white-space: nowrap;
+  transition:
+    color 160ms ease,
+    transform 160ms ease;
 }
 
 .worker-tabs button.active {
-  background: #0f766e;
   color: #fff;
 }
 
-.worker-tabs span {
+.worker-tabs button:active {
+  transform: scale(0.985);
+}
+
+.worker-tab-glider {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  z-index: 0;
+  width: calc((100% - 22px) / 3);
+  border-radius: 6px;
+  background: #ff7500;
+  box-shadow: 0 8px 18px rgba(255, 117, 0, 0.25);
+  pointer-events: none;
+  transition:
+    transform 190ms cubic-bezier(0.2, 0.72, 0.18, 1),
+    opacity 160ms ease;
+}
+
+.worker-tabs.tab-index-0 .worker-tab-glider {
+  transform: translate3d(var(--worker-tab-drag), 0, 0);
+}
+
+.worker-tabs.tab-index-1 .worker-tab-glider {
+  transform: translate3d(calc(100% + 6px + var(--worker-tab-drag)), 0, 0);
+}
+
+.worker-tabs.tab-index-2 .worker-tab-glider {
+  transform: translate3d(calc(200% + 12px + var(--worker-tab-drag)), 0, 0);
+}
+
+.worker-tabs.dragging .worker-tab-glider {
+  transition: opacity 160ms ease;
+}
+
+.worker-tabs.no-active .worker-tab-glider {
+  opacity: 0;
+}
+
+.worker-tabs button span {
   border-radius: 999px;
-  background: rgba(15, 118, 110, 0.12);
+  background: rgba(255, 117, 0, 0.15);
+  color: #7c3b00;
   padding: 2px 6px;
   font-size: 11px;
 }
 
 .worker-tabs button.active span {
   background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.worker-tab-content {
+  animation: worker-tab-content-in 180ms ease both;
+}
+
+@keyframes worker-tab-content-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .production-section-tabs {
@@ -7303,6 +7368,29 @@ div.employee-profile-field .employee-profile-value {
   background: #0f1720;
 }
 
+.production-theme-night .worker-tabs {
+  border-color: rgba(255, 117, 0, 0.32);
+  background: #1a1410;
+}
+
+.production-theme-night .worker-tabs button {
+  color: #f5b16d;
+}
+
+.production-theme-night .worker-tabs button.active {
+  color: #fff;
+}
+
+.production-theme-night .worker-tabs button span {
+  background: rgba(255, 117, 0, 0.18);
+  color: #f7c08a;
+}
+
+.production-theme-night .worker-tabs button.active span {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
 .production-theme-night .worker-notification-badge {
   border-color: #7a4a14;
   background: #2a1a08;
@@ -7687,7 +7775,7 @@ div.employee-profile-field .employee-profile-value {
   }
 
   .worker-tabs {
-    overflow: visible;
+    overflow: hidden;
   }
 
   .worker-tabs button {

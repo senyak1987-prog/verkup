@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { RefObject, TouchEvent } from "react";
+import type { CSSProperties, RefObject, TouchEvent } from "react";
 import { formatMoney, positionTotal } from "../lib/costing";
 import { moveDealToStage, sendProductionPush } from "../lib/saveApi";
 import type {
@@ -218,6 +218,7 @@ export function ProductionMobileApp({
   const storedProductionRef = useRef(storedProduction);
   const notifiedAssignmentIdsRef = useRef<Set<string>>(readNotifiedAssignmentIds(currentUser.id));
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const workerTabsRef = useRef<HTMLDivElement>(null);
   const pullStartYRef = useRef<number | undefined>(undefined);
   const pullActivatedRef = useRef(false);
   const swipeStartXRef = useRef<number | undefined>(undefined);
@@ -228,6 +229,8 @@ export function ProductionMobileApp({
   const [supervisorTab, setSupervisorTab] = useState<SupervisorTab>("active");
   const [workerTab, setWorkerTab] = useState<WorkerTab>("assigned");
   const [lastWorkerDealTab, setLastWorkerDealTab] = useState<WorkerDealTab>("assigned");
+  const [workerSwipeOffset, setWorkerSwipeOffset] = useState(0);
+  const [workerSwipeDragging, setWorkerSwipeDragging] = useState(false);
   const [seenAssignmentIds, setSeenAssignmentIds] = useState<Set<string>>(() =>
     readSeenAssignmentIds(currentUser.id),
   );
@@ -440,6 +443,20 @@ export function ProductionMobileApp({
     () => assignmentsForWorkerTab(workerAssignments, workerTab),
     [workerAssignments, workerTab],
   );
+  const workerDealTabIndex = WORKER_DEAL_TABS.indexOf(
+    isWorkerDealTab(workerTab) ? workerTab : lastWorkerDealTab,
+  );
+  const workerTabsStyle = {
+    "--worker-tab-drag": `${workerSwipeOffset}px`,
+  } as CSSProperties;
+  const workerTabsClassName = [
+    "worker-tabs",
+    `tab-index-${Math.max(0, workerDealTabIndex)}`,
+    workerSwipeDragging ? "dragging" : "",
+    isWorkerDealTab(workerTab) ? "" : "no-active",
+  ]
+    .filter(Boolean)
+    .join(" ");
   const pushButtonLabel =
     notificationPermission === "unsupported"
       ? "Уведомления недоступны"
@@ -1214,6 +1231,7 @@ export function ProductionMobileApp({
       swipeLastXRef.current = touch.clientX;
       swipeLastYRef.current = touch.clientY;
       horizontalSwipeIntentRef.current = false;
+      resetWorkerSwipeFeedback();
     } else {
       resetWorkerSwipe();
     }
@@ -1239,6 +1257,7 @@ export function ProductionMobileApp({
       pullStartYRef.current = undefined;
       pullActivatedRef.current = false;
       setPullDistance(0);
+      updateWorkerSwipeFeedback();
       if (event.cancelable) event.preventDefault();
       return;
     }
@@ -1293,6 +1312,40 @@ export function ProductionMobileApp({
     swipeLastXRef.current = undefined;
     swipeLastYRef.current = undefined;
     horizontalSwipeIntentRef.current = false;
+    resetWorkerSwipeFeedback();
+  }
+
+  function resetWorkerSwipeFeedback() {
+    setWorkerSwipeDragging(false);
+    setWorkerSwipeOffset(0);
+  }
+
+  function updateWorkerSwipeFeedback() {
+    const startX = swipeStartXRef.current;
+    const lastX = swipeLastXRef.current;
+    if (startX === undefined || lastX === undefined) return;
+
+    const deltaX = lastX - startX;
+    if (!isWorkerDealTab(workerTab) && !(workerTab === "money" && deltaX > 0)) return;
+
+    const tabsWidth = workerTabsRef.current?.clientWidth || 360;
+    const tabWidth = Math.max(72, tabsWidth / WORKER_DEAL_TABS.length);
+    const currentDealTab = isWorkerDealTab(workerTab) ? workerTab : lastWorkerDealTab;
+    const currentIndex = WORKER_DEAL_TABS.indexOf(currentDealTab);
+    const isEdgeSwipe =
+      (currentIndex <= 0 && deltaX > 0) ||
+      (currentIndex >= WORKER_DEAL_TABS.length - 1 && deltaX < 0);
+    const resistance = isEdgeSwipe ? 0.24 : 0.72;
+    const offset = Math.max(-tabWidth, Math.min(tabWidth, deltaX * resistance));
+
+    setWorkerSwipeDragging(true);
+    setWorkerSwipeOffset(Math.round(offset));
+  }
+
+  function selectWorkerDealTab(tab: WorkerDealTab) {
+    resetWorkerSwipeFeedback();
+    setLastWorkerDealTab(tab);
+    setWorkerTab(tab);
   }
 
   function canStartWorkerSwipe(target: EventTarget | null) {
@@ -1956,17 +2009,19 @@ export function ProductionMobileApp({
                 void enableBrowserNotifications();
               }}
               onGalleryClick={() => {
+                resetWorkerSwipeFeedback();
                 setWorkerTab("gallery");
                 setProfileMenuOpen(false);
               }}
               onLogout={onLogout}
               onMoneyClick={() => {
+                resetWorkerSwipeFeedback();
                 setWorkerTab("money");
                 setProfileMenuOpen(false);
               }}
               onMenuToggle={() => setProfileMenuOpen((current) => !current)}
               onNotificationClick={() => {
-                setWorkerTab("assigned");
+                selectWorkerDealTab("assigned");
                 setProfileMenuOpen(false);
               }}
               onPasswordClick={() => {
@@ -2022,10 +2077,17 @@ export function ProductionMobileApp({
             </div>
           ) : null}
 
-          <div className="worker-tabs" role="tablist" aria-label="Работа">
-            <WorkerTabButton active={workerTab === "assigned"} count={assignmentsForWorkerTab(workerAssignments, "assigned").length} label="Назначенные сделки" onClick={() => setWorkerTab("assigned")} />
-            <WorkerTabButton active={workerTab === "inProgress"} count={assignmentsForWorkerTab(workerAssignments, "inProgress").length} label="Сделки в работе" onClick={() => setWorkerTab("inProgress")} />
-            <WorkerTabButton active={workerTab === "ready"} count={assignmentsForWorkerTab(workerAssignments, "ready").length} label="Готовые сделки" onClick={() => setWorkerTab("ready")} />
+          <div
+            className={workerTabsClassName}
+            ref={workerTabsRef}
+            role="tablist"
+            aria-label="Работа"
+            style={workerTabsStyle}
+          >
+            <span className="worker-tab-glider" aria-hidden="true" />
+            <WorkerTabButton active={workerTab === "assigned"} count={assignmentsForWorkerTab(workerAssignments, "assigned").length} label="Назначенные сделки" onClick={() => selectWorkerDealTab("assigned")} />
+            <WorkerTabButton active={workerTab === "inProgress"} count={assignmentsForWorkerTab(workerAssignments, "inProgress").length} label="Сделки в работе" onClick={() => selectWorkerDealTab("inProgress")} />
+            <WorkerTabButton active={workerTab === "ready"} count={assignmentsForWorkerTab(workerAssignments, "ready").length} label="Готовые сделки" onClick={() => selectWorkerDealTab("ready")} />
           </div>
 
           {!productionWorkers.length ? (
@@ -2034,42 +2096,44 @@ export function ProductionMobileApp({
             </div>
           ) : null}
 
-          {workerTab === "money" ? (
-            <WorkerMoneyPanel money={workerMoney} payouts={storedProduction.payouts || []} workerId={selectedWorker?.id || ""} />
-          ) : workerTab === "gallery" ? (
-            <WorkerGalleryPanel galleryPhotos={workerGalleryPhotos} />
-          ) : (
-            <div className="production-deal-list">
-              {workerTabAssignments.map((assignment) => {
-                const deal = dealsById.get(assignment.dealId);
-                if (!deal) return null;
+          <div className="worker-tab-content" key={workerTab}>
+            {workerTab === "money" ? (
+              <WorkerMoneyPanel money={workerMoney} payouts={storedProduction.payouts || []} workerId={selectedWorker?.id || ""} />
+            ) : workerTab === "gallery" ? (
+              <WorkerGalleryPanel galleryPhotos={workerGalleryPhotos} />
+            ) : (
+              <div className="production-deal-list">
+                {workerTabAssignments.map((assignment) => {
+                  const deal = dealsById.get(assignment.dealId);
+                  if (!deal) return null;
 
-                return (
-                  <WorkerDealCard
-                    assignment={assignment}
-                    deal={deal}
-                    diodeCatalogItems={diodeCatalogItems}
-                    expanded={expandedAssignmentIds.has(assignment.id)}
-                    key={assignment.id}
-                    powerSupplyCatalogItems={powerSupplyCatalogItems}
-                    techSpec={techSpecs.get(deal.id)}
-                    onAddPhoto={(kind, file) => void addPhoto(assignment, kind, file)}
-                    onRemovePhoto={(kind) => removePhoto(assignment, kind)}
-                    onStart={() => startAssignment(assignment)}
-                    onSubmit={() => submitAssignment(assignment)}
-                    onToggle={() => openWorkerAssignment(assignment)}
-                    onUpdateCompletion={(patch) => updateCompletion(assignment.id, patch)}
-                    workAmount={earningForAssignment(assignment, techSpecs, calculations)}
-                  />
-                );
-              })}
-              {productionWorkers.length && !workerTabAssignments.length ? (
-                <div className="production-empty">
-                  Сделок в этом разделе пока нет.
-                </div>
-              ) : null}
-            </div>
-          )}
+                  return (
+                    <WorkerDealCard
+                      assignment={assignment}
+                      deal={deal}
+                      diodeCatalogItems={diodeCatalogItems}
+                      expanded={expandedAssignmentIds.has(assignment.id)}
+                      key={assignment.id}
+                      powerSupplyCatalogItems={powerSupplyCatalogItems}
+                      techSpec={techSpecs.get(deal.id)}
+                      onAddPhoto={(kind, file) => void addPhoto(assignment, kind, file)}
+                      onRemovePhoto={(kind) => removePhoto(assignment, kind)}
+                      onStart={() => startAssignment(assignment)}
+                      onSubmit={() => submitAssignment(assignment)}
+                      onToggle={() => openWorkerAssignment(assignment)}
+                      onUpdateCompletion={(patch) => updateCompletion(assignment.id, patch)}
+                      workAmount={earningForAssignment(assignment, techSpecs, calculations)}
+                    />
+                  );
+                })}
+                {productionWorkers.length && !workerTabAssignments.length ? (
+                  <div className="production-empty">
+                    Сделок в этом разделе пока нет.
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
         </section>
       )}
     </main>
@@ -3590,8 +3654,8 @@ async function showAssignmentNotification(body: string) {
 
   const options: NotificationOptions = {
     body,
-    icon: `${import.meta.env.BASE_URL}verkup-mark-v3-icon-192.png`,
-    badge: `${import.meta.env.BASE_URL}verkup-mark-v3-favicon-32.png`,
+    icon: `${import.meta.env.BASE_URL}verkup-app-icon-v4-192.png`,
+    badge: `${import.meta.env.BASE_URL}verkup-app-icon-v4-favicon-32.png`,
     data: {
       url: productionAppUrl(),
     },

@@ -1,12 +1,14 @@
-const CACHE_NAME = "verkup-offline-v13";
+const CACHE_NAME = "verkup-offline-v14";
 const APP_SHELL = [
   "./",
   "./manifest.webmanifest",
-  "./verkup-mark-v3-apple-touch-icon.png",
-  "./verkup-mark-v3-favicon-16.png",
-  "./verkup-mark-v3-favicon-32.png",
-  "./verkup-mark-v3-icon-192.png",
-  "./verkup-mark-v3-icon-512.png",
+  "./verkup-app-icon-v4-apple-touch-icon.png",
+  "./verkup-app-icon-v4-favicon-16.png",
+  "./verkup-app-icon-v4-favicon-32.png",
+  "./verkup-app-icon-v4-192.png",
+  "./verkup-app-icon-v4-512.png",
+  "./verkup-app-icon-v4.svg",
+  "./verkup-app-icon-v4-mark.svg",
   "./verkup-logo-mark.png",
   "./verkup-logo.png",
   "./verkup-logo-vector.svg",
@@ -60,8 +62,8 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Новая сборка Verkup";
   const options = {
     body: payload.body || "Вам назначили изделие на сборку.",
-    icon: "./verkup-mark-v3-icon-192.png",
-    badge: "./verkup-mark-v3-favicon-32.png",
+    icon: "./verkup-app-icon-v4-192.png",
+    badge: "./verkup-app-icon-v4-favicon-32.png",
     tag: payload.tag || "verkup-production-assignment",
     requireInteraction: true,
     data: {
