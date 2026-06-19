@@ -1,22 +1,23 @@
 {
-  "generatedAt": "2026-06-19T20:02:35.153Z",
+  "generatedAt": "2026-06-19T20:02:36.502Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
       "dealId": "16874",
-      "updatedAt": "2026-06-19T20:02:34.292Z",
+      "updatedAt": "2026-06-19T20:02:35.642Z",
       "positions": [
         {
           "id": "1b559282-80de-4f32-b7e9-de9c75f56439",
           "qty": 6,
           "unit": "шт",
-          "unitCost": 300,
+          "unitCost": 400,
           "section": "assembly",
           "title": "Объемные буквы",
           "calcMode": "letterAssembly",
           "addons": [
             "glue",
-            "side-film"
+            "side-film",
+            "frame-install"
           ]
         },
         {
