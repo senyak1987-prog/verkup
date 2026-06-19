@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-06-19T20:01:23.514Z",
+  "generatedAt": "2026-06-19T20:01:25.131Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
       "dealId": "16874",
-      "updatedAt": "2026-06-19T20:01:22.640Z",
+      "updatedAt": "2026-06-19T20:01:24.269Z",
       "positions": [
         {
           "id": "6aa44553-dba6-417c-9508-06b6753cb054",
@@ -27,15 +27,6 @@
           "title": "Труба профильная 15х15х1",
           "calcMode": "pieces",
           "note": "Металл-ДК; price_metal_dk.pdf от 07.06.2026; страница PDF 2"
-        },
-        {
-          "id": "b2cd92b1-187e-40fa-b276-7bb73ae1d21e",
-          "qty": 1,
-          "unit": "п/м",
-          "unitCost": 0,
-          "section": "materials",
-          "title": "Рама",
-          "calcMode": "linear"
         },
         {
           "id": "1becc9bb-4438-4b4c-8874-706299993b25",
