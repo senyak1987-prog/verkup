@@ -249,9 +249,15 @@ export type ProductionAssignmentStatus =
 export type ProductionPhotoKind = "lit" | "unlit" | "packed";
 
 export type ProductionPhoto = {
+  assignmentId?: string;
+  dealId?: string;
+  dealNumber?: string;
+  dealTitle?: string;
+  employeeId?: string;
   kind: ProductionPhotoKind;
   name: string;
   dataUrl: string;
+  techSpecItemId?: string;
   uploadedAt: string;
 };
 

@@ -21,10 +21,11 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatMoney, positionTotal } from "../lib/costing";
-import { sendProductionPush } from "../lib/saveApi";
+import { moveDealToStage, sendProductionPush } from "../lib/saveApi";
 import type {
   Deal,
   DealCalculation,
+  DealStageCode,
   DealTechSpec,
   CatalogItem,
   CostPosition,
@@ -87,6 +88,7 @@ type ProductionMobileAppProps = {
   storedProduction: StoredProduction;
   onChange: (data: StoredProduction, options?: ProductionCommitOptions) => void;
   onCalculationChange?: (calculation: DealCalculation) => void;
+  onDealStageChange?: (dealId: string, stage: DealStageCode) => void;
 };
 
 const ROLE_STORAGE_KEY = "verkup-production-view";
@@ -153,6 +155,7 @@ export function ProductionMobileApp({
   storedProduction,
   onChange,
   onCalculationChange,
+  onDealStageChange,
 }: ProductionMobileAppProps) {
   const [view, setView] = useState<ProductionView>(() => readStoredView());
   const storedProductionRef = useRef(storedProduction);
@@ -182,6 +185,7 @@ export function ProductionMobileApp({
   const [employeeWorkerRoles, setEmployeeWorkerRoles] = useState<Record<string, ProductionEmployeeRole>>({});
   const [employeePins, setEmployeePins] = useState<Record<string, string>>({});
   const [employeePayouts, setEmployeePayouts] = useState<Record<string, string>>({});
+  const [staffDetailEmployeeId, setStaffDetailEmployeeId] = useState("");
   const [notificationPermission, setNotificationPermission] = useState(() => notificationPermissionState());
   const [notice, setNotice] = useState("");
   const currentAccessRole = accessRoleFor(currentUser);
@@ -285,6 +289,14 @@ export function ProductionMobileApp({
       .sort((first, second) => compareAssignmentsByDealDeadline(first, second, dealsById));
   }, [currentAccessRole, currentUser.id, dealsById, selectedEmployeeId, storedProduction.assignments]);
 
+  const staffDetailEmployee = staffDetailEmployeeId ? employeesById.get(staffDetailEmployeeId) : undefined;
+  const staffDetailAssignments = useMemo(() => {
+    if (!staffDetailEmployeeId) return [];
+    return storedProduction.assignments
+      .filter((assignment) => assignment.employeeId === staffDetailEmployeeId)
+      .sort((first, second) => compareAssignmentsByDealDeadline(first, second, dealsById));
+  }, [dealsById, staffDetailEmployeeId, storedProduction.assignments]);
+
   const productionStats = useMemo(
     () => summarizeProduction(storedProduction.assignments),
     [storedProduction.assignments],
@@ -313,8 +325,8 @@ export function ProductionMobileApp({
     [calculations, selectedWorker, storedProduction.assignments, storedProduction.payouts, techSpecs],
   );
   const workerGalleryPhotos = useMemo(
-    () => galleryPhotosForWorker(workerAssignments),
-    [workerAssignments],
+    () => galleryPhotosForWorker(workerAssignments, dealsById),
+    [dealsById, workerAssignments],
   );
   const workerTabAssignments = useMemo(
     () => assignmentsForWorkerTab(workerAssignments, workerTab),
@@ -363,6 +375,12 @@ export function ProductionMobileApp({
   useEffect(() => {
     if (selectedEmployeeId) localStorage.setItem(EMPLOYEE_STORAGE_KEY, selectedEmployeeId);
   }, [selectedEmployeeId]);
+
+  useEffect(() => {
+    if (staffDetailEmployeeId && !employeesById.has(staffDetailEmployeeId)) {
+      setStaffDetailEmployeeId("");
+    }
+  }, [employeesById, staffDetailEmployeeId]);
 
   useEffect(() => {
     if (!productionWorkers.length) {
@@ -759,6 +777,22 @@ export function ProductionMobileApp({
     }
   }
 
+  async function changeDealStage(deal: Deal, stage: DealStageCode) {
+    const currentStage = stageCodeForDeal(deal);
+    if (currentStage === stage) return;
+
+    try {
+      if (saveApiUrl) {
+        await moveDealToStage({ apiUrl: saveApiUrl }, deal.id, stage);
+      }
+      onDealStageChange?.(deal.id, stage);
+      setNotice(`Стадия сделки #${deal.number}: ${stageLabels[stage]}`);
+    } catch {
+      setNotice("Стадию сделки не удалось изменить. Проверьте подключение к серверу.");
+    }
+    window.setTimeout(() => setNotice(""), 2600);
+  }
+
   function patchAssignment(
     assignmentId: string,
     updater: (assignment: ProductionAssignment) => ProductionAssignment,
@@ -809,10 +843,17 @@ export function ProductionMobileApp({
         maxWidth: 1280,
         quality: 0.72,
       });
+      const deal = dealsById.get(assignment.dealId);
       const nextPhoto: ProductionPhoto = {
+        assignmentId: assignment.id,
+        dealId: assignment.dealId,
+        dealNumber: deal?.number || "",
+        dealTitle: deal?.title || "",
+        employeeId: assignment.employeeId,
         kind,
         name: file.name,
         dataUrl,
+        techSpecItemId: assignment.techSpecItemId,
         uploadedAt: new Date().toISOString(),
       };
       const completion = completionFor(assignment);
@@ -1208,6 +1249,10 @@ export function ProductionMobileApp({
                   value={employeePins[employee.id] || ""}
                 />
                 <div className="employee-access-actions">
+                  <button className="secondary" onClick={() => setStaffDetailEmployeeId(employee.id)} type="button">
+                    <ClipboardList size={16} />
+                    Сделки
+                  </button>
                   <button className="secondary" onClick={() => void saveEmployeeAccess(employee)} type="button">
                     <KeyRound size={16} />
                     Сохранить
@@ -1272,6 +1317,16 @@ export function ProductionMobileApp({
             </p>
           ) : null}
         </div>
+        {staffDetailEmployee ? (
+          <EmployeeProductionDetail
+            assignments={staffDetailAssignments}
+            calculations={calculations}
+            dealsById={dealsById}
+            employee={staffDetailEmployee}
+            techSpecs={techSpecs}
+            onClose={() => setStaffDetailEmployeeId("")}
+          />
+        ) : null}
       </div>
     );
   }
@@ -1420,6 +1475,7 @@ export function ProductionMobileApp({
                     targetEmployeeId={targetEmployeeId}
                     onAssign={() => assignSingleDeal(deal.id)}
                     onAssignPart={(itemId, employeeId) => assignDealPart(deal.id, itemId, employeeId)}
+                    onStageChange={(stage) => void changeDealStage(deal, stage)}
                     onToggle={() => toggleDealExpanded(deal.id)}
                     onMarkReady={(reviewAssignment) => markReadyForShipment(reviewAssignment)}
                     onSelect={(checked) => toggleDealSelection(deal.id, checked)}
@@ -1539,6 +1595,7 @@ function SupervisorDealCard({
   targetEmployeeId,
   onAssign,
   onAssignPart,
+  onStageChange,
   onToggle,
   onMarkReady,
   onSelect,
@@ -1556,10 +1613,13 @@ function SupervisorDealCard({
   targetEmployeeId: string;
   onAssign: () => void;
   onAssignPart: (itemId: string, employeeId: string) => void;
+  onStageChange: (stage: DealStageCode) => void;
   onToggle: () => void;
   onMarkReady: (assignment: ProductionAssignment) => void;
   onSelect: (checked: boolean) => void;
 }) {
+  const currentStage = stageCodeForDeal(deal);
+
   return (
     <article className={`production-deal-card compact ${assignment?.status || "unassigned"}`}>
       <div className="production-compact-row">
@@ -1616,6 +1676,17 @@ function SupervisorDealCard({
             <Send size={16} />
             {assignment ? "Переназначить" : "Назначить"}
           </button>
+          <select
+            aria-label="Изменить стадию сделки"
+            onChange={(event) => onStageChange(event.target.value as DealStageCode)}
+            value={currentStage}
+          >
+            {(["tz", "tzApproval", "launch", "production", "defect"] as DealStageCode[]).map((stage) => (
+              <option key={stage} value={stage}>
+                {stageLabels[stage]}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -1656,7 +1727,7 @@ function SupervisorDealCard({
               </span>
             </div>
             {completion.note ? <p>{completion.note}</p> : null}
-            <PhotoStrip photos={completion.photos} />
+            <PhotoStrip photos={photosWithAssignmentLink(reviewAssignment, deal)} />
             <button className="primary" onClick={() => onMarkReady(reviewAssignment)} type="button">
               <PackageCheck size={16} />
               Готово к отгрузке
@@ -1721,6 +1792,162 @@ function PartAssignmentPanel({
   );
 }
 
+function EmployeeProductionDetail({
+  assignments,
+  calculations,
+  dealsById,
+  employee,
+  techSpecs,
+  onClose,
+}: {
+  assignments: ProductionAssignment[];
+  calculations: Map<string, DealCalculation>;
+  dealsById: Map<string, Deal>;
+  employee: ProductionEmployee;
+  techSpecs: Map<string, DealTechSpec>;
+  onClose: () => void;
+}) {
+  const activeAssignments = assignments.filter(
+    (assignment) => assignment.status === "assigned" || assignment.status === "inProgress",
+  );
+  const completedAssignments = assignments.filter(
+    (assignment) => assignment.status === "submitted" || assignment.status === "readyForShipment",
+  );
+
+  return (
+    <section className="production-panel">
+      <div className="production-review-head">
+        <div>
+          <span className="eyebrow">Сделки сотрудника</span>
+          <h2>{employee.name}</h2>
+        </div>
+        <button className="secondary" onClick={onClose} type="button">
+          <X size={16} />
+          Закрыть
+        </button>
+      </div>
+
+      <div className="production-kpis" aria-label="Сводка сотрудника">
+        <ProductionKpi label="Назначено" value={activeAssignments.length} />
+        <ProductionKpi label="Собрано" value={completedAssignments.length} />
+        <ProductionKpi label="Всего" value={assignments.length} />
+      </div>
+
+      <EmployeeAssignmentSection
+        assignments={activeAssignments}
+        calculations={calculations}
+        dealsById={dealsById}
+        emptyText="Активных назначений пока нет."
+        techSpecs={techSpecs}
+        title="Назначены и в работе"
+      />
+      <EmployeeAssignmentSection
+        assignments={completedAssignments}
+        calculations={calculations}
+        dealsById={dealsById}
+        emptyText="Собранных сделок пока нет."
+        techSpecs={techSpecs}
+        title="Собранные сделки"
+      />
+    </section>
+  );
+}
+
+function EmployeeAssignmentSection({
+  assignments,
+  calculations,
+  dealsById,
+  emptyText,
+  techSpecs,
+  title,
+}: {
+  assignments: ProductionAssignment[];
+  calculations: Map<string, DealCalculation>;
+  dealsById: Map<string, Deal>;
+  emptyText: string;
+  techSpecs: Map<string, DealTechSpec>;
+  title: string;
+}) {
+  return (
+    <section className="production-review">
+      <div className="production-review-head">
+        <strong>{title}</strong>
+        <span>{assignments.length}</span>
+      </div>
+      <div className="production-deal-list">
+        {assignments.map((assignment) => (
+          <EmployeeAssignmentCard
+            assignment={assignment}
+            calculations={calculations}
+            deal={dealsById.get(assignment.dealId)}
+            key={assignment.id}
+            techSpec={techSpecs.get(assignment.dealId)}
+            techSpecs={techSpecs}
+          />
+        ))}
+        {!assignments.length ? <div className="production-empty">{emptyText}</div> : null}
+      </div>
+    </section>
+  );
+}
+
+function EmployeeAssignmentCard({
+  assignment,
+  calculations,
+  deal,
+  techSpec,
+  techSpecs,
+}: {
+  assignment: ProductionAssignment;
+  calculations: Map<string, DealCalculation>;
+  deal?: Deal;
+  techSpec?: DealTechSpec;
+  techSpecs: Map<string, DealTechSpec>;
+}) {
+  const completion = completionFor(assignment);
+  const photos = photosWithAssignmentLink(assignment, deal);
+  const title = deal ? `#${deal.number} ${deal.title}` : `Сделка ${assignment.dealId}`;
+
+  return (
+    <article className={`production-deal-card compact ${assignment.status}`}>
+      <div className="production-deal-summary worker-summary">
+        <TechSpecThumbnail itemId={assignment.techSpecItemId} spec={techSpec} />
+        <div className="production-compact-info">
+          <div className="production-card-title compact-title">
+            <div>
+              <strong>{title}</strong>
+              <h2>{techSpecItemLabel(techSpec, assignment.techSpecItemId)}</h2>
+            </div>
+          </div>
+          <div className="production-compact-meta">
+            <span>Назначена: {formatDateTime(assignment.assignedAt)}</span>
+            <span>Старт: {formatDateTime(assignment.startedAt) || "не приступил"}</span>
+            <span>Время: {formatAssignmentDuration(assignment)}</span>
+            <span>{deal ? `Срок: ${formatDate(deal.expectedFinishDate) || "не указан"}` : "Сделка не найдена"}</span>
+          </div>
+        </div>
+        <div className="production-compact-status">
+          <StatusBadge status={assignment.status} />
+          <span>{formatMoney(earningForAssignment(assignment, techSpecs, calculations))}</span>
+        </div>
+      </div>
+
+      <div className="production-result-grid">
+        <span>
+          Диоды
+          <strong>{completion.diodeCatalogTitle || completion.diodeCatalogId || "-"}</strong>
+          <em>{completion.diodeCount ? `${completion.diodeCount} шт` : "не указано"}</em>
+        </span>
+        <span>
+          Блок
+          <strong>{completion.noPowerSupply ? "Не нужен" : completion.powerSupplyCatalogTitle || completion.powerSupply || "-"}</strong>
+        </span>
+      </div>
+      <PhotoStrip photos={photos} />
+    </article>
+  );
+}
+
 function WorkerProfile({
   employee,
   money,
@@ -1776,9 +2003,19 @@ function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[
   return (
     <section className="production-panel">
       <div className="worker-gallery">
-        {galleryPhotos.map((photo, index) => (
-          <img alt={`Готовая работа ${index + 1}`} key={`${photo.uploadedAt}-${index}`} src={photo.dataUrl} />
-        ))}
+        {galleryPhotos.map((photo, index) => {
+          const label = photo.dealNumber
+            ? `Готовая работа по сделке #${photo.dealNumber}`
+            : `Готовая работа ${index + 1}`;
+          return (
+            <img
+              alt={label}
+              key={`${photo.assignmentId || photo.uploadedAt}-${photo.kind}-${index}`}
+              src={photo.dataUrl}
+              title={label}
+            />
+          );
+        })}
         {!galleryPhotos.length ? <span>Галерея готовых работ пока пустая</span> : null}
       </div>
     </section>
@@ -2246,10 +2483,11 @@ function PhotoStrip({ photos }: { photos: ProductionPhoto[] }) {
       {photoSlots.map((slot) => {
         const photo = photos.find((item) => item.kind === slot.kind);
         if (!photo) return null;
+        const caption = photo.dealNumber ? `#${photo.dealNumber} · ${slot.title}` : slot.title;
         return (
           <figure key={slot.kind}>
             <img alt={slot.title} src={photo.dataUrl} />
-            <figcaption>{slot.title}</figcaption>
+            <figcaption>{caption}</figcaption>
           </figure>
         );
       })}
@@ -2388,10 +2626,22 @@ function assignmentsForWorkerTab(assignments: ProductionAssignment[], tab: Worke
   return [];
 }
 
-function galleryPhotosForWorker(assignments: ProductionAssignment[]) {
+function photosWithAssignmentLink(assignment: ProductionAssignment, deal?: Deal) {
+  return completionFor(assignment).photos.map((photo) => ({
+    ...photo,
+    assignmentId: photo.assignmentId || assignment.id,
+    dealId: photo.dealId || assignment.dealId,
+    dealNumber: photo.dealNumber || deal?.number || "",
+    dealTitle: photo.dealTitle || deal?.title || "",
+    employeeId: photo.employeeId || assignment.employeeId,
+    techSpecItemId: photo.techSpecItemId || assignment.techSpecItemId,
+  }));
+}
+
+function galleryPhotosForWorker(assignments: ProductionAssignment[], dealsById: Map<string, Deal>) {
   return assignments
     .filter((assignment) => assignment.status === "readyForShipment")
-    .flatMap((assignment) => assignment.completion?.photos || [])
+    .flatMap((assignment) => photosWithAssignmentLink(assignment, dealsById.get(assignment.dealId)))
     .filter((photo) => photo.kind === "lit" || photo.kind === "unlit");
 }
 
@@ -2765,6 +3015,42 @@ function readStoredEmployeeId() {
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return (parts[0]?.[0] || "?") + (parts[1]?.[0] || "");
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function formatAssignmentDuration(assignment: ProductionAssignment) {
+  if (!assignment.startedAt) return "не начата";
+  const startTime = Date.parse(assignment.startedAt);
+  if (Number.isNaN(startTime)) return "не начата";
+  const finishedAt =
+    assignment.status === "readyForShipment"
+      ? assignment.readyForShipmentAt || assignment.submittedAt
+      : assignment.status === "submitted"
+        ? assignment.submittedAt
+        : undefined;
+  const finishTime = Date.parse(finishedAt || new Date().toISOString());
+  if (Number.isNaN(finishTime) || finishTime <= startTime) return "меньше минуты";
+
+  const totalMinutes = Math.max(1, Math.floor((finishTime - startTime) / 60000));
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+
+  if (days) return `${days} д ${hours} ч`;
+  if (hours) return `${hours} ч ${minutes} мин`;
+  return `${minutes} мин`;
 }
 
 function formatDate(value: string) {

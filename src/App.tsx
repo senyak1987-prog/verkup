@@ -910,6 +910,7 @@ export default function App() {
           storedProduction={storedProduction}
           onCalculationChange={handleProductionCalculationChange}
           onChange={handleProductionChange}
+          onDealStageChange={handleDealStageChanged}
         />
       ) : workspaceMode === "production" && canUseProduction ? (
         <ProductionMobileApp
@@ -923,6 +924,7 @@ export default function App() {
           storedProduction={storedProduction}
           onCalculationChange={handleProductionCalculationChange}
           onChange={handleProductionChange}
+          onDealStageChange={handleDealStageChanged}
         />
       ) : canUseCosting ? (
         <DealTable
