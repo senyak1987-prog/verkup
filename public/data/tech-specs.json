@@ -454,7 +454,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T13:15:42.886Z",
+    "generatedAt": "2026-06-19T16:09:40.115Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -521,6 +521,13 @@
         "active": false,
         "usedAt": "2026-06-18T14:44:10.295Z",
         "usedByRegistrationId": "07af68ba-c775-4a50-9ae3-588f5985ce5d"
+      },
+      {
+        "id": "5c77bbe4-26bf-462d-b22b-732ea9bcc5c1",
+        "token": "32ad8c33f5f7356676e49ee06baf03506f90",
+        "createdAt": "2026-06-19T16:09:40.115Z",
+        "createdBy": "leader-semen",
+        "active": true
       }
     ],
     "assignments": [
