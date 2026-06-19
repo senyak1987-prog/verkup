@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T20:04:02.265Z",
+  "generatedAt": "2026-06-19T20:04:03.993Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -139,12 +139,12 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-19T20:04:01.400Z",
+      "updatedAt": "2026-06-19T20:04:03.132Z",
       "positions": [
         {
           "id": "e5bb07a1-eec7-4d9a-8aea-2bbe73e0f02b",
           "catalogId": "materials-пвх-белый-3мм-3050х1560х3-unext-str-1545",
-          "qty": 0,
+          "qty": 2,
           "unit": "м2",
           "unitCost": 716.06,
           "section": "materials",
