@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-06-19T20:02:29.406Z",
+  "generatedAt": "2026-06-19T20:02:33.567Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
       "dealId": "16874",
-      "updatedAt": "2026-06-19T20:02:28.546Z",
+      "updatedAt": "2026-06-19T20:02:32.712Z",
       "positions": [
         {
           "id": "1b559282-80de-4f32-b7e9-de9c75f56439",
-          "qty": 1,
+          "qty": 6,
           "unit": "шт",
           "unitCost": 0,
           "section": "assembly",
