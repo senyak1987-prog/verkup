@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-06-19T20:01:25.131Z",
+  "generatedAt": "2026-06-19T20:01:30.493Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
       "dealId": "16874",
-      "updatedAt": "2026-06-19T20:01:24.269Z",
+      "updatedAt": "2026-06-19T20:01:29.638Z",
       "positions": [
         {
           "id": "6aa44553-dba6-417c-9508-06b6753cb054",
@@ -15,7 +15,8 @@
           "section": "materials",
           "title": "Труба профильная 20х20х1,2",
           "calcMode": "linear",
-          "note": "Металл-ДК; price_metal_dk.pdf от 07.06.2026; страница PDF 2"
+          "note": "Металл-ДК; price_metal_dk.pdf от 07.06.2026; страница PDF 2",
+          "length": 6
         },
         {
           "id": "6142a674-a501-47ec-a5d1-38b4bf74c1a7",
