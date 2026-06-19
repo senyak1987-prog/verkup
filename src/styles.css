@@ -5857,84 +5857,28 @@ div.employee-profile-field .employee-profile-value {
   transition: transform 160ms ease;
 }
 
-.verkup-logo-part {
+.production-pull-refresh-logo-motion {
   transform-box: fill-box;
   transform-origin: center;
   will-change: transform;
 }
 
-.production-pull-refresh.pulling .logo-wave-1 {
-  transform: translateY(var(--pull-wave-1, 0));
+.production-pull-refresh.refreshing .production-pull-refresh-logo-motion {
+  animation: verkupRefreshLogoFloat 820ms cubic-bezier(0.33, 1, 0.68, 1) infinite;
 }
 
-.production-pull-refresh.pulling .logo-wave-2 {
-  transform: translateY(var(--pull-wave-2, 0));
-}
-
-.production-pull-refresh.pulling .logo-wave-3 {
-  transform: translateY(var(--pull-wave-3, 0));
-}
-
-.production-pull-refresh.pulling .logo-wave-4 {
-  transform: translateY(var(--pull-wave-4, 0));
-}
-
-.production-pull-refresh.pulling .logo-wave-5 {
-  transform: translateY(var(--pull-wave-5, 0));
-}
-
-.production-pull-refresh.pulling .logo-wave-6 {
-  transform: translateY(var(--pull-wave-6, 0));
-}
-
-.production-pull-refresh.pulling .logo-wave-7 {
-  transform: translateY(var(--pull-wave-7, 0));
-}
-
-.production-pull-refresh.refreshing .verkup-logo-part {
-  animation: verkupFullLogoRefreshWave 980ms cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
-}
-
-.production-pull-refresh.refreshing .logo-wave-1 {
-  animation-delay: 0ms;
-}
-
-.production-pull-refresh.refreshing .logo-wave-2 {
-  animation-delay: 70ms;
-}
-
-.production-pull-refresh.refreshing .logo-wave-3 {
-  animation-delay: 140ms;
-}
-
-.production-pull-refresh.refreshing .logo-wave-4 {
-  animation-delay: 210ms;
-}
-
-.production-pull-refresh.refreshing .logo-wave-5 {
-  animation-delay: 280ms;
-}
-
-.production-pull-refresh.refreshing .logo-wave-6 {
-  animation-delay: 350ms;
-}
-
-.production-pull-refresh.refreshing .logo-wave-7 {
-  animation-delay: 420ms;
-}
-
-@keyframes verkupFullLogoRefreshWave {
+@keyframes verkupRefreshLogoFloat {
   0%,
   100% {
     transform: translateY(0);
   }
 
-  28% {
-    transform: translateY(9px);
+  38% {
+    transform: translateY(-4px) scale(1.015);
   }
 
-  56% {
-    transform: translateY(-2px);
+  68% {
+    transform: translateY(2px) scale(0.995);
   }
 }
 
@@ -6055,6 +5999,9 @@ div.employee-profile-field .employee-profile-value {
   justify-content: center;
   min-height: 38px;
   padding-top: 4px;
+  transition:
+    opacity 150ms ease,
+    transform 180ms ease;
 }
 
 .worker-mobile-brand span {
@@ -6072,6 +6019,11 @@ div.employee-profile-field .employee-profile-value {
   height: auto;
   max-height: 24px;
   object-fit: contain;
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-brand {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 .worker-device-actions {
@@ -6154,6 +6106,8 @@ div.employee-profile-field .employee-profile-value {
   align-items: center;
   gap: 7px;
   flex: 0 0 auto;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .worker-notification-badge {
@@ -6189,6 +6143,8 @@ div.employee-profile-field .employee-profile-value {
 .worker-profile-menu-wrap {
   position: relative;
   flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .worker-profile-menu-trigger {
@@ -6200,21 +6156,24 @@ div.employee-profile-field .employee-profile-value {
   border-radius: 50%;
   background: #fff;
   color: #344054;
+  flex: 0 0 auto;
 }
 
 .worker-profile-menu {
   position: absolute;
-  top: 40px;
+  top: calc(100% + 8px);
   right: 0;
+  left: auto;
   z-index: 4;
   display: grid;
   gap: 2px;
-  width: 210px;
+  width: min(240px, calc(100vw - 32px));
   border: 1px solid #dce4ee;
   border-radius: 8px;
   background: #fff;
   padding: 5px;
   box-shadow: 0 18px 45px rgba(15, 23, 42, 0.14);
+  text-align: left;
 }
 
 .worker-profile-menu button,
@@ -6231,6 +6190,7 @@ div.employee-profile-field .employee-profile-value {
   cursor: pointer;
   font-size: 13px;
   font-weight: 800;
+  justify-content: flex-start;
   text-align: left;
 }
 
@@ -8214,8 +8174,8 @@ div.employee-profile-field .employee-profile-value {
   }
 
   .worker-profile-menu {
-    right: -2px;
-    width: min(220px, calc(100vw - 34px));
+    right: 0;
+    width: min(240px, calc(100vw - 28px));
   }
 
   .worker-tabs button {
@@ -8738,6 +8698,16 @@ tr.selected td,
 .worker-profile-menu-trigger {
   width: var(--touch-target);
   min-width: var(--touch-target);
+}
+
+.worker-profile-menu button,
+.worker-profile-menu label {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.worker-profile-menu-trigger {
+  justify-content: center;
 }
 
 .production-theme-night {

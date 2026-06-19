@@ -11,8 +11,8 @@ import {
   Link2,
   Images,
   LogOut,
+  Menu,
   Moon,
-  MoreHorizontal,
   PackageCheck,
   Play,
   Plus,
@@ -281,6 +281,7 @@ export function ProductionMobileApp({
   const canAssignDeals = canAssignProduction(currentUser);
   const canSwitchProductionView = false;
   const effectiveView = currentAccessRole === "maker" ? "worker" : "supervisor";
+  const pullRefreshActive = pullRefreshing || pullDistance > 0;
 
   useEffect(() => {
     storedProductionRef.current = storedProduction;
@@ -1547,6 +1548,7 @@ export function ProductionMobileApp({
       setNotice("Не удалось обновить данные.");
       window.setTimeout(() => setNotice(""), 2400);
     } finally {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 260));
       setPullRefreshing(false);
       setPullDistance(0);
     }
@@ -1948,7 +1950,7 @@ export function ProductionMobileApp({
   if (mode === "employees") {
     return (
       <main
-        className={`production-mobile employee-management-mobile production-theme-${theme}`}
+        className={`production-mobile employee-management-mobile production-theme-${theme}${pullRefreshActive ? " pull-refresh-active" : ""}`}
         onTouchCancel={handleTouchEnd}
         onTouchEnd={handleTouchEnd}
         onTouchMove={handleTouchMove}
@@ -1977,7 +1979,7 @@ export function ProductionMobileApp({
 
   return (
     <main
-      className={`production-mobile production-theme-${theme}`}
+      className={`production-mobile production-theme-${theme}${pullRefreshActive ? " pull-refresh-active" : ""}`}
       onTouchCancel={handleTouchEnd}
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
@@ -2669,11 +2671,9 @@ function PullRefreshIndicator({
   const progress = Math.min(1, distance / PULL_REFRESH_TRIGGER_PX);
   const logoOffset = Math.round((1 - progress) * 4);
   const logoScale = 0.9 + progress * 0.1;
-  const waveAmplitude = Math.sin(progress * Math.PI) * 11;
-  const waveOffset = (index: number) => {
-    const localProgress = Math.max(0, Math.min(1, progress * 1.55 - index * 0.14));
-    return `${Math.round(Math.sin(localProgress * Math.PI) * waveAmplitude)}px`;
-  };
+  const indicatorOffset = visible
+    ? Math.round(10 + Math.min(distance, PULL_REFRESH_TRIGGER_PX) * 0.42)
+    : -24;
 
   return (
     <div
@@ -2683,15 +2683,8 @@ function PullRefreshIndicator({
         "--pull-progress": progress,
         "--pull-logo-y": `${logoOffset}px`,
         "--pull-logo-scale": logoScale,
-        "--pull-wave-1": waveOffset(0),
-        "--pull-wave-2": waveOffset(1),
-        "--pull-wave-3": waveOffset(2),
-        "--pull-wave-4": waveOffset(3),
-        "--pull-wave-5": waveOffset(4),
-        "--pull-wave-6": waveOffset(5),
-        "--pull-wave-7": waveOffset(6),
         opacity: visible ? 1 : 0,
-        transform: `translate3d(-50%, ${visible ? Math.round(8 + distance) : -24}px, 0)`,
+        transform: `translate3d(-50%, ${indicatorOffset}px, 0)`,
       } as CSSProperties}
     >
       <svg
@@ -2700,27 +2693,29 @@ function PullRefreshIndicator({
         role="img"
         aria-label="Verkup"
       >
-        <g transform="translate(0 117.6284) scale(1 -1)">
-          <g className="verkup-logo-part logo-wave-1">
+        <g className="production-pull-refresh-logo-motion">
+          <g transform="translate(0 117.6284) scale(1 -1)">
+          <g>
             <path fill="#ff7500" d="M 543.6816 62.7576 C 543.6816 53.1391 540.6775 45.7744 534.6686 40.6837 C 528.6603 35.5929 520.1059 33.0480 509.0275 33.0480 L 500.8907 33.0480 L 500.8907 1.2515 L 481.9465 1.2515 L 481.9465 90.6313 L 510.4879 90.6313 C 521.3367 90.6313 529.5779 88.2947 535.2321 83.6422 C 540.8651 78.9687 543.6816 72.0000 543.6816 62.7576 Z M 500.8907 48.5705 L 507.1289 48.5705 C 512.9705 48.5705 517.3311 49.7177 520.2105 52.0336 C 523.1103 54.3285 524.5498 57.6876 524.5498 62.0901 C 524.5498 66.5340 523.3397 69.8094 520.9197 71.9376 C 518.4992 74.0446 514.7022 75.1085 509.5071 75.1085 L 500.8907 75.1085 Z Z M 460.0814 90.6313 L 460.0814 32.7767 C 460.0814 26.1836 458.6000 20.3834 455.6582 15.4182 C 452.6957 10.4318 448.4395 6.6345 442.8482 3.9849 C 437.2563 1.3351 430.6637 0.0000 423.0278 0.0000 C 411.5529 0.0000 402.6234 2.9415 396.2597 8.8461 C 389.8964 14.7294 386.7250 22.7829 386.7250 33.0270 L 386.7250 90.6313 L 405.6066 90.6313 L 405.6066 35.9065 C 405.6066 29.0004 407.0044 23.9513 409.7585 20.7383 C 412.5334 17.5045 417.1232 15.8978 423.5284 15.8978 C 429.7249 15.8978 434.2105 17.5255 437.0060 20.7592 C 439.8021 23.9930 441.1996 29.0837 441.1996 36.0105 L 441.1996 90.6313 Z" />
           </g>
-          <g className="verkup-logo-part logo-wave-2">
+          <g>
             <path fill="#ff7500" d="M 240.5129 35.5516 L 240.5129 1.2515 L 221.5687 1.2515 L 221.5687 90.6313 L 247.6069 90.6313 C 259.7494 90.6313 268.7207 88.4197 274.5417 83.9968 C 280.3836 79.5739 283.2831 72.8555 283.2831 63.8634 C 283.2831 58.6057 281.8440 53.9320 278.9439 49.8220 C 276.0644 45.7330 271.9755 42.5200 266.6758 40.2041 C 280.1123 20.1127 288.8751 7.1141 292.9433 1.2515 L 271.9128 1.2515 L 250.5903 35.5516 Z Z M 376.0843 1.2515 L 354.5745 1.2515 L 331.1654 38.9106 L 323.1539 33.1727 L 323.1539 1.2515 L 304.2099 1.2515 L 304.2099 90.6313 L 323.1539 90.6313 L 323.1539 49.7387 L 330.6229 60.2541 L 354.8038 90.6313 L 375.8340 90.6313 L 344.6850 51.0741 Z Z M 240.5129 50.9488 L 246.6264 50.9488 C 252.6140 50.9488 257.0372 51.9500 259.8746 53.9529 C 262.7325 55.9349 264.1513 59.0856 264.1513 63.3626 C 264.1513 67.5978 262.6911 70.6229 259.7910 72.4173 C 256.8702 74.2119 252.3637 75.1085 246.2505 75.1085 L 240.5129 75.1085 Z Z M 202.9380 1.2515 L 151.4673 1.2515 L 151.4673 90.6313 L 202.9380 90.6313 L 202.9380 75.1085 L 170.4115 75.1085 L 170.4115 55.4553 L 200.6634 55.4553 L 200.6634 39.9328 L 170.4115 39.9328 L 170.4115 16.8996 L 202.9380 16.8996 Z" />
           </g>
-          <g className="verkup-logo-part logo-wave-3">
+          <g>
             <path fill="#ff7500" d="M 140.2427 90.6313 L 121.1108 90.6313 L 90.4986 1.2515 L 109.6305 1.2515 Z" />
           </g>
-          <g className="verkup-logo-part logo-wave-4">
+          <g>
             <path fill="#ff7500" d="M 84.3738 71.4141 L 108.4039 1.2515 L 89.2721 1.2515 L 68.9315 60.6407 C 72.8082 63.1188 79.6830 68.0179 84.3738 71.4141" />
           </g>
-          <g className="verkup-logo-part logo-wave-5">
+          <g>
             <path fill="#7a3800" d="M 54.8765 52.6127 L 72.4674 1.2515 L 53.3356 1.2515 L 38.3406 45.0340 C 43.9994 47.3185 49.4884 49.8294 54.8765 52.6127" />
           </g>
-          <g className="verkup-logo-part logo-wave-6">
+          <g>
             <path fill="#351800" d="M 23.3844 39.6363 L 36.5309 1.2515 L 17.3991 1.2515 L 5.9474 34.6884 C 11.9965 36.2001 17.7902 37.8369 23.3844 39.6363" />
           </g>
-          <g className="verkup-logo-part logo-wave-7">
+          <g>
             <path fill="#ff7500" d="M 67.1998 99.0873 L 59.4884 106.7984 L 101.1634 117.6284 L 90.3336 75.9535 L 82.6226 83.6646 C 59.8581 65.5835 37.1843 53.2755 0.0000 44.4073 C 34.7632 65.8001 51.2399 74.5302 67.1998 99.0873" />
+          </g>
           </g>
         </g>
       </svg>
@@ -2808,7 +2803,7 @@ function WorkerProfile({
                 onClick={onMenuToggle}
                 type="button"
               >
-                <MoreHorizontal size={20} />
+                <Menu size={20} />
               </button>
               {menuOpen ? (
                 <div className="worker-profile-menu">
