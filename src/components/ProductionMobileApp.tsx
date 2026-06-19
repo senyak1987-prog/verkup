@@ -67,6 +67,7 @@ type WorkerMoneySummary = {
   completedCount: number;
   earned: number;
   paid: number;
+  planned: number;
 };
 
 type ProductionCommitOptions = {
@@ -1465,6 +1466,7 @@ export function ProductionMobileApp({
                     onSubmit={() => submitAssignment(assignment)}
                     onToggle={() => toggleAssignmentExpanded(assignment.id)}
                     onUpdateCompletion={(patch) => updateCompletion(assignment.id, patch)}
+                    workAmount={earningForAssignment(assignment, techSpecs, calculations)}
                   />
                 );
               })}
@@ -1719,6 +1721,10 @@ function WorkerProfile({
             Всего заработано
             <strong>{formatMoney(money.earned)}</strong>
           </span>
+          <span>
+            В работе
+            <strong>{formatMoney(money.planned)}</strong>
+          </span>
         </div>
       </div>
       <div className="worker-gallery">
@@ -1776,6 +1782,10 @@ function WorkerMoneyPanel({
           Остаток
           <strong>{formatMoney(money.balance)}</strong>
         </span>
+        <span>
+          В работе
+          <strong>{formatMoney(money.planned)}</strong>
+        </span>
       </div>
       <div className="worker-payout-list">
         <h3>История выплат</h3>
@@ -1812,6 +1822,7 @@ function WorkerDealCard({
   onSubmit,
   onToggle,
   onUpdateCompletion,
+  workAmount,
 }: {
   assignment: ProductionAssignment;
   deal: Deal;
@@ -1823,6 +1834,7 @@ function WorkerDealCard({
   onSubmit: () => void;
   onToggle: () => void;
   onUpdateCompletion: (patch: Partial<ProductionCompletion>) => void;
+  workAmount: number;
 }) {
   const completion = completionFor(assignment);
   const canSubmit = canSubmitCompletion(completion);
@@ -1849,6 +1861,7 @@ function WorkerDealCard({
           <div className="production-compact-meta">
             <span>{deal.title}</span>
             <span>Срок: {formatDate(deal.expectedFinishDate) || "не указан"}</span>
+            {workAmount > 0 ? <span>Работы: {formatMoney(workAmount)}</span> : null}
           </div>
         </div>
         <div className="production-compact-status">
@@ -2302,6 +2315,7 @@ function emptyMoneySummary(): WorkerMoneySummary {
     completedCount: 0,
     earned: 0,
     paid: 0,
+    planned: 0,
   };
 }
 
@@ -2312,10 +2326,14 @@ function moneyForEmployee(
   techSpecs: Map<string, DealTechSpec>,
   calculations: Map<string, DealCalculation>,
 ): WorkerMoneySummary {
-  const completedAssignments = assignments.filter(
-    (assignment) => assignment.employeeId === employeeId && assignment.status === "readyForShipment",
-  );
+  const employeeAssignments = assignments.filter((assignment) => assignment.employeeId === employeeId);
+  const completedAssignments = employeeAssignments.filter((assignment) => assignment.status === "readyForShipment");
+  const plannedAssignments = employeeAssignments.filter((assignment) => assignment.status !== "readyForShipment");
   const earned = completedAssignments.reduce(
+    (sum, assignment) => sum + earningForAssignment(assignment, techSpecs, calculations),
+    0,
+  );
+  const planned = plannedAssignments.reduce(
     (sum, assignment) => sum + earningForAssignment(assignment, techSpecs, calculations),
     0,
   );
@@ -2328,6 +2346,7 @@ function moneyForEmployee(
     completedCount: completedAssignments.length,
     earned,
     paid,
+    planned,
   };
 }
 
