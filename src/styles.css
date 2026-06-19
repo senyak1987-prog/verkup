@@ -6119,9 +6119,7 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .worker-tabs {
-  --worker-tab-drag: 0px;
   display: flex;
-  gap: 6px;
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(255, 117, 0, 0.24);
@@ -6135,10 +6133,25 @@ div.employee-profile-field .employee-profile-value {
   display: none;
 }
 
+.worker-tab-rail {
+  display: flex;
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  gap: 6px;
+  left: 0;
+  width: 100%;
+  transition: left 340ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: left;
+}
+
+.worker-tabs.dragging .worker-tab-rail {
+  transition: none;
+}
+
 .worker-tabs button {
   display: inline-flex;
   position: relative;
-  z-index: 1;
   flex: 1 1 0;
   align-items: center;
   justify-content: center;
@@ -6172,30 +6185,20 @@ div.employee-profile-field .employee-profile-value {
   bottom: 5px;
   left: 5px;
   z-index: 0;
-  width: calc((100% - 22px) / 3);
+  width: var(--worker-tab-width, calc((100% - 22px) / 3));
   border-radius: 6px;
   background: #ff7500;
   box-shadow: 0 8px 18px rgba(255, 117, 0, 0.25);
   pointer-events: none;
   transition:
-    transform 190ms cubic-bezier(0.2, 0.72, 0.18, 1),
+    left 280ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 220ms ease,
+    filter 220ms ease,
     opacity 160ms ease;
 }
 
-.worker-tabs.tab-index-0 .worker-tab-glider {
-  transform: translate3d(var(--worker-tab-drag), 0, 0);
-}
-
-.worker-tabs.tab-index-1 .worker-tab-glider {
-  transform: translate3d(calc(100% + 6px + var(--worker-tab-drag)), 0, 0);
-}
-
-.worker-tabs.tab-index-2 .worker-tab-glider {
-  transform: translate3d(calc(200% + 12px + var(--worker-tab-drag)), 0, 0);
-}
-
 .worker-tabs.dragging .worker-tab-glider {
-  transition: opacity 160ms ease;
+  animation: worker-tab-highlight-breathe 780ms ease-in-out infinite;
 }
 
 .worker-tabs.no-active .worker-tab-glider {
@@ -6216,7 +6219,53 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .worker-tab-content {
-  animation: worker-tab-content-in 180ms ease both;
+  animation: worker-tab-content-in 170ms ease both;
+}
+
+.worker-pager {
+  --worker-page-drag: 0px;
+  height: var(--worker-pager-height);
+  overflow: hidden;
+  touch-action: pan-y;
+  transition: height 220ms ease;
+}
+
+.worker-page-track {
+  display: flex;
+  position: relative;
+  left: 0;
+  align-items: flex-start;
+  width: 100%;
+  transition: left 360ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: left;
+}
+
+.worker-pager.dragging .worker-page-track {
+  transition: none;
+}
+
+.worker-page {
+  flex: 0 0 100%;
+  min-width: 0;
+  opacity: 0.72;
+  transform: scale(0.992);
+  transform-origin: center top;
+  transition:
+    opacity 240ms ease,
+    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.worker-pager.dragging .worker-page {
+  transition: none;
+}
+
+.worker-page.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.worker-page:not(.active) {
+  pointer-events: none;
 }
 
 @keyframes worker-tab-content-in {
@@ -6228,6 +6277,19 @@ div.employee-profile-field .employee-profile-value {
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes worker-tab-highlight-breathe {
+  0%,
+  100% {
+    box-shadow: 0 8px 18px rgba(255, 117, 0, 0.25);
+    filter: brightness(1) saturate(1);
+  }
+
+  50% {
+    box-shadow: 0 10px 24px rgba(255, 117, 0, 0.36);
+    filter: brightness(1.06) saturate(1.12);
   }
 }
 

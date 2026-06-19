@@ -137,7 +137,9 @@ const PUSH_PUBLIC_KEY = (import.meta.env.VITE_PUSH_PUBLIC_KEY || DEFAULT_PUSH_PU
 const PULL_REFRESH_TRIGGER_PX = 64;
 const PULL_REFRESH_MAX_PX = 92;
 const HORIZONTAL_SWIPE_TRIGGER_PX = 58;
+const HORIZONTAL_SWIPE_MIN_FLICK_PX = 24;
 const HORIZONTAL_SWIPE_SLOPE = 1.25;
+const HORIZONTAL_SWIPE_VELOCITY_PX_MS = 0.38;
 const WORKER_DEAL_TABS: WorkerDealTab[] = ["assigned", "inProgress", "ready"];
 
 const employeeRoleLabels: Record<ProductionEmployeeRole, string> = {
@@ -219,18 +221,25 @@ export function ProductionMobileApp({
   const notifiedAssignmentIdsRef = useRef<Set<string>>(readNotifiedAssignmentIds(currentUser.id));
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const workerTabsRef = useRef<HTMLDivElement>(null);
+  const workerPagerRef = useRef<HTMLDivElement>(null);
+  const workerActivePageRef = useRef<HTMLDivElement>(null);
   const pullStartYRef = useRef<number | undefined>(undefined);
   const pullActivatedRef = useRef(false);
   const swipeStartXRef = useRef<number | undefined>(undefined);
   const swipeStartYRef = useRef<number | undefined>(undefined);
   const swipeLastXRef = useRef<number | undefined>(undefined);
   const swipeLastYRef = useRef<number | undefined>(undefined);
+  const swipeStartTimeRef = useRef<number | undefined>(undefined);
+  const swipeLastTimeRef = useRef<number | undefined>(undefined);
   const horizontalSwipeIntentRef = useRef(false);
   const [supervisorTab, setSupervisorTab] = useState<SupervisorTab>("active");
   const [workerTab, setWorkerTab] = useState<WorkerTab>("assigned");
   const [lastWorkerDealTab, setLastWorkerDealTab] = useState<WorkerDealTab>("assigned");
   const [workerSwipeOffset, setWorkerSwipeOffset] = useState(0);
   const [workerSwipeDragging, setWorkerSwipeDragging] = useState(false);
+  const [workerPagerHeight, setWorkerPagerHeight] = useState<number | undefined>(undefined);
+  const [workerPagerWidth, setWorkerPagerWidth] = useState(0);
+  const [workerTabSegmentWidth, setWorkerTabSegmentWidth] = useState(0);
   const [seenAssignmentIds, setSeenAssignmentIds] = useState<Set<string>>(() =>
     readSeenAssignmentIds(currentUser.id),
   );
@@ -439,21 +448,50 @@ export function ProductionMobileApp({
     () => galleryPhotosForWorker(workerAssignments, dealsById),
     [dealsById, workerAssignments],
   );
-  const workerTabAssignments = useMemo(
-    () => assignmentsForWorkerTab(workerAssignments, workerTab),
-    [workerAssignments, workerTab],
+  const workerDealTabAssignments = useMemo(
+    () =>
+      WORKER_DEAL_TABS.reduce(
+        (result, tab) => ({
+          ...result,
+          [tab]: assignmentsForWorkerTab(workerAssignments, tab),
+        }),
+        {} as Record<WorkerDealTab, ProductionAssignment[]>,
+      ),
+    [workerAssignments],
   );
   const workerDealTabIndex = WORKER_DEAL_TABS.indexOf(
     isWorkerDealTab(workerTab) ? workerTab : lastWorkerDealTab,
   );
+  const workerTabActiveShift = Math.round(workerDealTabIndex * (workerTabSegmentWidth + 6));
+  const workerTabRailShift = Math.round(workerSwipeOffset * 0.14);
+  const workerPageActiveShift = Math.round(-workerDealTabIndex * workerPagerWidth);
   const workerTabsStyle = {
-    "--worker-tab-drag": `${workerSwipeOffset}px`,
+    "--worker-tab-width": workerTabSegmentWidth ? `${workerTabSegmentWidth}px` : undefined,
+  } as CSSProperties;
+  const workerTabGliderStyle = {
+    left: `${5 + workerTabActiveShift}px`,
+  } as CSSProperties;
+  const workerTabRailStyle = {
+    left: `${workerTabRailShift}px`,
+  } as CSSProperties;
+  const workerPagerStyle = {
+    "--worker-pager-height": workerPagerHeight ? `${workerPagerHeight}px` : "auto",
+  } as CSSProperties;
+  const workerPageTrackStyle = {
+    left: `${workerPageActiveShift + workerSwipeOffset}px`,
   } as CSSProperties;
   const workerTabsClassName = [
     "worker-tabs",
     `tab-index-${Math.max(0, workerDealTabIndex)}`,
     workerSwipeDragging ? "dragging" : "",
     isWorkerDealTab(workerTab) ? "" : "no-active",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const workerPagerClassName = [
+    "worker-pager",
+    `tab-index-${Math.max(0, workerDealTabIndex)}`,
+    workerSwipeDragging ? "dragging" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -495,6 +533,57 @@ export function ProductionMobileApp({
   useEffect(() => {
     if (isWorkerDealTab(workerTab)) setLastWorkerDealTab(workerTab);
   }, [workerTab]);
+
+  useEffect(() => {
+    const updateSwipeMetrics = () => {
+      const tabsWidth = workerTabsRef.current?.clientWidth || 0;
+      if (tabsWidth) {
+        setWorkerTabSegmentWidth(Math.max(0, Math.round((tabsWidth - 22) / WORKER_DEAL_TABS.length)));
+      }
+
+      const pagerWidth = workerPagerRef.current?.clientWidth || 0;
+      if (pagerWidth) setWorkerPagerWidth(Math.round(pagerWidth));
+    };
+
+    updateSwipeMetrics();
+    window.addEventListener("resize", updateSwipeMetrics);
+
+    const observer =
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(updateSwipeMetrics);
+    if (workerTabsRef.current) observer?.observe(workerTabsRef.current);
+    if (workerPagerRef.current) observer?.observe(workerPagerRef.current);
+
+    return () => {
+      window.removeEventListener("resize", updateSwipeMetrics);
+      observer?.disconnect();
+    };
+  }, [effectiveView, workerTab]);
+
+  useEffect(() => {
+    if (!isWorkerDealTab(workerTab)) {
+      setWorkerPagerHeight(undefined);
+      return;
+    }
+
+    const page = workerActivePageRef.current;
+    if (!page) return;
+
+    const updateHeight = () => {
+      setWorkerPagerHeight(Math.ceil(page.scrollHeight));
+    };
+
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+
+    const observer =
+      typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(updateHeight);
+    observer?.observe(page);
+
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+      observer?.disconnect();
+    };
+  }, [expandedAssignmentIds, workerDealTabAssignments, workerTab]);
 
   useEffect(() => {
     if (currentAccessRole === "maker") {
@@ -1230,6 +1319,8 @@ export function ProductionMobileApp({
       swipeStartYRef.current = touch.clientY;
       swipeLastXRef.current = touch.clientX;
       swipeLastYRef.current = touch.clientY;
+      swipeStartTimeRef.current = performance.now();
+      swipeLastTimeRef.current = swipeStartTimeRef.current;
       horizontalSwipeIntentRef.current = false;
       resetWorkerSwipeFeedback();
     } else {
@@ -1250,6 +1341,7 @@ export function ProductionMobileApp({
     if (touch) {
       swipeLastXRef.current = touch.clientX;
       swipeLastYRef.current = touch.clientY;
+      swipeLastTimeRef.current = performance.now();
     }
 
     if (shouldTreatAsHorizontalSwipe()) {
@@ -1307,12 +1399,18 @@ export function ProductionMobileApp({
   }
 
   function resetWorkerSwipe() {
+    clearWorkerSwipeRefs();
+    resetWorkerSwipeFeedback();
+  }
+
+  function clearWorkerSwipeRefs() {
     swipeStartXRef.current = undefined;
     swipeStartYRef.current = undefined;
     swipeLastXRef.current = undefined;
     swipeLastYRef.current = undefined;
+    swipeStartTimeRef.current = undefined;
+    swipeLastTimeRef.current = undefined;
     horizontalSwipeIntentRef.current = false;
-    resetWorkerSwipeFeedback();
   }
 
   function resetWorkerSwipeFeedback() {
@@ -1328,15 +1426,14 @@ export function ProductionMobileApp({
     const deltaX = lastX - startX;
     if (!isWorkerDealTab(workerTab) && !(workerTab === "money" && deltaX > 0)) return;
 
-    const tabsWidth = workerTabsRef.current?.clientWidth || 360;
-    const tabWidth = Math.max(72, tabsWidth / WORKER_DEAL_TABS.length);
+    const pageWidth = workerPagerRef.current?.clientWidth || workerTabsRef.current?.clientWidth || 360;
     const currentDealTab = isWorkerDealTab(workerTab) ? workerTab : lastWorkerDealTab;
     const currentIndex = WORKER_DEAL_TABS.indexOf(currentDealTab);
     const isEdgeSwipe =
       (currentIndex <= 0 && deltaX > 0) ||
       (currentIndex >= WORKER_DEAL_TABS.length - 1 && deltaX < 0);
-    const resistance = isEdgeSwipe ? 0.24 : 0.72;
-    const offset = Math.max(-tabWidth, Math.min(tabWidth, deltaX * resistance));
+    const resistance = isEdgeSwipe ? 0.28 : 0.96;
+    const offset = Math.max(-pageWidth, Math.min(pageWidth, deltaX * resistance));
 
     setWorkerSwipeDragging(true);
     setWorkerSwipeOffset(Math.round(offset));
@@ -1383,8 +1480,10 @@ export function ProductionMobileApp({
     const startY = swipeStartYRef.current;
     const lastX = swipeLastXRef.current;
     const lastY = swipeLastYRef.current;
+    const startTime = swipeStartTimeRef.current;
+    const lastTime = swipeLastTimeRef.current;
     const wasHorizontal = horizontalSwipeIntentRef.current;
-    resetWorkerSwipe();
+    clearWorkerSwipeRefs();
 
     if (
       startX === undefined ||
@@ -1397,25 +1496,39 @@ export function ProductionMobileApp({
 
     const deltaX = lastX - startX;
     const deltaY = lastY - startY;
+    const elapsedMs = Math.max(1, (lastTime || performance.now()) - (startTime || performance.now()));
+    const velocity = Math.abs(deltaX) / elapsedMs;
+    const pageWidth = workerPagerRef.current?.clientWidth || workerTabsRef.current?.clientWidth || 360;
+    const triggerDistance = Math.min(110, Math.max(HORIZONTAL_SWIPE_TRIGGER_PX, pageWidth * 0.22));
     const isHorizontal =
       wasHorizontal ||
       (Math.abs(deltaX) > 12 &&
         Math.abs(deltaX) > Math.abs(deltaY) * HORIZONTAL_SWIPE_SLOPE);
-    if (!isHorizontal) return false;
+    if (!isHorizontal) {
+      resetWorkerSwipeFeedback();
+      return false;
+    }
 
     if (
-      Math.abs(deltaX) < HORIZONTAL_SWIPE_TRIGGER_PX ||
+      (Math.abs(deltaX) < triggerDistance &&
+        (Math.abs(deltaX) < HORIZONTAL_SWIPE_MIN_FLICK_PX ||
+          velocity < HORIZONTAL_SWIPE_VELOCITY_PX_MS)) ||
       Math.abs(deltaX) < Math.abs(deltaY) * HORIZONTAL_SWIPE_SLOPE
     ) {
+      resetWorkerSwipeFeedback();
       return true;
     }
 
     if (workerTab === "money" && deltaX > 0) {
       setWorkerTab(lastWorkerDealTab);
+      resetWorkerSwipeFeedback();
       return true;
     }
 
-    if (!isWorkerDealTab(workerTab)) return true;
+    if (!isWorkerDealTab(workerTab)) {
+      resetWorkerSwipeFeedback();
+      return true;
+    }
 
     const currentIndex = WORKER_DEAL_TABS.indexOf(workerTab);
     const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
@@ -1423,6 +1536,7 @@ export function ProductionMobileApp({
     if (nextTab) {
       setWorkerTab(nextTab);
     }
+    resetWorkerSwipeFeedback();
     return true;
   }
 
@@ -1440,6 +1554,41 @@ export function ProductionMobileApp({
       setPullRefreshing(false);
       setPullDistance(0);
     }
+  }
+
+  function renderWorkerDealList(assignments: ProductionAssignment[]) {
+    return (
+      <div className="production-deal-list">
+        {assignments.map((assignment) => {
+          const deal = dealsById.get(assignment.dealId);
+          if (!deal) return null;
+
+          return (
+            <WorkerDealCard
+              assignment={assignment}
+              deal={deal}
+              diodeCatalogItems={diodeCatalogItems}
+              expanded={expandedAssignmentIds.has(assignment.id)}
+              key={assignment.id}
+              powerSupplyCatalogItems={powerSupplyCatalogItems}
+              techSpec={techSpecs.get(deal.id)}
+              onAddPhoto={(kind, file) => void addPhoto(assignment, kind, file)}
+              onRemovePhoto={(kind) => removePhoto(assignment, kind)}
+              onStart={() => startAssignment(assignment)}
+              onSubmit={() => submitAssignment(assignment)}
+              onToggle={() => openWorkerAssignment(assignment)}
+              onUpdateCompletion={(patch) => updateCompletion(assignment.id, patch)}
+              workAmount={earningForAssignment(assignment, techSpecs, calculations)}
+            />
+          );
+        })}
+        {productionWorkers.length && !assignments.length ? (
+          <div className="production-empty">
+            Сделок в этом разделе пока нет.
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   function renderEmployeeAccessPanel() {
@@ -2084,10 +2233,12 @@ export function ProductionMobileApp({
             aria-label="Работа"
             style={workerTabsStyle}
           >
-            <span className="worker-tab-glider" aria-hidden="true" />
-            <WorkerTabButton active={workerTab === "assigned"} count={assignmentsForWorkerTab(workerAssignments, "assigned").length} label="Назначенные сделки" onClick={() => selectWorkerDealTab("assigned")} />
-            <WorkerTabButton active={workerTab === "inProgress"} count={assignmentsForWorkerTab(workerAssignments, "inProgress").length} label="Сделки в работе" onClick={() => selectWorkerDealTab("inProgress")} />
-            <WorkerTabButton active={workerTab === "ready"} count={assignmentsForWorkerTab(workerAssignments, "ready").length} label="Готовые сделки" onClick={() => selectWorkerDealTab("ready")} />
+            <span className="worker-tab-glider" aria-hidden="true" style={workerTabGliderStyle} />
+            <div className="worker-tab-rail" style={workerTabRailStyle}>
+              <WorkerTabButton active={workerTab === "assigned"} count={workerDealTabAssignments.assigned.length} label="Назначенные сделки" onClick={() => selectWorkerDealTab("assigned")} />
+              <WorkerTabButton active={workerTab === "inProgress"} count={workerDealTabAssignments.inProgress.length} label="Сделки в работе" onClick={() => selectWorkerDealTab("inProgress")} />
+              <WorkerTabButton active={workerTab === "ready"} count={workerDealTabAssignments.ready.length} label="Готовые сделки" onClick={() => selectWorkerDealTab("ready")} />
+            </div>
           </div>
 
           {!productionWorkers.length ? (
@@ -2096,41 +2247,29 @@ export function ProductionMobileApp({
             </div>
           ) : null}
 
-          <div className="worker-tab-content" key={workerTab}>
+          <div className="worker-tab-content">
             {workerTab === "money" ? (
               <WorkerMoneyPanel money={workerMoney} payouts={storedProduction.payouts || []} workerId={selectedWorker?.id || ""} />
             ) : workerTab === "gallery" ? (
               <WorkerGalleryPanel galleryPhotos={workerGalleryPhotos} />
             ) : (
-              <div className="production-deal-list">
-                {workerTabAssignments.map((assignment) => {
-                  const deal = dealsById.get(assignment.dealId);
-                  if (!deal) return null;
-
-                  return (
-                    <WorkerDealCard
-                      assignment={assignment}
-                      deal={deal}
-                      diodeCatalogItems={diodeCatalogItems}
-                      expanded={expandedAssignmentIds.has(assignment.id)}
-                      key={assignment.id}
-                      powerSupplyCatalogItems={powerSupplyCatalogItems}
-                      techSpec={techSpecs.get(deal.id)}
-                      onAddPhoto={(kind, file) => void addPhoto(assignment, kind, file)}
-                      onRemovePhoto={(kind) => removePhoto(assignment, kind)}
-                      onStart={() => startAssignment(assignment)}
-                      onSubmit={() => submitAssignment(assignment)}
-                      onToggle={() => openWorkerAssignment(assignment)}
-                      onUpdateCompletion={(patch) => updateCompletion(assignment.id, patch)}
-                      workAmount={earningForAssignment(assignment, techSpecs, calculations)}
-                    />
-                  );
-                })}
-                {productionWorkers.length && !workerTabAssignments.length ? (
-                  <div className="production-empty">
-                    Сделок в этом разделе пока нет.
-                  </div>
-                ) : null}
+              <div
+                className={workerPagerClassName}
+                ref={workerPagerRef}
+                style={workerPagerStyle}
+              >
+                <div className="worker-page-track" style={workerPageTrackStyle}>
+                  {WORKER_DEAL_TABS.map((tab) => (
+                    <div
+                      aria-hidden={workerTab !== tab}
+                      className={`worker-page${workerTab === tab ? " active" : ""}`}
+                      key={tab}
+                      ref={workerTab === tab ? workerActivePageRef : undefined}
+                    >
+                      {renderWorkerDealList(workerDealTabAssignments[tab])}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
