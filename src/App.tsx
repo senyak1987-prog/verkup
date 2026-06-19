@@ -81,6 +81,87 @@ type AppTab = DealStageCode;
 
 type WorkspaceMode = "costing" | "production" | "employees";
 
+const WORKSPACE_MODE_ROUTES: Record<WorkspaceMode, string> = {
+  costing: "/cost",
+  production: "/production",
+  employees: "/employees",
+};
+
+const RAW_APP_BASE_PATH = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+const APP_BASE_PATH = RAW_APP_BASE_PATH === "/" ? "" : RAW_APP_BASE_PATH;
+
+const WORKSPACE_ROUTE_ALIASES: Record<string, WorkspaceMode> = {
+  cost: "costing",
+  costing: "costing",
+  sebestoimost: "costing",
+  себестоимость: "costing",
+  production: "production",
+  ceh: "production",
+  shop: "production",
+  proizvodstvo: "production",
+  производство: "production",
+  employees: "employees",
+  staff: "employees",
+  sotrudniki: "employees",
+  сотрудники: "employees",
+};
+
+function workspaceModeFromRouteValue(value?: string | null): WorkspaceMode | undefined {
+  const normalized = (value || "")
+    .trim()
+    .replace(/^#/, "")
+    .replace(/^\?/, "")
+    .replace(/^route=/, "")
+    .replace(/^mode=/, "")
+    .replace(/^\//, "")
+    .split(/[/?#&]/)[0]
+    .toLowerCase();
+
+  return normalized ? WORKSPACE_ROUTE_ALIASES[normalized] : undefined;
+}
+
+function workspaceModeFromPathname(pathname: string): WorkspaceMode | undefined {
+  let routePath = pathname;
+  if (APP_BASE_PATH && routePath.toLowerCase().startsWith(APP_BASE_PATH.toLowerCase())) {
+    routePath = routePath.slice(APP_BASE_PATH.length);
+  }
+
+  return workspaceModeFromRouteValue(routePath);
+}
+
+function workspaceModeFromUrl(): WorkspaceMode | undefined {
+  if (typeof window === "undefined") return undefined;
+
+  const url = new URL(window.location.href);
+  return (
+    workspaceModeFromPathname(url.pathname) ||
+    workspaceModeFromRouteValue(url.searchParams.get("route")) ||
+    workspaceModeFromRouteValue(url.hash) ||
+    workspaceModeFromRouteValue(url.searchParams.get("mode"))
+  );
+}
+
+function workspacePathForMode(mode: WorkspaceMode) {
+  return `${APP_BASE_PATH}${WORKSPACE_MODE_ROUTES[mode]}`;
+}
+
+function updateWorkspaceUrl(mode: WorkspaceMode, replace = false) {
+  if (typeof window === "undefined") return;
+
+  const nextUrl = workspacePathForMode(mode);
+  const hasLegacyRoute = Boolean(
+    workspaceModeFromRouteValue(window.location.hash) || new URLSearchParams(window.location.search).get("route"),
+  );
+  if (window.location.pathname === nextUrl && !window.location.search && !hasLegacyRoute) return;
+
+  if (replace) {
+    window.history.replaceState(null, "", nextUrl);
+    return;
+  }
+
+  window.history.pushState(null, "", nextUrl);
+}
+
 type DealWorkspaceTab = "cost" | "techSpec";
 
 type ProductionSaveOptions = {
@@ -318,7 +399,26 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem("verkup-workspace-mode", workspaceMode);
+    updateWorkspaceUrl(workspaceMode, true);
   }, [workspaceMode]);
+
+  useEffect(() => {
+    const handleRouteChange = () => {
+      const nextMode = workspaceModeFromUrl();
+      if (nextMode) {
+        setWorkspaceMode(nextMode);
+      }
+    };
+
+    handleRouteChange();
+    window.addEventListener("hashchange", handleRouteChange);
+    window.addEventListener("popstate", handleRouteChange);
+
+    return () => {
+      window.removeEventListener("hashchange", handleRouteChange);
+      window.removeEventListener("popstate", handleRouteChange);
+    };
+  }, []);
 
   useEffect(() => {
     if (!currentEmployeeId) return;
@@ -779,6 +879,11 @@ export default function App() {
     setActiveStage(tab);
   }
 
+  function handleWorkspaceModeChange(mode: WorkspaceMode) {
+    setWorkspaceMode(mode);
+    updateWorkspaceUrl(mode);
+  }
+
   function handleProductionDealOpen(dealId: string, target: DealWorkspaceTab) {
     const deal = deals.find((item) => item.id === dealId);
     if (!deal) return;
@@ -788,9 +893,9 @@ export default function App() {
     setDealWorkspaceTab(target === "techSpec" || !canUseCosting ? "techSpec" : "cost");
     setQuery("");
     if (canUseCosting) {
-      setWorkspaceMode("costing");
+      handleWorkspaceModeChange("costing");
     } else if (canUseProduction) {
-      setWorkspaceMode("production");
+      handleWorkspaceModeChange("production");
     }
   }
 
@@ -882,7 +987,7 @@ export default function App() {
           <button
             aria-selected={workspaceMode === "costing"}
             className={workspaceMode === "costing" ? "active" : ""}
-            onClick={() => setWorkspaceMode("costing")}
+            onClick={() => handleWorkspaceModeChange("costing")}
             role="tab"
             type="button"
           >
@@ -894,7 +999,7 @@ export default function App() {
           <button
             aria-selected={workspaceMode === "production"}
             className={workspaceMode === "production" ? "active" : ""}
-            onClick={() => setWorkspaceMode("production")}
+            onClick={() => handleWorkspaceModeChange("production")}
             role="tab"
             type="button"
           >
@@ -906,7 +1011,7 @@ export default function App() {
           <button
             aria-selected={workspaceMode === "employees"}
             className={workspaceMode === "employees" ? "active" : ""}
-            onClick={() => setWorkspaceMode("employees")}
+            onClick={() => handleWorkspaceModeChange("employees")}
             role="tab"
             type="button"
           >
@@ -1070,8 +1175,8 @@ function DealWorkspace({
   catalogItems,
   calculation,
   costNote,
-  initialTab,
   deal,
+  initialTab,
   storedCalculations,
   storedSpec,
   onCatalogChange,
@@ -1293,17 +1398,11 @@ function uniqueSortedValues(values: string[]) {
 function defaultWorkspaceMode(): WorkspaceMode {
   if (typeof window === "undefined") return "costing";
 
+  const requestedMode = workspaceModeFromUrl();
+  if (requestedMode) return requestedMode;
+
   const saved = localStorage.getItem("verkup-workspace-mode");
   if (saved === "costing" || saved === "production" || saved === "employees") return saved;
-
-  const url = new URL(window.location.href);
-  const requestedMode = url.searchParams.get("mode") || url.hash.replace(/^#/, "");
-  if (requestedMode === "production" || requestedMode === "ceh" || requestedMode === "shop") {
-    return "production";
-  }
-  if (requestedMode === "employees" || requestedMode === "staff" || requestedMode === "sotrudniki") {
-    return "employees";
-  }
 
   return window.matchMedia("(max-width: 760px)").matches ? "production" : "costing";
 }

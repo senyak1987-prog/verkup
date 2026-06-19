@@ -14,7 +14,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type {
   CatalogItem,
@@ -1047,6 +1047,42 @@ export function CostDrawer({
   );
 }
 
+type SmoothCollapseProps = {
+  open: boolean;
+  children: ReactNode;
+  className: string;
+  innerClassName: string;
+};
+
+function SmoothCollapse({ open, children, className, innerClassName }: SmoothCollapseProps) {
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const [height, setHeight] = useState(0);
+  const collapseStyle = { "--collapse-height": `${height}px` } as CSSProperties;
+
+  useLayoutEffect(() => {
+    const node = contentRef.current;
+    if (!node) return undefined;
+
+    const updateHeight = () => setHeight(node.scrollHeight);
+    updateHeight();
+
+    if (typeof ResizeObserver === "undefined") return undefined;
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [open]);
+
+  return (
+    <div className={`${className} ${open ? "open" : "closed"}`} style={collapseStyle} aria-hidden={!open}>
+      <div ref={contentRef} className={innerClassName}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function CostBlockView({
   block,
   catalogItems,
@@ -1086,7 +1122,7 @@ function CostBlockView({
     : [];
   const inlineActions = isMaterialCompositeBlock
     ? []
-    : block.actions.filter((action) => action.template.calcMode === "milling");
+    : block.actions;
   const childBlocks = block.childBlocks || [];
   const hasChildBlocks = childBlocks.length > 0;
   const [openChildBlockId, setOpenChildBlockId] = useState<string | null>(() => childBlocks[0]?.id || null);
@@ -1113,7 +1149,7 @@ function CostBlockView({
 
     const timeoutId = window.setTimeout(() => {
       setShouldRenderBody(false);
-    }, 190);
+    }, 270);
 
     return () => window.clearTimeout(timeoutId);
   }, [isOpen, shouldRenderBody]);
@@ -1137,7 +1173,7 @@ function CostBlockView({
 
   return (
     <section className={`calc-block ${isOpen || shouldRenderBody ? "open" : "collapsed"}`}>
-      <button className="calc-block-row" onClick={onToggle}>
+      <button className="calc-block-row" onClick={onToggle} aria-expanded={isOpen}>
         <div>
           <h3>{block.title}</h3>
           <p>{block.hint}</p>
@@ -1194,6 +1230,7 @@ function CostBlockView({
                         className="material-subblock-row"
                         type="button"
                         onClick={() => toggleMaterialSubBlock(definition.id, subBlockModel)}
+                        aria-expanded={isSubOpen}
                       >
                         <div>
                           <h4>{definition.title}</h4>
@@ -1205,8 +1242,11 @@ function CostBlockView({
                           {isSubOpen ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                         </span>
                       </button>
-                      {isSubOpen && (
-                        <div className="material-subblock-body">
+                      <SmoothCollapse
+                        open={Boolean(isSubOpen)}
+                        className="material-subblock-body-shell"
+                        innerClassName="material-subblock-body"
+                      >
                           {showCatalogTools && (
                             <BlockCatalogPicker
                               block={subBlockModel}
@@ -1252,8 +1292,7 @@ function CostBlockView({
                               />
                             )}
                           </div>
-                        </div>
-                      )}
+                      </SmoothCollapse>
                     </section>
                   );
                 })}

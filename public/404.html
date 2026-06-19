@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Verkup</title>
+    <script>
+      (function () {
+        var base = "/verkup/";
+        var path = window.location.pathname;
+        var query = window.location.search ? window.location.search.slice(1) : "";
+        var hash = window.location.hash || "";
+        var route = "";
+
+        if (path.indexOf(base) === 0) {
+          route = path.slice(base.length).replace(/^\/+|\/+$/g, "");
+        }
+
+        var target = base;
+        var params = [];
+        if (route) params.push("route=" + encodeURIComponent("/" + route));
+        if (query) params.push(query);
+        if (params.length) target += "?" + params.join("&");
+        target += hash;
+
+        window.location.replace(target);
+      })();
+    </script>
+  </head>
+  <body></body>
+</html>
