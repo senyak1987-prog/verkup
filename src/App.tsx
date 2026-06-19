@@ -99,6 +99,7 @@ type DealWorkspaceProps = {
   calculation?: DealCalculation;
   deal: Deal;
   costNote: string;
+  initialTab?: DealWorkspaceTab;
   storedCalculations: StoredCalculations;
   storedSpec?: DealTechSpec;
   onCatalogChange: (items: CatalogItem[]) => void;
@@ -149,6 +150,7 @@ export default function App() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [pendingCatalogInsert, setPendingCatalogInsert] = useState<PendingCatalogInsert>();
   const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
+  const [dealWorkspaceTab, setDealWorkspaceTab] = useState<DealWorkspaceTab>();
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => defaultWorkspaceMode());
   const [currentEmployeeId, setCurrentEmployeeId] = useState(
     () => localStorage.getItem("verkup-current-employee-id") || "",
@@ -409,6 +411,7 @@ export default function App() {
   }, [filteredDeals, selectedDealId]);
 
   function handleDealToggle(deal: Deal) {
+    setDealWorkspaceTab(undefined);
     setSelectedDealId((current) => (current === deal.id ? undefined : deal.id));
   }
 
@@ -776,6 +779,21 @@ export default function App() {
     setActiveStage(tab);
   }
 
+  function handleProductionDealOpen(dealId: string, target: DealWorkspaceTab) {
+    const deal = deals.find((item) => item.id === dealId);
+    if (!deal) return;
+
+    setActiveStage(stageCodeForDeal(deal));
+    setSelectedDealId(deal.id);
+    setDealWorkspaceTab(target === "techSpec" || !canUseCosting ? "techSpec" : "cost");
+    setQuery("");
+    if (canUseCosting) {
+      setWorkspaceMode("costing");
+    } else if (canUseProduction) {
+      setWorkspaceMode("production");
+    }
+  }
+
   function applyPendingStageMoves(items: Deal[]) {
     const now = Date.now();
 
@@ -911,6 +929,7 @@ export default function App() {
           onCalculationChange={handleProductionCalculationChange}
           onChange={handleProductionChange}
           onDealStageChange={handleDealStageChanged}
+          onOpenDeal={handleProductionDealOpen}
         />
       ) : workspaceMode === "production" && canUseProduction ? (
         <ProductionMobileApp
@@ -925,6 +944,7 @@ export default function App() {
           onCalculationChange={handleProductionCalculationChange}
           onChange={handleProductionChange}
           onDealStageChange={handleDealStageChanged}
+          onOpenDeal={handleProductionDealOpen}
         />
       ) : canUseCosting ? (
         <DealTable
@@ -952,11 +972,15 @@ export default function App() {
                 calculation={selectedCalculation}
                 costNote={costNoteForCalculation(selectedCalculation)}
                 deal={selectedDeal}
+                initialTab={dealWorkspaceTab}
                 storedCalculations={storedCalculations}
                 storedSpec={selectedTechSpec}
                 onCatalogChange={handleCatalogChange}
                 onChange={handleCalculationChange}
-                onClose={() => setSelectedDealId(undefined)}
+                onClose={() => {
+                  setSelectedDealId(undefined);
+                  setDealWorkspaceTab(undefined);
+                }}
                 onCreateCatalogItem={handleCreateCatalogItemFromCalculation}
                 onOpenCatalog={openCatalog}
                 onStageMoved={handleDealStageChanged}
@@ -1046,6 +1070,7 @@ function DealWorkspace({
   catalogItems,
   calculation,
   costNote,
+  initialTab,
   deal,
   storedCalculations,
   storedSpec,
@@ -1059,12 +1084,12 @@ function DealWorkspace({
   onTechSpecUpload,
 }: DealWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<DealWorkspaceTab>(() =>
-    defaultDealWorkspaceTab(activeStage),
+    initialTab || defaultDealWorkspaceTab(activeStage),
   );
 
   useEffect(() => {
-    setActiveTab(defaultDealWorkspaceTab(activeStage));
-  }, [activeStage, deal.id]);
+    setActiveTab(initialTab || defaultDealWorkspaceTab(activeStage));
+  }, [activeStage, deal.id, initialTab]);
 
   return (
     <section className="deal-workspace" aria-label="Работа со сделкой">

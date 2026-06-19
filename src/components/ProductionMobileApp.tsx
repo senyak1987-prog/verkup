@@ -48,6 +48,7 @@ import type {
 import {
   accessRoleFor,
   accessRoleLabels,
+  canAccessCosting,
   canAssignProduction,
   canCreateAccessRole,
   canManageEmployees,
@@ -73,6 +74,8 @@ type WorkerMoneySummary = {
   planned: number;
 };
 
+type ProductionDealOpenTarget = "cost" | "techSpec";
+
 type ProductionCommitOptions = {
   saveNow?: boolean;
 };
@@ -89,6 +92,7 @@ type ProductionMobileAppProps = {
   onChange: (data: StoredProduction, options?: ProductionCommitOptions) => void;
   onCalculationChange?: (calculation: DealCalculation) => void;
   onDealStageChange?: (dealId: string, stage: DealStageCode) => void;
+  onOpenDeal?: (dealId: string, target: ProductionDealOpenTarget) => void;
 };
 
 const ROLE_STORAGE_KEY = "verkup-production-view";
@@ -156,6 +160,7 @@ export function ProductionMobileApp({
   onChange,
   onCalculationChange,
   onDealStageChange,
+  onOpenDeal,
 }: ProductionMobileAppProps) {
   const [view, setView] = useState<ProductionView>(() => readStoredView());
   const storedProductionRef = useRef(storedProduction);
@@ -793,6 +798,38 @@ export function ProductionMobileApp({
     window.setTimeout(() => setNotice(""), 2600);
   }
 
+  function openStaffAssignmentDeal(assignment: ProductionAssignment) {
+    const deal = dealsById.get(assignment.dealId);
+    if (!deal) return;
+
+    if (currentAccessRole === "shopChief") {
+      openDealTechSpecInProduction(deal);
+      return;
+    }
+
+    onOpenDeal?.(deal.id, canAccessCosting(currentUser) ? "cost" : "techSpec");
+  }
+
+  function openDealTechSpecInProduction(deal: Deal) {
+    const done = isDealReadyForShipment(deal.id, techSpecs.get(deal.id), storedProduction.assignments);
+    setSupervisorTab(done ? "done" : "active");
+    setExpandedDealIds((current) => {
+      const next = new Set(current);
+      next.add(deal.id);
+      return next;
+    });
+    setSelectedDealIds(new Set());
+    setQuery("");
+    setNotice(`Открыто ТЗ сделки #${deal.number}`);
+    window.setTimeout(() => setNotice(""), 2200);
+    window.requestAnimationFrame(() => {
+      const card = Array.from(document.querySelectorAll<HTMLElement>("[data-production-deal-id]")).find(
+        (element) => element.dataset.productionDealId === deal.id,
+      );
+      card?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
   function patchAssignment(
     assignmentId: string,
     updater: (assignment: ProductionAssignment) => ProductionAssignment,
@@ -1325,6 +1362,7 @@ export function ProductionMobileApp({
             employee={staffDetailEmployee}
             techSpecs={techSpecs}
             onClose={() => setStaffDetailEmployeeId("")}
+            onOpenAssignment={openStaffAssignmentDeal}
           />
         ) : null}
       </div>
@@ -1621,7 +1659,10 @@ function SupervisorDealCard({
   const currentStage = stageCodeForDeal(deal);
 
   return (
-    <article className={`production-deal-card compact ${assignment?.status || "unassigned"}`}>
+    <article
+      className={`production-deal-card compact ${assignment?.status || "unassigned"}`}
+      data-production-deal-id={deal.id}
+    >
       <div className="production-compact-row">
         <label className="production-card-check">
           <input
@@ -1799,6 +1840,7 @@ function EmployeeProductionDetail({
   employee,
   techSpecs,
   onClose,
+  onOpenAssignment,
 }: {
   assignments: ProductionAssignment[];
   calculations: Map<string, DealCalculation>;
@@ -1806,6 +1848,7 @@ function EmployeeProductionDetail({
   employee: ProductionEmployee;
   techSpecs: Map<string, DealTechSpec>;
   onClose: () => void;
+  onOpenAssignment: (assignment: ProductionAssignment) => void;
 }) {
   const activeAssignments = assignments.filter(
     (assignment) => assignment.status === "assigned" || assignment.status === "inProgress",
@@ -1840,6 +1883,7 @@ function EmployeeProductionDetail({
         emptyText="Активных назначений пока нет."
         techSpecs={techSpecs}
         title="Назначены и в работе"
+        onOpenAssignment={onOpenAssignment}
       />
       <EmployeeAssignmentSection
         assignments={completedAssignments}
@@ -1848,6 +1892,7 @@ function EmployeeProductionDetail({
         emptyText="Собранных сделок пока нет."
         techSpecs={techSpecs}
         title="Собранные сделки"
+        onOpenAssignment={onOpenAssignment}
       />
     </section>
   );
@@ -1860,6 +1905,7 @@ function EmployeeAssignmentSection({
   emptyText,
   techSpecs,
   title,
+  onOpenAssignment,
 }: {
   assignments: ProductionAssignment[];
   calculations: Map<string, DealCalculation>;
@@ -1867,6 +1913,7 @@ function EmployeeAssignmentSection({
   emptyText: string;
   techSpecs: Map<string, DealTechSpec>;
   title: string;
+  onOpenAssignment: (assignment: ProductionAssignment) => void;
 }) {
   return (
     <section className="production-review">
@@ -1883,6 +1930,7 @@ function EmployeeAssignmentSection({
             key={assignment.id}
             techSpec={techSpecs.get(assignment.dealId)}
             techSpecs={techSpecs}
+            onOpen={() => onOpenAssignment(assignment)}
           />
         ))}
         {!assignments.length ? <div className="production-empty">{emptyText}</div> : null}
@@ -1897,12 +1945,14 @@ function EmployeeAssignmentCard({
   deal,
   techSpec,
   techSpecs,
+  onOpen,
 }: {
   assignment: ProductionAssignment;
   calculations: Map<string, DealCalculation>;
   deal?: Deal;
   techSpec?: DealTechSpec;
   techSpecs: Map<string, DealTechSpec>;
+  onOpen: () => void;
 }) {
   const completion = completionFor(assignment);
   const photos = photosWithAssignmentLink(assignment, deal);
@@ -1910,7 +1960,11 @@ function EmployeeAssignmentCard({
 
   return (
     <article className={`production-deal-card compact ${assignment.status}`}>
-      <div className="production-deal-summary worker-summary">
+      <button
+        className="production-deal-summary worker-summary"
+        onClick={onOpen}
+        type="button"
+      >
         <TechSpecThumbnail itemId={assignment.techSpecItemId} spec={techSpec} />
         <div className="production-compact-info">
           <div className="production-card-title compact-title">
@@ -1930,7 +1984,7 @@ function EmployeeAssignmentCard({
           <StatusBadge status={assignment.status} />
           <span>{formatMoney(earningForAssignment(assignment, techSpecs, calculations))}</span>
         </div>
-      </div>
+      </button>
 
       <div className="production-result-grid">
         <span>
