@@ -457,7 +457,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T19:28:22.563Z",
+    "generatedAt": "2026-06-19T19:31:29.202Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -494,11 +494,10 @@
         "name": "Иван",
         "login": "123",
         "role": "maker",
-        "accessRole": "maker",
+        "accessRole": "none",
         "phone": "",
-        "active": true,
+        "active": false,
         "createdAt": "2026-06-18T15:09:59.903Z",
-        "pinHash": "d5be3f9df5bf90dcb57a9c98a7e459c58194f920c2925661fec82dc0b3345fec",
         "pushSubscriptions": [
           {
             "endpoint": "https://web.push.apple.com/QJvxRxeC98JPCcWgsKvu2nWOda_26B2wBeywe3C3sj7lK6GIspVNv-pyTwYW6jQSNkaSPwGJGNUbZjv9h3jTT57LYgWYGzs98YvMnFyfs5x0nMi1t8ezTxWt_3Pc4DOVIPa2PokKIz1HApMvsmLFBQ1_JSkmF3ehS1VQ_LFsDqI",
