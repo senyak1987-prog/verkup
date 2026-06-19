@@ -73,6 +73,7 @@ import {
 type ProductionView = "supervisor" | "worker";
 type SupervisorTab = "active" | "done";
 type WorkerTab = "assigned" | "inProgress" | "ready" | "money" | "gallery";
+type WorkerDealTab = Extract<WorkerTab, "assigned" | "inProgress" | "ready">;
 type ProductionTheme = "day" | "night";
 type EmployeeGroupId =
   | "makers"
@@ -135,6 +136,9 @@ const DEFAULT_PUSH_PUBLIC_KEY =
 const PUSH_PUBLIC_KEY = (import.meta.env.VITE_PUSH_PUBLIC_KEY || DEFAULT_PUSH_PUBLIC_KEY).trim();
 const PULL_REFRESH_TRIGGER_PX = 64;
 const PULL_REFRESH_MAX_PX = 92;
+const HORIZONTAL_SWIPE_TRIGGER_PX = 58;
+const HORIZONTAL_SWIPE_SLOPE = 1.25;
+const WORKER_DEAL_TABS: WorkerDealTab[] = ["assigned", "inProgress", "ready"];
 
 const employeeRoleLabels: Record<ProductionEmployeeRole, string> = {
   maker: "Макетчик",
@@ -216,8 +220,14 @@ export function ProductionMobileApp({
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const pullStartYRef = useRef<number | undefined>(undefined);
   const pullActivatedRef = useRef(false);
+  const swipeStartXRef = useRef<number | undefined>(undefined);
+  const swipeStartYRef = useRef<number | undefined>(undefined);
+  const swipeLastXRef = useRef<number | undefined>(undefined);
+  const swipeLastYRef = useRef<number | undefined>(undefined);
+  const horizontalSwipeIntentRef = useRef(false);
   const [supervisorTab, setSupervisorTab] = useState<SupervisorTab>("active");
   const [workerTab, setWorkerTab] = useState<WorkerTab>("assigned");
+  const [lastWorkerDealTab, setLastWorkerDealTab] = useState<WorkerDealTab>("assigned");
   const [seenAssignmentIds, setSeenAssignmentIds] = useState<Set<string>>(() =>
     readSeenAssignmentIds(currentUser.id),
   );
@@ -464,6 +474,10 @@ export function ProductionMobileApp({
   useEffect(() => {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (isWorkerDealTab(workerTab)) setLastWorkerDealTab(workerTab);
+  }, [workerTab]);
 
   useEffect(() => {
     if (currentAccessRole === "maker") {
@@ -1192,21 +1206,47 @@ export function ProductionMobileApp({
     }), { saveNow: true });
   }
 
-  function handlePullStart(event: TouchEvent<HTMLElement>) {
+  function handleTouchStart(event: TouchEvent<HTMLElement>) {
+    const touch = event.touches[0];
+    if (touch && canStartWorkerSwipe(event.target)) {
+      swipeStartXRef.current = touch.clientX;
+      swipeStartYRef.current = touch.clientY;
+      swipeLastXRef.current = touch.clientX;
+      swipeLastYRef.current = touch.clientY;
+      horizontalSwipeIntentRef.current = false;
+    } else {
+      resetWorkerSwipe();
+    }
+
     if (pullRefreshing || window.scrollY > 0) {
       pullStartYRef.current = undefined;
       return;
     }
 
-    pullStartYRef.current = event.touches[0]?.clientY;
+    pullStartYRef.current = touch?.clientY;
     pullActivatedRef.current = false;
   }
 
-  function handlePullMove(event: TouchEvent<HTMLElement>) {
+  function handleTouchMove(event: TouchEvent<HTMLElement>) {
+    const touch = event.touches[0];
+    if (touch) {
+      swipeLastXRef.current = touch.clientX;
+      swipeLastYRef.current = touch.clientY;
+    }
+
+    if (shouldTreatAsHorizontalSwipe()) {
+      horizontalSwipeIntentRef.current = true;
+      pullStartYRef.current = undefined;
+      pullActivatedRef.current = false;
+      setPullDistance(0);
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
+
     const startY = pullStartYRef.current;
     if (startY === undefined || pullRefreshing || window.scrollY > 0) return;
 
-    const touchY = event.touches[0]?.clientY;
+    const touchY = touch?.clientY;
     if (touchY === undefined) return;
 
     const distance = touchY - startY;
@@ -1222,7 +1262,19 @@ export function ProductionMobileApp({
     if (easedDistance >= PULL_REFRESH_TRIGGER_PX) pullActivatedRef.current = true;
   }
 
-  function handlePullEnd() {
+  function handleTouchEnd(event?: TouchEvent<HTMLElement>) {
+    if (event?.changedTouches[0]) {
+      swipeLastXRef.current = event.changedTouches[0].clientX;
+      swipeLastYRef.current = event.changedTouches[0].clientY;
+    }
+
+    if (finishWorkerSwipe()) {
+      pullStartYRef.current = undefined;
+      pullActivatedRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+
     pullStartYRef.current = undefined;
     const shouldRefresh = pullActivatedRef.current || pullDistance >= PULL_REFRESH_TRIGGER_PX;
     pullActivatedRef.current = false;
@@ -1233,6 +1285,92 @@ export function ProductionMobileApp({
     }
 
     void refreshMobileData();
+  }
+
+  function resetWorkerSwipe() {
+    swipeStartXRef.current = undefined;
+    swipeStartYRef.current = undefined;
+    swipeLastXRef.current = undefined;
+    swipeLastYRef.current = undefined;
+    horizontalSwipeIntentRef.current = false;
+  }
+
+  function canStartWorkerSwipe(target: EventTarget | null) {
+    if (mode !== "production" || effectiveView !== "worker") return false;
+    if (!(target instanceof Element)) return true;
+    return !target.closest(
+      "input, textarea, select, option, label, .worker-profile-menu, .worker-password-panel, .production-completion-form, .production-photo-slot",
+    );
+  }
+
+  function shouldTreatAsHorizontalSwipe() {
+    const startX = swipeStartXRef.current;
+    const startY = swipeStartYRef.current;
+    const lastX = swipeLastXRef.current;
+    const lastY = swipeLastYRef.current;
+    if (
+      startX === undefined ||
+      startY === undefined ||
+      lastX === undefined ||
+      lastY === undefined
+    ) {
+      return false;
+    }
+
+    const deltaX = lastX - startX;
+    const deltaY = lastY - startY;
+    return (
+      Math.abs(deltaX) > 12 &&
+      Math.abs(deltaX) > Math.abs(deltaY) * HORIZONTAL_SWIPE_SLOPE
+    );
+  }
+
+  function finishWorkerSwipe() {
+    const startX = swipeStartXRef.current;
+    const startY = swipeStartYRef.current;
+    const lastX = swipeLastXRef.current;
+    const lastY = swipeLastYRef.current;
+    const wasHorizontal = horizontalSwipeIntentRef.current;
+    resetWorkerSwipe();
+
+    if (
+      startX === undefined ||
+      startY === undefined ||
+      lastX === undefined ||
+      lastY === undefined
+    ) {
+      return false;
+    }
+
+    const deltaX = lastX - startX;
+    const deltaY = lastY - startY;
+    const isHorizontal =
+      wasHorizontal ||
+      (Math.abs(deltaX) > 12 &&
+        Math.abs(deltaX) > Math.abs(deltaY) * HORIZONTAL_SWIPE_SLOPE);
+    if (!isHorizontal) return false;
+
+    if (
+      Math.abs(deltaX) < HORIZONTAL_SWIPE_TRIGGER_PX ||
+      Math.abs(deltaX) < Math.abs(deltaY) * HORIZONTAL_SWIPE_SLOPE
+    ) {
+      return true;
+    }
+
+    if (workerTab === "money" && deltaX > 0) {
+      setWorkerTab(lastWorkerDealTab);
+      return true;
+    }
+
+    if (!isWorkerDealTab(workerTab)) return true;
+
+    const currentIndex = WORKER_DEAL_TABS.indexOf(workerTab);
+    const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
+    const nextTab = WORKER_DEAL_TABS[nextIndex];
+    if (nextTab) {
+      setWorkerTab(nextTab);
+    }
+    return true;
   }
 
   async function refreshMobileData() {
@@ -1613,10 +1751,10 @@ export function ProductionMobileApp({
     return (
       <main
         className={`production-mobile employee-management-mobile production-theme-${theme}`}
-        onTouchCancel={handlePullEnd}
-        onTouchEnd={handlePullEnd}
-        onTouchMove={handlePullMove}
-        onTouchStart={handlePullStart}
+        onTouchCancel={handleTouchEnd}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
+        onTouchStart={handleTouchStart}
       >
         <PullRefreshIndicator distance={pullDistance} refreshing={pullRefreshing} />
         <header className="production-topbar">
@@ -1642,10 +1780,10 @@ export function ProductionMobileApp({
   return (
     <main
       className={`production-mobile production-theme-${theme}`}
-      onTouchCancel={handlePullEnd}
-      onTouchEnd={handlePullEnd}
-      onTouchMove={handlePullMove}
-      onTouchStart={handlePullStart}
+      onTouchCancel={handleTouchEnd}
+      onTouchEnd={handleTouchEnd}
+      onTouchMove={handleTouchMove}
+      onTouchStart={handleTouchStart}
     >
       <PullRefreshIndicator distance={pullDistance} refreshing={pullRefreshing} />
       {canSwitchProductionView ? (
@@ -2978,6 +3116,10 @@ function PhotoStrip({ photos }: { photos: ProductionPhoto[] }) {
       })}
     </div>
   );
+}
+
+function isWorkerDealTab(tab: WorkerTab): tab is WorkerDealTab {
+  return (WORKER_DEAL_TABS as readonly WorkerTab[]).includes(tab);
 }
 
 function StatusBadge({ status }: { status?: ProductionAssignmentStatus }) {
