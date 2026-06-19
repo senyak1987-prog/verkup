@@ -454,7 +454,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T07:45:26.815Z",
+    "generatedAt": "2026-06-19T07:45:33.890Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -546,9 +546,9 @@
             "actor": "Иван"
           },
           {
-            "id": "46c3c34f-7fee-4f75-be89-b244eb06f48d",
+            "id": "337c6d94-5481-4d88-85f3-8b88c8d9a9f5",
             "type": "submitted",
-            "at": "2026-06-19T07:45:26.815Z",
+            "at": "2026-06-19T07:45:33.890Z",
             "actor": "Иван"
           }
         ],
@@ -579,7 +579,7 @@
             }
           ]
         },
-        "submittedAt": "2026-06-19T07:45:26.814Z"
+        "submittedAt": "2026-06-19T07:45:33.890Z"
       }
     ],
     "payouts": []
