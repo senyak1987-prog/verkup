@@ -1054,10 +1054,12 @@ export default function App() {
             <span>{accessRoleLabels[accessRoleFor(currentEmployee)]}</span>
           ) : null}
         </div>
-        <button className="secondary compact" onClick={handleLogout} type="button">
-          <LogOut size={16} />
-          Выйти
-        </button>
+        {accessRoleFor(currentEmployee) !== "maker" ? (
+          <button className="secondary compact" onClick={handleLogout} type="button">
+            <LogOut size={16} />
+            Выйти
+          </button>
+        ) : null}
       </div>
       {availableModeCount > 1 ? (
       <div className="app-mode-switch" role="tablist" aria-label="Режим приложения">
@@ -1114,6 +1116,7 @@ export default function App() {
           onChange={handleProductionChange}
           onDealStageChange={handleDealStageChanged}
           onInstallApp={() => void handleInstallApp()}
+          onLogout={handleLogout}
           onOpenDeal={handleProductionDealOpen}
           onRefresh={refreshAllDataNow}
         />
@@ -1132,6 +1135,7 @@ export default function App() {
           onChange={handleProductionChange}
           onDealStageChange={handleDealStageChanged}
           onInstallApp={() => void handleInstallApp()}
+          onLogout={handleLogout}
           onOpenDeal={handleProductionDealOpen}
           onRefresh={refreshAllDataNow}
         />

@@ -10,6 +10,7 @@ import {
   KeyRound,
   Link2,
   Images,
+  LogOut,
   Moon,
   MoreHorizontal,
   PackageCheck,
@@ -111,6 +112,7 @@ type ProductionMobileAppProps = {
   onCalculationChange?: (calculation: DealCalculation) => void;
   onDealStageChange?: (dealId: string, stage: DealStageCode) => void;
   onInstallApp?: () => void;
+  onLogout?: () => void;
   onOpenDeal?: (dealId: string, target: ProductionDealOpenTarget) => void;
   onRefresh?: () => Promise<void> | void;
 };
@@ -126,6 +128,7 @@ const ROLE_STORAGE_KEY = "verkup-production-view";
 const EMPLOYEE_STORAGE_KEY = "verkup-production-employee";
 const THEME_STORAGE_KEY = "verkup-production-theme";
 const ASSIGNMENT_NOTIFICATION_STORAGE_KEY = "verkup-production-notified-assignments";
+const ASSIGNMENT_SEEN_STORAGE_KEY = "verkup-production-seen-assignments";
 const DEFAULT_PUSH_PUBLIC_KEY =
   "BBu6x_Htq9sij2gtsdAtVA_xlmulyX8ZMjsHRJJAE0QgPnuDx1KL7thxzQeBV9NWIR5YLb1CDEXJiho-tlezVEk";
 const PUSH_PUBLIC_KEY = (import.meta.env.VITE_PUSH_PUBLIC_KEY || DEFAULT_PUSH_PUBLIC_KEY).trim();
@@ -202,6 +205,7 @@ export function ProductionMobileApp({
   onCalculationChange,
   onDealStageChange,
   onInstallApp,
+  onLogout,
   onOpenDeal,
   onRefresh,
 }: ProductionMobileAppProps) {
@@ -213,6 +217,9 @@ export function ProductionMobileApp({
   const pullActivatedRef = useRef(false);
   const [supervisorTab, setSupervisorTab] = useState<SupervisorTab>("active");
   const [workerTab, setWorkerTab] = useState<WorkerTab>("assigned");
+  const [seenAssignmentIds, setSeenAssignmentIds] = useState<Set<string>>(() =>
+    readSeenAssignmentIds(currentUser.id),
+  );
   const [query, setQuery] = useState("");
   const [selectedDealIds, setSelectedDealIds] = useState<Set<string>>(() => new Set());
   const [expandedDealIds, setExpandedDealIds] = useState<Set<string>>(() => new Set());
@@ -255,6 +262,11 @@ export function ProductionMobileApp({
   useEffect(() => {
     storedProductionRef.current = storedProduction;
   }, [storedProduction]);
+
+  useEffect(() => {
+    notifiedAssignmentIdsRef.current = readNotifiedAssignmentIds(currentUser.id);
+    setSeenAssignmentIds(readSeenAssignmentIds(currentUser.id));
+  }, [currentUser.id]);
 
   useEffect(() => {
     if (!profileMenuOpen) return;
@@ -387,6 +399,15 @@ export function ProductionMobileApp({
         : undefined;
   const hasAssignedWorkerTasks = workerAssignments.some((assignment) => assignment.status === "assigned");
   const selectedWorker = selectedEmployee;
+  const unreadAssignmentCount = useMemo(
+    () =>
+      currentAccessRole === "maker"
+        ? workerAssignments.filter(
+            (assignment) => assignment.status === "assigned" && !seenAssignmentIds.has(assignment.id),
+          ).length
+        : 0,
+    [currentAccessRole, seenAssignmentIds, workerAssignments],
+  );
   const workerMoney = useMemo(
     () =>
       selectedWorker
@@ -941,6 +962,7 @@ export function ProductionMobileApp({
   }
 
   function startAssignment(assignment: ProductionAssignment) {
+    markAssignmentSeen(assignment.id);
     const actor = employeesById.get(assignment.employeeId)?.name || "Макетчик";
     patchAssignment(assignment.id, (current) => ({
       ...current,
@@ -1091,6 +1113,21 @@ export function ProductionMobileApp({
     });
   }
 
+  function markAssignmentSeen(assignmentId: string) {
+    setSeenAssignmentIds((current) => {
+      if (current.has(assignmentId)) return current;
+      const next = new Set(current);
+      next.add(assignmentId);
+      writeSeenAssignmentIds(currentUser.id, next);
+      return next;
+    });
+  }
+
+  function openWorkerAssignment(assignment: ProductionAssignment) {
+    if (assignment.status === "assigned") markAssignmentSeen(assignment.id);
+    toggleAssignmentExpanded(assignment.id);
+  }
+
   async function enableBrowserNotifications() {
     if (!("Notification" in window)) {
       setNotice("Браузер не поддерживает уведомления.");
@@ -1204,8 +1241,6 @@ export function ProductionMobileApp({
     try {
       if (onRefresh) await onRefresh();
       else window.location.reload();
-      setNotice("Данные обновлены.");
-      window.setTimeout(() => setNotice(""), 1800);
     } catch {
       setNotice("Не удалось обновить данные.");
       window.setTimeout(() => setNotice(""), 2400);
@@ -1757,21 +1792,6 @@ export function ProductionMobileApp({
         </section>
       ) : (
         <section className="production-worker-view">
-          <div className="worker-device-actions">
-            <button
-              className="secondary"
-              disabled={
-                notificationPermission === "unsupported" ||
-                (notificationPermission === "granted" && Boolean(PUSH_PUBLIC_KEY))
-              }
-              onClick={() => void enableBrowserNotifications()}
-              type="button"
-            >
-              <Bell size={16} />
-              {pushButtonLabel}
-            </button>
-          </div>
-
           {selectedWorker ? (
             <WorkerProfile
               employee={selectedWorker}
@@ -1779,13 +1799,28 @@ export function ProductionMobileApp({
               menuOpen={profileMenuOpen}
               menuRef={profileMenuRef}
               money={workerMoney}
+              notificationCount={unreadAssignmentCount}
+              notificationDisabled={
+                notificationPermission === "unsupported" ||
+                (notificationPermission === "granted" && Boolean(PUSH_PUBLIC_KEY))
+              }
+              notificationLabel={pushButtonLabel}
               theme={theme}
               onAvatarChange={(file) => void updateEmployeeAvatar(selectedWorker, file)}
+              onEnableNotifications={() => {
+                setProfileMenuOpen(false);
+                void enableBrowserNotifications();
+              }}
               onGalleryClick={() => {
                 setWorkerTab("gallery");
                 setProfileMenuOpen(false);
               }}
+              onLogout={onLogout}
               onMenuToggle={() => setProfileMenuOpen((current) => !current)}
+              onNotificationClick={() => {
+                setWorkerTab("assigned");
+                setProfileMenuOpen(false);
+              }}
               onPasswordClick={() => {
                 setPasswordPanelOpen(true);
                 setProfileMenuOpen(false);
@@ -1875,7 +1910,7 @@ export function ProductionMobileApp({
                     onRemovePhoto={(kind) => removePhoto(assignment, kind)}
                     onStart={() => startAssignment(assignment)}
                     onSubmit={() => submitAssignment(assignment)}
-                    onToggle={() => toggleAssignmentExpanded(assignment.id)}
+                    onToggle={() => openWorkerAssignment(assignment)}
                     onUpdateCompletion={(patch) => updateCompletion(assignment.id, patch)}
                     workAmount={earningForAssignment(assignment, techSpecs, calculations)}
                   />
@@ -2307,10 +2342,16 @@ function WorkerProfile({
   menuOpen,
   menuRef,
   money,
+  notificationCount,
+  notificationDisabled,
+  notificationLabel,
   theme,
   onAvatarChange,
+  onEnableNotifications,
   onGalleryClick,
+  onLogout,
   onMenuToggle,
+  onNotificationClick,
   onPasswordClick,
   onToggleTheme,
 }: {
@@ -2319,10 +2360,16 @@ function WorkerProfile({
   menuOpen: boolean;
   menuRef: RefObject<HTMLDivElement>;
   money: WorkerMoneySummary;
+  notificationCount: number;
+  notificationDisabled: boolean;
+  notificationLabel: string;
   theme: ProductionTheme;
   onAvatarChange: (file?: File) => void;
+  onEnableNotifications: () => void;
   onGalleryClick: () => void;
+  onLogout?: () => void;
   onMenuToggle: () => void;
+  onNotificationClick: () => void;
   onPasswordClick: () => void;
   onToggleTheme: () => void;
 }) {
@@ -2349,18 +2396,30 @@ function WorkerProfile({
             <h2>{employee.name}</h2>
             <span>{accessRoleLabels[accessRoleFor(employee)]}</span>
           </div>
-          <div className="worker-profile-menu-wrap" ref={menuRef}>
-            <button
-              aria-expanded={menuOpen}
-              aria-label="Настройки профиля"
-              className="worker-profile-menu-trigger"
-              onClick={onMenuToggle}
-              type="button"
-            >
-              <MoreHorizontal size={20} />
-            </button>
-            {menuOpen ? (
-              <div className="worker-profile-menu">
+          <div className="worker-profile-actions">
+            {notificationCount ? (
+              <button
+                aria-label={`Новых назначений: ${notificationCount}`}
+                className="worker-notification-badge"
+                onClick={onNotificationClick}
+                type="button"
+              >
+                <Bell size={18} />
+                <span>{notificationCount}</span>
+              </button>
+            ) : null}
+            <div className="worker-profile-menu-wrap" ref={menuRef}>
+              <button
+                aria-expanded={menuOpen}
+                aria-label="Настройки профиля"
+                className="worker-profile-menu-trigger"
+                onClick={onMenuToggle}
+                type="button"
+              >
+                <MoreHorizontal size={20} />
+              </button>
+              {menuOpen ? (
+                <div className="worker-profile-menu">
                 <label>
                   <Camera size={16} />
                   Сменить фото
@@ -2382,12 +2441,23 @@ function WorkerProfile({
                   Галерея работ
                   {galleryCount ? <em>{galleryCount}</em> : null}
                 </button>
+                <button disabled={notificationDisabled} onClick={onEnableNotifications} type="button">
+                  <Bell size={16} />
+                  {notificationLabel}
+                </button>
                 <button onClick={onToggleTheme} type="button">
                   {theme === "night" ? <Sun size={16} /> : <Moon size={16} />}
                   {theme === "night" ? "Дневная тема" : "Ночная тема"}
                 </button>
-              </div>
-            ) : null}
+                {onLogout ? (
+                  <button onClick={onLogout} type="button">
+                    <LogOut size={16} />
+                    Выйти
+                  </button>
+                ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
         <div className="worker-profile-stats">
@@ -3431,6 +3501,23 @@ function writeNotifiedAssignmentIds(employeeId: string, ids: Set<string>) {
   localStorage.setItem(
     `${ASSIGNMENT_NOTIFICATION_STORAGE_KEY}:${employeeId}`,
     JSON.stringify([...ids].slice(-150)),
+  );
+}
+
+function readSeenAssignmentIds(employeeId: string) {
+  try {
+    const value = localStorage.getItem(`${ASSIGNMENT_SEEN_STORAGE_KEY}:${employeeId}`);
+    const parsed = value ? JSON.parse(value) : [];
+    return new Set(Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function writeSeenAssignmentIds(employeeId: string, ids: Set<string>) {
+  localStorage.setItem(
+    `${ASSIGNMENT_SEEN_STORAGE_KEY}:${employeeId}`,
+    JSON.stringify([...ids].slice(-300)),
   );
 }
 

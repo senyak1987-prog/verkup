@@ -6,12 +6,19 @@
   font-size: 15px;
 }
 
+html {
+  background: #f6f9fb;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #f6f9fb;
 }
 
 body.modal-open {
@@ -34,6 +41,18 @@ a {
 
 .app {
   min-height: 100vh;
+  min-height: 100dvh;
+  background: #f6f9fb;
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .production-pull-refresh {
+    top: env(safe-area-inset-top);
+  }
 }
 
 .loading {
@@ -5856,6 +5875,43 @@ div.employee-profile-field .employee-profile-value {
   font-weight: 800;
 }
 
+.worker-profile-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+.worker-notification-badge {
+  position: relative;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #f7c36b;
+  border-radius: 50%;
+  background: #fff7e6;
+  color: #8a4b00;
+}
+
+.worker-notification-badge span {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .worker-profile-menu-wrap {
   position: relative;
   flex: 0 0 auto;
@@ -5902,6 +5958,11 @@ div.employee-profile-field .employee-profile-value {
   font-size: 13px;
   font-weight: 800;
   text-align: left;
+}
+
+.worker-profile-menu button:disabled {
+  cursor: default;
+  opacity: 0.58;
 }
 
 .worker-profile-menu button em {
@@ -7172,6 +7233,16 @@ div.employee-profile-field .employee-profile-value {
 .production-theme-night .worker-profile-menu label:hover,
 .production-theme-night .worker-tabs button:not(.active) {
   background: #0f1720;
+}
+
+.production-theme-night .worker-notification-badge {
+  border-color: #7a4a14;
+  background: #2a1a08;
+  color: #facc15;
+}
+
+.production-theme-night .worker-notification-badge span {
+  border-color: #121821;
 }
 
 .production-theme-night .worker-profile-title span,
