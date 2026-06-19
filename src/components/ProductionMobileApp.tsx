@@ -475,7 +475,7 @@ export function ProductionMobileApp({
     "--worker-pager-height": workerPagerHeight ? `${workerPagerHeight}px` : "auto",
   } as CSSProperties;
   const workerPageTrackStyle = {
-    left: `${workerPageActiveShift + workerSwipeOffset}px`,
+    "--worker-track-shift": `${workerPageActiveShift + workerSwipeOffset}px`,
   } as CSSProperties;
   const workerTabsClassName = [
     "worker-tabs",
@@ -2257,14 +2257,17 @@ export function ProductionMobileApp({
                 style={workerPagerStyle}
               >
                 <div className="worker-page-track" style={workerPageTrackStyle}>
-                  {WORKER_DEAL_TABS.map((tab) => (
+                  {WORKER_DEAL_TABS.map((tab, index) => (
                     <div
                       aria-hidden={workerTab !== tab}
                       className={`worker-page${workerTab === tab ? " active" : ""}`}
                       key={tab}
                       ref={workerTab === tab ? workerActivePageRef : undefined}
+                      style={{ "--worker-page-x": `${index * 100}%` } as CSSProperties}
                     >
-                      {renderWorkerDealList(workerDealTabAssignments[tab])}
+                      <div className="worker-page-inner">
+                        {renderWorkerDealList(workerDealTabAssignments[tab])}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -2904,7 +2907,7 @@ function WorkerTabButton({
 }) {
   return (
     <button aria-selected={active} className={active ? "active" : ""} onClick={onClick} type="button">
-      {label}
+      <strong>{label}</strong>
       {typeof count === "number" ? <span>{count}</span> : null}
     </button>
   );

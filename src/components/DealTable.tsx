@@ -264,6 +264,119 @@ export function DealTable({
         <Kpi label="Прибыль" value={formatMoney(totals.profit)} />
       </section>
 
+      <section className="mobile-deal-filters" aria-label="Фильтры сделок">
+        <label>
+          <span>Источник</span>
+          <select
+            value={columnFilters.source}
+            onChange={(event) => patchColumnFilters({ source: event.target.value })}
+          >
+            <option value="">Все</option>
+            {filterOptions.sources.map((source) => (
+              <option key={source} value={source}>
+                {source}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Ответственный</span>
+          <select
+            value={columnFilters.responsible}
+            onChange={(event) => patchColumnFilters({ responsible: event.target.value })}
+          >
+            <option value="">Все</option>
+            {filterOptions.responsibles.map((responsible) => (
+              <option key={responsible} value={responsible}>
+                {displayResponsible(responsible)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button className="secondary" disabled={!hasColumnFilters} onClick={resetColumnFilters} type="button">
+          <FilterX size={16} />
+          Сбросить
+        </button>
+      </section>
+
+      <section className="mobile-deal-cards" aria-label="Сделки">
+        {visibleDeals.map((deal) => {
+          const calculation = calculations.get(deal.id);
+          const sales = saleBreakdownForDeal(deal, calculation, agentRatio);
+          const dealProfit = profit(deal, calculation, agentRatio);
+          const isSelected = selectedDealId === deal.id;
+          const animatedExpandedRow = animatedExpandedRowsByDeal.get(deal.id);
+          const animatedExpandedContent =
+            animatedExpandedRow && isSelected
+              ? expandedRow
+              : animatedExpandedRow?.content || expandedRowCacheRef.current.get(deal.id);
+
+          return (
+            <article className={isSelected ? "mobile-deal-card selected" : "mobile-deal-card"} key={deal.id}>
+              <button className="mobile-deal-card-main" onClick={() => onSelect(deal)} type="button">
+                <span className="mobile-deal-number">#{deal.number}</span>
+                <span className="mobile-deal-title">
+                  <strong>{deal.title || "Без названия"}</strong>
+                  <small>{deal.classification || deal.type || "Без классификации"}</small>
+                </span>
+                <span className="mobile-deal-stage">{deal.stageName || deal.stageCode || "-"}</span>
+              </button>
+
+              <div className="mobile-deal-meta">
+                <span>
+                  <small>Ответственный</small>
+                  <strong>{displayResponsible(deal.responsible) || "-"}</strong>
+                </span>
+                <span>
+                  <small>Запуск</small>
+                  <strong>{formatDate(deal.startDate) || "-"}</strong>
+                </span>
+                <span>
+                  <small>Срок</small>
+                  <strong>{formatDate(deal.expectedFinishDate) || "-"}</strong>
+                </span>
+                <span>
+                  <small>Продажа</small>
+                  <strong>{formatMoney(sales.totalSale)}</strong>
+                </span>
+                <span>
+                  <small>Себестоимость</small>
+                  <strong>{formatMoney(finalCost(calculation))}</strong>
+                </span>
+                <span className={dealProfit < 0 ? "negative" : ""}>
+                  <small>Прибыль</small>
+                  <strong>{formatMoney(dealProfit)}</strong>
+                </span>
+              </div>
+
+              <div className="mobile-deal-actions">
+                <button className="primary" onClick={() => onSelect(deal)} type="button">
+                  <Pencil size={16} />
+                  Себестоимость / ТЗ
+                </button>
+                <a className="secondary" href={deal.bitrixUrl} rel="noreferrer" target="_blank">
+                  <ExternalLink size={16} />
+                  Bitrix
+                </a>
+              </div>
+
+              {animatedExpandedRow && animatedExpandedContent ? (
+                <div className={`mobile-deal-expanded ${animatedExpandedRow.status}`}>
+                  <div className="deal-expand-shell">
+                    <div className="deal-expand-inner">{animatedExpandedContent}</div>
+                  </div>
+                </div>
+              ) : null}
+            </article>
+          );
+        })}
+        {!visibleDeals.length ? (
+          <div className="mobile-deal-empty">
+            Сделки не найдены. Проверьте синхронизацию Bitrix24 или фильтр поиска.
+          </div>
+        ) : null}
+      </section>
+
       <div className="table-wrap">
         <table className="deals-table" style={{ width: `max(100%, ${tableWidth}px)` }}>
           <colgroup>

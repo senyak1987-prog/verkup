@@ -48,6 +48,8 @@
 }
 
 html {
+  max-width: 100%;
+  overflow-x: clip;
   background: var(--bg);
   font-family: var(--font-sans);
   text-size-adjust: 100%;
@@ -60,13 +62,22 @@ html {
 
 body {
   margin: 0;
+  max-width: 100%;
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+@supports not (overflow: clip) {
+  html,
+  body {
+    overflow-x: hidden;
+  }
 }
 
 body.modal-open {
@@ -101,9 +112,18 @@ a {
   color: inherit;
 }
 
+#root {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
 .app {
+  max-width: 100%;
+  min-width: 0;
   min-height: 100vh;
   min-height: 100dvh;
+  overflow-x: clip;
   background: var(--bg);
 }
 
@@ -143,22 +163,41 @@ a {
 }
 
 .deal-list {
+  max-width: 100%;
   padding: 16px;
   min-width: 0;
+  overflow-x: clip;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
+  max-width: 100%;
+  min-width: 0;
   margin-bottom: 12px;
+}
+
+.toolbar > * {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.toolbar > div:first-child {
+  flex: 1 1 420px;
 }
 
 .toolbar-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex: 1 1 360px;
+  flex-wrap: wrap;
   gap: 8px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .toolbar-catalog {
@@ -176,6 +215,8 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  max-width: 100%;
+  min-width: 0;
   border: 1px solid #d6dce6;
   border-radius: 8px;
   background: #fff;
@@ -235,8 +276,11 @@ small,
 .search {
   display: flex;
   align-items: center;
+  flex: 1 1 260px;
   gap: 8px;
-  width: min(420px, 42vw);
+  width: min(420px, 100%);
+  max-width: 100%;
+  min-width: min(260px, 100%);
   padding: 0 12px;
   border: 1px solid #d6dce6;
   border-radius: 7px;
@@ -312,10 +356,151 @@ small,
 }
 
 .table-wrap {
+  contain: inline-size;
+  inline-size: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: auto;
   border: 1px solid #dce2ea;
   border-radius: 8px;
   background: #fff;
+}
+
+.mobile-deal-filters,
+.mobile-deal-cards {
+  display: none;
+}
+
+.mobile-deal-card,
+.mobile-deal-empty {
+  border: 1px solid var(--border-soft, #dce2ea);
+  border-radius: var(--radius-lg, 16px);
+  background: var(--surface, #fff);
+}
+
+.mobile-deal-card {
+  display: grid;
+  gap: 10px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.mobile-deal-card.selected {
+  border-color: var(--accent-muted, #ffd8b8);
+  background: color-mix(in srgb, var(--accent-soft, #fff1e4) 36%, var(--surface, #fff));
+}
+
+.mobile-deal-card-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px 10px;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+}
+
+.mobile-deal-number {
+  color: var(--info, #175cd3);
+  font-weight: 900;
+}
+
+.mobile-deal-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mobile-deal-title strong,
+.mobile-deal-title small,
+.mobile-deal-stage,
+.mobile-deal-meta strong,
+.mobile-deal-meta small {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-deal-title strong {
+  font-size: 16px;
+}
+
+.mobile-deal-title small,
+.mobile-deal-meta small {
+  color: var(--text-muted, #667085);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.mobile-deal-stage {
+  grid-column: 1 / -1;
+  justify-self: start;
+  max-width: 100%;
+  border-radius: 999px;
+  background: var(--surface-muted, #f1eee9);
+  padding: 4px 8px;
+  color: var(--text-muted, #667085);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.mobile-deal-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.mobile-deal-meta span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  border: 1px solid var(--border-soft, #edf0f5);
+  border-radius: var(--radius-sm, 10px);
+  background: var(--surface-soft, #f8f6f2);
+  padding: 8px;
+}
+
+.mobile-deal-meta strong {
+  font-size: 13px;
+}
+
+.mobile-deal-meta .negative strong {
+  color: var(--danger, #b42318);
+}
+
+.mobile-deal-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mobile-deal-actions .primary,
+.mobile-deal-actions .secondary,
+.mobile-deal-filters .secondary {
+  justify-content: center;
+  min-height: var(--touch-target, 44px);
+  text-align: center;
+}
+
+.mobile-deal-expanded {
+  min-width: 0;
+  overflow: hidden;
+  border-top: 1px solid var(--border-soft, #edf0f5);
+  padding-top: 10px;
+}
+
+.mobile-deal-empty {
+  padding: 14px;
+  color: var(--text-muted, #667085);
+  font-weight: 760;
+  text-align: center;
 }
 
 table {
@@ -1240,6 +1425,8 @@ td small {
   grid-template-columns: minmax(0, 1fr) minmax(420px, 34%);
   gap: 8px;
   align-items: start;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .calc-lines-column {
@@ -1250,6 +1437,7 @@ td small {
 
 .block-catalog {
   display: grid;
+  min-width: 0;
   border: 1px solid #dce4ee;
   border-radius: 8px;
   background: #fbfcfe;
@@ -1283,6 +1471,8 @@ td small {
   display: grid;
   grid-template-columns: minmax(260px, 760px) minmax(0, 1fr);
   gap: 6px;
+  max-width: 100%;
+  min-width: 0;
   margin-top: 6px;
 }
 
@@ -1304,6 +1494,7 @@ td small {
   display: grid;
   grid-column: 1 / -1;
   gap: 4px;
+  min-width: 0;
   max-height: 180px;
   overflow: auto;
   border: 1px solid #dce4ee;
@@ -4505,7 +4696,8 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .tech-spec-item-head select {
-  min-width: 210px;
+  min-width: min(210px, 100%);
+  max-width: 100%;
 }
 
 .tech-spec-item-grid {
@@ -4759,6 +4951,8 @@ div.employee-profile-field .employee-profile-value {
   grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.6fr) auto;
   gap: 14px;
   align-items: start;
+  max-width: calc(100% - 24px);
+  min-width: 0;
   margin: 0 12px 14px;
   border: 1px solid #d7dde7;
   border-radius: 8px;
@@ -4766,11 +4960,19 @@ div.employee-profile-field .employee-profile-value {
   padding: 14px;
 }
 
+.tech-spec-work-cost-link > *,
+.tech-spec-work-cost-options,
+.tech-spec-work-cost-options label,
+.tech-spec-work-cost-options span {
+  min-width: 0;
+}
+
 .tech-spec-work-cost-link h3 {
   margin: 0 0 4px;
   color: #101828;
   font-size: 15px;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .tech-spec-work-cost-link p {
@@ -4778,6 +4980,7 @@ div.employee-profile-field .employee-profile-value {
   color: #667085;
   font-size: 12px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .tech-spec-work-cost-options {
@@ -4812,12 +5015,14 @@ div.employee-profile-field .employee-profile-value {
   color: #101828;
   font-size: 13px;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .tech-spec-work-cost-options small {
   color: #667085;
   font-size: 12px;
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .tech-spec-work-cost-options em {
@@ -4853,12 +5058,14 @@ div.employee-profile-field .employee-profile-value {
 .tech-spec-document {
   width: 100%;
   max-width: 1180px;
+  min-width: 0;
   margin: 0 auto;
   display: grid;
   gap: 18px;
 }
 
 .tech-spec-doc-page {
+  min-width: 0;
   border: 1px solid #d7dde7;
   border-radius: 8px;
   background: #fff;
@@ -5035,8 +5242,10 @@ div.employee-profile-field .employee-profile-value {
 
 .tech-spec-doc-table {
   width: 100%;
+  max-width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  table-layout: fixed;
 }
 
 .tech-spec-doc-table th,
@@ -5057,6 +5266,7 @@ div.employee-profile-field .employee-profile-value {
 .tech-spec-doc-table td {
   color: #111827;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .tech-spec-preview pre {
@@ -5145,12 +5355,23 @@ div.employee-profile-field .employee-profile-value {
   }
 
   .stage-tabs {
+    contain: inline-size;
+    max-width: 100%;
+    min-width: 0;
     width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .stage-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .stage-tabs button {
     justify-content: center;
-    flex: 1;
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   .calculator-actions {
@@ -5220,6 +5441,18 @@ div.employee-profile-field .employee-profile-value {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+}
+
+@media (min-width: 721px) and (max-width: 1180px) {
+  .catalog-cascade,
+  .tech-spec-work-cost-link {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .catalog-search-field,
+  .catalog-field.wide {
+    grid-column: auto;
+  }
 }
 
 @media (max-width: 720px) {
@@ -5508,14 +5741,19 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .workspace-app {
+  max-width: 100%;
+  min-width: 0;
   min-height: 100dvh;
 }
 
 .workspace-shell {
+  max-width: 100%;
+  min-width: 0;
   min-height: 100dvh;
 }
 
 .workspace-content {
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -5795,6 +6033,8 @@ div.employee-profile-field .employee-profile-value {
 
 .production-mobile {
   position: relative;
+  max-width: 100%;
+  min-width: 0;
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--bg);
@@ -6374,6 +6614,7 @@ div.employee-profile-field .employee-profile-value {
   display: flex;
   position: relative;
   overflow: hidden;
+  min-width: 0;
   border: 1px solid rgba(255, 117, 0, 0.24);
   border-radius: 8px;
   background: #fff7ed;
@@ -6403,28 +6644,38 @@ div.employee-profile-field .employee-profile-value {
 .worker-tabs button {
   display: inline-flex;
   position: relative;
-  flex: 1 1 0;
+  flex: 1 1 0%;
   width: var(--worker-tab-width, auto);
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  overflow: hidden;
+  gap: 4px;
   min-width: 0;
   min-height: 34px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: #7c3b00;
-  padding: 0 11px;
-  font-size: 13px;
+  padding: 6px 8px;
+  font-size: 12.5px;
   font-weight: 900;
+  line-height: 1.08;
   text-align: center;
   transition:
     color 160ms ease,
     transform 160ms ease;
 }
 
-.worker-tabs button > :not(span) {
+.worker-tabs button > :not(span),
+.worker-tabs button strong {
+  display: block;
+  overflow: hidden;
   min-width: 0;
+  text-overflow: ellipsis;
+}
+
+.worker-tabs button strong {
+  font: inherit;
 }
 
 .worker-tabs button.active {
@@ -6462,6 +6713,7 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .worker-tabs button span {
+  flex: 0 0 auto;
   border-radius: 999px;
   background: rgba(255, 117, 0, 0.15);
   color: #7c3b00;
@@ -6480,20 +6732,25 @@ div.employee-profile-field .employee-profile-value {
 
 .worker-pager {
   --worker-page-drag: 0px;
+  position: relative;
+  max-width: 100%;
+  min-width: 0;
   height: var(--worker-pager-height);
   overflow: hidden;
+  overflow: clip;
   touch-action: pan-y;
   transition: height 220ms ease;
+  contain: layout paint;
 }
 
 .worker-page-track {
-  display: flex;
+  display: block;
   position: relative;
-  left: 0;
-  align-items: flex-start;
   width: 100%;
-  transition: left 360ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: left;
+  min-width: 0;
+  overflow: hidden;
+  overflow: clip;
+  transform: translate3d(0, 0, 0);
 }
 
 .worker-pager.dragging .worker-page-track {
@@ -6501,23 +6758,50 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .worker-page {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  max-width: 100%;
   flex: 0 0 100%;
   min-width: 0;
+  overflow: hidden;
+  overflow: clip;
   opacity: 0.72;
-  transform: scale(0.992);
-  transform-origin: center top;
-  transition:
-    opacity 240ms ease,
-    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 240ms ease;
+  contain: layout paint;
 }
 
-.worker-pager.dragging .worker-page {
+.worker-page-inner {
+  width: 100%;
+  min-width: 0;
+  transform: translate3d(
+      calc(var(--worker-page-x, 0%) + var(--worker-track-shift, 0px)),
+      0,
+      0
+    )
+    scale(0.992);
+  transform-origin: center top;
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.worker-pager.dragging .worker-page,
+.worker-pager.dragging .worker-page-inner {
   transition: none;
 }
 
 .worker-page.active {
+  position: relative;
   opacity: 1;
-  transform: scale(1);
+}
+
+.worker-page.active .worker-page-inner {
+  transform: translate3d(
+      calc(var(--worker-page-x, 0%) + var(--worker-track-shift, 0px)),
+      0,
+      0
+    )
+    scale(1);
 }
 
 .worker-page:not(.active) {
@@ -7089,7 +7373,10 @@ div.employee-profile-field .employee-profile-value {
   grid-template-columns: 62px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
   border: 0;
   background: transparent;
   padding: 0;
@@ -7122,6 +7409,8 @@ div.employee-profile-field .employee-profile-value {
   width: 62px;
   height: 48px;
   overflow: hidden;
+  max-width: 100%;
+  min-width: 0;
   place-items: center;
   border: 1px solid #d8e1eb;
   border-radius: 7px;
@@ -7139,7 +7428,16 @@ div.employee-profile-field .employee-profile-value {
 .production-compact-info {
   display: grid;
   gap: 5px;
+  max-width: 100%;
   min-width: 0;
+  overflow: hidden;
+}
+
+.production-card-title.compact-title,
+.production-card-title.compact-title > div {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .production-card-title.compact-title h2 {
@@ -7187,25 +7485,35 @@ div.employee-profile-field .employee-profile-value {
   display: grid;
   justify-items: end;
   gap: 5px;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .production-worker-view .production-compact-status {
   min-width: 76px;
+  max-width: 100%;
   align-self: center;
 }
 
 .production-compact-status > span:last-child {
+  overflow: hidden;
+  max-width: 100%;
   color: #667085;
   font-size: 11px;
   font-weight: 800;
+  text-overflow: ellipsis;
 }
 
 .production-deadline-chip {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 100%;
   border-radius: 999px;
   padding: 4px 7px;
   font-size: 10px;
   font-weight: 900;
   line-height: 1;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -8001,7 +8309,7 @@ div.employee-profile-field .employee-profile-value {
 }
 
 @media (max-width: 720px) {
-  .app-mode-switch {
+  .app-mode-switch:not(.workspace-bottom-nav) {
     top: 57px;
     padding: 8px;
   }
@@ -8018,7 +8326,7 @@ div.employee-profile-field .employee-profile-value {
     padding: 7px 9px;
   }
 
-  .app-mode-switch button {
+  .app-mode-switch:not(.workspace-bottom-nav) button {
     flex: 1;
     padding: 7px 8px;
   }
@@ -8867,6 +9175,45 @@ tr.selected td,
   }
 }
 
+@media (max-width: 768px) {
+  .deal-list > .table-wrap {
+    display: none;
+  }
+
+  .mobile-deal-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .mobile-deal-filters label {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    color: var(--text-muted, #667085);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .mobile-deal-filters select {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--border, #d6dce6);
+    border-radius: var(--radius-sm, 10px);
+    background: var(--surface, #fff);
+    padding: 10px;
+    color: var(--text, #17202f);
+  }
+
+  .mobile-deal-cards {
+    display: grid;
+    gap: 10px;
+    max-width: 100%;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 720px) {
   :root {
     font-size: 15px;
@@ -8916,6 +9263,7 @@ tr.selected td,
 
   .workspace-bottom-nav {
     position: fixed;
+    top: auto;
     right: 10px;
     bottom: calc(10px + env(safe-area-inset-bottom));
     left: 10px;
@@ -8927,6 +9275,7 @@ tr.selected td,
     border: 1px solid var(--border-soft);
     border-radius: var(--radius-xl);
     background: color-mix(in srgb, var(--surface) 94%, transparent);
+    height: auto;
     padding: 6px;
     box-shadow: var(--shadow-lg);
     backdrop-filter: blur(18px);
@@ -8988,9 +9337,13 @@ tr.selected td,
 
   .stage-tabs,
   .deal-workspace-tabs {
+    contain: inline-size;
     display: flex;
+    max-width: 100%;
+    min-width: 0;
     width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
     scrollbar-width: none;
   }
 
@@ -9110,13 +9463,35 @@ tr.selected td,
   }
 
   .production-deal-summary.worker-summary {
-    grid-template-columns: 48px minmax(0, 1fr) auto;
+    grid-template-columns: 48px minmax(0, 1fr);
   }
 
   .production-thumb,
   .production-worker-view .production-thumb {
     width: 48px;
     height: 40px;
+  }
+
+  .production-worker-view .production-compact-status {
+    grid-column: 1 / -1;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: start;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .production-worker-view .production-compact-status > span:last-child {
+    justify-self: end;
+    min-width: 0;
+  }
+
+  .mobile-deal-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-deal-meta {
+    grid-template-columns: 1fr;
   }
 }
 
