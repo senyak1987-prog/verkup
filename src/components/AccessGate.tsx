@@ -1,12 +1,14 @@
-import { KeyRound, Lock, Send } from "lucide-react";
+import { Download, KeyRound, Lock, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ProductionEmployee } from "../types";
 
 type AccessGateProps = {
   employees: ProductionEmployee[];
+  installAvailable?: boolean;
   registrationAllowed?: boolean;
   registrationToken?: string;
   onLogin: (login: string, password: string) => Promise<boolean>;
+  onInstallApp?: () => void;
   onRegister: (data: {
     name: string;
     phone: string;
@@ -16,9 +18,11 @@ type AccessGateProps = {
 
 export function AccessGate({
   employees,
+  installAvailable = false,
   registrationAllowed = false,
   registrationToken = "",
   onLogin,
+  onInstallApp,
   onRegister,
 }: AccessGateProps) {
   const [mode, setMode] = useState<"login" | "register">(() =>
@@ -130,6 +134,13 @@ export function AccessGate({
               Регистрация
             </button>
           </div>
+
+          {installAvailable ? (
+            <button className="secondary" onClick={onInstallApp} type="button">
+              <Download size={17} />
+              Установить приложение
+            </button>
+          ) : null}
 
           {mode === "login" ? (
             <>

@@ -165,7 +165,19 @@ function updateWorkspaceUrl(mode: WorkspaceMode, replace = false) {
 type DealWorkspaceTab = "cost" | "techSpec";
 
 type ProductionSaveOptions = {
+  onSaveError?: () => void;
+  onSaved?: () => void;
   saveNow?: boolean;
+};
+
+type QueuedProductionSave = {
+  data: StoredProduction;
+  options?: ProductionSaveOptions;
+};
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
 type PendingCatalogInsert = {
@@ -240,9 +252,10 @@ export default function App() {
   const techSpecSaveTimerRef = useRef<number>();
   const productionSaveTimerRef = useRef<number>();
   const productionSaveInFlightRef = useRef(false);
-  const queuedProductionSaveRef = useRef<StoredProduction>();
+  const queuedProductionSaveRef = useRef<QueuedProductionSave>();
   const storedTechSpecsRef = useRef(storedTechSpecs);
   const storedProductionRef = useRef(storedProduction);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent>();
 
   const activeEmployees = useMemo(
     () => storedProduction.employees.filter((employee) => employee.active !== false),
@@ -288,6 +301,44 @@ export default function App() {
   }, [storedProduction]);
 
   useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const handleAppInstalled = () => setInstallPrompt(undefined);
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  function applyLoadedProductionData(
+    techSpecsData: StoredTechSpecs,
+    productionData: StoredProduction,
+    options: { syncBack?: boolean } = {},
+  ) {
+    const loadedProduction = productionWithEmbeddedFallback(productionData, techSpecsData);
+    const nextProduction = mergeStoredProduction(loadedProduction, storedProductionRef.current);
+
+    setStoredTechSpecs(techSpecsData);
+    setStoredProduction(nextProduction);
+    storedTechSpecsRef.current = techSpecsData;
+    storedProductionRef.current = nextProduction;
+    writeCachedTechSpecs(withEmbeddedProduction(techSpecsData, nextProduction));
+    writeCachedProduction(nextProduction);
+
+    if (options.syncBack && shouldSyncProductionToServer(loadedProduction, nextProduction)) {
+      saveProductionNow(nextProduction);
+    }
+
+    return nextProduction;
+  }
+
+  useEffect(() => {
     let canceled = false;
 
     async function loadInitialData() {
@@ -302,20 +353,13 @@ export default function App() {
         if (canceled) return;
 
         const nextDeals = applyPendingStageMoves(dealsData.items);
-        const nextProduction = productionWithEmbeddedFallback(productionData, techSpecsData);
         setDeals(nextDeals);
         setStoredCalculations(calculationsData);
         setCatalogItems(catalogsData.items);
-        setStoredTechSpecs(techSpecsData);
-        setStoredProduction(nextProduction);
-        storedTechSpecsRef.current = techSpecsData;
-        storedProductionRef.current = nextProduction;
+        applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
         writeCachedDeals({ ...dealsData, items: nextDeals });
         writeCachedCalculations(calculationsData);
         writeCachedCatalogs(catalogsData);
-        writeCachedTechSpecs(withEmbeddedProduction(techSpecsData, nextProduction));
-        writeCachedProduction(nextProduction);
-        void syncProductionCacheWithServer(nextProduction);
       } finally {
         if (!canceled) setLoading(false);
       }
@@ -347,13 +391,7 @@ export default function App() {
       ]);
       if (canceled) return;
 
-      const nextProduction = productionWithEmbeddedFallback(productionData, techSpecsData);
-      setStoredTechSpecs(techSpecsData);
-      setStoredProduction(nextProduction);
-      storedTechSpecsRef.current = techSpecsData;
-      storedProductionRef.current = nextProduction;
-      writeCachedTechSpecs(withEmbeddedProduction(techSpecsData, nextProduction));
-      writeCachedProduction(nextProduction);
+      applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
     }
 
     async function refreshAllData() {
@@ -367,20 +405,13 @@ export default function App() {
       if (canceled) return;
 
       const nextDeals = applyPendingStageMoves(dealsData.items);
-      const nextProduction = productionWithEmbeddedFallback(productionData, techSpecsData);
       setDeals(nextDeals);
       setStoredCalculations(calculationsData);
       setCatalogItems(catalogsData.items);
-      setStoredTechSpecs(techSpecsData);
-      setStoredProduction(nextProduction);
-      storedTechSpecsRef.current = techSpecsData;
-      storedProductionRef.current = nextProduction;
+      applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
       writeCachedDeals({ ...dealsData, items: nextDeals });
       writeCachedCalculations(calculationsData);
       writeCachedCatalogs(catalogsData);
-      writeCachedTechSpecs(withEmbeddedProduction(techSpecsData, nextProduction));
-      writeCachedProduction(nextProduction);
-      void syncProductionCacheWithServer(nextProduction);
     }
 
     const intervalId = window.setInterval(refreshDeals, DEAL_REFRESH_INTERVAL_MS);
@@ -572,8 +603,8 @@ export default function App() {
     storedProductionRef.current = data;
     writeCachedProduction(data);
     writeCachedTechSpecs(withEmbeddedProduction(storedTechSpecsRef.current, data));
-    if (options.saveNow) saveProductionNow(data);
-    else scheduleProductionSave(data);
+    if (options.saveNow) saveProductionNow(data, options);
+    else scheduleProductionSave(data, options);
   }
 
   async function syncProductionCacheWithServer(localProduction: StoredProduction) {
@@ -728,38 +759,53 @@ export default function App() {
     }, TECH_SPEC_SAVE_DELAY_MS);
   }
 
-  function saveProductionNow(data: StoredProduction) {
+  function saveProductionNow(data: StoredProduction, options: ProductionSaveOptions = {}) {
     const apiUrl = defaultSaveApiUrl();
-    if (!apiUrl) return;
+    if (!apiUrl) {
+      options.onSaveError?.();
+      return;
+    }
 
     if (productionSaveTimerRef.current) {
       window.clearTimeout(productionSaveTimerRef.current);
       productionSaveTimerRef.current = undefined;
     }
 
-    requestProductionSave(data);
+    requestProductionSave(data, options);
   }
 
-  function requestProductionSave(data: StoredProduction) {
+  function requestProductionSave(data: StoredProduction, options: ProductionSaveOptions = {}) {
     const apiUrl = defaultSaveApiUrl();
-    if (!apiUrl) return;
+    if (!apiUrl) {
+      options.onSaveError?.();
+      return;
+    }
 
     if (productionSaveInFlightRef.current) {
-      queuedProductionSaveRef.current = data;
+      queuedProductionSaveRef.current = { data, options };
       return;
     }
 
     productionSaveInFlightRef.current = true;
     void saveProduction({ apiUrl }, data)
+      .then(() => {
+        options.onSaved?.();
+      })
       .catch(async () => {
         const fallbackSaved = await saveProductionFallbackToTechSpecs(data);
-        if (!fallbackSaved && !queuedProductionSaveRef.current) scheduleProductionSave(data);
+        if (fallbackSaved) {
+          options.onSaved?.();
+          return;
+        }
+
+        options.onSaveError?.();
+        if (!queuedProductionSaveRef.current) scheduleProductionSave(data, options);
       })
       .finally(() => {
         productionSaveInFlightRef.current = false;
         const queuedProductionSave = queuedProductionSaveRef.current;
         queuedProductionSaveRef.current = undefined;
-        if (queuedProductionSave) requestProductionSave(queuedProductionSave);
+        if (queuedProductionSave) requestProductionSave(queuedProductionSave.data, queuedProductionSave.options);
       });
   }
 
@@ -778,16 +824,19 @@ export default function App() {
     }
   }
 
-  function scheduleProductionSave(data: StoredProduction) {
+  function scheduleProductionSave(data: StoredProduction, options: ProductionSaveOptions = {}) {
     const apiUrl = defaultSaveApiUrl();
-    if (!apiUrl) return;
+    if (!apiUrl) {
+      options.onSaveError?.();
+      return;
+    }
 
     if (productionSaveTimerRef.current) {
       window.clearTimeout(productionSaveTimerRef.current);
     }
 
     productionSaveTimerRef.current = window.setTimeout(() => {
-      requestProductionSave(data);
+      requestProductionSave(data, options);
     }, PRODUCTION_SAVE_DELAY_MS);
   }
 
@@ -884,6 +933,14 @@ export default function App() {
     updateWorkspaceUrl(mode);
   }
 
+  async function handleInstallApp() {
+    if (!installPrompt) return;
+    const prompt = installPrompt;
+    setInstallPrompt(undefined);
+    await prompt.prompt();
+    await prompt.userChoice.catch(() => undefined);
+  }
+
   function handleProductionDealOpen(dealId: string, target: DealWorkspaceTab) {
     const deal = deals.find((item) => item.id === dealId);
     if (!deal) return;
@@ -947,8 +1004,10 @@ export default function App() {
       <div className="app">
         <AccessGate
           employees={loginEmployees}
+          installAvailable={Boolean(installPrompt)}
           registrationAllowed={Boolean(activeRegistrationLink)}
           registrationToken={registrationToken}
+          onInstallApp={() => void handleInstallApp()}
           onLogin={handleEmployeeLogin}
           onRegister={handleRegistrationRequest}
         />
@@ -1031,9 +1090,11 @@ export default function App() {
           saveApiUrl={defaultSaveApiUrl()}
           techSpecs={techSpecsMap}
           storedProduction={storedProduction}
+          installAvailable={Boolean(installPrompt)}
           onCalculationChange={handleProductionCalculationChange}
           onChange={handleProductionChange}
           onDealStageChange={handleDealStageChanged}
+          onInstallApp={() => void handleInstallApp()}
           onOpenDeal={handleProductionDealOpen}
         />
       ) : workspaceMode === "production" && canUseProduction ? (
@@ -1046,9 +1107,11 @@ export default function App() {
           saveApiUrl={defaultSaveApiUrl()}
           techSpecs={techSpecsMap}
           storedProduction={storedProduction}
+          installAvailable={Boolean(installPrompt)}
           onCalculationChange={handleProductionCalculationChange}
           onChange={handleProductionChange}
           onDealStageChange={handleDealStageChanged}
+          onInstallApp={() => void handleInstallApp()}
           onOpenDeal={handleProductionDealOpen}
         />
       ) : canUseCosting ? (

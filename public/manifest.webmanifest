@@ -2,12 +2,17 @@
   "name": "Verkup Производство",
   "short_name": "Verkup",
   "description": "Мобильное приложение Verkup для назначения, сборки и проверки сделок.",
+  "id": "./?mode=production",
   "start_url": "./?mode=production",
   "scope": "./",
+  "lang": "ru-RU",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "background_color": "#f4f6f8",
   "theme_color": "#0f766e",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "./verkup-mark-v3-icon-192.png",
@@ -20,6 +25,36 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Производство",
+      "short_name": "Производство",
+      "description": "Открыть мобильный экран производства.",
+      "url": "./?mode=production",
+      "icons": [
+        {
+          "src": "./verkup-mark-v3-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any maskable"
+        }
+      ]
+    },
+    {
+      "name": "Сотрудники",
+      "short_name": "Сотрудники",
+      "description": "Открыть управление сотрудниками.",
+      "url": "./?mode=employees",
+      "icons": [
+        {
+          "src": "./verkup-mark-v3-icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png",
+          "purpose": "any maskable"
+        }
+      ]
     }
   ]
 }

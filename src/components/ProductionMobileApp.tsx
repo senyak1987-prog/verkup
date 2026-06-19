@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Clock3,
   Copy,
+  Download,
   KeyRound,
   Link2,
   PackageCheck,
@@ -77,6 +78,8 @@ type WorkerMoneySummary = {
 type ProductionDealOpenTarget = "cost" | "techSpec";
 
 type ProductionCommitOptions = {
+  onSaveError?: () => void;
+  onSaved?: () => void;
   saveNow?: boolean;
 };
 
@@ -89,9 +92,11 @@ type ProductionMobileAppProps = {
   saveApiUrl?: string;
   techSpecs: Map<string, DealTechSpec>;
   storedProduction: StoredProduction;
+  installAvailable?: boolean;
   onChange: (data: StoredProduction, options?: ProductionCommitOptions) => void;
   onCalculationChange?: (calculation: DealCalculation) => void;
   onDealStageChange?: (dealId: string, stage: DealStageCode) => void;
+  onInstallApp?: () => void;
   onOpenDeal?: (dealId: string, target: ProductionDealOpenTarget) => void;
 };
 
@@ -157,9 +162,11 @@ export function ProductionMobileApp({
   saveApiUrl = "",
   techSpecs,
   storedProduction,
+  installAvailable = false,
   onChange,
   onCalculationChange,
   onDealStageChange,
+  onInstallApp,
   onOpenDeal,
 }: ProductionMobileAppProps) {
   const [view, setView] = useState<ProductionView>(() => readStoredView());
@@ -876,9 +883,9 @@ export function ProductionMobileApp({
     if (!file) return;
     try {
       const dataUrl = await readImageFileAsDataUrl(file, {
-        maxHeight: 1280,
-        maxWidth: 1280,
-        quality: 0.72,
+        maxHeight: 960,
+        maxWidth: 960,
+        quality: 0.62,
       });
       const deal = dealsById.get(assignment.dealId);
       const nextPhoto: ProductionPhoto = {
@@ -894,17 +901,27 @@ export function ProductionMobileApp({
         uploadedAt: new Date().toISOString(),
       };
       const completion = completionFor(assignment);
+      setNotice("Фото добавлено. Сохраняю на сайте...");
       updateCompletion(assignment.id, {
         photos: [
           ...completion.photos.filter((photo) => photo.kind !== kind),
           nextPhoto,
         ],
-      }, { saveNow: true });
-      setNotice("Фото загружено.");
+      }, {
+        saveNow: true,
+        onSaved: () => {
+          setNotice("Фото сохранено на сайте.");
+          window.setTimeout(() => setNotice(""), 2200);
+        },
+        onSaveError: () => {
+          setNotice("Фото видно в приложении, но пока не отправилось на сайт. Проверьте интернет и откройте приложение еще раз.");
+          window.setTimeout(() => setNotice(""), 5200);
+        },
+      });
     } catch {
       setNotice("Фото не загрузилось. Выберите JPG, PNG или WebP и попробуйте еще раз.");
+      window.setTimeout(() => setNotice(""), 2600);
     }
-    window.setTimeout(() => setNotice(""), 2600);
   }
 
   function removePhoto(assignment: ProductionAssignment, kind: ProductionPhotoKind) {
@@ -1420,6 +1437,15 @@ export function ProductionMobileApp({
       ) : null}
 
       {notice ? <div className="production-toast">{notice}</div> : null}
+
+      {installAvailable ? (
+        <div className="worker-device-actions">
+          <button className="secondary" onClick={onInstallApp} type="button">
+            <Download size={16} />
+            Установить приложение
+          </button>
+        </div>
+      ) : null}
 
       {effectiveView === "supervisor" ? (
         <section className="production-layout production-only-layout">
