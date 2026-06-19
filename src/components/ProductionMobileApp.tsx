@@ -463,16 +463,12 @@ export function ProductionMobileApp({
     isWorkerDealTab(workerTab) ? workerTab : lastWorkerDealTab,
   );
   const workerTabActiveShift = Math.round(workerDealTabIndex * (workerTabSegmentWidth + 6));
-  const workerTabRailShift = Math.round(workerSwipeOffset * 0.14);
   const workerPageActiveShift = Math.round(-workerDealTabIndex * workerPagerWidth);
   const workerTabsStyle = {
     "--worker-tab-width": workerTabSegmentWidth ? `${workerTabSegmentWidth}px` : undefined,
   } as CSSProperties;
   const workerTabGliderStyle = {
     left: `${5 + workerTabActiveShift}px`,
-  } as CSSProperties;
-  const workerTabRailStyle = {
-    left: `${workerTabRailShift}px`,
   } as CSSProperties;
   const workerPagerStyle = {
     "--worker-pager-height": workerPagerHeight ? `${workerPagerHeight}px` : "auto",
@@ -2234,7 +2230,7 @@ export function ProductionMobileApp({
             style={workerTabsStyle}
           >
             <span className="worker-tab-glider" aria-hidden="true" style={workerTabGliderStyle} />
-            <div className="worker-tab-rail" style={workerTabRailStyle}>
+            <div className="worker-tab-rail">
               <WorkerTabButton active={workerTab === "assigned"} count={workerDealTabAssignments.assigned.length} label="Назначенные сделки" onClick={() => selectWorkerDealTab("assigned")} />
               <WorkerTabButton active={workerTab === "inProgress"} count={workerDealTabAssignments.inProgress.length} label="Сделки в работе" onClick={() => selectWorkerDealTab("inProgress")} />
               <WorkerTabButton active={workerTab === "ready"} count={workerDealTabAssignments.ready.length} label="Готовые сделки" onClick={() => selectWorkerDealTab("ready")} />
@@ -2671,17 +2667,35 @@ function PullRefreshIndicator({
 }) {
   const visible = refreshing || distance > 0;
   const progress = Math.min(1, distance / PULL_REFRESH_TRIGGER_PX);
+  const logoOffset = Math.round((1 - progress) * 4);
+  const logoScale = 0.9 + progress * 0.1;
+  const waveLift = Math.round(7 + progress * 4);
 
   return (
     <div
       aria-hidden={!visible}
-      className={`production-pull-refresh${visible ? " visible" : ""}${refreshing ? " refreshing" : ""}`}
+      className={`production-pull-refresh${visible ? " visible" : ""}${refreshing ? " refreshing" : " pulling"}`}
       style={{
+        "--pull-progress": progress,
+        "--pull-logo-y": `${logoOffset}px`,
+        "--pull-logo-scale": logoScale,
+        "--pull-wave-lift": `-${waveLift}px`,
         opacity: visible ? 1 : 0,
         transform: `translate3d(-50%, ${visible ? Math.max(18, distance) : 0}px, 0)`,
-      }}
+      } as CSSProperties}
     >
-      <span style={{ transform: refreshing ? undefined : `rotate(${Math.round(progress * 280)}deg)` }} />
+      <svg
+        className="production-pull-refresh-logo"
+        viewBox="0 0 140.2427 116.3769"
+        role="img"
+        aria-label="Verkup"
+      >
+        <path className="verkup-wave-part wave-1" fill="#ff7500" d="M 140.2427 89.3798 L 121.1108 89.3798 L 90.4986 0.0000 L 109.6305 0.0000 Z" />
+        <path className="verkup-wave-part wave-2" fill="#ff7500" d="M 84.3738 70.1626 L 108.4039 0.0000 L 89.2721 0.0000 L 68.9315 59.3892 C 72.8082 61.8673 79.6830 66.7664 84.3738 70.1626" />
+        <path className="verkup-wave-part wave-3" fill="#7a3800" d="M 54.8765 51.3612 L 72.4674 0.0000 L 53.3356 0.0000 L 38.3406 43.7825 C 43.9994 46.0670 49.4884 48.5779 54.8765 51.3612" />
+        <path className="verkup-wave-part wave-4" fill="#351800" d="M 23.3844 38.3848 L 36.5309 0.0000 L 17.3991 0.0000 L 5.9474 33.4369 C 11.9965 34.9486 17.7902 36.5854 23.3844 38.3848" />
+        <path className="verkup-wave-part wave-5" fill="#ff7500" d="M 67.1998 97.8358 L 59.4884 105.5469 L 101.1634 116.3769 L 90.3336 74.7020 L 82.6226 82.4131 C 59.8581 64.3320 37.1843 52.0240 0.0000 43.1558 C 34.7632 64.5486 51.2399 73.2787 67.1998 97.8358" />
+      </svg>
     </div>
   );
 }

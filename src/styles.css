@@ -5833,11 +5833,11 @@ div.employee-profile-field .employee-profile-value {
   left: 50%;
   z-index: 30;
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 66px;
+  height: 54px;
   place-items: center;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 50%;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
   pointer-events: none;
@@ -5846,21 +5846,58 @@ div.employee-profile-field .employee-profile-value {
     transform 180ms ease;
 }
 
-.production-pull-refresh span {
-  width: 20px;
-  height: 20px;
-  border: 3px solid #d7e2ea;
-  border-top-color: #0f766e;
-  border-radius: 50%;
+.production-pull-refresh-logo {
+  display: block;
+  width: 40px;
+  height: auto;
+  overflow: visible;
+  transform: translateY(var(--pull-logo-y, 4px)) scale(var(--pull-logo-scale, 0.9));
+  transform-origin: center;
+  transition: transform 160ms ease;
 }
 
-.production-pull-refresh.refreshing span {
-  animation: productionPullRefreshSpin 780ms linear infinite;
+.verkup-wave-part {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: transform;
 }
 
-@keyframes productionPullRefreshSpin {
-  to {
-    transform: rotate(360deg);
+.production-pull-refresh.visible .verkup-wave-part {
+  animation: verkupLogoRefreshWave 900ms cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+.production-pull-refresh .wave-1 {
+  animation-delay: 0ms;
+}
+
+.production-pull-refresh .wave-2 {
+  animation-delay: 80ms;
+}
+
+.production-pull-refresh .wave-3 {
+  animation-delay: 160ms;
+}
+
+.production-pull-refresh .wave-4 {
+  animation-delay: 240ms;
+}
+
+.production-pull-refresh .wave-5 {
+  animation-delay: 320ms;
+}
+
+@keyframes verkupLogoRefreshWave {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  28% {
+    transform: translateY(var(--pull-wave-lift, -7px));
+  }
+
+  56% {
+    transform: translateY(2px);
   }
 }
 
@@ -6302,8 +6339,7 @@ div.employee-profile-field .employee-profile-value {
   gap: 6px;
   left: 0;
   width: 100%;
-  transition: left 340ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: left;
+  min-width: 0;
 }
 
 .worker-tabs.dragging .worker-tab-rail {
@@ -6314,6 +6350,7 @@ div.employee-profile-field .employee-profile-value {
   display: inline-flex;
   position: relative;
   flex: 1 1 0;
+  width: var(--worker-tab-width, auto);
   align-items: center;
   justify-content: center;
   gap: 6px;
@@ -6326,10 +6363,14 @@ div.employee-profile-field .employee-profile-value {
   padding: 0 11px;
   font-size: 13px;
   font-weight: 900;
-  white-space: nowrap;
+  text-align: center;
   transition:
     color 160ms ease,
     transform 160ms ease;
+}
+
+.worker-tabs button > :not(span) {
+  min-width: 0;
 }
 
 .worker-tabs button.active {
@@ -7700,9 +7741,8 @@ div.employee-profile-field .employee-profile-value {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
 }
 
-.production-theme-night .production-pull-refresh span {
-  border-color: #334155;
-  border-top-color: #5eead4;
+.production-theme-night .production-pull-refresh-logo {
+  filter: drop-shadow(0 5px 10px rgba(255, 117, 0, 0.18));
 }
 
 .production-theme-night .worker-profile-menu button em {
@@ -9039,4 +9079,19 @@ tr.selected td,
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+.worker-tabs {
+  padding: 5px;
+}
+
+.worker-tabs button,
+.worker-tabs button.active {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.worker-tabs button.active {
+  color: #fff;
 }
