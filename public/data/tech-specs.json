@@ -454,7 +454,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T07:43:54.382Z",
+    "generatedAt": "2026-06-19T07:43:55.360Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -548,7 +548,7 @@
         ],
         "startedAt": "2026-06-19T07:07:37.402Z",
         "completion": {
-          "diodeCount": 12,
+          "diodeCount": 120,
           "powerSupply": "",
           "noPowerSupply": true,
           "note": "",
