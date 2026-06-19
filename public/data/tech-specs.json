@@ -454,7 +454,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T16:09:40.115Z",
+    "generatedAt": "2026-06-19T16:10:17.363Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -526,6 +526,13 @@
         "id": "5c77bbe4-26bf-462d-b22b-732ea9bcc5c1",
         "token": "32ad8c33f5f7356676e49ee06baf03506f90",
         "createdAt": "2026-06-19T16:09:40.115Z",
+        "createdBy": "leader-semen",
+        "active": false
+      },
+      {
+        "id": "a79a08f0-9bae-41e8-abd0-304f8b7be366",
+        "token": "40a8a0d6371675c55bcb2b042e212f5c0cd8",
+        "createdAt": "2026-06-19T16:10:17.363Z",
         "createdBy": "leader-semen",
         "active": true
       }
