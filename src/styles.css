@@ -5827,10 +5827,8 @@ div.employee-profile-field .employee-profile-value {
   width: min(154px, 44vw);
   min-height: 34px;
   place-items: center;
-  border: 1px solid #dce4ee;
-  border-radius: 8px;
-  background: #fff;
-  padding: 5px 9px;
+  background: transparent;
+  padding: 0;
 }
 
 .worker-mobile-brand img {
@@ -7313,11 +7311,6 @@ div.employee-profile-field .employee-profile-value {
 
 .production-theme-night .worker-notification-badge span {
   border-color: #121821;
-}
-
-.production-theme-night .worker-mobile-brand span {
-  border-color: #263241;
-  background: #121821;
 }
 
 .production-theme-night .worker-profile-title span,
