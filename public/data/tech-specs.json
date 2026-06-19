@@ -471,7 +471,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T12:20:02.543Z",
+    "generatedAt": "2026-06-19T13:15:28.763Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -636,7 +636,18 @@
             "actor": "Иван"
           }
         ],
-        "startedAt": "2026-06-19T07:53:56.776Z"
+        "startedAt": "2026-06-19T07:53:56.776Z",
+        "completion": {
+          "diodeCount": 0,
+          "diodeCatalogId": "lighting-demiled-promo-module-x3-2835-3-1w-ip67-color",
+          "diodeCatalogTitle": "Светодиодный модуль линзованный Demiled Premium X3 178° 2835-3 1W IP67 12V Red, Green, Warm White, Neutral White",
+          "powerSupply": "",
+          "powerSupplyCatalogId": "",
+          "powerSupplyCatalogTitle": "",
+          "noPowerSupply": false,
+          "note": "",
+          "photos": []
+        }
       }
     ],
     "payouts": [
