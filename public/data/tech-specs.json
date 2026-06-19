@@ -468,7 +468,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T07:51:35.977Z",
+    "generatedAt": "2026-06-19T07:51:40.811Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -603,18 +603,18 @@
         "readyForShipmentAt": "2026-06-19T07:46:38.683Z"
       },
       {
-        "id": "4f286f70-3588-402d-8827-860eb4452384",
+        "id": "299e134c-471a-483f-817b-d62eb18e779b",
         "dealId": "16520",
         "employeeId": "85be188e-706c-4193-ac75-b9d3f437c4d9",
         "status": "assigned",
-        "assignedAt": "2026-06-19T07:51:35.977Z",
+        "assignedAt": "2026-06-19T07:51:40.811Z",
         "assignedBy": "Руководитель",
         "notificationText": "Вам назначили на сборку изделие #16520: Лужники переделка ГАРАНТИЯ",
         "history": [
           {
-            "id": "69bb2cf9-61c2-4781-afe6-fb7f94eae086",
+            "id": "a61e76ea-b989-45e7-afe2-7e126c48a80a",
             "type": "assigned",
-            "at": "2026-06-19T07:51:35.977Z",
+            "at": "2026-06-19T07:51:40.811Z",
             "actor": "Руководитель",
             "note": "Иван"
           }
