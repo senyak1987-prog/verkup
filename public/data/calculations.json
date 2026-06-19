@@ -1,11 +1,22 @@
 {
-  "generatedAt": "2026-06-19T20:02:00.975Z",
+  "generatedAt": "2026-06-19T20:02:11.658Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
       "dealId": "16874",
-      "updatedAt": "2026-06-19T20:02:00.118Z",
+      "updatedAt": "2026-06-19T20:02:10.792Z",
       "positions": [
+        {
+          "id": "282947fa-dc81-4f28-ad5f-1d9b6a305827",
+          "qty": 1,
+          "unit": "п/м",
+          "unitCost": 45,
+          "section": "milling",
+          "title": "Фрезеровка: Материал 2-3мм",
+          "calcMode": "milling",
+          "thickness": 3,
+          "note": "Фрезеровка"
+        },
         {
           "id": "b7b5b771-b007-4f9d-ac1f-3ef1bd3fa875",
           "catalogId": "metall-dk-труба-профильная-труба-15х15-труба-профильная-15х15х1",
