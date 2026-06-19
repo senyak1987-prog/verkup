@@ -1047,20 +1047,18 @@ export default function App() {
           </span>
         </div>
       )}
-      <div className="access-bar">
-        <div>
-          <strong>{currentEmployee.name}</strong>
-          {accessRoleFor(currentEmployee) !== "maker" ? (
+      {accessRoleFor(currentEmployee) !== "maker" ? (
+        <div className="access-bar">
+          <div>
+            <strong>{currentEmployee.name}</strong>
             <span>{accessRoleLabels[accessRoleFor(currentEmployee)]}</span>
-          ) : null}
-        </div>
-        {accessRoleFor(currentEmployee) !== "maker" ? (
+          </div>
           <button className="secondary compact" onClick={handleLogout} type="button">
             <LogOut size={16} />
             Выйти
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       {availableModeCount > 1 ? (
       <div className="app-mode-switch" role="tablist" aria-label="Режим приложения">
         {canUseCosting ? (

@@ -23,6 +23,7 @@ import {
   Trash2,
   UserRound,
   UsersRound,
+  Wallet,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -1798,7 +1799,6 @@ export function ProductionMobileApp({
               galleryCount={workerGalleryPhotos.length}
               menuOpen={profileMenuOpen}
               menuRef={profileMenuRef}
-              money={workerMoney}
               notificationCount={unreadAssignmentCount}
               notificationDisabled={
                 notificationPermission === "unsupported" ||
@@ -1816,6 +1816,10 @@ export function ProductionMobileApp({
                 setProfileMenuOpen(false);
               }}
               onLogout={onLogout}
+              onMoneyClick={() => {
+                setWorkerTab("money");
+                setProfileMenuOpen(false);
+              }}
               onMenuToggle={() => setProfileMenuOpen((current) => !current)}
               onNotificationClick={() => {
                 setWorkerTab("assigned");
@@ -1878,7 +1882,6 @@ export function ProductionMobileApp({
             <WorkerTabButton active={workerTab === "assigned"} count={assignmentsForWorkerTab(workerAssignments, "assigned").length} label="Назначенные сделки" onClick={() => setWorkerTab("assigned")} />
             <WorkerTabButton active={workerTab === "inProgress"} count={assignmentsForWorkerTab(workerAssignments, "inProgress").length} label="Сделки в работе" onClick={() => setWorkerTab("inProgress")} />
             <WorkerTabButton active={workerTab === "ready"} count={assignmentsForWorkerTab(workerAssignments, "ready").length} label="Готовые сделки" onClick={() => setWorkerTab("ready")} />
-            <WorkerTabButton active={workerTab === "money"} label="Мой заработок" onClick={() => setWorkerTab("money")} />
           </div>
 
           {!productionWorkers.length ? (
@@ -2341,7 +2344,6 @@ function WorkerProfile({
   galleryCount,
   menuOpen,
   menuRef,
-  money,
   notificationCount,
   notificationDisabled,
   notificationLabel,
@@ -2350,6 +2352,7 @@ function WorkerProfile({
   onEnableNotifications,
   onGalleryClick,
   onLogout,
+  onMoneyClick,
   onMenuToggle,
   onNotificationClick,
   onPasswordClick,
@@ -2359,7 +2362,6 @@ function WorkerProfile({
   galleryCount: number;
   menuOpen: boolean;
   menuRef: RefObject<HTMLDivElement>;
-  money: WorkerMoneySummary;
   notificationCount: number;
   notificationDisabled: boolean;
   notificationLabel: string;
@@ -2368,6 +2370,7 @@ function WorkerProfile({
   onEnableNotifications: () => void;
   onGalleryClick: () => void;
   onLogout?: () => void;
+  onMoneyClick: () => void;
   onMenuToggle: () => void;
   onNotificationClick: () => void;
   onPasswordClick: () => void;
@@ -2441,6 +2444,10 @@ function WorkerProfile({
                   Галерея работ
                   {galleryCount ? <em>{galleryCount}</em> : null}
                 </button>
+                <button onClick={onMoneyClick} type="button">
+                  <Wallet size={16} />
+                  Выплаты и баланс
+                </button>
                 <button disabled={notificationDisabled} onClick={onEnableNotifications} type="button">
                   <Bell size={16} />
                   {notificationLabel}
@@ -2459,24 +2466,6 @@ function WorkerProfile({
               ) : null}
             </div>
           </div>
-        </div>
-        <div className="worker-profile-stats">
-          <span>
-            Выполнено
-            <strong>{money.completedCount}</strong>
-          </span>
-          <span>
-            Баланс
-            <strong>{formatMoney(money.balance)}</strong>
-          </span>
-          <span>
-            Выплачено
-            <strong>{formatMoney(money.paid)}</strong>
-          </span>
-          <span>
-            Всего
-            <strong>{formatMoney(money.earned)}</strong>
-          </span>
         </div>
       </div>
     </section>
@@ -2538,6 +2527,10 @@ function WorkerMoneyPanel({
 
   return (
     <section className="worker-money-panel">
+      <div className="production-panel-head">
+        <Wallet size={18} />
+        <h2>Выплаты и баланс</h2>
+      </div>
       <div className="worker-money-grid">
         <span>
           Начислено
@@ -2614,6 +2607,7 @@ function WorkerDealCard({
   const itemLabel = assignment.techSpecItemId
     ? techSpecItemLabel(techSpec, assignment.techSpecItemId)
     : "";
+  const deadlineBadge = deadlineBadgeFor(deal.expectedFinishDate);
 
   return (
     <article className={`production-deal-card compact worker ${assignment.status}`}>
@@ -2639,6 +2633,7 @@ function WorkerDealCard({
         </div>
         <div className="production-compact-status">
           <StatusBadge status={assignment.status} />
+          <span className={`production-deadline-chip ${deadlineBadge.tone}`}>{deadlineBadge.label}</span>
           <span>{expanded ? "Свернуть" : "Открыть"}</span>
         </div>
       </button>
@@ -3242,6 +3237,42 @@ function compareDealsByDeadline(first: Deal, second: Deal) {
 function deadlineTime(deal: Deal) {
   const time = Date.parse(deal.expectedFinishDate || "");
   return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time;
+}
+
+function deadlineBadgeFor(value?: string) {
+  const deadline = parseDeadlineDate(value);
+  if (!deadline) return { tone: "muted", label: "Срок не указан" };
+
+  const today = startOfLocalDay(new Date());
+  const deadlineDay = startOfLocalDay(deadline);
+  const daysLeft = Math.ceil((deadlineDay.getTime() - today.getTime()) / 86400000);
+
+  if (daysLeft < 0) return { tone: "red", label: `Просрочено ${Math.abs(daysLeft)} д` };
+  if (daysLeft === 0) return { tone: "red", label: "Сегодня" };
+  if (daysLeft <= 2) return { tone: "yellow", label: daysLeft === 1 ? "1 день" : "2 дня" };
+  return { tone: "green", label: `${daysLeft} дн` };
+}
+
+function parseDeadlineDate(value?: string) {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+
+  const match = trimmed.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
+  if (!match) return undefined;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const yearValue = Number(match[3]);
+  const year = yearValue < 100 ? 2000 + yearValue : yearValue;
+  const date = new Date(year, month, day);
+  return Number.isNaN(date.getTime()) ? undefined : date;
+}
+
+function startOfLocalDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 function summarizeProduction(assignments: ProductionAssignment[]) {
