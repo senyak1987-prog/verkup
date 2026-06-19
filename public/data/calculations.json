@@ -1,15 +1,26 @@
 {
-  "generatedAt": "2026-06-19T20:00:49.768Z",
+  "generatedAt": "2026-06-19T20:00:54.401Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
       "dealId": "16874",
-      "updatedAt": "2026-06-19T20:00:48.911Z",
+      "updatedAt": "2026-06-19T20:00:53.532Z",
       "positions": [
+        {
+          "id": "cb5ef7c9-4ac0-4c8f-bf10-238210c2bbff",
+          "catalogId": "materials-пвх-белый-5мм-3050х2050х5-rexplast-light-g-1563",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 478.59,
+          "section": "materials",
+          "title": "ПВХ белый 5мм 3050х2050х5 REXPLAST light G",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 860; столбец G"
+        },
         {
           "id": "c9b95412-d47e-4858-9b88-09bdd9d29699",
           "catalogId": "materials-оргстекло-3мм-3000х2000х3-молочный-30-rexglass-c-1611",
-          "qty": 0,
+          "qty": 1,
           "unit": "м2",
           "unitCost": 1187.38,
           "section": "materials",
