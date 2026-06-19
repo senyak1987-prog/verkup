@@ -5833,13 +5833,13 @@ div.employee-profile-field .employee-profile-value {
   left: 50%;
   z-index: 30;
   display: grid;
-  width: 66px;
-  height: 54px;
+  width: min(174px, 52vw);
+  height: 48px;
   place-items: center;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  filter: drop-shadow(0 8px 14px rgba(22, 18, 14, 0.1));
   pointer-events: none;
   transition:
     opacity 140ms ease,
@@ -5848,56 +5848,93 @@ div.employee-profile-field .employee-profile-value {
 
 .production-pull-refresh-logo {
   display: block;
-  width: 40px;
+  width: min(168px, 50vw);
   height: auto;
+  max-height: 37px;
   overflow: visible;
   transform: translateY(var(--pull-logo-y, 4px)) scale(var(--pull-logo-scale, 0.9));
   transform-origin: center;
   transition: transform 160ms ease;
 }
 
-.verkup-wave-part {
+.verkup-logo-part {
   transform-box: fill-box;
   transform-origin: center;
   will-change: transform;
 }
 
-.production-pull-refresh.visible .verkup-wave-part {
-  animation: verkupLogoRefreshWave 900ms cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+.production-pull-refresh.pulling .logo-wave-1 {
+  transform: translateY(var(--pull-wave-1, 0));
 }
 
-.production-pull-refresh .wave-1 {
+.production-pull-refresh.pulling .logo-wave-2 {
+  transform: translateY(var(--pull-wave-2, 0));
+}
+
+.production-pull-refresh.pulling .logo-wave-3 {
+  transform: translateY(var(--pull-wave-3, 0));
+}
+
+.production-pull-refresh.pulling .logo-wave-4 {
+  transform: translateY(var(--pull-wave-4, 0));
+}
+
+.production-pull-refresh.pulling .logo-wave-5 {
+  transform: translateY(var(--pull-wave-5, 0));
+}
+
+.production-pull-refresh.pulling .logo-wave-6 {
+  transform: translateY(var(--pull-wave-6, 0));
+}
+
+.production-pull-refresh.pulling .logo-wave-7 {
+  transform: translateY(var(--pull-wave-7, 0));
+}
+
+.production-pull-refresh.refreshing .verkup-logo-part {
+  animation: verkupFullLogoRefreshWave 980ms cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+.production-pull-refresh.refreshing .logo-wave-1 {
   animation-delay: 0ms;
 }
 
-.production-pull-refresh .wave-2 {
-  animation-delay: 80ms;
+.production-pull-refresh.refreshing .logo-wave-2 {
+  animation-delay: 70ms;
 }
 
-.production-pull-refresh .wave-3 {
-  animation-delay: 160ms;
+.production-pull-refresh.refreshing .logo-wave-3 {
+  animation-delay: 140ms;
 }
 
-.production-pull-refresh .wave-4 {
-  animation-delay: 240ms;
+.production-pull-refresh.refreshing .logo-wave-4 {
+  animation-delay: 210ms;
 }
 
-.production-pull-refresh .wave-5 {
-  animation-delay: 320ms;
+.production-pull-refresh.refreshing .logo-wave-5 {
+  animation-delay: 280ms;
 }
 
-@keyframes verkupLogoRefreshWave {
+.production-pull-refresh.refreshing .logo-wave-6 {
+  animation-delay: 350ms;
+}
+
+.production-pull-refresh.refreshing .logo-wave-7 {
+  animation-delay: 420ms;
+}
+
+@keyframes verkupFullLogoRefreshWave {
   0%,
   100% {
     transform: translateY(0);
   }
 
   28% {
-    transform: translateY(var(--pull-wave-lift, -7px));
+    transform: translateY(9px);
   }
 
   56% {
-    transform: translateY(2px);
+    transform: translateY(-2px);
   }
 }
 
@@ -7736,9 +7773,8 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .production-theme-night .production-pull-refresh {
-  border-color: #263241;
-  background: rgba(18, 24, 33, 0.96);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+  background: transparent;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.28));
 }
 
 .production-theme-night .production-pull-refresh-logo {
