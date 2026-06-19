@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T19:29:00.988Z",
+  "generatedAt": "2026-06-19T19:39:32.989Z",
   "specs": [
     {
       "dealId": "16986",
@@ -240,43 +240,6 @@
       "updatedAt": "2026-06-18T11:09:21.339Z"
     },
     {
-      "dealId": "16880",
-      "draft": {
-        "dealNumber": "16880",
-        "projectName": "IMPERIAL GARDEN (А)",
-        "manager": "Алексей Федоренко",
-        "responsiblePhone": "89995543801",
-        "deadline": "2026-06-30",
-        "date": "2026-06-18",
-        "globalNote": "",
-        "items": [
-          {
-            "id": "affc5858-5896-4f20-a8cd-e658890b4a12",
-            "templateId": "letters",
-            "attachments": [],
-            "workCostPositionIds": [],
-            "fields": {
-              "name": "Вывеска",
-              "quantity": "1 шт",
-              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "ЛИЦЕВОЕ",
-              "glowColor": "НЕЙТРАЛЬНОЕ",
-              "faceMaterial": "Молочный акрил 3 мм",
-              "sideMaterial": "Алюминий",
-              "backMaterial": "ПВХ Strong 6 мм",
-              "depth": "60 мм",
-              "returnSide": "НЕТ",
-              "mountType": "НА РАМЕ",
-              "wireExit": "ПОСЕРЕДИНЕ",
-              "psu": "УЛИЧНЫЙ",
-              "cableLength": "3 метра"
-            }
-          }
-        ]
-      },
-      "updatedAt": "2026-06-18T11:09:32.218Z"
-    },
-    {
       "dealId": "17074",
       "draft": {
         "dealNumber": "17074",
@@ -454,10 +417,47 @@
         "name": "TZ-16874-Тест.jpg",
         "uploadedAt": "2026-06-15T12:52:10.841Z"
       }
+    },
+    {
+      "dealId": "16880",
+      "draft": {
+        "dealNumber": "16880",
+        "projectName": "IMPERIAL GARDEN (А)",
+        "manager": "Алексей Федоренко",
+        "responsiblePhone": "89995543801",
+        "deadline": "2026-06-30",
+        "date": "2026-06-18",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "affc5858-5896-4f20-a8cd-e658890b4a12",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-19T19:39:32.989Z"
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T19:33:44.873Z",
+    "generatedAt": "2026-06-19T19:37:00.363Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -520,17 +520,6 @@
         "active": true,
         "createdAt": "2026-06-19T16:12:15.877Z",
         "pinHash": "aaa8003e820e1382478c1c7f125eabcbe4ca05416f55ef6954e9ca18c3fed1a2"
-      },
-      {
-        "id": "b00155ce-475d-420a-bfe9-8929107ab4e7",
-        "name": "Семен",
-        "login": "123",
-        "role": "maker",
-        "accessRole": "maker",
-        "phone": "",
-        "active": true,
-        "createdAt": "2026-06-19T19:33:44.872Z",
-        "pinHash": "62f113b3150608685c8cfc1a0943861093e48f8d5722a5488bab2996515a8ff9"
       }
     ],
     "registrations": [
