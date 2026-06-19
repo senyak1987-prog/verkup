@@ -5801,6 +5801,20 @@ div.employee-profile-field .employee-profile-value {
   margin: 0 auto;
 }
 
+.worker-mobile-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding-top: 2px;
+}
+
+.worker-mobile-brand img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
 .worker-device-actions {
   display: flex;
   justify-content: flex-end;

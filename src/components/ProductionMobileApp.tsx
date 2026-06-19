@@ -1793,6 +1793,10 @@ export function ProductionMobileApp({
         </section>
       ) : (
         <section className="production-worker-view">
+          <div className="worker-mobile-brand" aria-label="Verkup">
+            <img alt="Verkup" src={`${import.meta.env.BASE_URL}verkup-logo-mark.png`} />
+          </div>
+
           {selectedWorker ? (
             <WorkerProfile
               employee={selectedWorker}
