@@ -1,5 +1,6 @@
 import { Download, KeyRound, Lock, Send } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { FocusEvent } from "react";
 import type { ProductionEmployee } from "../types";
 
 type AccessGateProps = {
@@ -53,6 +54,21 @@ export function AccessGate({
     setError("");
     setDone("");
     setMode(nextMode);
+  }
+
+  function scrollFocusedFieldIntoView(event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+    if (typeof window === "undefined" || !window.matchMedia("(max-width: 768px)").matches) return;
+
+    const target = event.currentTarget;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    window.setTimeout(() => {
+      target.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
+    }, 180);
   }
 
   async function submitLogin() {
@@ -152,6 +168,7 @@ export function AccessGate({
                       autoComplete="username"
                       autoFocus
                       onChange={(event) => setLogin(event.target.value)}
+                      onFocus={scrollFocusedFieldIntoView}
                       placeholder="Логин, телефон или имя"
                       value={login}
                     />
@@ -161,6 +178,7 @@ export function AccessGate({
                     <input
                       autoComplete="current-password"
                       onChange={(event) => setPassword(event.target.value)}
+                      onFocus={scrollFocusedFieldIntoView}
                       onKeyDown={(event) => {
                         if (event.key === "Enter") void submitLogin();
                       }}
@@ -192,6 +210,7 @@ export function AccessGate({
                 <input
                   autoComplete="name"
                   onChange={(event) => setName(event.target.value)}
+                  onFocus={scrollFocusedFieldIntoView}
                   placeholder="Как вас записать"
                   value={name}
                 />
@@ -201,6 +220,7 @@ export function AccessGate({
                 <input
                   autoComplete="tel"
                   onChange={(event) => setPhone(event.target.value)}
+                  onFocus={scrollFocusedFieldIntoView}
                   placeholder="+7..."
                   value={phone}
                 />
@@ -209,6 +229,7 @@ export function AccessGate({
                 <span>Комментарий</span>
                 <textarea
                   onChange={(event) => setNote(event.target.value)}
+                  onFocus={scrollFocusedFieldIntoView}
                   placeholder="Должность, отдел, кто пригласил"
                   value={note}
                 />
