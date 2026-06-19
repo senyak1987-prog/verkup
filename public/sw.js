@@ -1,4 +1,4 @@
-const CACHE_NAME = "verkup-offline-v12";
+const CACHE_NAME = "verkup-offline-v13";
 const APP_SHELL = [
   "./",
   "./manifest.webmanifest",
@@ -9,6 +9,7 @@ const APP_SHELL = [
   "./verkup-mark-v3-icon-512.png",
   "./verkup-logo-mark.png",
   "./verkup-logo.png",
+  "./verkup-logo-vector.svg",
   "./vendor/pdfjs/pdf.mjs",
   "./vendor/pdfjs/pdf.worker.mjs",
 ];

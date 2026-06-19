@@ -1794,7 +1794,9 @@ export function ProductionMobileApp({
       ) : (
         <section className="production-worker-view">
           <div className="worker-mobile-brand" aria-label="Verkup">
-            <img alt="Verkup" src={`${import.meta.env.BASE_URL}verkup-logo-mark.png`} />
+            <span>
+              <img alt="Verkup" src={`${import.meta.env.BASE_URL}verkup-logo-vector.svg`} />
+            </span>
           </div>
 
           {selectedWorker ? (
