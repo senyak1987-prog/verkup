@@ -1,11 +1,22 @@
 {
-  "generatedAt": "2026-06-19T20:00:55.646Z",
+  "generatedAt": "2026-06-19T20:01:03.903Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
       "dealId": "16874",
-      "updatedAt": "2026-06-19T20:00:54.786Z",
+      "updatedAt": "2026-06-19T20:01:03.036Z",
       "positions": [
+        {
+          "id": "fb535ebe-e386-41ef-8aa0-ba1554bdcfe7",
+          "catalogId": "materials-пвх-белый-3мм-3050х1560х3-unext-str-1545",
+          "qty": 0,
+          "unit": "м2",
+          "unitCost": 716.06,
+          "section": "materials",
+          "title": "ПВХ белый 3мм 3050х1560х3 \"UNEXT\" STR",
+          "calcMode": "area",
+          "note": "Прайс по материалам.xlsx; строка 840; столбец G"
+        },
         {
           "id": "cb5ef7c9-4ac0-4c8f-bf10-238210c2bbff",
           "catalogId": "materials-пвх-белый-5мм-3050х2050х5-rexplast-light-g-1563",
