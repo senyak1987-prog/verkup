@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T23:42:21.633Z",
+  "generatedAt": "2026-06-19T23:43:16.374Z",
   "specs": [
     {
       "dealId": "16874",
@@ -37,6 +37,43 @@
         ]
       },
       "updatedAt": "2026-06-19T23:42:21.633Z"
+    },
+    {
+      "dealId": "16888",
+      "draft": {
+        "dealNumber": "16888",
+        "projectName": "Тест 2",
+        "manager": "Алексей Купоров",
+        "responsiblePhone": "",
+        "deadline": "2026-06-12",
+        "date": "2026-06-19",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "133b922b-d779-4e80-8a10-fd2420b1c4e1",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-19T23:43:16.374Z"
     }
   ],
   "__production": {
