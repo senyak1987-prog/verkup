@@ -6323,7 +6323,8 @@ div.employee-profile-field .employee-profile-value {
 .production-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 2px;
 }
 
 .production-compact-info {
