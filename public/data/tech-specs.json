@@ -454,7 +454,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-19T07:46:38.684Z",
+    "generatedAt": "2026-06-19T07:48:43.082Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -589,6 +589,14 @@
         "readyForShipmentAt": "2026-06-19T07:46:38.683Z"
       }
     ],
-    "payouts": []
+    "payouts": [
+      {
+        "id": "5ace1942-bd8c-47a4-88f2-8b4832da83f2",
+        "employeeId": "85be188e-706c-4193-ac75-b9d3f437c4d9",
+        "amount": 8300,
+        "paidAt": "2026-06-19T07:48:43.082Z",
+        "paidBy": "leader-semen"
+      }
+    ]
   }
 }
