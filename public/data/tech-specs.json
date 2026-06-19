@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T09:20:50.322Z",
+  "generatedAt": "2026-06-19T09:20:52.457Z",
   "specs": [
     {
       "dealId": "16986",
@@ -454,12 +454,15 @@
               "mountType": "НА РАМЕ",
               "wireExit": "ПОСЕРЕДИНЕ",
               "psu": "УЛИЧНЫЙ",
-              "cableLength": "3 метра"
+              "cableLength": "3 метра",
+              "size": "",
+              "layout": "",
+              "installPlace": ""
             }
           }
         ]
       },
-      "updatedAt": "2026-06-19T09:20:50.322Z",
+      "updatedAt": "2026-06-19T09:20:52.457Z",
       "bitrixFile": {
         "field": "UF_CRM_1780210628536",
         "name": "ТЗ 16874 Тест.jpg",
