@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T20:04:08.428Z",
+  "generatedAt": "2026-06-19T20:04:16.652Z",
   "agentCostRatio": 0.58,
   "calculations": [
     {
@@ -139,12 +139,23 @@
     },
     {
       "dealId": "16888",
-      "updatedAt": "2026-06-19T20:04:07.562Z",
+      "updatedAt": "2026-06-19T20:04:15.787Z",
       "positions": [
+        {
+          "id": "861a2bd7-067c-4469-b011-e3346b279f77",
+          "catalogId": "metall-dk-труба-профильная-труба-15х15-труба-профильная-15х15х1",
+          "qty": 1,
+          "unit": "шт",
+          "unitCost": 29.96,
+          "section": "materials",
+          "title": "Труба профильная 15х15х1",
+          "calcMode": "pieces",
+          "note": "Металл-ДК; price_metal_dk.pdf от 07.06.2026; страница PDF 2"
+        },
         {
           "id": "b12d549f-43fd-4a56-973c-00b6bca70d17",
           "catalogId": "materials-оргстекло-3мм-3000х2000х3-молочный-30-rexglass-c-1611",
-          "qty": 0,
+          "qty": 2,
           "unit": "м2",
           "unitCost": 1187.38,
           "section": "materials",
