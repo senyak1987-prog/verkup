@@ -9,12 +9,15 @@ import {
   Download,
   KeyRound,
   Link2,
+  Moon,
+  MoreHorizontal,
   PackageCheck,
   Play,
   Plus,
   Search,
   Send,
   ShieldOff,
+  Sun,
   Trash2,
   UserRound,
   UsersRound,
@@ -66,6 +69,7 @@ import {
 type ProductionView = "supervisor" | "worker";
 type SupervisorTab = "active" | "done";
 type WorkerTab = "assigned" | "inProgress" | "ready" | "money" | "gallery";
+type ProductionTheme = "day" | "night";
 
 type WorkerMoneySummary = {
   balance: number;
@@ -102,6 +106,7 @@ type ProductionMobileAppProps = {
 
 const ROLE_STORAGE_KEY = "verkup-production-view";
 const EMPLOYEE_STORAGE_KEY = "verkup-production-employee";
+const THEME_STORAGE_KEY = "verkup-production-theme";
 const ASSIGNMENT_NOTIFICATION_STORAGE_KEY = "verkup-production-notified-assignments";
 const DEFAULT_PUSH_PUBLIC_KEY =
   "BBu6x_Htq9sij2gtsdAtVA_xlmulyX8ZMjsHRJJAE0QgPnuDx1KL7thxzQeBV9NWIR5YLb1CDEXJiho-tlezVEk";
@@ -180,6 +185,10 @@ export function ProductionMobileApp({
   const [expandedAssignmentIds, setExpandedAssignmentIds] = useState<Set<string>>(() => new Set());
   const [targetEmployeeId, setTargetEmployeeId] = useState("");
   const [selectedEmployeeId, setSelectedEmployeeId] = useState(() => readStoredEmployeeId());
+  const [theme, setTheme] = useState<ProductionTheme>(() => readStoredTheme());
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [passwordPanelOpen, setPasswordPanelOpen] = useState(false);
+  const [workerNewPassword, setWorkerNewPassword] = useState("");
   const [newEmployeeName, setNewEmployeeName] = useState("");
   const [newEmployeePhone, setNewEmployeePhone] = useState("");
   const [newEmployeeLogin, setNewEmployeeLogin] = useState("");
@@ -374,6 +383,10 @@ export function ProductionMobileApp({
   useEffect(() => {
     localStorage.setItem(ROLE_STORAGE_KEY, view);
   }, [view]);
+
+  useEffect(() => {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
 
   useEffect(() => {
     if (currentAccessRole === "maker") {
@@ -656,6 +669,28 @@ export function ProductionMobileApp({
         item.id === employee.id ? { ...item, avatarDataUrl } : item,
       ),
     }), { saveNow: true });
+  }
+
+  async function updateCurrentWorkerPassword() {
+    const pin = workerNewPassword.trim();
+    if (pin.length < 4) {
+      setNotice("Пароль должен быть не короче 4 символов.");
+      window.setTimeout(() => setNotice(""), 2400);
+      return;
+    }
+
+    const pinHash = await pinHashForEmployee(currentUser.id, pin);
+    commitProduction((current) => ({
+      ...current,
+      employees: current.employees.map((item) =>
+        item.id === currentUser.id ? { ...item, pinHash } : item,
+      ),
+    }), { saveNow: true });
+    setWorkerNewPassword("");
+    setPasswordPanelOpen(false);
+    setProfileMenuOpen(false);
+    setNotice("Пароль обновлен.");
+    window.setTimeout(() => setNotice(""), 2200);
   }
 
   function addEmployeePayout(employee: ProductionEmployee) {
@@ -1388,7 +1423,7 @@ export function ProductionMobileApp({
 
   if (mode === "employees") {
     return (
-      <main className="production-mobile employee-management-mobile">
+      <main className={`production-mobile employee-management-mobile production-theme-${theme}`}>
         <header className="production-topbar">
           <div>
             <span className="eyebrow">Права доступа</span>
@@ -1410,7 +1445,7 @@ export function ProductionMobileApp({
   }
 
   return (
-    <main className="production-mobile">
+    <main className={`production-mobile production-theme-${theme}`}>
       {canSwitchProductionView ? (
         <header className="production-topbar compact">
           <div className="production-view-switch" role="tablist" aria-label="Вид производства">
@@ -1574,9 +1609,52 @@ export function ProductionMobileApp({
           {selectedWorker ? (
             <WorkerProfile
               employee={selectedWorker}
+              menuOpen={profileMenuOpen}
               money={workerMoney}
+              theme={theme}
               onAvatarChange={(file) => void updateEmployeeAvatar(selectedWorker, file)}
+              onMenuToggle={() => setProfileMenuOpen((current) => !current)}
+              onPasswordClick={() => {
+                setPasswordPanelOpen(true);
+                setProfileMenuOpen(false);
+              }}
+              onToggleTheme={() => {
+                setTheme((current) => (current === "night" ? "day" : "night"));
+                setProfileMenuOpen(false);
+              }}
             />
+          ) : null}
+
+          {passwordPanelOpen ? (
+            <section className="worker-password-panel">
+              <label>
+                <span>Новый пароль</span>
+                <input
+                  autoComplete="new-password"
+                  onChange={(event) => setWorkerNewPassword(event.target.value)}
+                  placeholder="Минимум 4 символа"
+                  type="password"
+                  value={workerNewPassword}
+                />
+              </label>
+              <div>
+                <button className="primary" onClick={() => void updateCurrentWorkerPassword()} type="button">
+                  <KeyRound size={16} />
+                  Сохранить
+                </button>
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    setPasswordPanelOpen(false);
+                    setWorkerNewPassword("");
+                  }}
+                  type="button"
+                >
+                  <X size={16} />
+                  Закрыть
+                </button>
+              </div>
+            </section>
           ) : null}
 
           {hasAssignedWorkerTasks && selectedEmployee ? (
@@ -2030,16 +2108,26 @@ function EmployeeAssignmentCard({
 
 function WorkerProfile({
   employee,
+  menuOpen,
   money,
+  theme,
   onAvatarChange,
+  onMenuToggle,
+  onPasswordClick,
+  onToggleTheme,
 }: {
   employee: ProductionEmployee;
+  menuOpen: boolean;
   money: WorkerMoneySummary;
+  theme: ProductionTheme;
   onAvatarChange: (file?: File) => void;
+  onMenuToggle: () => void;
+  onPasswordClick: () => void;
+  onToggleTheme: () => void;
 }) {
   return (
     <section className="worker-profile">
-      <label className="worker-avatar">
+      <label className="worker-avatar" title="Сменить фото">
         {employee.avatarDataUrl ? (
           <img alt={employee.name} src={employee.avatarDataUrl} />
         ) : (
@@ -2055,7 +2143,47 @@ function WorkerProfile({
         />
       </label>
       <div className="worker-profile-main">
-        <h2>{employee.name}</h2>
+        <div className="worker-profile-title">
+          <div>
+            <h2>{employee.name}</h2>
+            <span>{accessRoleLabels[accessRoleFor(employee)]}</span>
+          </div>
+          <div className="worker-profile-menu-wrap">
+            <button
+              aria-expanded={menuOpen}
+              aria-label="Настройки профиля"
+              className="worker-profile-menu-trigger"
+              onClick={onMenuToggle}
+              type="button"
+            >
+              <MoreHorizontal size={20} />
+            </button>
+            {menuOpen ? (
+              <div className="worker-profile-menu">
+                <label>
+                  <Camera size={16} />
+                  Сменить фото
+                  <input
+                    accept="image/*"
+                    onChange={(event) => {
+                      onAvatarChange(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                    type="file"
+                  />
+                </label>
+                <button onClick={onPasswordClick} type="button">
+                  <KeyRound size={16} />
+                  Сменить пароль
+                </button>
+                <button onClick={onToggleTheme} type="button">
+                  {theme === "night" ? <Sun size={16} /> : <Moon size={16} />}
+                  {theme === "night" ? "Дневная тема" : "Ночная тема"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
         <div className="worker-profile-stats">
           <span>
             Выполнено
@@ -2066,12 +2194,12 @@ function WorkerProfile({
             <strong>{formatMoney(money.balance)}</strong>
           </span>
           <span>
-            Всего заработано
-            <strong>{formatMoney(money.earned)}</strong>
+            Выплачено
+            <strong>{formatMoney(money.paid)}</strong>
           </span>
           <span>
-            В работе
-            <strong>{formatMoney(money.planned)}</strong>
+            Всего
+            <strong>{formatMoney(money.earned)}</strong>
           </span>
         </div>
       </div>
@@ -3086,6 +3214,11 @@ function writeNotifiedAssignmentIds(employeeId: string, ids: Set<string>) {
 function readStoredView(): ProductionView {
   const value = localStorage.getItem(ROLE_STORAGE_KEY);
   return value === "worker" || value === "supervisor" ? value : "supervisor";
+}
+
+function readStoredTheme(): ProductionTheme {
+  const value = localStorage.getItem(THEME_STORAGE_KEY);
+  return value === "night" ? "night" : "day";
 }
 
 function readStoredEmployeeId() {

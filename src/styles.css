@@ -5603,6 +5603,33 @@ div.employee-profile-field .employee-profile-value {
   background:
     linear-gradient(180deg, #f6f9fb 0%, #eef3f5 100%);
   padding: 14px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.production-mobile .primary,
+.production-mobile .secondary {
+  justify-content: center;
+  min-height: 38px;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.production-mobile .primary {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+}
+
+.production-mobile .secondary {
+  background: #fff;
+  color: #17202f;
 }
 
 .production-topbar,
@@ -5723,19 +5750,19 @@ div.employee-profile-field .employee-profile-value {
 
 .worker-profile {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) minmax(180px, 260px);
+  grid-template-columns: 76px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   border: 1px solid #dce4ee;
   border-radius: 8px;
   background: #fff;
-  padding: 12px;
+  padding: 10px;
 }
 
 .worker-avatar {
   display: grid;
-  width: 92px;
-  height: 92px;
+  width: 76px;
+  height: 76px;
   place-items: center;
   overflow: hidden;
   border: 2px solid #cfe8e4;
@@ -5743,7 +5770,7 @@ div.employee-profile-field .employee-profile-value {
   background: #e7f4f1;
   color: #0f4f49;
   cursor: pointer;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 900;
 }
 
@@ -5759,19 +5786,100 @@ div.employee-profile-field .employee-profile-value {
 
 .worker-profile-main {
   display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.worker-profile-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
   min-width: 0;
 }
 
+.worker-profile-title > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
 .worker-profile-main h2 {
-  font-size: 24px;
+  overflow: hidden;
+  font-size: 21px;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worker-profile-title span {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.worker-profile-menu-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.worker-profile-menu-trigger {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #dce4ee;
+  border-radius: 50%;
+  background: #fff;
+  color: #344054;
+}
+
+.worker-profile-menu {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 4;
+  display: grid;
+  gap: 2px;
+  width: 210px;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 5px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.14);
+}
+
+.worker-profile-menu button,
+.worker-profile-menu label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  padding: 9px 10px;
+  color: #17202f;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.worker-profile-menu button:hover,
+.worker-profile-menu label:hover {
+  background: #f1f5f9;
+}
+
+.worker-profile-menu input {
+  display: none;
 }
 
 .worker-profile-stats,
 .worker-money-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .worker-profile-stats span,
@@ -5781,16 +5889,51 @@ div.employee-profile-field .employee-profile-value {
   border: 1px solid #e4e9f1;
   border-radius: 7px;
   background: #f8fafc;
-  padding: 8px;
+  padding: 7px;
   color: #667085;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
 }
 
 .worker-profile-stats strong,
 .worker-money-grid strong {
   color: #101828;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.worker-password-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px;
+}
+
+.worker-password-panel label {
+  display: grid;
+  gap: 6px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.worker-password-panel input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d6dce6;
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 11px;
+  color: #101828;
+}
+
+.worker-password-panel > div {
+  display: flex;
+  gap: 6px;
 }
 
 .worker-gallery {
@@ -5824,26 +5967,35 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .worker-tabs {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
   gap: 6px;
+  overflow-x: auto;
   border: 1px solid #dce4ee;
   border-radius: 8px;
   background: #fff;
-  padding: 6px;
+  padding: 5px;
+  scrollbar-width: none;
+}
+
+.worker-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .worker-tabs button {
   display: inline-flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 38px;
+  min-height: 34px;
   border: 0;
   border-radius: 6px;
   background: transparent;
   color: #475467;
+  padding: 0 11px;
+  font-size: 13px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .worker-tabs button.active {
@@ -5982,6 +6134,7 @@ div.employee-profile-field .employee-profile-value {
 .production-batch-bar select,
 .production-worker-head select,
 .production-form-grid input,
+.production-form-grid select,
 .production-note-field textarea {
   width: 100%;
   min-width: 0;
@@ -6305,7 +6458,23 @@ div.employee-profile-field .employee-profile-value {
 
 .production-deal-summary.worker-summary {
   width: 100%;
-  padding: 8px 10px;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 8px;
+  padding: 7px 8px;
+}
+
+.production-worker-view .production-deal-list {
+  gap: 7px;
+}
+
+.production-worker-view .production-deal-card.compact {
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035);
+}
+
+.production-worker-view .production-thumb {
+  width: 56px;
+  height: 44px;
 }
 
 .production-thumb {
@@ -6340,6 +6509,10 @@ div.employee-profile-field .employee-profile-value {
   white-space: nowrap;
 }
 
+.production-worker-view .production-card-title.compact-title h2 {
+  font-size: 14px;
+}
+
 .production-compact-meta {
   display: flex;
   flex-wrap: wrap;
@@ -6360,16 +6533,36 @@ div.employee-profile-field .employee-profile-value {
   white-space: nowrap;
 }
 
+.production-worker-view .production-compact-meta {
+  gap: 4px;
+}
+
+.production-worker-view .production-compact-meta span {
+  max-width: 150px;
+  padding: 3px 6px;
+  font-size: 10.5px;
+}
+
 .production-compact-status {
   display: grid;
   justify-items: end;
   gap: 5px;
 }
 
+.production-worker-view .production-compact-status {
+  min-width: 76px;
+  align-self: center;
+}
+
 .production-compact-status > span:last-child {
   color: #667085;
   font-size: 11px;
   font-weight: 800;
+}
+
+.production-worker-view .production-status {
+  padding: 5px 7px;
+  font-size: 11px;
 }
 
 .production-row-actions {
@@ -6768,6 +6961,95 @@ div.employee-profile-field .employee-profile-value {
   font-weight: 800;
 }
 
+.production-theme-night {
+  background: #090d12;
+  color: #e5eef7;
+}
+
+.production-theme-night .production-panel,
+.production-theme-night .production-deal-card,
+.production-theme-night .production-empty,
+.production-theme-night .worker-profile,
+.production-theme-night .worker-tabs,
+.production-theme-night .worker-password-panel,
+.production-theme-night .production-batch-bar,
+.production-theme-night .production-section-tabs {
+  border-color: #263241;
+  background: #121821;
+  color: #e5eef7;
+}
+
+.production-theme-night .worker-profile-menu {
+  border-color: #263241;
+  background: #151d27;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.34);
+}
+
+.production-theme-night .worker-profile-menu button,
+.production-theme-night .worker-profile-menu label,
+.production-theme-night .worker-profile-menu-trigger,
+.production-theme-night .secondary {
+  border-color: #334155;
+  background: #17202b;
+  color: #e5eef7;
+}
+
+.production-theme-night .worker-profile-menu button:hover,
+.production-theme-night .worker-profile-menu label:hover,
+.production-theme-night .worker-tabs button:not(.active) {
+  background: #0f1720;
+}
+
+.production-theme-night .worker-profile-title span,
+.production-theme-night .worker-profile-stats span,
+.production-theme-night .worker-money-grid span,
+.production-theme-night .production-compact-meta span,
+.production-theme-night .production-compact-status > span:last-child,
+.production-theme-night .production-muted {
+  color: #9aa8ba;
+}
+
+.production-theme-night .worker-profile-stats span,
+.production-theme-night .worker-money-grid span,
+.production-theme-night .worker-payout-list div {
+  border-color: #263241;
+  background: #0f151d;
+}
+
+.production-theme-night .worker-profile-stats strong,
+.production-theme-night .worker-money-grid strong,
+.production-theme-night .production-worker-identity strong,
+.production-theme-night .production-card-title h2 {
+  color: #f8fafc;
+}
+
+.production-theme-night .production-compact-meta span,
+.production-theme-night .production-thumb,
+.production-theme-night .production-photo-slot,
+.production-theme-night .production-form-grid input:disabled {
+  border-color: #263241;
+  background: #0f151d;
+}
+
+.production-theme-night .production-employee-form input,
+.production-theme-night .production-employee-form select,
+.production-theme-night .production-batch-bar select,
+.production-theme-night .production-worker-head select,
+.production-theme-night .production-form-grid input,
+.production-theme-night .production-form-grid select,
+.production-theme-night .production-note-field textarea,
+.production-theme-night .worker-password-panel input {
+  border-color: #334155;
+  background: #0b1118;
+  color: #f8fafc;
+}
+
+.production-theme-night .production-notification {
+  border-color: #1e8078;
+  background: #0d2928;
+  color: #b7f4ec;
+}
+
 .production-start-button,
 .production-submit-button {
   justify-content: center;
@@ -7034,13 +7316,19 @@ div.employee-profile-field .employee-profile-value {
   .production-spec-deal-grid,
   .production-spec-attachments,
   .production-spec-item dl,
-  .worker-profile,
   .part-assignment-row {
     grid-template-columns: 1fr;
   }
 
+  .worker-profile {
+    grid-template-columns: 70px minmax(0, 1fr);
+    align-items: start;
+  }
+
   .worker-avatar {
-    justify-self: center;
+    justify-self: start;
+    width: 70px;
+    height: 70px;
   }
 
   .worker-device-actions,
@@ -7049,7 +7337,7 @@ div.employee-profile-field .employee-profile-value {
   }
 
   .worker-tabs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: none;
   }
 
   .worker-gallery {
@@ -7086,9 +7374,25 @@ div.employee-profile-field .employee-profile-value {
     grid-template-columns: 58px minmax(0, 1fr);
   }
 
+  .production-worker-view .production-deal-summary.worker-summary {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    gap: 7px;
+  }
+
+  .production-worker-view .production-thumb {
+    width: 52px;
+    height: 42px;
+  }
+
   .production-compact-status {
     grid-column: 1 / -1;
     justify-items: start;
+  }
+
+  .production-worker-view .production-compact-status {
+    grid-column: auto;
+    justify-items: end;
+    min-width: 72px;
   }
 
   .production-row-actions {
@@ -7123,11 +7427,58 @@ div.employee-profile-field .employee-profile-value {
   .production-photo-preview {
     grid-row: 1 / 4;
   }
+
+  .worker-password-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .worker-password-panel > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 430px) {
   .production-kpis {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .worker-profile {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .worker-avatar {
+    width: 64px;
+    height: 64px;
+    font-size: 21px;
+  }
+
+  .worker-profile-main h2 {
+    font-size: 19px;
+  }
+
+  .worker-profile-stats {
+    gap: 5px;
+  }
+
+  .worker-profile-stats span {
+    padding: 6px;
+  }
+
+  .worker-profile-stats strong {
+    font-size: 14px;
+  }
+
+  .worker-profile-menu {
+    right: -2px;
+    width: min(220px, calc(100vw - 34px));
+  }
+
+  .worker-tabs button {
+    min-height: 32px;
+    padding: 0 9px;
+    font-size: 12px;
   }
 
   .production-photo-slot {
@@ -7136,5 +7487,18 @@ div.employee-profile-field .employee-profile-value {
 
   .production-card-title h2 {
     font-size: 16px;
+  }
+
+  .production-worker-view .production-deal-summary.worker-summary {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+  }
+
+  .production-worker-view .production-thumb {
+    width: 48px;
+    height: 40px;
+  }
+
+  .production-worker-view .production-compact-status {
+    min-width: 64px;
   }
 }
