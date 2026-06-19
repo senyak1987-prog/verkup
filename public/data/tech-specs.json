@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T19:59:52.377Z",
+  "generatedAt": "2026-06-19T21:11:19.866Z",
   "specs": [
     {
       "dealId": "16986",
@@ -372,43 +372,6 @@
       }
     },
     {
-      "dealId": "16880",
-      "draft": {
-        "dealNumber": "16880",
-        "projectName": "IMPERIAL GARDEN (А)",
-        "manager": "Алексей Федоренко",
-        "responsiblePhone": "89995543801",
-        "deadline": "2026-06-30",
-        "date": "2026-06-18",
-        "globalNote": "",
-        "items": [
-          {
-            "id": "affc5858-5896-4f20-a8cd-e658890b4a12",
-            "templateId": "letters",
-            "attachments": [],
-            "workCostPositionIds": [],
-            "fields": {
-              "name": "Вывеска",
-              "quantity": "1 шт",
-              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "ЛИЦЕВОЕ",
-              "glowColor": "НЕЙТРАЛЬНОЕ",
-              "faceMaterial": "Молочный акрил 3 мм",
-              "sideMaterial": "Алюминий",
-              "backMaterial": "ПВХ Strong 6 мм",
-              "depth": "60 мм",
-              "returnSide": "НЕТ",
-              "mountType": "НА РАМЕ",
-              "wireExit": "ПОСЕРЕДИНЕ",
-              "psu": "УЛИЧНЫЙ",
-              "cableLength": "3 метра"
-            }
-          }
-        ]
-      },
-      "updatedAt": "2026-06-19T19:49:27.530Z"
-    },
-    {
       "dealId": "16874",
       "draft": {
         "dealNumber": "16874",
@@ -468,6 +431,43 @@
         "name": "TZ-16874-Тест.jpg",
         "uploadedAt": "2026-06-15T12:52:10.841Z"
       }
+    },
+    {
+      "dealId": "16880",
+      "draft": {
+        "dealNumber": "16880",
+        "projectName": "IMPERIAL GARDEN (А)",
+        "manager": "Алексей Федоренко",
+        "responsiblePhone": "89995543801",
+        "deadline": "2026-06-30",
+        "date": "2026-06-18",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "affc5858-5896-4f20-a8cd-e658890b4a12",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-19T21:11:19.866Z"
     }
   ],
   "__production": {
