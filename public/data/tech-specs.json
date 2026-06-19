@@ -1,43 +1,6 @@
 {
-  "generatedAt": "2026-06-19T23:45:06.337Z",
+  "generatedAt": "2026-06-19T23:46:27.149Z",
   "specs": [
-    {
-      "dealId": "16874",
-      "draft": {
-        "dealNumber": "16874",
-        "projectName": "Тест",
-        "manager": "Семён Рябов",
-        "responsiblePhone": "",
-        "deadline": "2026-06-09",
-        "date": "2026-06-19",
-        "globalNote": "",
-        "items": [
-          {
-            "id": "26d76743-1c21-4486-9170-7b954f87dea6",
-            "templateId": "letters",
-            "attachments": [],
-            "workCostPositionIds": [],
-            "fields": {
-              "name": "Вывеска",
-              "quantity": "1 шт",
-              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "ЛИЦЕВОЕ",
-              "glowColor": "НЕЙТРАЛЬНОЕ",
-              "faceMaterial": "Молочный акрил 3 мм",
-              "sideMaterial": "Алюминий",
-              "backMaterial": "ПВХ Strong 6 мм",
-              "depth": "60 мм",
-              "returnSide": "НЕТ",
-              "mountType": "НА РАМЕ",
-              "wireExit": "ПОСЕРЕДИНЕ",
-              "psu": "УЛИЧНЫЙ",
-              "cableLength": "3 метра"
-            }
-          }
-        ]
-      },
-      "updatedAt": "2026-06-19T23:42:21.633Z"
-    },
     {
       "dealId": "16888",
       "draft": {
@@ -128,6 +91,43 @@
         ]
       },
       "updatedAt": "2026-06-19T23:45:06.337Z"
+    },
+    {
+      "dealId": "16874",
+      "draft": {
+        "dealNumber": "16874",
+        "projectName": "Тест",
+        "manager": "Семён Рябов",
+        "responsiblePhone": "",
+        "deadline": "2026-06-09",
+        "date": "2026-06-19",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "26d76743-1c21-4486-9170-7b954f87dea6",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-19T23:46:27.149Z"
     }
   ],
   "__production": {
