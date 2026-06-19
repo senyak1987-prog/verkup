@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T23:47:43.348Z",
+  "generatedAt": "2026-06-19T23:47:51.765Z",
   "specs": [
     {
       "dealId": "16888",
@@ -121,7 +121,9 @@
                 }
               }
             ],
-            "workCostPositionIds": [],
+            "workCostPositionIds": [
+              "1b559282-80de-4f32-b7e9-de9c75f56439"
+            ],
             "fields": {
               "name": "Вывеска",
               "quantity": "1 шт",
@@ -141,7 +143,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-19T23:47:43.348Z"
+      "updatedAt": "2026-06-19T23:47:51.765Z"
     }
   ],
   "__production": {
