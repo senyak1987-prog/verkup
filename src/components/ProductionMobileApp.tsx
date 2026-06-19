@@ -9,6 +9,7 @@ import {
   Download,
   KeyRound,
   Link2,
+  Images,
   Moon,
   MoreHorizontal,
   PackageCheck,
@@ -24,6 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { RefObject, TouchEvent } from "react";
 import { formatMoney, positionTotal } from "../lib/costing";
 import { moveDealToStage, sendProductionPush } from "../lib/saveApi";
 import type {
@@ -110,6 +112,7 @@ type ProductionMobileAppProps = {
   onDealStageChange?: (dealId: string, stage: DealStageCode) => void;
   onInstallApp?: () => void;
   onOpenDeal?: (dealId: string, target: ProductionDealOpenTarget) => void;
+  onRefresh?: () => Promise<void> | void;
 };
 
 type EmployeeGroup = {
@@ -126,6 +129,8 @@ const ASSIGNMENT_NOTIFICATION_STORAGE_KEY = "verkup-production-notified-assignme
 const DEFAULT_PUSH_PUBLIC_KEY =
   "BBu6x_Htq9sij2gtsdAtVA_xlmulyX8ZMjsHRJJAE0QgPnuDx1KL7thxzQeBV9NWIR5YLb1CDEXJiho-tlezVEk";
 const PUSH_PUBLIC_KEY = (import.meta.env.VITE_PUSH_PUBLIC_KEY || DEFAULT_PUSH_PUBLIC_KEY).trim();
+const PULL_REFRESH_TRIGGER_PX = 64;
+const PULL_REFRESH_MAX_PX = 92;
 
 const employeeRoleLabels: Record<ProductionEmployeeRole, string> = {
   maker: "Макетчик",
@@ -198,10 +203,14 @@ export function ProductionMobileApp({
   onDealStageChange,
   onInstallApp,
   onOpenDeal,
+  onRefresh,
 }: ProductionMobileAppProps) {
   const [view, setView] = useState<ProductionView>(() => readStoredView());
   const storedProductionRef = useRef(storedProduction);
   const notifiedAssignmentIdsRef = useRef<Set<string>>(readNotifiedAssignmentIds(currentUser.id));
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+  const pullStartYRef = useRef<number | undefined>(undefined);
+  const pullActivatedRef = useRef(false);
   const [supervisorTab, setSupervisorTab] = useState<SupervisorTab>("active");
   const [workerTab, setWorkerTab] = useState<WorkerTab>("assigned");
   const [query, setQuery] = useState("");
@@ -214,6 +223,8 @@ export function ProductionMobileApp({
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [passwordPanelOpen, setPasswordPanelOpen] = useState(false);
   const [workerNewPassword, setWorkerNewPassword] = useState("");
+  const [pullDistance, setPullDistance] = useState(0);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   const [newEmployeeName, setNewEmployeeName] = useState("");
   const [newEmployeePhone, setNewEmployeePhone] = useState("");
   const [newEmployeeLogin, setNewEmployeeLogin] = useState("");
@@ -244,6 +255,19 @@ export function ProductionMobileApp({
   useEffect(() => {
     storedProductionRef.current = storedProduction;
   }, [storedProduction]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+
+    const closeMenuOnOutsidePress = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && profileMenuRef.current?.contains(target)) return;
+      setProfileMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeMenuOnOutsidePress);
+    return () => document.removeEventListener("pointerdown", closeMenuOnOutsidePress);
+  }, [profileMenuOpen]);
 
   const employees = useMemo(
     () => storedProduction.employees.filter((employee) => employee.active !== false),
@@ -1130,6 +1154,67 @@ export function ProductionMobileApp({
     }), { saveNow: true });
   }
 
+  function handlePullStart(event: TouchEvent<HTMLElement>) {
+    if (pullRefreshing || window.scrollY > 0) {
+      pullStartYRef.current = undefined;
+      return;
+    }
+
+    pullStartYRef.current = event.touches[0]?.clientY;
+    pullActivatedRef.current = false;
+  }
+
+  function handlePullMove(event: TouchEvent<HTMLElement>) {
+    const startY = pullStartYRef.current;
+    if (startY === undefined || pullRefreshing || window.scrollY > 0) return;
+
+    const touchY = event.touches[0]?.clientY;
+    if (touchY === undefined) return;
+
+    const distance = touchY - startY;
+    if (distance <= 0) {
+      setPullDistance(0);
+      return;
+    }
+
+    if (event.cancelable && distance > 8) event.preventDefault();
+
+    const easedDistance = Math.min(PULL_REFRESH_MAX_PX, Math.round(distance * 0.46));
+    setPullDistance(easedDistance);
+    if (easedDistance >= PULL_REFRESH_TRIGGER_PX) pullActivatedRef.current = true;
+  }
+
+  function handlePullEnd() {
+    pullStartYRef.current = undefined;
+    const shouldRefresh = pullActivatedRef.current || pullDistance >= PULL_REFRESH_TRIGGER_PX;
+    pullActivatedRef.current = false;
+
+    if (!shouldRefresh) {
+      setPullDistance(0);
+      return;
+    }
+
+    void refreshMobileData();
+  }
+
+  async function refreshMobileData() {
+    setPullRefreshing(true);
+    setPullDistance(PULL_REFRESH_TRIGGER_PX);
+
+    try {
+      if (onRefresh) await onRefresh();
+      else window.location.reload();
+      setNotice("Данные обновлены.");
+      window.setTimeout(() => setNotice(""), 1800);
+    } catch {
+      setNotice("Не удалось обновить данные.");
+      window.setTimeout(() => setNotice(""), 2400);
+    } finally {
+      setPullRefreshing(false);
+      setPullDistance(0);
+    }
+  }
+
   function renderEmployeeAccessPanel() {
     if (!canManageStaff) {
       return (
@@ -1490,7 +1575,14 @@ export function ProductionMobileApp({
 
   if (mode === "employees") {
     return (
-      <main className={`production-mobile employee-management-mobile production-theme-${theme}`}>
+      <main
+        className={`production-mobile employee-management-mobile production-theme-${theme}`}
+        onTouchCancel={handlePullEnd}
+        onTouchEnd={handlePullEnd}
+        onTouchMove={handlePullMove}
+        onTouchStart={handlePullStart}
+      >
+        <PullRefreshIndicator distance={pullDistance} refreshing={pullRefreshing} />
         <header className="production-topbar">
           <div>
             <span className="eyebrow">Права доступа</span>
@@ -1512,7 +1604,14 @@ export function ProductionMobileApp({
   }
 
   return (
-    <main className={`production-mobile production-theme-${theme}`}>
+    <main
+      className={`production-mobile production-theme-${theme}`}
+      onTouchCancel={handlePullEnd}
+      onTouchEnd={handlePullEnd}
+      onTouchMove={handlePullMove}
+      onTouchStart={handlePullStart}
+    >
+      <PullRefreshIndicator distance={pullDistance} refreshing={pullRefreshing} />
       {canSwitchProductionView ? (
         <header className="production-topbar compact">
           <div className="production-view-switch" role="tablist" aria-label="Вид производства">
@@ -1676,10 +1775,16 @@ export function ProductionMobileApp({
           {selectedWorker ? (
             <WorkerProfile
               employee={selectedWorker}
+              galleryCount={workerGalleryPhotos.length}
               menuOpen={profileMenuOpen}
+              menuRef={profileMenuRef}
               money={workerMoney}
               theme={theme}
               onAvatarChange={(file) => void updateEmployeeAvatar(selectedWorker, file)}
+              onGalleryClick={() => {
+                setWorkerTab("gallery");
+                setProfileMenuOpen(false);
+              }}
               onMenuToggle={() => setProfileMenuOpen((current) => !current)}
               onPasswordClick={() => {
                 setPasswordPanelOpen(true);
@@ -1739,7 +1844,6 @@ export function ProductionMobileApp({
             <WorkerTabButton active={workerTab === "inProgress"} count={assignmentsForWorkerTab(workerAssignments, "inProgress").length} label="Сделки в работе" onClick={() => setWorkerTab("inProgress")} />
             <WorkerTabButton active={workerTab === "ready"} count={assignmentsForWorkerTab(workerAssignments, "ready").length} label="Готовые сделки" onClick={() => setWorkerTab("ready")} />
             <WorkerTabButton active={workerTab === "money"} label="Мой заработок" onClick={() => setWorkerTab("money")} />
-            <WorkerTabButton active={workerTab === "gallery"} count={workerGalleryPhotos.length} label="Галерея" onClick={() => setWorkerTab("gallery")} />
           </div>
 
           {!productionWorkers.length ? (
@@ -2173,21 +2277,51 @@ function EmployeeAssignmentCard({
   );
 }
 
+function PullRefreshIndicator({
+  distance,
+  refreshing,
+}: {
+  distance: number;
+  refreshing: boolean;
+}) {
+  const visible = refreshing || distance > 0;
+  const progress = Math.min(1, distance / PULL_REFRESH_TRIGGER_PX);
+
+  return (
+    <div
+      aria-hidden={!visible}
+      className={`production-pull-refresh${visible ? " visible" : ""}${refreshing ? " refreshing" : ""}`}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: `translate3d(-50%, ${visible ? Math.max(18, distance) : 0}px, 0)`,
+      }}
+    >
+      <span style={{ transform: refreshing ? undefined : `rotate(${Math.round(progress * 280)}deg)` }} />
+    </div>
+  );
+}
+
 function WorkerProfile({
   employee,
+  galleryCount,
   menuOpen,
+  menuRef,
   money,
   theme,
   onAvatarChange,
+  onGalleryClick,
   onMenuToggle,
   onPasswordClick,
   onToggleTheme,
 }: {
   employee: ProductionEmployee;
+  galleryCount: number;
   menuOpen: boolean;
+  menuRef: RefObject<HTMLDivElement>;
   money: WorkerMoneySummary;
   theme: ProductionTheme;
   onAvatarChange: (file?: File) => void;
+  onGalleryClick: () => void;
   onMenuToggle: () => void;
   onPasswordClick: () => void;
   onToggleTheme: () => void;
@@ -2215,7 +2349,7 @@ function WorkerProfile({
             <h2>{employee.name}</h2>
             <span>{accessRoleLabels[accessRoleFor(employee)]}</span>
           </div>
-          <div className="worker-profile-menu-wrap">
+          <div className="worker-profile-menu-wrap" ref={menuRef}>
             <button
               aria-expanded={menuOpen}
               aria-label="Настройки профиля"
@@ -2242,6 +2376,11 @@ function WorkerProfile({
                 <button onClick={onPasswordClick} type="button">
                   <KeyRound size={16} />
                   Сменить пароль
+                </button>
+                <button onClick={onGalleryClick} type="button">
+                  <Images size={16} />
+                  Галерея работ
+                  {galleryCount ? <em>{galleryCount}</em> : null}
                 </button>
                 <button onClick={onToggleTheme} type="button">
                   {theme === "night" ? <Sun size={16} /> : <Moon size={16} />}

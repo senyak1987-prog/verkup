@@ -5599,6 +5599,7 @@ div.employee-profile-field .employee-profile-value {
 }
 
 .production-mobile {
+  position: relative;
   min-height: calc(100vh - 58px);
   background:
     linear-gradient(180deg, #f6f9fb 0%, #eef3f5 100%);
@@ -5630,6 +5631,43 @@ div.employee-profile-field .employee-profile-value {
 .production-mobile .secondary {
   background: #fff;
   color: #17202f;
+}
+
+.production-pull-refresh {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 30;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  pointer-events: none;
+  transition:
+    opacity 140ms ease,
+    transform 180ms ease;
+}
+
+.production-pull-refresh span {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #d7e2ea;
+  border-top-color: #0f766e;
+  border-radius: 50%;
+}
+
+.production-pull-refresh.refreshing span {
+  animation: productionPullRefreshSpin 780ms linear infinite;
+}
+
+@keyframes productionPullRefreshSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .production-topbar,
@@ -5864,6 +5902,20 @@ div.employee-profile-field .employee-profile-value {
   font-size: 13px;
   font-weight: 800;
   text-align: left;
+}
+
+.worker-profile-menu button em {
+  display: grid;
+  min-width: 24px;
+  height: 22px;
+  margin-left: auto;
+  place-items: center;
+  border-radius: 999px;
+  background: #e7f4f1;
+  color: #0f4f49;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
 }
 
 .worker-profile-menu button:hover,
@@ -7168,6 +7220,22 @@ div.employee-profile-field .employee-profile-value {
 
 .production-theme-night .production-notification {
   border-color: #1e8078;
+  background: #0d2928;
+  color: #b7f4ec;
+}
+
+.production-theme-night .production-pull-refresh {
+  border-color: #263241;
+  background: rgba(18, 24, 33, 0.96);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+}
+
+.production-theme-night .production-pull-refresh span {
+  border-color: #334155;
+  border-top-color: #5eead4;
+}
+
+.production-theme-night .worker-profile-menu button em {
   background: #0d2928;
   color: #b7f4ec;
 }

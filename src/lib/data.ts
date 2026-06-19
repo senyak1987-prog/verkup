@@ -502,12 +502,21 @@ function isCacheTooOld(savedAt?: string) {
 function shouldKeepCachedData<T>(data: T, cachedData?: T): cachedData is T {
   return (
     (isEmptyAppData(data) && isNonEmptyAppData(cachedData)) ||
-    (isEmptyStoredTechSpecs(data) && isNonEmptyStoredTechSpecs(cachedData)) ||
+    (isEmptyStoredTechSpecs(data) &&
+      isNonEmptyStoredTechSpecs(cachedData) &&
+      shouldKeepNonEmptyCachedData(data, cachedData)) ||
     (isEmptyStoredProduction(data) && isNonEmptyStoredProduction(cachedData)) ||
     (isStoredProduction(data) &&
       isStoredProduction(cachedData) &&
       isGeneratedAtNewer(cachedData.generatedAt, data.generatedAt))
   );
+}
+
+function shouldKeepNonEmptyCachedData(
+  data: { generatedAt?: string },
+  cachedData: { generatedAt?: string },
+) {
+  return !isGeneratedAtNewer(data.generatedAt, cachedData.generatedAt);
 }
 
 function isBrowserOffline() {

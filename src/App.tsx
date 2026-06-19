@@ -619,6 +619,25 @@ export default function App() {
     saveProductionNow(mergedProduction);
   }
 
+  async function refreshAllDataNow() {
+    const [dealsData, calculationsData, catalogsData, techSpecsData, productionData] = await Promise.all([
+      loadDeals(),
+      loadCalculations(),
+      loadCatalogs(),
+      loadTechSpecs(),
+      loadFreshProduction(),
+    ]);
+
+    const nextDeals = applyPendingStageMoves(dealsData.items);
+    setDeals(nextDeals);
+    setStoredCalculations(calculationsData);
+    setCatalogItems(catalogsData.items);
+    applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
+    writeCachedDeals({ ...dealsData, items: nextDeals });
+    writeCachedCalculations(calculationsData);
+    writeCachedCatalogs(catalogsData);
+  }
+
   async function handleEmployeeLogin(login: string, password: string) {
     const employee = await findVerifiedLoginEmployee(activeEmployees, login, password);
     if (employee) {
@@ -1096,6 +1115,7 @@ export default function App() {
           onDealStageChange={handleDealStageChanged}
           onInstallApp={() => void handleInstallApp()}
           onOpenDeal={handleProductionDealOpen}
+          onRefresh={refreshAllDataNow}
         />
       ) : workspaceMode === "production" && canUseProduction ? (
         <ProductionMobileApp
@@ -1113,6 +1133,7 @@ export default function App() {
           onDealStageChange={handleDealStageChanged}
           onInstallApp={() => void handleInstallApp()}
           onOpenDeal={handleProductionDealOpen}
+          onRefresh={refreshAllDataNow}
         />
       ) : canUseCosting ? (
         <DealTable
