@@ -902,15 +902,40 @@ export function CostDrawer({
   return (
     <section className="cost-popover">
       <div className="drawer-head">
-        <div>
-          <span className="eyebrow">#{deal.number}</span>
-          <h2>{deal.title}</h2>
+        <div className="drawer-main">
+          <div className="drawer-title">
+            <span className="eyebrow">#{deal.number}</span>
+            <h2>{deal.title}</h2>
+          </div>
           <EmployeeCard
             card={deal.responsibleCard}
+            compact
             fallbackName={deal.responsible}
             fallbackPhone={deal.responsiblePhone}
             showPhone
           />
+          <div className="drawer-meta-grid" aria-label="Общая информация сделки">
+            <span>
+              <small>Стадия</small>
+              <strong>{deal.stageName || "-"}</strong>
+            </span>
+            <span>
+              <small>Тип</small>
+              <strong>{deal.type || "-"}</strong>
+            </span>
+            <span>
+              <small>Источник</small>
+              <strong>{deal.source || "-"}</strong>
+            </span>
+            <span>
+              <small>Запуск</small>
+              <strong>{formatDate(deal.startDate) || "-"}</strong>
+            </span>
+            <span>
+              <small>Срок</small>
+              <strong>{formatDate(deal.expectedFinishDate) || "-"}</strong>
+            </span>
+          </div>
         </div>
         <div className="drawer-actions">
           <button className="secondary compact" onClick={onOpenCatalog}>
@@ -927,13 +952,13 @@ export function CostDrawer({
         <Summary label="Продажа всего" value={formatMoney(sales.totalSale)} />
         <Summary label="Изготовление" value={formatMoney(sales.productionSale)} />
         <Summary label="Монтаж" value={formatMoney(sales.installSale)} />
-        <Summary label="База без расходников" value={formatMoney(baseCleanCost(activeCalculation))} />
-        <Summary label="Расходники 7%" value={formatMoney(autoConsumablesCost(activeCalculation))} />
-        <Summary label="Чистая себестоимость" value={formatMoney(cleanCost(activeCalculation))} />
-        <Summary label="Себестоимость изделия" value={formatMoney(manufacturingCost(activeCalculation))} />
-        <Summary label="Себестоимость монтажа" value={formatMoney(mountingCost(activeCalculation))} />
+        <Summary label="База" value={formatMoney(baseCleanCost(activeCalculation))} />
+        <Summary label="Расходники" value={formatMoney(autoConsumablesCost(activeCalculation))} />
+        <Summary label="Чистый себес" value={formatMoney(cleanCost(activeCalculation))} />
+        <Summary label="Себес изделия" value={formatMoney(manufacturingCost(activeCalculation))} />
+        <Summary label="Себес монтажа" value={formatMoney(mountingCost(activeCalculation))} />
         <Summary label="Косяки" value={formatMoney(defectsCost(activeCalculation))} />
-        <Summary label="Итоговая себестоимость" value={formatMoney(finalCost(activeCalculation))} />
+        <Summary label="Итоговая себ." value={formatMoney(finalCost(activeCalculation))} />
         <Summary label="Прибыль" value={formatMoney(profit(deal, activeCalculation, storedCalculations.agentCostRatio))} />
         <Summary label="Маржа" value={formatPercent(margin(deal, activeCalculation, storedCalculations.agentCostRatio))} />
       </section>
@@ -2553,6 +2578,13 @@ function formatQuantity(value: number) {
   return new Intl.NumberFormat("ru-RU", {
     maximumFractionDigits: 2,
   }).format(Number.isFinite(value) ? value : 0);
+}
+
+function formatDate(value: string) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("ru-RU");
 }
 
 function catalogWithOtherPositions(items: CatalogItem[], positions: CostPosition[]) {
