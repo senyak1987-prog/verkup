@@ -470,7 +470,7 @@ export function ProductionMobileApp({
     "--worker-tab-width": workerTabSegmentWidth ? `${workerTabSegmentWidth}px` : undefined,
   } as CSSProperties;
   const workerTabGliderStyle = {
-    left: `${5 + workerTabActiveShift}px`,
+    transform: `translate3d(${workerTabActiveShift}px, 0, 0)`,
   } as CSSProperties;
   const workerPagerStyle = {
     "--worker-pager-height": workerPagerHeight ? `${workerPagerHeight}px` : "auto",
@@ -1577,7 +1577,6 @@ export function ProductionMobileApp({
               onSubmit={() => submitAssignment(assignment)}
               onToggle={() => openWorkerAssignment(assignment)}
               onUpdateCompletion={(patch) => updateCompletion(assignment.id, patch)}
-              workAmount={earningForAssignment(assignment, techSpecs, calculations)}
             />
           );
         })}
@@ -2990,7 +2989,6 @@ function WorkerDealCard({
   onSubmit,
   onToggle,
   onUpdateCompletion,
-  workAmount,
 }: {
   assignment: ProductionAssignment;
   deal: Deal;
@@ -3004,7 +3002,6 @@ function WorkerDealCard({
   onSubmit: () => void;
   onToggle: () => void;
   onUpdateCompletion: (patch: Partial<ProductionCompletion>) => void;
-  workAmount: number;
 }) {
   const completion = completionFor(assignment);
   const canSubmit = canSubmitCompletion(completion);
@@ -3029,20 +3026,15 @@ function WorkerDealCard({
               <h2>{itemLabel || deal.title}</h2>
             </div>
           </div>
-          <div className="production-compact-meta">
-            <span>Срок: {formatDate(deal.expectedFinishDate) || "не указан"}</span>
-            {workAmount > 0 ? <span>Работы: {formatMoney(workAmount)}</span> : null}
-          </div>
         </div>
-        <div className="production-compact-status">
-          <StatusBadge status={assignment.status} />
+        <div className="production-compact-status worker-deadline-status">
+          <span className="production-worker-date">{formatDate(deal.expectedFinishDate) || "Без срока"}</span>
           <span className={`production-deadline-chip ${deadlineBadge.tone}`}>{deadlineBadge.label}</span>
-          <span>{expanded ? "Свернуть" : "Открыть"}</span>
         </div>
       </button>
 
       {expanded ? (
-        <>
+        <div className="production-worker-detail">
           <TechSpecInline
             compactForWorker
             deal={deal}
@@ -3177,7 +3169,7 @@ function WorkerDealCard({
               Сделка готова.
             </div>
           ) : null}
-        </>
+        </div>
       ) : null}
     </article>
   );

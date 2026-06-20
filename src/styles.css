@@ -7395,7 +7395,7 @@ tr.selected td,
 }
 
 .worker-tabs button:active {
-  transform: scale(0.985);
+  transform: scale(0.992);
 }
 
 .worker-tab-glider {
@@ -7409,11 +7409,13 @@ tr.selected td,
   background: #ff7500;
   box-shadow: 0 8px 18px rgba(255, 117, 0, 0.25);
   pointer-events: none;
+  transform: translate3d(0, 0, 0);
   transition:
-    left 280ms cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 220ms ease,
-    filter 220ms ease,
-    opacity 160ms ease;
+    transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 240ms ease,
+    filter 240ms ease,
+    opacity 180ms ease;
+  will-change: transform;
 }
 
 .worker-tabs.dragging .worker-tab-glider {
@@ -7451,7 +7453,7 @@ tr.selected td,
   overflow: hidden;
   overflow: clip;
   touch-action: pan-y;
-  transition: height 220ms ease;
+  transition: height 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
   contain: layout paint;
 }
 
@@ -7479,7 +7481,7 @@ tr.selected td,
   overflow: hidden;
   overflow: clip;
   opacity: 0.72;
-  transition: opacity 240ms ease;
+  transition: opacity 280ms ease;
   contain: layout paint;
 }
 
@@ -7490,10 +7492,10 @@ tr.selected td,
       calc(var(--worker-page-x, 0%) + var(--worker-track-shift, 0px)),
       0,
       0
-    )
-    scale(0.992);
+    );
+  backface-visibility: hidden;
   transform-origin: center top;
-  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
   will-change: transform;
 }
 
@@ -7512,8 +7514,7 @@ tr.selected td,
       calc(var(--worker-page-x, 0%) + var(--worker-track-shift, 0px)),
       0,
       0
-    )
-    scale(1);
+    );
 }
 
 .worker-page:not(.active) {
@@ -7532,6 +7533,18 @@ tr.selected td,
   }
 }
 
+@keyframes worker-detail-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -4px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @keyframes worker-tab-highlight-breathe {
   0%,
   100% {
@@ -7542,6 +7555,18 @@ tr.selected td,
   50% {
     box-shadow: 0 10px 24px rgba(255, 117, 0, 0.36);
     filter: brightness(1.06) saturate(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .worker-tab-glider,
+  .worker-pager,
+  .worker-page,
+  .worker-page-inner,
+  .production-worker-detail,
+  .production-deal-summary.worker-summary {
+    animation: none !important;
+    transition: none !important;
   }
 }
 
@@ -11584,28 +11609,47 @@ textarea {
     border-color: rgba(15, 23, 42, 0.08);
     border-radius: 16px;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
+    transition:
+      border-color 180ms ease,
+      box-shadow 220ms ease,
+      transform 220ms ease;
   }
 
   .production-deal-summary.worker-summary {
-    grid-template-columns: 52px minmax(0, 1fr) auto;
-    gap: 9px;
-    padding: 8px 9px;
+    grid-template-columns: 72px minmax(0, 1fr) minmax(94px, auto);
+    gap: 10px;
+    min-height: 82px;
+    padding: 12px;
+    transition:
+      background-color 180ms ease,
+      transform 180ms ease;
+  }
+
+  .production-deal-summary.worker-summary:active {
+    background: color-mix(in srgb, var(--accent-soft) 20%, transparent);
+    transform: scale(0.992);
   }
 
   .production-worker-view .production-thumb {
-    width: 52px;
-    height: 42px;
-    border-radius: 11px;
+    width: 72px;
+    height: 58px;
+    border-radius: 13px;
   }
 
   .production-compact-info {
     gap: 4px;
+    align-self: center;
   }
 
   .production-worker-view .production-card-title.compact-title h2 {
     font-size: 16px;
     font-weight: 550;
     line-height: 1.18;
+  }
+
+  .production-worker-view .production-card-title.compact-title strong {
+    font-size: 14px;
+    line-height: 1.1;
   }
 
   .production-compact-meta {
@@ -11621,9 +11665,23 @@ textarea {
     line-height: 1;
   }
 
-  .production-worker-view .production-compact-status {
-    min-width: 70px;
-    gap: 4px;
+  .production-worker-view .production-compact-status.worker-deadline-status {
+    min-width: 94px;
+    align-self: center;
+    gap: 7px;
+    justify-items: end;
+    text-align: right;
+  }
+
+  .production-worker-date {
+    overflow: hidden;
+    max-width: 100%;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .production-deadline-chip {
@@ -11632,10 +11690,19 @@ textarea {
     font-weight: 500;
   }
 
-  .production-worker-view .production-status {
+  .production-worker-view .worker-deadline-status .production-deadline-chip {
+    max-width: 112px;
     padding: 5px 8px;
     font-size: 13px;
     font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .production-worker-detail {
+    display: grid;
+    gap: 10px;
+    animation: worker-detail-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    transform-origin: top center;
   }
 
   .production-compact-status > span:last-child {
@@ -11703,21 +11770,24 @@ textarea {
   }
 
   .production-deal-summary.worker-summary {
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 68px minmax(0, 1fr) minmax(86px, auto);
+    gap: 9px;
+    min-height: 78px;
+    padding: 11px 10px;
   }
 
   .production-worker-view .production-thumb {
-    width: 48px;
-    height: 40px;
+    width: 68px;
+    height: 54px;
   }
 
-  .production-worker-view .production-compact-status {
-    grid-column: 1 / -1;
-    grid-template-columns: auto minmax(0, 1fr);
-    width: 100%;
+  .production-worker-view .production-compact-status.worker-deadline-status {
+    min-width: 86px;
+    width: auto;
   }
 
-  .production-worker-view .production-compact-status > span:last-child {
-    justify-self: end;
+  .production-worker-date,
+  .production-worker-view .worker-deadline-status .production-deadline-chip {
+    font-size: 12px;
   }
 }
