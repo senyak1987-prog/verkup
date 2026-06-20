@@ -7545,6 +7545,50 @@ tr.selected td,
   }
 }
 
+@keyframes worker-menu-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.production-worker-detail-shell {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  opacity: 0;
+  transform: translate3d(0, -6px, 0);
+  transition:
+    grid-template-rows 340ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 220ms ease,
+    transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: grid-template-rows, opacity, transform;
+}
+
+.production-worker-detail-shell.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+.production-worker-detail-shell:not(.open) {
+  pointer-events: none;
+}
+
+.production-worker-detail {
+  display: grid;
+  min-height: 0;
+  gap: 10px;
+  overflow: hidden;
+  padding-top: 10px;
+  transform-origin: top center;
+}
+
 @keyframes worker-tab-highlight-breathe {
   0%,
   100% {
@@ -7563,7 +7607,9 @@ tr.selected td,
   .worker-pager,
   .worker-page,
   .worker-page-inner,
+  .production-worker-detail-shell,
   .production-worker-detail,
+  .worker-profile-menu,
   .production-deal-summary.worker-summary {
     animation: none !important;
     transition: none !important;
@@ -11486,6 +11532,9 @@ textarea {
     border-radius: 18px;
     padding: 8px;
     box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+    transform-origin: top right;
+    animation: worker-menu-in 190ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    will-change: opacity, transform;
   }
 
   .worker-profile-menu button,
@@ -11616,18 +11665,18 @@ textarea {
   }
 
   .production-deal-summary.worker-summary {
-    grid-template-columns: 72px minmax(0, 1fr) minmax(94px, auto);
+    grid-template-columns: 72px minmax(0, 1fr) minmax(112px, 112px);
     gap: 10px;
     min-height: 82px;
     padding: 12px;
     transition:
       background-color 180ms ease,
-      transform 180ms ease;
+      box-shadow 220ms ease;
   }
 
   .production-deal-summary.worker-summary:active {
     background: color-mix(in srgb, var(--accent-soft) 20%, transparent);
-    transform: scale(0.992);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
   }
 
   .production-worker-view .production-thumb {
@@ -11666,21 +11715,27 @@ textarea {
   }
 
   .production-worker-view .production-compact-status.worker-deadline-status {
-    min-width: 94px;
-    align-self: center;
-    gap: 7px;
+    width: 112px;
+    min-width: 0;
+    max-width: 112px;
+    align-self: start;
+    justify-self: end;
+    gap: 6px;
     justify-items: end;
     text-align: right;
   }
 
   .production-worker-date {
-    overflow: hidden;
+    display: block;
+    overflow: visible;
+    width: 100%;
     max-width: 100%;
     color: var(--text);
     font-size: 13px;
     font-weight: 500;
     line-height: 1.1;
-    text-overflow: ellipsis;
+    text-align: right;
+    text-overflow: clip;
     white-space: nowrap;
   }
 
@@ -11691,18 +11746,17 @@ textarea {
   }
 
   .production-worker-view .worker-deadline-status .production-deadline-chip {
-    max-width: 112px;
+    display: inline-flex;
+    justify-content: flex-end;
+    overflow: visible;
+    max-width: 100%;
     padding: 5px 8px;
     font-size: 13px;
     font-weight: 500;
-    white-space: nowrap;
-  }
-
-  .production-worker-detail {
-    display: grid;
-    gap: 10px;
-    animation: worker-detail-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-    transform-origin: top center;
+    line-height: 1.08;
+    text-align: right;
+    text-overflow: clip;
+    white-space: normal;
   }
 
   .production-compact-status > span:last-child {
@@ -11770,7 +11824,7 @@ textarea {
   }
 
   .production-deal-summary.worker-summary {
-    grid-template-columns: 68px minmax(0, 1fr) minmax(86px, auto);
+    grid-template-columns: 68px minmax(0, 1fr) minmax(104px, 104px);
     gap: 9px;
     min-height: 78px;
     padding: 11px 10px;
@@ -11782,8 +11836,9 @@ textarea {
   }
 
   .production-worker-view .production-compact-status.worker-deadline-status {
-    min-width: 86px;
-    width: auto;
+    width: 104px;
+    min-width: 0;
+    max-width: 104px;
   }
 
   .production-worker-date,

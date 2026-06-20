@@ -3033,7 +3033,7 @@ function WorkerDealCard({
         </div>
       </button>
 
-      {expanded ? (
+      <div className={`production-worker-detail-shell${expanded ? " open" : ""}`} aria-hidden={!expanded}>
         <div className="production-worker-detail">
           <TechSpecInline
             compactForWorker
@@ -3170,7 +3170,7 @@ function WorkerDealCard({
             </div>
           ) : null}
         </div>
-      ) : null}
+      </div>
     </article>
   );
 }
