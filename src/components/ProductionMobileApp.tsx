@@ -3009,6 +3009,35 @@ function WorkerDealCard({
     ? techSpecItemLabel(techSpec, assignment.techSpecItemId)
     : "";
   const deadlineBadge = deadlineBadgeFor(deal.expectedFinishDate);
+  const detailRef = useRef<HTMLDivElement | null>(null);
+  const [detailHeight, setDetailHeight] = useState(0);
+  const detailShellStyle = {
+    "--worker-detail-height": `${detailHeight}px`,
+  } as CSSProperties;
+
+  useEffect(() => {
+    const node = detailRef.current;
+    if (!node) return undefined;
+
+    const updateHeight = () => setDetailHeight(node.scrollHeight);
+    updateHeight();
+
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [
+    assignment.status,
+    completion.diodeCatalogId,
+    completion.diodeCount,
+    completion.noPowerSupply,
+    completion.note,
+    completion.photos.length,
+    completion.powerSupplyCatalogId,
+    expanded,
+    itemLabel,
+    techSpec,
+  ]);
 
   return (
     <article className={`production-deal-card compact worker ${assignment.status}`}>
@@ -3033,8 +3062,12 @@ function WorkerDealCard({
         </div>
       </button>
 
-      <div className={`production-worker-detail-shell${expanded ? " open" : ""}`} aria-hidden={!expanded}>
-        <div className="production-worker-detail">
+      <div
+        className={`production-worker-detail-shell${expanded ? " open" : ""}`}
+        aria-hidden={!expanded}
+        style={detailShellStyle}
+      >
+        <div className="production-worker-detail" ref={detailRef}>
           <TechSpecInline
             compactForWorker
             deal={deal}

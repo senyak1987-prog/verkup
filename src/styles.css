@@ -7558,22 +7558,29 @@ tr.selected td,
 }
 
 .production-worker-detail-shell {
-  display: grid;
-  grid-template-rows: 0fr;
   overflow: hidden;
+  max-height: 0;
   opacity: 0;
   transform: translate3d(0, -6px, 0);
+  visibility: hidden;
   transition:
-    grid-template-rows 340ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    opacity 220ms ease,
-    transform 340ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: grid-template-rows, opacity, transform;
+    max-height 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 360ms;
+  will-change: max-height, opacity, transform;
 }
 
 .production-worker-detail-shell.open {
-  grid-template-rows: 1fr;
+  max-height: var(--worker-detail-height, 0px);
   opacity: 1;
   transform: translate3d(0, 0, 0);
+  visibility: visible;
+  transition:
+    max-height 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease 80ms,
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 0s;
 }
 
 .production-worker-detail-shell:not(.open) {
@@ -10316,7 +10323,7 @@ tr.selected td,
     height: 40px;
   }
 
-  .production-worker-view .production-compact-status {
+  .production-worker-view .production-compact-status:not(.worker-deadline-status) {
     grid-column: 1 / -1;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
@@ -10325,7 +10332,7 @@ tr.selected td,
     width: 100%;
   }
 
-  .production-worker-view .production-compact-status > span:last-child {
+  .production-worker-view .production-compact-status:not(.worker-deadline-status) > span:last-child {
     justify-self: end;
     min-width: 0;
   }
@@ -11715,6 +11722,10 @@ textarea {
   }
 
   .production-worker-view .production-compact-status.worker-deadline-status {
+    display: grid;
+    grid-column: auto;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
     width: 112px;
     min-width: 0;
     max-width: 112px;
@@ -11746,7 +11757,7 @@ textarea {
   }
 
   .production-worker-view .worker-deadline-status .production-deadline-chip {
-    display: inline-flex;
+    display: block;
     justify-content: flex-end;
     overflow: visible;
     max-width: 100%;
@@ -11756,6 +11767,7 @@ textarea {
     line-height: 1.08;
     text-align: right;
     text-overflow: clip;
+    overflow-wrap: anywhere;
     white-space: normal;
   }
 
