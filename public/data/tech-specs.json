@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-19T23:49:29.454Z",
+  "generatedAt": "2026-06-20T05:35:41.940Z",
   "specs": [
     {
       "dealId": "16888",
@@ -144,10 +144,47 @@
         ]
       },
       "updatedAt": "2026-06-19T23:49:29.454Z"
+    },
+    {
+      "dealId": "16880",
+      "draft": {
+        "dealNumber": "16880",
+        "projectName": "IMPERIAL GARDEN (А)",
+        "manager": "Алексей Федоренко",
+        "responsiblePhone": "89995543801",
+        "deadline": "2026-06-30",
+        "date": "2026-06-20",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "4fa977dc-8c8f-445f-b600-69a5286f400c",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-20T05:35:41.939Z"
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-20T05:11:17.539Z",
+    "generatedAt": "2026-06-20T05:32:33.423Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -210,28 +247,6 @@
         "active": true,
         "createdAt": "2026-06-19T16:12:15.877Z",
         "pinHash": "aaa8003e820e1382478c1c7f125eabcbe4ca05416f55ef6954e9ca18c3fed1a2"
-      },
-      {
-        "id": "b00155ce-475d-420a-bfe9-8929107ab4e7",
-        "name": "Семен",
-        "login": "123",
-        "role": "maker",
-        "accessRole": "maker",
-        "phone": "",
-        "active": true,
-        "createdAt": "2026-06-19T19:33:44.872Z",
-        "pinHash": "62f113b3150608685c8cfc1a0943861093e48f8d5722a5488bab2996515a8ff9",
-        "pushSubscriptions": [
-          {
-            "endpoint": "https://web.push.apple.com/QJeGZbxtJfofqzAj6abhUbloSg7pxxMHouCXez_ZmNwTZtd2R9hvZIz5MHxFmwHoYHsFX4S-Fw7c7AWTpyOpZAuyUEk8bUq-slE3mgafl3uCK9JsDH2zIQyUoGIVHHydaiNQJO2NRz2P_sV0UzXZrGvY-wJovP6y3VYyaKvL5MI",
-            "keys": {
-              "auth": "TMmojr6qRBZoDAsb6u7mnA",
-              "p256dh": "BCXE3cfY3LKnpdumiSrEttjr6W1LUAbXjWn87gRuFJhD9kWSlsFd4mdev7M8-l8nQOCSb2Esvn7WdtqMBs_jjLA"
-            },
-            "subscribedAt": "2026-06-20T05:11:17.539Z",
-            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1"
-          }
-        ]
       }
     ],
     "registrations": [
@@ -272,44 +287,7 @@
         "active": false
       }
     ],
-    "assignments": [
-      {
-        "id": "db9df12c-ac27-441f-ab30-36e1b5c9bec6",
-        "dealId": "16874",
-        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
-        "status": "assigned",
-        "assignedAt": "2026-06-19T20:03:15.711Z",
-        "assignedBy": "Руководитель",
-        "notificationText": "Вам назначили на сборку изделие #16874: Тест",
-        "history": [
-          {
-            "id": "2a27471c-5a1d-4825-94f7-74ec50784222",
-            "type": "assigned",
-            "at": "2026-06-19T20:03:15.711Z",
-            "actor": "Руководитель",
-            "note": "Семен"
-          }
-        ]
-      },
-      {
-        "id": "77ac0d0a-a2e7-45f3-960e-50a038727427",
-        "dealId": "16888",
-        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
-        "status": "assigned",
-        "assignedAt": "2026-06-19T20:05:36.837Z",
-        "assignedBy": "Руководитель",
-        "notificationText": "Вам назначили на сборку изделие #16888: Тест 2",
-        "history": [
-          {
-            "id": "3cc1b8c9-0578-4f39-bdd0-826e49dc0adc",
-            "type": "assigned",
-            "at": "2026-06-19T20:05:36.837Z",
-            "actor": "Руководитель",
-            "note": "Семен"
-          }
-        ]
-      }
-    ],
+    "assignments": [],
     "payouts": []
   }
 }
