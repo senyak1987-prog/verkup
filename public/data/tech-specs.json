@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T05:36:04.510Z",
+  "generatedAt": "2026-06-20T05:36:10.634Z",
   "specs": [
     {
       "dealId": "16888",
@@ -157,50 +157,6 @@
         "globalNote": "",
         "items": [
           {
-            "id": "28e6589f-f844-4833-b84c-c42a5fcd1318",
-            "templateId": "letters",
-            "attachments": [],
-            "workCostPositionIds": [],
-            "fields": {
-              "name": "Вывеска",
-              "quantity": "1 шт",
-              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "ЛИЦЕВОЕ",
-              "glowColor": "НЕЙТРАЛЬНОЕ",
-              "faceMaterial": "Молочный акрил 3 мм",
-              "sideMaterial": "Алюминий",
-              "backMaterial": "ПВХ Strong 6 мм",
-              "depth": "60 мм",
-              "returnSide": "НЕТ",
-              "mountType": "НА РАМЕ",
-              "wireExit": "ПОСЕРЕДИНЕ",
-              "psu": "УЛИЧНЫЙ",
-              "cableLength": "3 метра"
-            }
-          },
-          {
-            "id": "acd4eefb-c159-4db1-9612-df72dcda7c6d",
-            "templateId": "letters",
-            "attachments": [],
-            "workCostPositionIds": [],
-            "fields": {
-              "name": "Вывеска",
-              "quantity": "1 шт",
-              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
-              "lightingType": "ЛИЦЕВОЕ",
-              "glowColor": "НЕЙТРАЛЬНОЕ",
-              "faceMaterial": "Молочный акрил 3 мм",
-              "sideMaterial": "Алюминий",
-              "backMaterial": "ПВХ Strong 6 мм",
-              "depth": "60 мм",
-              "returnSide": "НЕТ",
-              "mountType": "НА РАМЕ",
-              "wireExit": "ПОСЕРЕДИНЕ",
-              "psu": "УЛИЧНЫЙ",
-              "cableLength": "3 метра"
-            }
-          },
-          {
             "id": "27962919-94eb-4601-a3c0-55c640c87f22",
             "templateId": "letters",
             "attachments": [],
@@ -224,7 +180,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-20T05:36:04.510Z"
+      "updatedAt": "2026-06-20T05:36:10.634Z"
     }
   ],
   "__production": {
