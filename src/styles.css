@@ -1,38 +1,46 @@
 :root {
   --font-sans:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI",
-    Roboto, "Helvetica Neue", Arial, system-ui, sans-serif;
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   --font-mono:
     ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
-  --bg: #f5f3ef;
-  --bg-elevated: #faf9f7;
+  --bg: #f4f6f8;
+  --bg-elevated: #f8fafc;
   --surface: #ffffff;
-  --surface-soft: #f8f6f2;
-  --surface-muted: #f1eee9;
-  --border: #ded8cf;
-  --border-soft: #e9e4dc;
-  --text: #171717;
-  --text-muted: #6b6761;
-  --text-soft: #8b857d;
-  --accent: #ff7500;
-  --accent-strong: #e26000;
-  --accent-soft: #fff1e4;
-  --accent-muted: #ffd8b8;
-  --success: #15803d;
-  --success-soft: #ecfdf3;
-  --warning: #b7791f;
-  --warning-soft: #fffbeb;
+  --surface-soft: #f8fafc;
+  --surface-muted: #eef2f6;
+  --surface-hover: #f3f6fa;
+  --border: #d9e0ea;
+  --border-soft: #e7ecf3;
+  --border-strong: #b9c3d1;
+  --text: #141b2a;
+  --text-primary: var(--text);
+  --text-secondary: #4d5a6d;
+  --text-muted: #6b778a;
+  --text-soft: #98a2b3;
+  --primary: #f26a12;
+  --primary-hover: #dc5c0a;
+  --primary-soft: #fff3e8;
+  --primary-muted: #ffd7b8;
+  --accent: var(--primary);
+  --accent-strong: var(--primary-hover);
+  --accent-soft: var(--primary-soft);
+  --accent-muted: var(--primary-muted);
+  --success: #177245;
+  --success-soft: #eaf7ef;
+  --warning: #a66a13;
+  --warning-soft: #fff7e6;
   --danger: #b42318;
-  --danger-soft: #fff1f0;
-  --info: #175cd3;
-  --shadow-sm: 0 1px 2px rgba(22, 18, 14, 0.06);
-  --shadow-md: 0 8px 24px rgba(22, 18, 14, 0.08);
-  --shadow-lg: 0 18px 48px rgba(22, 18, 14, 0.12);
-  --radius-xs: 8px;
-  --radius-sm: 10px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --danger-soft: #fff0ee;
+  --info: #2563eb;
+  --info-soft: #edf4ff;
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 8px 22px rgba(16, 24, 40, 0.07);
+  --shadow-lg: 0 18px 42px rgba(16, 24, 40, 0.1);
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -5347,6 +5355,12 @@ div.employee-profile-field .employee-profile-value {
   }
 
   .toolbar-actions {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .toolbar > div:first-child {
+    flex: 0 0 auto;
     width: 100%;
   }
 
@@ -6693,6 +6707,681 @@ div.employee-profile-field .employee-profile-value {
 
 .worker-tabs button.active {
   color: #fff;
+}
+
+/* Classic admin visual polish */
+body {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0) 220px),
+    var(--bg);
+}
+
+button,
+input,
+select,
+textarea {
+  letter-spacing: 0;
+}
+
+button,
+.primary,
+.secondary,
+.danger,
+.icon-button,
+.row-actions button,
+.row-actions a {
+  font-weight: 650;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary) 34%, transparent);
+  outline-offset: 2px;
+}
+
+.primary,
+.production-mobile .primary,
+.public-upload {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+  box-shadow: none;
+}
+
+.primary:hover,
+.production-mobile .primary:hover,
+.public-upload:hover {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+}
+
+.secondary,
+.production-mobile .secondary,
+.manager-deal-head a,
+.worker-profile-menu button,
+.worker-profile-menu label,
+.worker-profile-menu-trigger {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.secondary:hover,
+.production-mobile .secondary:hover,
+.manager-deal-head a:hover,
+.worker-profile-menu button:hover,
+.worker-profile-menu label:hover,
+.worker-profile-menu-trigger:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.danger {
+  border-color: color-mix(in srgb, var(--danger) 24%, var(--border));
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.danger:hover {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+  background: var(--danger-soft);
+}
+
+.secondary.compact,
+.drawer-actions .secondary.compact,
+.primary.compact,
+.danger.compact {
+  min-height: 36px;
+  border-radius: var(--radius-sm);
+  padding: 7px 11px;
+}
+
+.icon-button,
+.favorite-toggle,
+.row-actions button,
+.row-actions a,
+.drawer-head button,
+.catalog-modal-head button,
+.position-row button,
+.production-card-check {
+  width: 36px;
+  height: 36px;
+  border-color: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  box-shadow: none;
+}
+
+.icon-button:hover,
+.favorite-toggle:hover,
+.row-actions button:hover,
+.row-actions a:hover,
+.drawer-head button:hover,
+.catalog-modal-head button:hover,
+.position-row button:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.icon-button.active,
+.favorite-toggle.active,
+.catalog-item-card.active .catalog-item-main {
+  border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
+  background: var(--primary-soft);
+  color: var(--primary-hover);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea,
+.column-filter,
+.autosave-input,
+.catalog-field input,
+.catalog-field select,
+.production-employee-form input,
+.production-employee-form select,
+.production-batch-bar select,
+.production-worker-head select,
+.production-form-grid input,
+.production-form-grid select,
+.production-note-field textarea,
+.worker-password-panel input,
+.registration-link-row input,
+.registration-request input,
+.registration-request select,
+.employee-access-controls input,
+.employee-access-controls select {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+select:focus,
+textarea:focus,
+.column-filter:focus,
+.autosave-input:focus {
+  border-color: color-mix(in srgb, var(--primary) 58%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent);
+  outline: 0;
+}
+
+.app-mode-sidebar {
+  width: 232px;
+  border-right-color: var(--border-soft);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  padding: 18px;
+  box-shadow: 1px 0 0 rgba(16, 24, 40, 0.02);
+}
+
+.workspace-app:has(.app-mode-sidebar) .workspace-shell {
+  padding-left: 232px;
+}
+
+.workspace-brand {
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.workspace-brand img {
+  width: 104px;
+}
+
+.app-mode-switch {
+  gap: 4px;
+}
+
+.app-mode-switch button {
+  min-height: 42px;
+  border-radius: var(--radius-sm);
+  padding: 0 11px;
+  color: var(--text-secondary);
+  font-weight: 660;
+}
+
+.app-mode-switch button:hover {
+  background: var(--surface-hover);
+}
+
+.app-mode-switch button.active {
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
+  background: var(--primary-soft);
+  color: var(--primary-hover);
+}
+
+.workspace-user-card {
+  gap: 7px;
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: none;
+}
+
+.access-bar,
+.workspace-mobile-title {
+  border-color: var(--border-soft);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.toolbar {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.toolbar-actions {
+  gap: 8px;
+}
+
+.search,
+.catalog-search,
+.production-search {
+  border-color: var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.stage-tabs,
+.deal-workspace-tabs,
+.access-tabs,
+.worker-tabs,
+.production-section-tabs,
+.production-view-switch,
+.catalog-group-tabs {
+  border-color: var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.stage-tabs button,
+.deal-workspace-tabs button,
+.worker-tabs button,
+.production-section-tabs button,
+.production-view-switch button,
+.catalog-group-tabs button {
+  min-height: 36px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-weight: 680;
+}
+
+.stage-tabs button.active,
+.deal-workspace-tabs button.active,
+.access-tabs button.active,
+.worker-tabs button.active,
+.production-section-tabs button.active,
+.production-view-switch button.active,
+.catalog-group-tabs button.active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.stage-tabs span,
+.worker-tabs button span,
+.production-section-tabs span,
+.production-compact-meta span,
+.production-deal-meta span,
+.employee-list-head em,
+.employee-group-grid strong {
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+
+.table-wrap {
+  border-color: var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.deals-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.deals-table th {
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.deals-table th,
+.deals-table td {
+  border-bottom-color: var(--border-soft);
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.clickable-row:hover td {
+  background: var(--surface-hover);
+}
+
+tr.selected td,
+.calculation-panel-row td,
+.calc-block.open .calc-block-row,
+.material-subblock.open .material-subblock-row,
+.deal-workspace-tabs {
+  background: color-mix(in srgb, var(--primary-soft) 54%, var(--surface));
+}
+
+.kpi,
+.summary,
+.cost-chip,
+.cost-popover,
+.calc-block,
+.material-subblock,
+.block-add-card,
+.block-favorites,
+.catalog-panel,
+.catalog-sidebar,
+.catalog-form,
+.catalog-modal-card,
+.tech-spec-doc-page,
+.deal-workspace,
+.builder-controls,
+.builder-summary,
+.builder-preview,
+.summary-block,
+.production-panel,
+.production-deal-card,
+.production-empty,
+.production-notification,
+.production-batch-bar,
+.production-kpi,
+.production-worker-head,
+.worker-profile,
+.worker-tabs,
+.worker-password-panel,
+.worker-profile-menu,
+.registration-links,
+.registration-requests,
+.employee-group-grid button,
+.worker-payout-list div,
+.part-assignment-row,
+.mobile-deal-card,
+.mobile-deal-empty {
+  border-color: var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.kpi,
+.summary {
+  padding: 14px 16px;
+}
+
+.kpi span,
+.summary span,
+.mobile-deal-meta small,
+.production-muted,
+.production-empty,
+.production-state-note,
+.employee-row-summary small {
+  color: var(--text-muted);
+}
+
+.kpi strong,
+.summary strong {
+  color: var(--text);
+  font-weight: 720;
+}
+
+.mobile-deal-card {
+  gap: 12px;
+  padding: 14px;
+}
+
+.mobile-deal-card.selected {
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft) 44%, var(--surface));
+}
+
+.mobile-deal-card-main {
+  border-radius: var(--radius-md);
+}
+
+.mobile-deal-stage,
+.production-status,
+.production-deadline-chip,
+.tech-spec-status,
+.cost-chip span {
+  border-radius: 999px;
+  font-weight: 680;
+}
+
+.production-status.assigned {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.production-status.inProgress,
+.production-deadline-chip.yellow {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.production-status.submitted,
+.production-deadline-chip.red {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.production-status.readyForShipment,
+.production-deadline-chip.green {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.production-notification {
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
+  background: var(--primary-soft);
+  color: var(--primary-hover);
+}
+
+.deal-title,
+.sort-button.active,
+.production-card-title strong,
+.mobile-deal-number {
+  color: var(--info);
+}
+
+.eyebrow,
+.production-tech-spec-head {
+  color: var(--primary-hover);
+}
+
+.catalog-modal-backdrop {
+  background: rgba(15, 23, 42, 0.32);
+}
+
+.catalog-modal,
+.employee-popover-surface,
+.worker-profile-menu,
+.favorite-info-popover,
+.position-info-popover {
+  border-color: var(--border-soft);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.tech-spec-toolbar {
+  gap: 10px;
+}
+
+.tech-spec-shell {
+  gap: 16px;
+}
+
+.tech-spec-panel,
+.tech-spec-item,
+.tech-spec-layout-box,
+.tech-spec-preview pre,
+.tech-spec-doc-page {
+  border-color: var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.tech-spec-template-list button,
+.tech-spec-work-cost-link,
+.tech-spec-attachment-card {
+  border-color: var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.tech-spec-export-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.tech-spec-export-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: grid;
+  min-width: 148px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 6px;
+  box-shadow: var(--shadow-lg);
+}
+
+.tech-spec-export-popover button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 38px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 8px 10px;
+  color: var(--text);
+  font-weight: 650;
+  text-align: left;
+}
+
+.tech-spec-export-popover button:hover {
+  background: var(--surface-hover);
+}
+
+.access-card {
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 720px) {
+  .workspace-mobile-title {
+    min-height: 58px;
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+  }
+
+  .workspace-mobile-title span {
+    color: var(--primary-hover);
+  }
+
+  .workspace-bottom-nav {
+    border-radius: 18px;
+    box-shadow: 0 10px 28px rgba(16, 24, 40, 0.14);
+  }
+
+  .workspace-bottom-nav button {
+    min-height: 54px;
+    border-radius: 14px;
+    font-weight: 680;
+  }
+
+  .toolbar,
+  .tech-spec-toolbar {
+    gap: 10px;
+  }
+
+  .deal-list .toolbar {
+    margin-bottom: 10px;
+  }
+
+  .deal-list .toolbar > div:first-child {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .deal-list .toolbar-actions {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .deal-list .toolbar-actions .search,
+  .deal-list .toolbar-actions .toolbar-catalog {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .deal-list .toolbar-actions > .icon-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .deal-list .toolbar-actions > .icon-button:first-of-type {
+    grid-column: 1 / 2;
+  }
+
+  .deal-list .toolbar-actions > .icon-button:nth-of-type(2) {
+    grid-column: 2 / 4;
+  }
+
+  .mobile-deal-filters {
+    margin-bottom: 10px;
+  }
+
+  .mobile-deal-filters .secondary {
+    min-height: 44px;
+  }
+
+  .stage-tabs,
+  .deal-workspace-tabs {
+    padding: 3px;
+  }
+
+  .stage-tabs button,
+  .deal-workspace-tabs button {
+    min-height: 42px;
+  }
+
+  .mobile-deal-card,
+  .production-worker-view .production-deal-card,
+  .worker-profile,
+  .worker-tabs,
+  .production-panel {
+    border-radius: 16px;
+  }
+
+  .primary,
+  .secondary,
+  .danger,
+  .production-mobile .primary,
+  .production-mobile .secondary {
+    min-height: 44px;
+    border-radius: 12px;
+  }
+
+  .tech-spec-export-menu {
+    width: 100%;
+  }
+
+  .tech-spec-export-menu > .primary {
+    width: 100%;
+  }
+
+  .tech-spec-export-popover {
+    right: auto;
+    left: 0;
+    width: 100%;
+  }
+}
+
+.production-theme-night {
+  --bg: #101318;
+  --bg-elevated: #151a21;
+  --surface: #171c24;
+  --surface-soft: #111821;
+  --surface-muted: #202733;
+  --surface-hover: #202733;
+  --border: #303948;
+  --border-soft: #27303d;
+  --border-strong: #465365;
+  --text: #edf1f7;
+  --text-secondary: #b7c0ce;
+  --text-muted: #98a4b5;
+  --text-soft: #788397;
+  --primary: #ff8a1f;
+  --primary-hover: #ff9b3d;
+  --primary-soft: rgba(255, 138, 31, 0.15);
+  --primary-muted: rgba(255, 138, 31, 0.35);
+  --info-soft: rgba(37, 99, 235, 0.18);
+  --success-soft: rgba(23, 114, 69, 0.18);
+  --warning-soft: rgba(166, 106, 19, 0.2);
+  --danger-soft: rgba(180, 35, 24, 0.18);
 }
 
 .worker-tabs button:active {
@@ -9601,4 +10290,117 @@ tr.selected td,
 
 .worker-tabs button.active {
   color: #fff;
+}
+
+/* Final adaptive polish: keep later legacy rules from re-expanding mobile layout. */
+@media (max-width: 1180px) {
+  .toolbar > div:first-child,
+  .toolbar-actions {
+    flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .deal-list .toolbar {
+    margin-bottom: 10px;
+  }
+
+  .deal-list .toolbar > div:first-child {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+
+  .deal-list .toolbar-actions {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: minmax(0, 1fr) 44px 44px;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .deal-list .toolbar-actions .search,
+  .deal-list .toolbar-actions .toolbar-catalog {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .deal-list .toolbar-actions > .icon-button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .deal-list .toolbar-actions > .icon-button:first-of-type {
+    grid-column: 1 / 2;
+  }
+
+  .deal-list .toolbar-actions > .icon-button:nth-of-type(2) {
+    grid-column: 2 / 4;
+  }
+
+  .deal-list .kpis {
+    gap: 8px;
+  }
+
+  .deal-list .kpi {
+    min-height: 0;
+    padding: 10px 12px;
+  }
+
+  .deal-list .kpi span {
+    font-size: 11px;
+  }
+
+  .deal-list .kpi strong {
+    font-size: 17px;
+  }
+
+  .mobile-deal-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 10px;
+  }
+
+  .mobile-deal-filters .secondary {
+    grid-column: 1 / -1;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 340px) {
+  .mobile-deal-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 721px) {
+  .calculation-panel-row .deal-expand-shell {
+    position: sticky;
+    left: 0;
+    width: min(100%, calc(100vw - 300px));
+    max-width: calc(100vw - 300px);
+  }
+
+  .calculation-panel-row .deal-expand-inner,
+  .calculation-panel-row .deal-workspace,
+  .calculation-panel-row .tech-spec-builder {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .tech-spec-builder.embedded .tech-spec-toolbar {
+    justify-content: space-between;
+  }
+
+  .tech-spec-builder.embedded .tech-spec-actions {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1180px) {
+  .calculation-panel-row .deal-expand-shell {
+    width: min(100%, calc(100vw - 268px));
+    max-width: calc(100vw - 268px);
+  }
 }

@@ -1922,11 +1922,13 @@ export function TechSpecBuilder({
   const [selectedTemplateId, setSelectedTemplateId] = useState<TemplateId>("letters");
   const [copyState, setCopyState] = useState<"idle" | "copied">("idle");
   const [exportState, setExportState] = useState<"idle" | "working" | "done" | "error">("idle");
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [bitrixUploadState, setBitrixUploadState] = useState<"idle" | "working" | "done" | "error">("idle");
   const [storageIssue, setStorageIssue] = useState("");
   const [attachmentNotice, setAttachmentNotice] = useState("");
   const [bitrixUploadError, setBitrixUploadError] = useState("");
   const exportRef = useRef<HTMLElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const workCostOptions = useMemo(() => buildWorkCostOptions(costPositions), [costPositions]);
   const specText = useMemo(() => buildSpecText(draft, workCostOptions), [draft, workCostOptions]);
@@ -2003,6 +2005,27 @@ export function TechSpecBuilder({
       setStorageIssue("Макеты слишком большие для автосохранения. Экспорт работает, но черновик с файлами может не сохраниться.");
     }
   }, [draft, deal?.id]);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+
+    function closeExportMenu(event: PointerEvent) {
+      if (exportMenuRef.current?.contains(event.target as Node)) return;
+      setExportMenuOpen(false);
+    }
+
+    function closeExportMenuByKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setExportMenuOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeExportMenu);
+    document.addEventListener("keydown", closeExportMenuByKey);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeExportMenu);
+      document.removeEventListener("keydown", closeExportMenuByKey);
+    };
+  }, [exportMenuOpen]);
 
   function updateDraftField(field: keyof TechSpecDraft, value: string) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -2294,18 +2317,55 @@ export function TechSpecBuilder({
               Стоимость работ в ТЗ
             </button>
           ) : null}
-          <button className="primary compact" onClick={downloadSpec} type="button">
-            <Download size={16} />
-            TXT
-          </button>
-          <button className="secondary compact" disabled={exportState === "working"} onClick={exportPdf} type="button">
-            <Printer size={16} />
-            PDF
-          </button>
-          <button className="primary compact" disabled={exportState === "working"} onClick={exportJpeg} type="button">
-            <FileImage size={16} />
-            JPEG
-          </button>
+          <div className="tech-spec-export-menu" ref={exportMenuRef}>
+            <button
+              aria-expanded={exportMenuOpen}
+              className="primary compact"
+              disabled={exportState === "working"}
+              onClick={() => setExportMenuOpen((current) => !current)}
+              type="button"
+            >
+              <Download size={16} />
+              Экспорт
+            </button>
+            {exportMenuOpen ? (
+              <div className="tech-spec-export-popover" role="menu">
+                <button
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    downloadSpec();
+                  }}
+                  role="menuitem"
+                  type="button"
+                >
+                  <FileText size={16} />
+                  TXT
+                </button>
+                <button
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    exportPdf();
+                  }}
+                  role="menuitem"
+                  type="button"
+                >
+                  <Printer size={16} />
+                  PDF
+                </button>
+                <button
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    void exportJpeg();
+                  }}
+                  role="menuitem"
+                  type="button"
+                >
+                  <FileImage size={16} />
+                  JPEG
+                </button>
+              </div>
+            ) : null}
+          </div>
           {deal && onUploadToBitrix ? (
             <button
               className="primary compact"
