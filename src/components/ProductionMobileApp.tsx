@@ -3030,7 +3030,6 @@ function WorkerDealCard({
             </div>
           </div>
           <div className="production-compact-meta">
-            <span>{deal.title}</span>
             <span>Срок: {formatDate(deal.expectedFinishDate) || "не указан"}</span>
             {workAmount > 0 ? <span>Работы: {formatMoney(workAmount)}</span> : null}
           </div>
@@ -3044,8 +3043,8 @@ function WorkerDealCard({
 
       {expanded ? (
         <>
-          <DealMeta deal={deal} />
           <TechSpecInline
+            compactForWorker
             deal={deal}
             itemId={assignment.techSpecItemId}
             spec={techSpec}
@@ -3200,11 +3199,13 @@ function firstTechSpecImage(spec?: DealTechSpec, itemId?: string) {
 }
 
 function TechSpecInline({
+  compactForWorker = false,
   deal,
   itemId,
   spec,
   expanded = false,
 }: {
+  compactForWorker?: boolean;
   deal: Deal;
   itemId?: string;
   spec?: DealTechSpec;
@@ -3220,21 +3221,24 @@ function TechSpecInline({
   }
 
   return (
-    <section className="production-tech-spec">
-      <div className="production-tech-spec-head">
-        <ClipboardList size={16} />
-        <span>ТЗ: {spec.draft.projectName || `#${spec.draft.dealNumber}`}</span>
-      </div>
-      <div className="production-spec-deal-grid">
-        <SpecMeta label="Сделка" value={`#${deal.number} · ${deal.title}`} />
-        <SpecMeta label="Классификация" value={deal.classification} />
-        <SpecMeta label="Тип" value={deal.type} />
-        <SpecMeta label="Источник" value={deal.source} />
-        <SpecMeta label="Ответственный" value={spec.draft.manager || deal.responsible} />
-        <SpecMeta label="Телефон ответственного" value={spec.draft.responsiblePhone || deal.responsiblePhone} />
-        <SpecMeta label="Срок сдачи" value={formatDate(spec.draft.deadline || deal.expectedFinishDate)} />
-        <SpecMeta label="Дата ТЗ" value={formatDate(spec.draft.date)} />
-      </div>
+    <section className={`production-tech-spec${compactForWorker ? " worker-compact" : ""}`}>
+      {!compactForWorker ? (
+        <>
+          <div className="production-tech-spec-head">
+            <ClipboardList size={16} />
+            <span>ТЗ: {spec.draft.projectName || `#${spec.draft.dealNumber}`}</span>
+          </div>
+          <div className="production-spec-deal-grid">
+            <SpecMeta label="Сделка" value={`#${deal.number} · ${deal.title}`} />
+            <SpecMeta label="Классификация" value={deal.classification} />
+            <SpecMeta label="Тип" value={deal.type} />
+            <SpecMeta label="Источник" value={deal.source} />
+            <SpecMeta label="Ответственный" value={spec.draft.manager || deal.responsible} />
+            <SpecMeta label="Телефон ответственного" value={spec.draft.responsiblePhone || deal.responsiblePhone} />
+            <SpecMeta label="Срок сдачи" value={formatDate(deal.expectedFinishDate || spec.draft.deadline)} />
+          </div>
+        </>
+      ) : null}
       {spec.draft.globalNote ? (
         <div className="production-spec-note">
           <strong>Общее примечание</strong>

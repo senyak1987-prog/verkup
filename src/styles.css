@@ -8370,6 +8370,11 @@ tr.selected td,
   padding-top: 10px;
 }
 
+.production-tech-spec.worker-compact {
+  gap: 7px;
+  padding-top: 8px;
+}
+
 .production-tech-spec.missing {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
