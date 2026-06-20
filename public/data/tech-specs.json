@@ -184,7 +184,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-20T05:59:31.726Z",
+    "generatedAt": "2026-06-20T05:59:35.073Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -312,6 +312,24 @@
             "id": "0c378a03-94a8-4fe3-ab13-c8c3763420a5",
             "type": "assigned",
             "at": "2026-06-20T05:59:31.725Z",
+            "actor": "Руководитель",
+            "note": "Семен"
+          }
+        ]
+      },
+      {
+        "id": "702e0144-c404-4ad7-9505-36d2de823f8c",
+        "dealId": "16888",
+        "employeeId": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
+        "status": "assigned",
+        "assignedAt": "2026-06-20T05:59:35.073Z",
+        "assignedBy": "Руководитель",
+        "notificationText": "Вам назначили на сборку изделие #16888: Тест 2",
+        "history": [
+          {
+            "id": "7d0bd289-852d-461f-9779-213946ce7b7f",
+            "type": "assigned",
+            "at": "2026-06-20T05:59:35.073Z",
             "actor": "Руководитель",
             "note": "Семен"
           }
