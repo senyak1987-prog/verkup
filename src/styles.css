@@ -1,8 +1,18 @@
 :root {
   --font-sans:
     system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-family-base: var(--font-sans);
   --font-mono:
     ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 16px;
+  --text-xl: 18px;
+  --text-2xl: 22px;
+  --line-tight: 1.2;
+  --line-normal: 1.4;
+  --line-relaxed: 1.55;
   --bg: #f4f6f8;
   --bg-elevated: #f8fafc;
   --surface: #ffffff;
@@ -52,7 +62,7 @@
   background: var(--bg);
   color-scheme: light;
   font-family: var(--font-sans);
-  font-size: 15px;
+  font-size: var(--text-md);
 }
 
 html {
@@ -621,9 +631,9 @@ th {
 .column-resizer {
   position: absolute;
   top: 0;
-  right: -7px;
+  right: 0;
   z-index: 3;
-  width: 14px;
+  width: 10px;
   height: 100%;
   cursor: col-resize;
   touch-action: none;
@@ -10402,5 +10412,430 @@ tr.selected td,
   .calculation-panel-row .deal-expand-shell {
     width: min(100%, calc(100vw - 268px));
     max-width: calc(100vw - 268px);
+  }
+}
+
+/* Density and overflow refinement */
+body {
+  font-size: var(--text-md);
+  line-height: var(--line-normal);
+}
+
+.workspace-shell,
+.workspace-content,
+.deal-list,
+.production-mobile,
+.production-layout,
+.production-main-column,
+.production-panel,
+.production-staff-panel,
+.production-employee-form,
+.employee-group-grid,
+.production-employee-list,
+.employee-management-shell,
+.tech-spec-builder,
+.tech-spec-shell,
+.deal-workspace {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.workspace-content,
+.production-mobile,
+.deal-list {
+  overflow-x: clip;
+}
+
+button,
+.primary,
+.secondary,
+.danger,
+.ghost,
+.stage-tabs button,
+.deal-workspace-tabs button,
+.production-section-tabs button,
+.production-view-switch button,
+.worker-tabs button,
+.catalog-group-tabs button {
+  font-size: var(--text-sm);
+  line-height: var(--line-tight);
+}
+
+input,
+select,
+textarea {
+  font-size: var(--text-sm);
+  line-height: var(--line-normal);
+}
+
+.eyebrow,
+.toolbar p,
+.production-muted,
+.production-empty,
+.tech-spec-muted,
+.mobile-deal-title small,
+.mobile-deal-meta small,
+.production-compact-meta span,
+.production-deadline-chip,
+.production-status,
+.employee-group-grid small,
+.employee-list-head span {
+  font-size: var(--text-xs);
+}
+
+.workspace-mobile-title strong,
+.production-panel-head h2,
+.employee-list-head strong,
+.tech-spec-panel-head h2,
+.tech-spec-item-head h2,
+.tech-spec-checklist h3 {
+  font-size: var(--text-lg);
+}
+
+.production-topbar h1,
+.access-card-head h1,
+.tech-spec-doc-title h2 {
+  font-size: var(--text-2xl);
+}
+
+.kpi strong,
+.summary strong {
+  font-size: 20px;
+}
+
+@media (min-width: 721px) {
+  .primary,
+  .secondary,
+  .danger,
+  .ghost,
+  .toolbar-catalog,
+  .tech-spec-export-popover button {
+    min-height: 34px;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+  }
+
+  .icon-button,
+  .row-actions button,
+  .row-actions a {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .search,
+  .catalog-search,
+  .production-search {
+    min-height: 36px;
+  }
+
+  .search input,
+  .catalog-search input,
+  .production-search input,
+  .production-employee-form input,
+  .production-employee-form select,
+  .employee-access-controls input,
+  .employee-access-controls select,
+  .tech-spec-header input,
+  .tech-spec-header textarea,
+  .tech-spec-item-grid input,
+  .tech-spec-item-grid select,
+  .tech-spec-item-grid textarea,
+  .tech-spec-item-head select {
+    min-height: 36px;
+    padding: 7px 9px;
+  }
+
+  .deals-table th,
+  .deals-table td {
+    padding-top: 7px;
+    padding-bottom: 7px;
+    font-size: var(--text-sm);
+  }
+
+  .deals-table th,
+  .deals-table .column-head label,
+  .sort-button,
+  .filter-label {
+    font-size: var(--text-xs);
+  }
+
+  .kpi,
+  .summary,
+  .production-panel,
+  .production-deal-card,
+  .tech-spec-panel,
+  .tech-spec-item {
+    padding: 12px;
+  }
+}
+
+@media (min-width: 1181px) {
+  .deal-list > .table-wrap {
+    scrollbar-width: thin;
+  }
+
+  .deals-table th,
+  .deals-table td {
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+}
+
+.stage-tabs,
+.deal-list .stage-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  overflow-x: clip;
+  width: 100%;
+  max-width: 100%;
+}
+
+.stage-tabs button,
+.deal-list .stage-tabs button {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+}
+
+.stage-tabs span {
+  flex: 0 0 auto;
+}
+
+.mobile-deal-title strong,
+.mobile-deal-title small,
+.mobile-deal-stage,
+.production-card-title.compact-title h2,
+.production-compact-meta span,
+.employee-group-grid span {
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.production-compact-meta span {
+  max-width: 100%;
+}
+
+.production-thumb.empty {
+  contain: paint;
+}
+
+@media (max-width: 1180px) {
+  .deal-list > .table-wrap {
+    display: none;
+  }
+
+  .mobile-deal-filters {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .mobile-deal-filters label,
+  .mobile-deal-filters select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .mobile-deal-filters .secondary {
+    grid-column: 1 / -1;
+  }
+
+  .mobile-deal-cards {
+    display: grid;
+    gap: 10px;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .deal-list .toolbar {
+    gap: 10px;
+  }
+
+  .deal-list .stage-tabs button {
+    flex: 1 1 calc(33.333% - 6px);
+    min-height: 36px;
+    padding: 6px 8px;
+  }
+
+  .production-compact-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .production-deal-summary {
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+
+  .production-compact-status {
+    grid-column: 1 / -1;
+    justify-items: start;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .production-row-actions {
+    grid-column: 1 / -1;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .production-row-actions button {
+    flex: 1 1 140px;
+  }
+}
+
+@media (min-width: 1181px) and (max-width: 1366px) {
+  .deal-list > .table-wrap {
+    display: none;
+  }
+
+  .mobile-deal-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .mobile-deal-filters label,
+  .mobile-deal-filters select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .mobile-deal-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .employee-management-shell .production-employee-form {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 860px) {
+  .employee-management-shell .production-employee-row.employee-admin-row {
+    grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.6fr);
+    gap: 12px;
+  }
+
+  .employee-management-shell .employee-row-summary {
+    grid-column: 1 / 2;
+  }
+
+  .employee-management-shell .employee-access-controls {
+    grid-column: 2 / 3;
+    grid-template-columns:
+      minmax(130px, 0.85fr)
+      minmax(145px, 1fr)
+      minmax(130px, 0.85fr)
+      minmax(145px, 1fr);
+    min-width: 0;
+  }
+
+  .employee-management-shell .employee-access-actions,
+  .employee-management-shell .employee-payout-controls {
+    grid-column: 1 / -1;
+    width: min(100%, 420px);
+  }
+}
+
+@media (min-width: 860px) and (max-width: 1180px) {
+  .employee-management-shell .production-employee-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-management-shell .production-employee-form button {
+    grid-column: 1 / -1;
+  }
+
+  .employee-management-shell .production-employee-row.employee-admin-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .employee-management-shell .employee-row-summary,
+  .employee-management-shell .employee-access-controls {
+    grid-column: 1 / -1;
+  }
+
+  .employee-management-shell .employee-access-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .production-batch-bar select {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    font-size: var(--text-md);
+  }
+
+  body {
+    font-size: var(--text-md);
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  button,
+  .primary,
+  .secondary,
+  .danger,
+  .ghost {
+    font-size: 14px;
+  }
+
+  .stage-tabs button,
+  .deal-list .stage-tabs button {
+    flex: 1 1 calc(50% - 4px);
+    min-height: 38px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+
+  .production-topbar h1,
+  .access-card-head h1 {
+    font-size: 20px;
+  }
+
+  .mobile-deal-title strong {
+    font-size: 14px;
+  }
+
+  .mobile-deal-card {
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .mobile-deal-meta span {
+    padding: 7px;
+  }
+
+  .employee-group-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 360px) {
+  .employee-group-grid,
+  .mobile-deal-filters {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

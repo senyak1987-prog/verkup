@@ -15,19 +15,19 @@ import {
 import { displayResponsible, isUnresolvedResponsible } from "../lib/responsible";
 import { EmployeeCard } from "./EmployeeCard";
 
-const COLUMN_STORAGE_KEY = "verkupDealColumnWidths";
+const COLUMN_STORAGE_KEY = "verkupDealColumnWidths.v2";
 
 const tableColumns = [
-  { id: "deal", label: "Сделка", defaultWidth: 250, minWidth: 170 },
-  { id: "source", label: "Источник", defaultWidth: 150, minWidth: 120 },
-  { id: "type", label: "Тип", defaultWidth: 200, minWidth: 130 },
-  { id: "responsible", label: "Ответственный", defaultWidth: 190, minWidth: 150 },
-  { id: "startDate", label: "Дата запуска", defaultWidth: 125, minWidth: 110 },
-  { id: "finishDate", label: "Предп. закрытия", defaultWidth: 145, minWidth: 125 },
-  { id: "sales", label: "Продажа / монтаж", defaultWidth: 195, minWidth: 145 },
-  { id: "cost", label: "Себестоимость", defaultWidth: 170, minWidth: 140 },
-  { id: "profit", label: "Прибыль", defaultWidth: 105, minWidth: 85 },
-  { id: "actions", label: "", defaultWidth: 80, minWidth: 72 },
+  { id: "deal", label: "Сделка", defaultWidth: 185, minWidth: 160 },
+  { id: "source", label: "Источник", defaultWidth: 95, minWidth: 90 },
+  { id: "type", label: "Тип", defaultWidth: 125, minWidth: 110 },
+  { id: "responsible", label: "Ответственный", defaultWidth: 135, minWidth: 120 },
+  { id: "startDate", label: "Дата запуска", defaultWidth: 88, minWidth: 86 },
+  { id: "finishDate", label: "Предп. закрытия", defaultWidth: 98, minWidth: 96 },
+  { id: "sales", label: "Продажа / монтаж", defaultWidth: 120, minWidth: 110 },
+  { id: "cost", label: "Себестоимость", defaultWidth: 110, minWidth: 105 },
+  { id: "profit", label: "Прибыль", defaultWidth: 70, minWidth: 68 },
+  { id: "actions", label: "", defaultWidth: 76, minWidth: 72 },
 ] as const;
 
 type ColumnId = (typeof tableColumns)[number]["id"];
