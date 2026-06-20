@@ -184,7 +184,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-20T05:59:35.073Z",
+    "generatedAt": "2026-06-20T11:32:34.279Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -257,7 +257,18 @@
         "phone": "",
         "active": true,
         "createdAt": "2026-06-20T05:56:00.225Z",
-        "pinHash": "58b8cd44c3704cb38bf5ee6532041c7e9c3f9603db084b5ba0709266f809eb13"
+        "pinHash": "58b8cd44c3704cb38bf5ee6532041c7e9c3f9603db084b5ba0709266f809eb13",
+        "pushSubscriptions": [
+          {
+            "endpoint": "https://web.push.apple.com/QA3Z1Jorq7LWv-GbfkK5Ur86nHDB9NfzOmUubPjvg_2Q2mPREGFNsjTBJcvtCVABmd-AtPVaQiOki6jGF8gZm1JMh98gK6sVrkagqMktTCeJ8oskleyJ3hGNZXiU25MDl2A-lgF0wtBw61rXweE7SwlgsTkK_aPh26r0s0KASW0",
+            "keys": {
+              "auth": "OBbHIUoVwJs3qRU5TX8BjA",
+              "p256dh": "BC4GQhq2A3sQ9Jf1DAU8v4oM5VgqQoUCGXzrwIwUu3Tw-7xAF6e2J4TATTzRfXJMTQBRWnItRPHg7ds8Bonbvms"
+            },
+            "subscribedAt": "2026-06-20T11:32:34.279Z",
+            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1"
+          }
+        ]
       }
     ],
     "registrations": [
