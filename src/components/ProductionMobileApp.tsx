@@ -3,6 +3,7 @@ import {
   BriefcaseBusiness,
   Camera,
   CheckCircle2,
+  ChevronRight,
   ClipboardList,
   Clock3,
   Copy,
@@ -494,12 +495,12 @@ export function ProductionMobileApp({
     .join(" ");
   const pushButtonLabel =
     notificationPermission === "unsupported"
-      ? "Уведомления недоступны"
+      ? "Push недоступны"
       : notificationPermission === "granted" && PUSH_PUBLIC_KEY
         ? "Push включены"
         : notificationPermission === "granted"
-          ? "Подключить push"
-          : "Включить push";
+          ? "Push-уведомления"
+          : "Push-уведомления";
 
   useEffect(() => {
     if (currentAccessRole !== "maker" || notificationPermission !== "granted") return;
@@ -2233,9 +2234,9 @@ export function ProductionMobileApp({
           >
             <span className="worker-tab-glider" aria-hidden="true" style={workerTabGliderStyle} />
             <div className="worker-tab-rail">
-              <WorkerTabButton active={workerTab === "assigned"} count={workerDealTabAssignments.assigned.length} label="Назначенные сделки" onClick={() => selectWorkerDealTab("assigned")} />
-              <WorkerTabButton active={workerTab === "inProgress"} count={workerDealTabAssignments.inProgress.length} label="Сделки в работе" onClick={() => selectWorkerDealTab("inProgress")} />
-              <WorkerTabButton active={workerTab === "ready"} count={workerDealTabAssignments.ready.length} label="Готовые сделки" onClick={() => selectWorkerDealTab("ready")} />
+              <WorkerTabButton active={workerTab === "assigned"} count={workerDealTabAssignments.assigned.length} label="Новые" onClick={() => selectWorkerDealTab("assigned")} />
+              <WorkerTabButton active={workerTab === "inProgress"} count={workerDealTabAssignments.inProgress.length} label="Работа" onClick={() => selectWorkerDealTab("inProgress")} />
+              <WorkerTabButton active={workerTab === "ready"} count={workerDealTabAssignments.ready.length} label="Готово" onClick={() => selectWorkerDealTab("ready")} />
             </div>
           </div>
 
@@ -2824,7 +2825,8 @@ function WorkerProfile({
                 <div className="worker-profile-menu">
                 <label>
                   <Camera size={16} />
-                  Сменить фото
+                  <span>Фото</span>
+                  <ChevronRight className="worker-menu-chevron" size={16} />
                   <input
                     accept="image/*"
                     onChange={(event) => {
@@ -2836,29 +2838,32 @@ function WorkerProfile({
                 </label>
                 <button onClick={onPasswordClick} type="button">
                   <KeyRound size={16} />
-                  Сменить пароль
+                  <span>Пароль</span>
+                  <ChevronRight className="worker-menu-chevron" size={16} />
                 </button>
                 <button onClick={onGalleryClick} type="button">
                   <Images size={16} />
-                  Галерея работ
+                  <span>Галерея работ</span>
                   {galleryCount ? <em>{galleryCount}</em> : null}
+                  <ChevronRight className="worker-menu-chevron" size={16} />
                 </button>
                 <button onClick={onMoneyClick} type="button">
                   <Wallet size={16} />
-                  Выплаты и баланс
+                  <span>Выплаты</span>
+                  <ChevronRight className="worker-menu-chevron" size={16} />
                 </button>
                 <button disabled={notificationDisabled} onClick={onEnableNotifications} type="button">
                   <Bell size={16} />
-                  {notificationLabel}
+                  <span>{notificationLabel}</span>
                 </button>
                 <button onClick={onToggleTheme} type="button">
                   {theme === "night" ? <Sun size={16} /> : <Moon size={16} />}
-                  {theme === "night" ? "Дневная тема" : "Ночная тема"}
+                  <span>{theme === "night" ? "Светлая тема" : "Тёмная тема"}</span>
                 </button>
                 {onLogout ? (
-                  <button onClick={onLogout} type="button">
+                  <button className="worker-menu-danger" onClick={onLogout} type="button">
                     <LogOut size={16} />
-                    Выйти
+                    <span>Выйти</span>
                   </button>
                 ) : null}
                 </div>

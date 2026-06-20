@@ -10621,6 +10621,11 @@ textarea {
 
 .production-thumb.empty {
   contain: paint;
+  overflow: hidden;
+}
+
+.production-thumb.empty svg {
+  max-width: 70%;
 }
 
 @media (max-width: 1180px) {
@@ -11287,5 +11292,427 @@ textarea {
   .stage-tabs button,
   .deal-list .stage-tabs button {
     flex: 1 1 calc(50% - 4px);
+  }
+}
+
+/* Mobile worker UI polish: lighter, settings-like visual rhythm. */
+@media (max-width: 768px) {
+  .production-mobile {
+    font-family: var(--font-family-base, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif);
+    font-size: 15px;
+    line-height: 1.3;
+  }
+
+  .production-mobile svg {
+    stroke-width: 1.9;
+  }
+
+  .production-mobile .production-deal-card.compact {
+    border-color: rgba(15, 23, 42, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
+  }
+
+  .production-mobile .production-deal-summary {
+    gap: 9px;
+    padding: 8px 9px;
+  }
+
+  .production-mobile .production-card-title.compact-title h2 {
+    font-size: 16px;
+    font-weight: 550;
+    line-height: 1.18;
+  }
+
+  .production-mobile .production-card-title strong {
+    font-weight: 500;
+  }
+
+  .production-mobile .production-status {
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .production-mobile .production-compact-status > span:last-child {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.15;
+  }
+
+  .production-worker-view {
+    gap: 10px;
+    max-width: none;
+  }
+
+  .worker-mobile-brand {
+    min-height: 32px;
+    padding-top: 2px;
+  }
+
+  .worker-mobile-brand img {
+    width: min(132px, 38vw);
+    max-height: 22px;
+  }
+
+  .worker-profile {
+    grid-template-columns: 68px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    border-color: rgba(15, 23, 42, 0.08);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--surface) 96%, white);
+    padding: 14px;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+  }
+
+  .worker-avatar {
+    width: 68px;
+    height: 68px;
+    border-width: 1px;
+    border-color: color-mix(in srgb, var(--accent) 22%, var(--border-soft));
+    background: color-mix(in srgb, var(--accent-soft) 45%, var(--surface));
+    color: var(--accent-strong);
+    font-size: 22px;
+    font-weight: 600;
+  }
+
+  .worker-profile-main {
+    gap: 4px;
+  }
+
+  .worker-profile-title {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .worker-profile-main h2 {
+    font-size: 23px;
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: 0;
+  }
+
+  .worker-profile-title span {
+    color: var(--text-soft);
+    font-size: 15px;
+    font-weight: 450;
+    line-height: 1.2;
+  }
+
+  .worker-profile-actions {
+    gap: 6px;
+  }
+
+  .worker-notification-badge,
+  .worker-profile-menu-trigger {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    border-radius: 50%;
+    padding: 0;
+    font-weight: 500;
+  }
+
+  .worker-profile-menu-trigger,
+  .production-mobile .worker-profile-menu-trigger {
+    border-color: rgba(15, 23, 42, 0.12);
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .worker-notification-badge {
+    border-color: color-mix(in srgb, var(--accent) 34%, var(--border-soft));
+    background: color-mix(in srgb, var(--accent-soft) 48%, var(--surface));
+    color: var(--accent-strong);
+  }
+
+  .worker-notification-badge span {
+    top: -3px;
+    right: -3px;
+    min-width: 17px;
+    height: 17px;
+    border-width: 2px;
+    padding: 0 4px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .worker-profile-actions svg,
+  .worker-profile-menu svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 1.9;
+  }
+
+  .worker-profile-menu {
+    right: 0;
+    left: auto;
+    width: min(320px, calc(100vw - 32px));
+    max-height: min(72vh, 520px);
+    overflow-y: auto;
+    gap: 0;
+    border-color: rgba(15, 23, 42, 0.1);
+    border-radius: 18px;
+    padding: 8px;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+  }
+
+  .worker-profile-menu button,
+  .worker-profile-menu label,
+  .production-mobile .worker-profile-menu button,
+  .production-mobile .worker-profile-menu label {
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: 54px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    padding: 0 10px;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 450;
+    line-height: 1.2;
+    box-shadow: none;
+  }
+
+  .worker-profile-menu button > span,
+  .worker-profile-menu label > span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .worker-profile-menu button:hover,
+  .worker-profile-menu label:hover,
+  .worker-profile-menu button:active,
+  .worker-profile-menu label:active {
+    background: color-mix(in srgb, var(--accent-soft) 42%, var(--surface-soft));
+    color: var(--text);
+  }
+
+  .worker-profile-menu button:disabled {
+    opacity: 0.48;
+  }
+
+  .worker-profile-menu button em {
+    min-width: 22px;
+    height: 20px;
+    margin-left: auto;
+    background: var(--surface-muted);
+    color: var(--text-soft);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .worker-menu-chevron {
+    flex: 0 0 auto;
+    margin-left: auto;
+    color: var(--text-soft);
+    opacity: 0.72;
+  }
+
+  .worker-menu-danger {
+    color: var(--danger) !important;
+  }
+
+  .production-notification {
+    border-color: color-mix(in srgb, var(--accent) 20%, var(--border-soft));
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--accent-soft) 54%, var(--surface));
+    padding: 11px 12px;
+    color: var(--accent-strong);
+    font-size: 14px;
+    font-weight: 450;
+    line-height: 1.28;
+  }
+
+  .worker-tabs {
+    min-height: 48px;
+    border-color: rgba(15, 23, 42, 0.08);
+    border-radius: 16px;
+    background: var(--surface);
+    padding: 4px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.035);
+  }
+
+  .worker-tab-rail {
+    gap: 4px;
+  }
+
+  .worker-tabs button,
+  .worker-tabs button.active,
+  .production-mobile .worker-tabs button {
+    min-height: 40px;
+    border-radius: 12px;
+    padding: 4px 8px;
+    color: var(--text-secondary);
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.12;
+  }
+
+  .worker-tabs button.active {
+    color: #fff;
+  }
+
+  .worker-tabs button strong {
+    font-weight: 500;
+  }
+
+  .worker-tabs button span {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  .production-worker-view .production-deal-list {
+    gap: 8px;
+  }
+
+  .production-worker-view .production-deal-card.compact {
+    border-color: rgba(15, 23, 42, 0.08);
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.035);
+  }
+
+  .production-deal-summary.worker-summary {
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    gap: 9px;
+    padding: 8px 9px;
+  }
+
+  .production-worker-view .production-thumb {
+    width: 52px;
+    height: 42px;
+    border-radius: 11px;
+  }
+
+  .production-compact-info {
+    gap: 4px;
+  }
+
+  .production-worker-view .production-card-title.compact-title h2 {
+    font-size: 16px;
+    font-weight: 550;
+    line-height: 1.18;
+  }
+
+  .production-compact-meta {
+    gap: 4px;
+  }
+
+  .production-worker-view .production-compact-meta span,
+  .production-compact-meta span {
+    max-width: 100%;
+    padding: 5px 8px;
+    font-size: 13px;
+    font-weight: 450;
+    line-height: 1;
+  }
+
+  .production-worker-view .production-compact-status {
+    min-width: 70px;
+    gap: 4px;
+  }
+
+  .production-deadline-chip {
+    padding: 5px 8px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .production-worker-view .production-status {
+    padding: 5px 8px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .production-compact-status > span:last-child {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.15;
+  }
+
+  .production-row-actions button,
+  .production-mobile .production-row-actions button,
+  .worker-password-panel .primary,
+  .worker-password-panel .secondary {
+    min-height: 44px;
+    border-radius: 13px;
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .worker-money-grid span,
+  .worker-profile-stats span {
+    font-size: 13px;
+    font-weight: 450;
+    line-height: 1.25;
+  }
+
+  .worker-money-grid strong,
+  .worker-profile-stats strong {
+    font-size: 17px;
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 430px) {
+  .worker-profile {
+    grid-template-columns: 62px minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .worker-avatar {
+    width: 62px;
+    height: 62px;
+  }
+
+  .worker-profile-main h2 {
+    font-size: 22px;
+  }
+
+  .worker-profile-title span {
+    font-size: 15px;
+  }
+
+  .worker-profile-actions {
+    gap: 5px;
+  }
+
+  .worker-notification-badge,
+  .worker-profile-menu-trigger {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+  }
+
+  .worker-profile-menu {
+    width: min(312px, calc(100vw - 28px));
+  }
+
+  .production-deal-summary.worker-summary {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .production-worker-view .production-thumb {
+    width: 48px;
+    height: 40px;
+  }
+
+  .production-worker-view .production-compact-status {
+    grid-column: 1 / -1;
+    grid-template-columns: auto minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .production-worker-view .production-compact-status > span:last-child {
+    justify-self: end;
   }
 }
