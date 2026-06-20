@@ -184,7 +184,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-20T05:32:33.423Z",
+    "generatedAt": "2026-06-20T05:56:00.226Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -247,6 +247,17 @@
         "active": true,
         "createdAt": "2026-06-19T16:12:15.877Z",
         "pinHash": "aaa8003e820e1382478c1c7f125eabcbe4ca05416f55ef6954e9ca18c3fed1a2"
+      },
+      {
+        "id": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
+        "name": "Семен",
+        "login": "123",
+        "role": "maker",
+        "accessRole": "maker",
+        "phone": "",
+        "active": true,
+        "createdAt": "2026-06-20T05:56:00.225Z",
+        "pinHash": "58b8cd44c3704cb38bf5ee6532041c7e9c3f9603db084b5ba0709266f809eb13"
       }
     ],
     "registrations": [
