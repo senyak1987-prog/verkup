@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-20T05:35:41.940Z",
+  "generatedAt": "2026-06-20T05:36:01.331Z",
   "specs": [
     {
       "dealId": "16888",
@@ -157,7 +157,29 @@
         "globalNote": "",
         "items": [
           {
-            "id": "4fa977dc-8c8f-445f-b600-69a5286f400c",
+            "id": "acd4eefb-c159-4db1-9612-df72dcda7c6d",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          },
+          {
+            "id": "27962919-94eb-4601-a3c0-55c640c87f22",
             "templateId": "letters",
             "attachments": [],
             "workCostPositionIds": [],
@@ -180,7 +202,7 @@
           }
         ]
       },
-      "updatedAt": "2026-06-20T05:35:41.939Z"
+      "updatedAt": "2026-06-20T05:36:01.331Z"
     }
   ],
   "__production": {
