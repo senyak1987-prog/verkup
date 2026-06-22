@@ -184,7 +184,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-22T11:48:07.883Z",
+    "generatedAt": "2026-06-22T11:48:15.178Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -369,7 +369,18 @@
             "actor": "Семен"
           }
         ],
-        "startedAt": "2026-06-22T11:48:07.882Z"
+        "startedAt": "2026-06-22T11:48:07.882Z",
+        "completion": {
+          "diodeCount": 0,
+          "diodeCatalogId": "lighting-demiled-promo-strip-2835-60led-s-shape-ip33-white",
+          "diodeCatalogTitle": "Светодиодная лента 2835 60LED/m S-образная IP33 12V White (10м)",
+          "powerSupply": "",
+          "powerSupplyCatalogId": "",
+          "powerSupplyCatalogTitle": "",
+          "noPowerSupply": false,
+          "note": "",
+          "photos": []
+        }
       },
       {
         "id": "702e0144-c404-4ad7-9505-36d2de823f8c",
