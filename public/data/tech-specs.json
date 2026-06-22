@@ -184,7 +184,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-22T11:48:15.178Z",
+    "generatedAt": "2026-06-22T11:48:18.036Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -372,8 +372,8 @@
         "startedAt": "2026-06-22T11:48:07.882Z",
         "completion": {
           "diodeCount": 0,
-          "diodeCatalogId": "lighting-demiled-promo-strip-2835-60led-s-shape-ip33-white",
-          "diodeCatalogTitle": "Светодиодная лента 2835 60LED/m S-образная IP33 12V White (10м)",
+          "diodeCatalogId": "lighting-demiled-promo-module-b2-2835-2-1w-ip65",
+          "diodeCatalogTitle": "Светодиодный модуль линзованный Demiled Premium B2 175° 2835-2 1W IP65 12V CW, PW",
           "powerSupply": "",
           "powerSupplyCatalogId": "",
           "powerSupplyCatalogTitle": "",
