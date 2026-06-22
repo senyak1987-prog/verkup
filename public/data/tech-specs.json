@@ -184,7 +184,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-22T06:25:25.222Z",
+    "generatedAt": "2026-06-22T06:25:46.129Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -333,7 +333,18 @@
             "actor": "Семен"
           }
         ],
-        "startedAt": "2026-06-22T06:25:25.219Z"
+        "startedAt": "2026-06-22T06:25:25.219Z",
+        "completion": {
+          "diodeCount": 0,
+          "diodeCatalogId": "",
+          "diodeCatalogTitle": "",
+          "powerSupply": "",
+          "powerSupplyCatalogId": "",
+          "powerSupplyCatalogTitle": "",
+          "noPowerSupply": false,
+          "note": "",
+          "photos": []
+        }
       },
       {
         "id": "702e0144-c404-4ad7-9505-36d2de823f8c",
