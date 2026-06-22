@@ -184,7 +184,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-22T11:48:23.091Z",
+    "generatedAt": "2026-06-22T11:48:25.600Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -374,9 +374,9 @@
           "diodeCount": 140,
           "diodeCatalogId": "lighting-demiled-promo-module-b2-2835-2-1w-ip65",
           "diodeCatalogTitle": "Светодиодный модуль линзованный Demiled Premium B2 175° 2835-2 1W IP65 12V CW, PW",
-          "powerSupply": "",
-          "powerSupplyCatalogId": "",
-          "powerSupplyCatalogTitle": "",
+          "powerSupply": "Блок питания LIGHT 100W 12V IP20",
+          "powerSupplyCatalogId": "lighting-demiled-promo-light-100w-12v-ip20",
+          "powerSupplyCatalogTitle": "Блок питания LIGHT 100W 12V IP20",
           "noPowerSupply": false,
           "note": "",
           "photos": []
