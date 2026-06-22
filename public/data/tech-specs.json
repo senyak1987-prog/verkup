@@ -184,7 +184,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-22T11:44:07.585Z",
+    "generatedAt": "2026-06-22T11:44:56.691Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -249,6 +249,28 @@
         "pinHash": "aaa8003e820e1382478c1c7f125eabcbe4ca05416f55ef6954e9ca18c3fed1a2"
       },
       {
+        "id": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
+        "name": "Семен",
+        "login": "123",
+        "role": "maker",
+        "accessRole": "maker",
+        "phone": "",
+        "active": true,
+        "createdAt": "2026-06-20T05:56:00.225Z",
+        "pinHash": "58b8cd44c3704cb38bf5ee6532041c7e9c3f9603db084b5ba0709266f809eb13",
+        "pushSubscriptions": [
+          {
+            "endpoint": "https://web.push.apple.com/QA3Z1Jorq7LWv-GbfkK5Ur86nHDB9NfzOmUubPjvg_2Q2mPREGFNsjTBJcvtCVABmd-AtPVaQiOki6jGF8gZm1JMh98gK6sVrkagqMktTCeJ8oskleyJ3hGNZXiU25MDl2A-lgF0wtBw61rXweE7SwlgsTkK_aPh26r0s0KASW0",
+            "keys": {
+              "auth": "OBbHIUoVwJs3qRU5TX8BjA",
+              "p256dh": "BC4GQhq2A3sQ9Jf1DAU8v4oM5VgqQoUCGXzrwIwUu3Tw-7xAF6e2J4TATTzRfXJMTQBRWnItRPHg7ds8Bonbvms"
+            },
+            "subscribedAt": "2026-06-20T11:32:34.279Z",
+            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1"
+          }
+        ]
+      },
+      {
         "id": "b00155ce-475d-420a-bfe9-8929107ab4e7",
         "name": "Семен",
         "login": "123",
@@ -258,17 +280,6 @@
         "active": true,
         "createdAt": "2026-06-19T19:33:44.872Z",
         "pinHash": "62f113b3150608685c8cfc1a0943861093e48f8d5722a5488bab2996515a8ff9"
-      },
-      {
-        "id": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
-        "name": "Семен",
-        "login": "123",
-        "role": "maker",
-        "accessRole": "maker",
-        "phone": "",
-        "active": true,
-        "createdAt": "2026-06-20T05:56:00.225Z",
-        "pinHash": "58b8cd44c3704cb38bf5ee6532041c7e9c3f9603db084b5ba0709266f809eb13"
       }
     ],
     "registrations": [
@@ -311,6 +322,60 @@
     ],
     "assignments": [
       {
+        "id": "45de885b-8fad-4fd3-94ac-18c1c7567a48",
+        "dealId": "16874",
+        "employeeId": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
+        "status": "inProgress",
+        "assignedAt": "2026-06-20T05:59:31.725Z",
+        "assignedBy": "Руководитель",
+        "notificationText": "Вам назначили на сборку изделие #16874: Тест",
+        "history": [
+          {
+            "id": "0c378a03-94a8-4fe3-ab13-c8c3763420a5",
+            "type": "assigned",
+            "at": "2026-06-20T05:59:31.725Z",
+            "actor": "Руководитель",
+            "note": "Семен"
+          },
+          {
+            "id": "990d535f-c40e-4a7c-89d8-1f2be77af6a3",
+            "type": "started",
+            "at": "2026-06-22T06:25:25.222Z",
+            "actor": "Семен"
+          }
+        ],
+        "startedAt": "2026-06-22T06:25:25.219Z",
+        "completion": {
+          "diodeCount": 140,
+          "diodeCatalogId": "lighting-demiled-promo-module-b2-2835-2-1w-ip65",
+          "diodeCatalogTitle": "Светодиодный модуль линзованный Demiled Premium B2 175° 2835-2 1W IP65 12V CW, PW",
+          "powerSupply": "Блок питания LIGHT 100W 12V IP20",
+          "powerSupplyCatalogId": "lighting-demiled-promo-light-100w-12v-ip20",
+          "powerSupplyCatalogTitle": "Блок питания LIGHT 100W 12V IP20",
+          "noPowerSupply": false,
+          "note": "",
+          "photos": []
+        }
+      },
+      {
+        "id": "702e0144-c404-4ad7-9505-36d2de823f8c",
+        "dealId": "16888",
+        "employeeId": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
+        "status": "assigned",
+        "assignedAt": "2026-06-20T05:59:35.073Z",
+        "assignedBy": "Руководитель",
+        "notificationText": "Вам назначили на сборку изделие #16888: Тест 2",
+        "history": [
+          {
+            "id": "7d0bd289-852d-461f-9779-213946ce7b7f",
+            "type": "assigned",
+            "at": "2026-06-20T05:59:35.073Z",
+            "actor": "Руководитель",
+            "note": "Семен"
+          }
+        ]
+      },
+      {
         "id": "db9df12c-ac27-441f-ab30-36e1b5c9bec6",
         "dealId": "16874",
         "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
@@ -347,47 +412,11 @@
         ]
       },
       {
-        "id": "45de885b-8fad-4fd3-94ac-18c1c7567a48",
-        "dealId": "16874",
-        "employeeId": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
-        "status": "assigned",
-        "assignedAt": "2026-06-20T05:59:31.725Z",
-        "assignedBy": "Руководитель",
-        "notificationText": "Вам назначили на сборку изделие #16874: Тест",
-        "history": [
-          {
-            "id": "0c378a03-94a8-4fe3-ab13-c8c3763420a5",
-            "type": "assigned",
-            "at": "2026-06-20T05:59:31.725Z",
-            "actor": "Руководитель",
-            "note": "Семен"
-          }
-        ]
-      },
-      {
-        "id": "702e0144-c404-4ad7-9505-36d2de823f8c",
-        "dealId": "16888",
-        "employeeId": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
-        "status": "assigned",
-        "assignedAt": "2026-06-20T05:59:35.073Z",
-        "assignedBy": "Руководитель",
-        "notificationText": "Вам назначили на сборку изделие #16888: Тест 2",
-        "history": [
-          {
-            "id": "7d0bd289-852d-461f-9779-213946ce7b7f",
-            "type": "assigned",
-            "at": "2026-06-20T05:59:35.073Z",
-            "actor": "Руководитель",
-            "note": "Семен"
-          }
-        ]
-      },
-      {
         "id": "7f26fbeb-112b-4fc6-86c3-86ea6cdf05a8",
         "dealId": "16976",
         "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
         "status": "assigned",
-        "assignedAt": "2026-06-22T11:44:07.585Z",
+        "assignedAt": "2026-06-22T11:44:05.305Z",
         "assignedBy": "Руководитель",
         "notificationText": "Вам назначили на сборку изделие #16976: 8854 Декорацца Лобачевского 92к3. Допник 5 (жду подтверждение технологии)",
         "history": [
@@ -395,13 +424,6 @@
             "id": "3c437025-5e6e-4712-97a6-77efee6acb35",
             "type": "assigned",
             "at": "2026-06-22T11:44:05.305Z",
-            "actor": "Руководитель",
-            "note": "Семен"
-          },
-          {
-            "id": "92890b42-93e4-4462-add8-99ae3a938f4e",
-            "type": "assigned",
-            "at": "2026-06-22T11:44:07.585Z",
             "actor": "Руководитель",
             "note": "Семен"
           }
