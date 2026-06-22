@@ -184,7 +184,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-22T06:26:52.778Z",
+    "generatedAt": "2026-06-22T06:28:10.561Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -249,6 +249,17 @@
         "pinHash": "aaa8003e820e1382478c1c7f125eabcbe4ca05416f55ef6954e9ca18c3fed1a2"
       },
       {
+        "id": "b00155ce-475d-420a-bfe9-8929107ab4e7",
+        "name": "Семен",
+        "login": "123",
+        "role": "maker",
+        "accessRole": "maker",
+        "phone": "",
+        "active": true,
+        "createdAt": "2026-06-19T19:33:44.872Z",
+        "pinHash": "62f113b3150608685c8cfc1a0943861093e48f8d5722a5488bab2996515a8ff9"
+      },
+      {
         "id": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
         "name": "Семен",
         "login": "123",
@@ -257,18 +268,7 @@
         "phone": "",
         "active": true,
         "createdAt": "2026-06-20T05:56:00.225Z",
-        "pinHash": "58b8cd44c3704cb38bf5ee6532041c7e9c3f9603db084b5ba0709266f809eb13",
-        "pushSubscriptions": [
-          {
-            "endpoint": "https://web.push.apple.com/QA3Z1Jorq7LWv-GbfkK5Ur86nHDB9NfzOmUubPjvg_2Q2mPREGFNsjTBJcvtCVABmd-AtPVaQiOki6jGF8gZm1JMh98gK6sVrkagqMktTCeJ8oskleyJ3hGNZXiU25MDl2A-lgF0wtBw61rXweE7SwlgsTkK_aPh26r0s0KASW0",
-            "keys": {
-              "auth": "OBbHIUoVwJs3qRU5TX8BjA",
-              "p256dh": "BC4GQhq2A3sQ9Jf1DAU8v4oM5VgqQoUCGXzrwIwUu3Tw-7xAF6e2J4TATTzRfXJMTQBRWnItRPHg7ds8Bonbvms"
-            },
-            "subscribedAt": "2026-06-20T11:32:34.279Z",
-            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1"
-          }
-        ]
+        "pinHash": "58b8cd44c3704cb38bf5ee6532041c7e9c3f9603db084b5ba0709266f809eb13"
       }
     ],
     "registrations": [
@@ -311,10 +311,46 @@
     ],
     "assignments": [
       {
+        "id": "db9df12c-ac27-441f-ab30-36e1b5c9bec6",
+        "dealId": "16874",
+        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
+        "status": "assigned",
+        "assignedAt": "2026-06-19T20:03:15.711Z",
+        "assignedBy": "Руководитель",
+        "notificationText": "Вам назначили на сборку изделие #16874: Тест",
+        "history": [
+          {
+            "id": "2a27471c-5a1d-4825-94f7-74ec50784222",
+            "type": "assigned",
+            "at": "2026-06-19T20:03:15.711Z",
+            "actor": "Руководитель",
+            "note": "Семен"
+          }
+        ]
+      },
+      {
+        "id": "77ac0d0a-a2e7-45f3-960e-50a038727427",
+        "dealId": "16888",
+        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
+        "status": "assigned",
+        "assignedAt": "2026-06-19T20:05:36.837Z",
+        "assignedBy": "Руководитель",
+        "notificationText": "Вам назначили на сборку изделие #16888: Тест 2",
+        "history": [
+          {
+            "id": "3cc1b8c9-0578-4f39-bdd0-826e49dc0adc",
+            "type": "assigned",
+            "at": "2026-06-19T20:05:36.837Z",
+            "actor": "Руководитель",
+            "note": "Семен"
+          }
+        ]
+      },
+      {
         "id": "45de885b-8fad-4fd3-94ac-18c1c7567a48",
         "dealId": "16874",
         "employeeId": "13d9cb36-5907-4b1d-8528-d44072ef0e7e",
-        "status": "inProgress",
+        "status": "assigned",
         "assignedAt": "2026-06-20T05:59:31.725Z",
         "assignedBy": "Руководитель",
         "notificationText": "Вам назначили на сборку изделие #16874: Тест",
@@ -325,26 +361,8 @@
             "at": "2026-06-20T05:59:31.725Z",
             "actor": "Руководитель",
             "note": "Семен"
-          },
-          {
-            "id": "990d535f-c40e-4a7c-89d8-1f2be77af6a3",
-            "type": "started",
-            "at": "2026-06-22T06:25:25.222Z",
-            "actor": "Семен"
           }
-        ],
-        "startedAt": "2026-06-22T06:25:25.219Z",
-        "completion": {
-          "diodeCount": 140,
-          "diodeCatalogId": "lighting-demiled-promo-module-b2-2835-2-1w-ip65",
-          "diodeCatalogTitle": "Светодиодный модуль линзованный Demiled Premium B2 175° 2835-2 1W IP65 12V CW, PW",
-          "powerSupply": "",
-          "powerSupplyCatalogId": "",
-          "powerSupplyCatalogTitle": "",
-          "noPowerSupply": false,
-          "note": "",
-          "photos": []
-        }
+        ]
       },
       {
         "id": "702e0144-c404-4ad7-9505-36d2de823f8c",
@@ -365,6 +383,21 @@
         ]
       }
     ],
-    "payouts": []
+    "payouts": [
+      {
+        "id": "ef07243f-c4f0-4523-abfa-bdc6c8f280f9",
+        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
+        "amount": 10000,
+        "paidAt": "2026-06-22T06:27:19.645Z",
+        "paidBy": "leader-semen"
+      },
+      {
+        "id": "00571040-deed-46b7-8cd8-e18c4db03190",
+        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
+        "amount": 10000,
+        "paidAt": "2026-06-22T06:28:10.561Z",
+        "paidBy": "leader-semen"
+      }
+    ]
   }
 }
