@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-22T11:46:58.962Z",
+  "generatedAt": "2026-06-23T19:52:31.495Z",
   "specs": [
     {
       "dealId": "16888",
@@ -181,6 +181,43 @@
         ]
       },
       "updatedAt": "2026-06-22T11:46:58.962Z"
+    },
+    {
+      "dealId": "16670",
+      "draft": {
+        "dealNumber": "16670",
+        "projectName": "Лужники печать гарантия",
+        "manager": "Николай Шляхтенко",
+        "responsiblePhone": "вн. 703",
+        "deadline": "2026-05-14",
+        "date": "2026-06-23",
+        "globalNote": "",
+        "items": [
+          {
+            "id": "1b19b218-56cf-4fe5-99d9-fc2d2f904d17",
+            "templateId": "letters",
+            "attachments": [],
+            "workCostPositionIds": [],
+            "fields": {
+              "name": "Вывеска",
+              "quantity": "1 шт",
+              "constructionType": "ОБЪЕМНЫЕ СВЕТОВЫЕ БУКВЫ",
+              "lightingType": "ЛИЦЕВОЕ",
+              "glowColor": "НЕЙТРАЛЬНОЕ",
+              "faceMaterial": "Молочный акрил 3 мм",
+              "sideMaterial": "Алюминий",
+              "backMaterial": "ПВХ Strong 6 мм",
+              "depth": "60 мм",
+              "returnSide": "НЕТ",
+              "mountType": "НА РАМЕ",
+              "wireExit": "ПОСЕРЕДИНЕ",
+              "psu": "УЛИЧНЫЙ",
+              "cableLength": "3 метра"
+            }
+          }
+        ]
+      },
+      "updatedAt": "2026-06-23T19:52:31.494Z"
     }
   ],
   "__production": {
@@ -221,21 +258,11 @@
         "name": "Иван",
         "login": "123",
         "role": "maker",
-        "accessRole": "none",
+        "accessRole": "maker",
         "phone": "",
-        "active": false,
+        "active": true,
         "createdAt": "2026-06-18T15:09:59.903Z",
-        "pushSubscriptions": [
-          {
-            "endpoint": "https://web.push.apple.com/QJvxRxeC98JPCcWgsKvu2nWOda_26B2wBeywe3C3sj7lK6GIspVNv-pyTwYW6jQSNkaSPwGJGNUbZjv9h3jTT57LYgWYGzs98YvMnFyfs5x0nMi1t8ezTxWt_3Pc4DOVIPa2PokKIz1HApMvsmLFBQ1_JSkmF3ehS1VQ_LFsDqI",
-            "keys": {
-              "auth": "ebDhOVbyCiw7Zk6w77-QKg",
-              "p256dh": "BNsZQggstZwTdoH2PciRbTNTQux9V7vuaQxwKdfJRDt9mDH271F7ZQLOeWoU3-EDhX9NPJEUZ3JUJ7FvVbnM-Lc"
-            },
-            "subscribedAt": "2026-06-19T16:45:21.981Z",
-            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1"
-          }
-        ]
+        "pinHash": "d5be3f9df5bf90dcb57a9c98a7e459c58194f920c2925661fec82dc0b3345fec"
       },
       {
         "id": "a1ff7e46-ca73-476c-9375-b1dcc34bc84b",
@@ -468,6 +495,7 @@
         "paidAt": "2026-06-22T06:28:10.561Z",
         "paidBy": "leader-semen"
       }
-    ]
+    ],
+    "notifications": []
   }
 }
