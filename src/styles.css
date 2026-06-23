@@ -12042,6 +12042,7 @@ textarea {
 }
 /* Installations */
 .installations-app {
+  padding-top: 8px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -12069,6 +12070,7 @@ textarea {
   display: flex;
   gap: 16px;
   justify-content: space-between;
+  padding: 10px 8px 8px 14px;
 }
 
 .installations-toolbar h1,
@@ -12103,6 +12105,8 @@ textarea {
   background: var(--surface, #fff);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
+  box-sizing: border-box;
+  min-height: 52px;
   padding: 4px;
 }
 
@@ -12117,7 +12121,7 @@ textarea {
   border-radius: 10px;
   color: var(--text-primary, #111827);
   font: inherit;
-  min-height: 36px;
+  min-height: 42px;
   min-width: 0;
 }
 
@@ -12129,6 +12133,63 @@ textarea {
 
 .installation-date-control input {
   padding: 0 8px;
+}
+
+.installation-view-switch {
+  align-items: center;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #d9e1ea);
+  border-radius: 12px;
+  box-sizing: border-box;
+  display: inline-flex;
+  gap: 2px;
+  max-width: 100%;
+  min-height: 52px;
+  min-width: 0;
+  padding: 4px;
+}
+
+.installation-view-switch button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text-secondary, #536174);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 520;
+  line-height: 1.15;
+  min-height: 42px;
+  min-width: 0;
+  padding: 0 13px;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  white-space: nowrap;
+}
+
+.installation-view-switch button:hover {
+  background: var(--surface-muted, #f4f7fb);
+  color: var(--text-primary, #111827);
+}
+
+.installation-view-switch button.active {
+  background: var(--primary, #f97316);
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.18);
+  color: #fff;
+}
+
+.installation-view-switch button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary, #f97316) 38%, transparent);
+  outline-offset: 2px;
+}
+
+.installations-toolbar-actions > .secondary.compact {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 14px;
 }
 
 .installations-filters {
@@ -12250,16 +12311,25 @@ textarea {
   padding: 9px;
 }
 
+.installation-map-item.selected {
+  background: color-mix(in srgb, var(--primary, #ff7900) 8%, var(--surface, #fff));
+  border-color: color-mix(in srgb, var(--primary, #ff7900) 46%, var(--border, #e5e7eb));
+}
+
 .installation-map-item label {
   align-items: start;
   display: grid;
   gap: 8px;
-  grid-template-columns: 18px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr);
   min-width: 0;
 }
 
 .installation-map-item input {
-  margin-top: 2px;
+  accent-color: var(--primary, #ff7900);
+  cursor: pointer;
+  height: 18px;
+  margin-top: 1px;
+  width: 18px;
 }
 
 .installation-map-item strong,
@@ -12530,13 +12600,15 @@ textarea {
 }
 
 .installation-scheduler {
+  --planner-row-height: 92px;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
   display: grid;
   grid-template-columns: 156px minmax(680px, 1fr);
   max-width: 100%;
   min-width: 0;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   position: relative;
 }
 
@@ -12572,7 +12644,8 @@ textarea {
 }
 
 .planner-hour-scale {
-  grid-template-columns: repeat(13, minmax(58px, 1fr));
+  grid-template-columns: repeat(var(--planner-hour-columns, 13), minmax(58px, 1fr));
+  min-width: var(--planner-hour-min-width, 680px);
 }
 
 .planner-day-scale {
@@ -12603,7 +12676,8 @@ textarea {
   display: grid;
   gap: 8px;
   grid-template-columns: 18px minmax(0, 1fr) auto;
-  min-height: 64px;
+  height: var(--planner-row-height, 92px);
+  min-height: var(--planner-row-height, 92px);
   padding: 9px 10px;
   position: sticky;
   left: 0;
@@ -12633,16 +12707,18 @@ textarea {
       rgba(148, 163, 184, 0.12) 0,
       rgba(148, 163, 184, 0.12) 1px,
       transparent 1px,
-      transparent calc(100% / 13)
+      transparent calc(100% / var(--planner-hour-columns, 13))
     ),
     #f3f6fa;
   border-bottom: 1px solid #fff;
-  min-height: 64px;
+  height: var(--planner-row-height, 92px);
+  min-height: var(--planner-row-height, 92px);
+  overflow: hidden;
   position: relative;
 }
 
 .planner-time-track {
-  min-width: 680px;
+  min-width: var(--planner-hour-min-width, 680px);
 }
 
 .planner-week-track {
@@ -12675,6 +12751,7 @@ textarea {
   display: grid;
   gap: 1px;
   min-width: 0;
+  overflow: hidden;
   padding: 7px 8px;
   text-align: left;
   transition: box-shadow 140ms ease, transform 140ms ease, border-color 140ms ease;
@@ -12694,11 +12771,13 @@ textarea {
 }
 
 .planner-job-bar {
+  bottom: 10px;
+  height: auto;
   left: var(--job-left, 0);
   max-width: calc(100% - var(--job-left, 0));
-  min-height: 48px;
+  min-height: 0;
   position: absolute;
-  top: 8px;
+  top: 10px;
   width: var(--job-width, 18%);
 }
 
@@ -12717,6 +12796,10 @@ textarea {
   color: var(--text-secondary, #64748b);
   font-size: 11px;
   line-height: 1.15;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .planner-job strong,
@@ -13042,21 +13125,42 @@ textarea {
   background: var(--surface, #fff);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 14px;
+  box-sizing: border-box;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
   bottom: 24px;
   max-height: calc(100dvh - 48px);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 16px;
   position: fixed;
   right: 24px;
+  scrollbar-gutter: stable;
   width: min(420px, calc(100vw - 48px));
   z-index: 30;
 }
 
 .installation-details-panel > .icon-button {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
+  height: 44px;
+  justify-content: center;
   position: absolute;
   right: 10px;
   top: 10px;
+  transform: none;
+  width: 44px;
+}
+
+.installation-details-panel > .icon-button:hover,
+.installation-details-panel > .icon-button:focus-visible {
+  transform: none;
+}
+
+.installation-details-panel .installation-card-actions,
+.installation-details-panel .installation-photo-grid {
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .installation-details-panel h2 {
@@ -13200,8 +13304,14 @@ textarea {
 
 .installations-mobile {
   background: #f5f6f8;
+  display: grid;
+  gap: 12px;
   min-height: 100dvh;
   padding: calc(env(safe-area-inset-top, 0px) + 14px) 12px calc(env(safe-area-inset-bottom, 0px) + 18px);
+}
+
+.installation-mobile-brand {
+  margin-bottom: -2px;
 }
 
 .installation-mobile-header {
@@ -13213,6 +13323,7 @@ textarea {
   gap: 12px;
   grid-template-columns: 58px minmax(0, 1fr) 44px 44px;
   padding: 12px;
+  position: relative;
 }
 
 .installation-mobile-header .worker-avatar {
@@ -13225,7 +13336,15 @@ textarea {
   font-weight: 600;
   height: 58px;
   justify-content: center;
+  overflow: hidden;
   width: 58px;
+}
+
+.installation-mobile-header .worker-avatar img,
+.installation-profile-summary .worker-avatar img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
 }
 
 .installation-mobile-header strong {
@@ -13238,8 +13357,9 @@ textarea {
   color: var(--text-secondary, #64748b);
 }
 
-.installation-mobile-header button,
-.installation-bell {
+.installation-mobile-header > button,
+.installation-bell,
+.installation-mobile-menu-trigger {
   align-items: center;
   background: #fff;
   border: 1px solid var(--border, #e5e7eb);
@@ -13249,6 +13369,15 @@ textarea {
   justify-content: center;
   position: relative;
   width: 44px;
+}
+
+.installation-mobile-menu-wrap {
+  justify-content: center;
+}
+
+.installation-mobile-menu {
+  right: -2px;
+  z-index: 80;
 }
 
 .installation-bell span {
@@ -13272,7 +13401,7 @@ textarea {
   border-radius: 16px;
   display: grid;
   gap: 4px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 4px;
 }
 
@@ -13302,6 +13431,170 @@ textarea {
   font-size: 12px;
   min-width: 22px;
   padding: 2px 6px;
+}
+
+.installation-mobile-controls {
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 16px;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.installation-mobile-date,
+.installation-mobile-search {
+  align-items: center;
+  border: 1px solid var(--border, #dbe4ef);
+  border-radius: 14px;
+  display: grid;
+  min-width: 0;
+}
+
+.installation-mobile-date {
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+}
+
+.installation-mobile-date button {
+  background: transparent;
+  border: 0;
+  color: var(--text-primary, #111827);
+  font-size: 16px;
+  min-height: 44px;
+}
+
+.installation-mobile-date input,
+.installation-mobile-search input {
+  border: 0;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+}
+
+.installation-mobile-search {
+  grid-template-columns: 42px minmax(0, 1fr);
+}
+
+.installation-mobile-search svg {
+  color: var(--text-secondary, #64748b);
+  justify-self: center;
+}
+
+.installation-mobile-profile {
+  display: grid;
+  gap: 12px;
+}
+
+.installation-profile-summary,
+.installation-profile-stats,
+.installation-profile-actions {
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 18px;
+}
+
+.installation-profile-summary {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 64px minmax(0, 1fr);
+  padding: 14px;
+}
+
+.installation-profile-summary .worker-avatar {
+  align-items: center;
+  background: rgba(255, 121, 0, 0.08);
+  border-radius: 50%;
+  color: var(--primary, #ff7900);
+  display: flex;
+  font-size: 21px;
+  font-weight: 600;
+  height: 64px;
+  justify-content: center;
+  overflow: hidden;
+  width: 64px;
+}
+
+.installation-profile-summary h2 {
+  font-size: 22px;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.installation-profile-summary span {
+  color: var(--text-secondary, #64748b);
+  display: block;
+  font-size: 15px;
+  margin-top: 3px;
+}
+
+.installation-profile-stats {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.installation-profile-stats div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.installation-profile-stats span {
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+}
+
+.installation-profile-stats strong {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.installation-profile-actions {
+  display: grid;
+  padding: 8px;
+}
+
+.installation-profile-actions button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  color: var(--text-primary, #111827);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  min-height: 54px;
+  padding: 0 10px;
+  text-align: left;
+}
+
+.installation-profile-actions button:hover,
+.installation-profile-actions button:active {
+  background: rgba(255, 121, 0, 0.08);
+}
+
+.installation-profile-actions span {
+  font-size: 16px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.installation-profile-actions em {
+  background: var(--surface-muted, #eef2f7);
+  border-radius: 999px;
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  font-style: normal;
+  padding: 2px 8px;
+}
+
+.installation-profile-actions .danger {
+  color: var(--danger, #dc2626);
 }
 
 .worker-installation-card {
@@ -13389,6 +13682,18 @@ textarea {
     grid-template-columns: 58px minmax(0, 1fr) 44px 44px;
   }
 
+  .installation-mobile-tabs {
+    display: flex;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .installation-mobile-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
   .installation-card-head {
     gap: 10px;
     grid-template-columns: 44px minmax(0, 1fr);
@@ -13400,7 +13705,9 @@ textarea {
   }
 
   .installation-mobile-tabs button {
+    flex: 0 0 auto;
     font-size: 14px;
+    min-width: 94px;
   }
 }
 
@@ -15052,6 +15359,16 @@ td,
   .installation-date-control input {
     width: 100%;
     min-width: 0;
+  }
+
+  .installation-view-switch {
+    width: 100%;
+  }
+
+  .installation-view-switch button {
+    flex: 1 1 0;
+    min-height: 40px;
+    padding: 0 8px;
   }
 
   .installations-filters {

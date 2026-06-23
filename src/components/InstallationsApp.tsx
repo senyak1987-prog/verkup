@@ -3,8 +3,12 @@ import {
   CalendarDays,
   Camera,
   CheckCircle2,
+  ChevronRight,
+  ClipboardList,
   Clock3,
+  LogOut,
   MapPin,
+  Menu,
   Navigation,
   Phone,
   Plus,
@@ -15,7 +19,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, RefObject, WheelEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   BitrixDealFile,
@@ -23,6 +27,7 @@ import type {
   DealTechSpec,
   Installation,
   InstallationNotification,
+  InstallationLocation,
   InstallationPhoto,
   InstallationPhotoType,
   InstallationStatus,
@@ -52,7 +57,7 @@ import {
 } from "../lib/saveApi";
 
 type InstallationViewMode = "day" | "week" | "month" | "list";
-type InstallationMobileTab = "today" | "all" | "notifications";
+type InstallationMobileTab = "today" | "all" | "notifications" | "profile";
 
 type InstallationCommitOptions = {
   saveNow?: boolean;
@@ -68,6 +73,7 @@ type InstallationsAppProps = {
   onChange: (data: StoredInstallations, options?: InstallationCommitOptions) => void;
   onOpenDeal?: (dealId: string, target: "cost" | "techSpec") => void;
   onRefresh?: () => Promise<void> | void;
+  onLogout?: () => void;
 };
 
 type InstallationFormState = {
@@ -94,10 +100,11 @@ type UploadState = {
 
 type InstallationMapPoint = {
   address: string;
+  coordinates?: [number, number];
   date?: string;
   dealId: string;
   id: string;
-  kind: "installation" | "readyDeal";
+  kind: "installation" | "readyDeal" | "installer";
   status: InstallationStatus | "ready";
   statusLabel: string;
   subtitle: string;
@@ -137,12 +144,10 @@ const statusFilterLabels: Record<InstallationStatus | "all" | "queue", string> =
   ...installationStatusLabels,
 };
 
-const plannerStartHour = 8;
-const plannerEndHour = 20;
-const plannerHourSlots = Array.from(
-  { length: plannerEndHour - plannerStartHour + 1 },
-  (_, index) => plannerStartHour + index,
-);
+const defaultPlannerHourRange = { start: 8, end: 20 };
+const minPlannerHour = 0;
+const maxPlannerHour = 24;
+const minPlannerHourSpan = 4;
 
 export function InstallationsApp({
   currentUser,
@@ -154,9 +159,11 @@ export function InstallationsApp({
   onChange,
   onOpenDeal,
   onRefresh,
+  onLogout,
 }: InstallationsAppProps) {
   const [dateKey, setDateKey] = useState(todayDateKey());
   const [viewMode, setViewMode] = useState<InstallationViewMode>("day");
+  const [plannerHourRange, setPlannerHourRange] = useState(defaultPlannerHourRange);
   const [mobileTab, setMobileTab] = useState<InstallationMobileTab>("today");
   const [query, setQuery] = useState("");
   const [installerFilter, setInstallerFilter] = useState("all");
@@ -167,6 +174,8 @@ export function InstallationsApp({
   const [toast, setToast] = useState("");
   const [uploadState, setUploadState] = useState<Record<string, UploadState>>({});
   const [routePointIds, setRoutePointIds] = useState<string[]>([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const installations = storedInstallations.installations || [];
   const notifications = storedInstallations.notifications || [];
@@ -232,20 +241,50 @@ export function InstallationsApp({
     () => buildInstallationMapPoints(filteredInstallations, readyDeals),
     [filteredInstallations, readyDeals],
   );
+  const plannerHourSlots = useMemo(() => buildPlannerHourSlots(plannerHourRange), [plannerHourRange]);
 
   useEffect(() => {
     setRoutePointIds((current) => current.filter((id) => mapPoints.some((point) => point.id === id)));
   }, [mapPoints]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const closeMenuOnOutsidePress = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Node && mobileMenuRef.current?.contains(target)) return;
+      setMobileMenuOpen(false);
+    };
+
+    document.addEventListener("pointerdown", closeMenuOnOutsidePress);
+    return () => document.removeEventListener("pointerdown", closeMenuOnOutsidePress);
+  }, [mobileMenuOpen]);
 
   if (isMobileInstaller) {
     const todayInstallations = filteredInstallations.filter((installation) => installationDateKey(installation.date) === dateKey);
     const list = mobileTab === "today" ? todayInstallations : filteredInstallations;
     return (
       <main className="installations-app installations-mobile" aria-label="Монтажи">
+        <div className="worker-mobile-brand installation-mobile-brand" aria-label="Verkup">
+          <span>
+            <img alt="Verkup" src={`${import.meta.env.BASE_URL}verkup-logo-vector.svg`} />
+          </span>
+        </div>
         <InstallationMobileHeader
           currentUser={currentUser}
+          menuOpen={mobileMenuOpen}
+          menuRef={mobileMenuRef}
           unreadCount={unreadNotifications.length}
-          onRefresh={() => void onRefresh?.()}
+          onLogout={onLogout}
+          onMenuToggle={() => setMobileMenuOpen((current) => !current)}
+          onRefresh={() => {
+            setMobileMenuOpen(false);
+            void onRefresh?.();
+          }}
+          onSelectTab={(tab) => {
+            setMobileTab(tab);
+            setMobileMenuOpen(false);
+          }}
         />
         <nav className="installation-mobile-tabs" aria-label="Разделы монтажника">
           <button className={mobileTab === "today" ? "active" : ""} onClick={() => setMobileTab("today")} type="button">
@@ -261,7 +300,28 @@ export function InstallationsApp({
           >
             Уведомления <span>{unreadNotifications.length}</span>
           </button>
+          <button className={mobileTab === "profile" ? "active" : ""} onClick={() => setMobileTab("profile")} type="button">
+            Профиль
+          </button>
         </nav>
+
+        {mobileTab === "today" || mobileTab === "all" ? (
+          <section className="installation-mobile-controls">
+            <div className="installation-mobile-date">
+              <button aria-label="Предыдущий день" onClick={() => shiftDate(-1)} type="button">←</button>
+              <input aria-label="Дата монтажей" type="date" value={dateKey} onChange={(event) => setDateKey(event.target.value)} />
+              <button aria-label="Следующий день" onClick={() => shiftDate(1)} type="button">→</button>
+            </div>
+            <label className="installation-mobile-search">
+              <Search size={18} />
+              <input
+                placeholder="Поиск по сделке, адресу"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+          </section>
+        ) : null}
 
         {toast ? <div className="installation-toast">{toast}</div> : null}
 
@@ -276,6 +336,16 @@ export function InstallationsApp({
               setSelectedInstallationId(id);
               setMobileTab("all");
             }}
+          />
+        ) : mobileTab === "profile" ? (
+          <InstallationMobileProfile
+            allCount={filteredInstallations.length}
+            currentUser={currentUser}
+            onLogout={onLogout}
+            onRefresh={() => void onRefresh?.()}
+            onSelectTab={setMobileTab}
+            todayCount={todayInstallations.length}
+            unreadCount={unreadNotifications.length}
           />
         ) : (
           <section className="installation-card-list">
@@ -317,7 +387,7 @@ export function InstallationsApp({
             <button onClick={() => shiftDate(1)} type="button">→</button>
             <button onClick={() => setDateKey(todayDateKey())} type="button">Сегодня</button>
           </div>
-          <div className="segmented compact">
+          <div className="installation-view-switch segmented compact" role="group" aria-label="Режим календаря монтажей">
             <button className={viewMode === "day" ? "active" : ""} onClick={() => setViewMode("day")} type="button">
               День
             </button>
@@ -406,9 +476,12 @@ export function InstallationsApp({
               dateKey={dateKey}
               installers={installers}
               installations={filteredInstallations}
+              plannerHourRange={plannerHourRange}
+              plannerHourSlots={plannerHourSlots}
               selectedInstallationId={selectedInstallationId}
               viewMode={viewMode}
               onEdit={(installation) => setEditing(formStateFromInstallation(installation))}
+              onWheel={handlePlannerWheel}
               onSelect={(installation) => setSelectedInstallationId(installation.id)}
             />
           ) : (
@@ -460,7 +533,7 @@ export function InstallationsApp({
           )
         }
         onRouteReset={() => setRoutePointIds([])}
-        onRouteSelectAll={() => setRoutePointIds(mapPoints.map((point) => point.id))}
+        onRouteSelectAll={() => setRoutePointIds(mapPoints.filter((point) => isRouteableMapPoint(point)).map((point) => point.id))}
       />
 
       {selectedInstallation ? (
@@ -495,6 +568,25 @@ export function InstallationsApp({
       return;
     }
     setDateKey(addDaysToDateKey(dateKey, viewMode === "week" ? offset * 7 : offset));
+  }
+
+  function handlePlannerWheel(event: WheelEvent<HTMLDivElement>) {
+    if (Math.abs(event.deltaY) < 1) return;
+    event.preventDefault();
+
+    if (viewMode === "day") {
+      setPlannerHourRange((current) => adjustPlannerHourRange(current, event.deltaY, event.shiftKey || event.altKey));
+      return;
+    }
+
+    if (viewMode === "week") {
+      setDateKey((current) => addDaysToDateKey(current, event.deltaY > 0 ? 7 : -7));
+      return;
+    }
+
+    if (viewMode === "month") {
+      setDateKey((current) => addMonthsToDateKey(current, event.deltaY > 0 ? 1 : -1));
+    }
   }
 
   async function handleSaveInstallation(state: InstallationFormState) {
@@ -540,17 +632,20 @@ export function InstallationsApp({
 
   async function handleStatusAction(installation: Installation, action: "start" | "arrive" | "complete" | "approve" | "return" | "cancel" | "no-installation", note?: string) {
     try {
+      const installerLocation =
+        action === "start" || action === "arrive" ? await getInstallerLocationSnapshot() : undefined;
       if (saveApiUrl) {
         const result = await changeInstallationStatus({ apiUrl: saveApiUrl }, installation.id, action, {
           actor: currentUser.name,
           actorId: currentUser.id,
+          installerLocation,
           note,
           resultComment: action === "complete" ? note : undefined,
           returnComment: action === "return" ? note : undefined,
         });
         onChange(result.data, { saveNow: true });
       } else {
-        onChange(updateLocalInstallationStatus(storedInstallations, installation.id, action, currentUser, note), { saveNow: true });
+        onChange(updateLocalInstallationStatus(storedInstallations, installation.id, action, currentUser, note, installerLocation), { saveNow: true });
       }
       showToast(statusActionSuccess(action));
     } catch (error) {
@@ -620,28 +715,162 @@ export function InstallationsApp({
 
 function InstallationMobileHeader({
   currentUser,
+  menuOpen,
+  menuRef,
   unreadCount,
+  onLogout,
+  onMenuToggle,
   onRefresh,
+  onSelectTab,
 }: {
   currentUser: ProductionEmployee;
+  menuOpen: boolean;
+  menuRef: RefObject<HTMLDivElement>;
   unreadCount: number;
+  onLogout?: () => void;
+  onMenuToggle: () => void;
   onRefresh: () => void;
+  onSelectTab: (tab: InstallationMobileTab) => void;
 }) {
   return (
     <header className="installation-mobile-header">
-      <div className="worker-avatar">{initialsFor(currentUser.name)}</div>
+      <div className="worker-avatar">
+        {currentUser.avatarDataUrl ? <img alt={currentUser.name} src={currentUser.avatarDataUrl} /> : initialsFor(currentUser.name)}
+      </div>
       <div>
         <strong>{currentUser.name}</strong>
         <span>Монтажник</span>
       </div>
-      <button aria-label="Обновить монтажи" onClick={onRefresh} type="button">
-        <RefreshCcw size={20} />
-      </button>
-      <div className="installation-bell" aria-label="Уведомления">
+      <button
+        aria-label="Уведомления"
+        className="installation-bell"
+        onClick={() => onSelectTab("notifications")}
+        type="button"
+      >
         <Bell size={20} />
         {unreadCount ? <span>{unreadCount}</span> : null}
+      </button>
+      <div className="worker-profile-menu-wrap installation-mobile-menu-wrap" ref={menuRef}>
+        <button
+          aria-expanded={menuOpen}
+          aria-label="Меню монтажника"
+          className="worker-profile-menu-trigger installation-mobile-menu-trigger"
+          onClick={onMenuToggle}
+          type="button"
+        >
+          <Menu size={22} />
+        </button>
+        {menuOpen ? (
+          <div className="worker-profile-menu installation-mobile-menu">
+            <button onClick={() => onSelectTab("today")} type="button">
+              <CalendarDays size={16} />
+              <span>Сегодня</span>
+              <ChevronRight className="worker-menu-chevron" size={16} />
+            </button>
+            <button onClick={() => onSelectTab("all")} type="button">
+              <ClipboardList size={16} />
+              <span>Все монтажи</span>
+              <ChevronRight className="worker-menu-chevron" size={16} />
+            </button>
+            <button onClick={() => onSelectTab("notifications")} type="button">
+              <Bell size={16} />
+              <span>Уведомления</span>
+              {unreadCount ? <em>{unreadCount}</em> : null}
+              <ChevronRight className="worker-menu-chevron" size={16} />
+            </button>
+            <button onClick={onRefresh} type="button">
+              <RefreshCcw size={16} />
+              <span>Обновить</span>
+            </button>
+            <button onClick={() => onSelectTab("profile")} type="button">
+              <UserRound size={16} />
+              <span>Профиль</span>
+              <ChevronRight className="worker-menu-chevron" size={16} />
+            </button>
+            {onLogout ? (
+              <button className="worker-menu-danger" onClick={onLogout} type="button">
+                <LogOut size={16} />
+                <span>Выйти</span>
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </header>
+  );
+}
+
+function InstallationMobileProfile({
+  allCount,
+  currentUser,
+  onLogout,
+  onRefresh,
+  onSelectTab,
+  todayCount,
+  unreadCount,
+}: {
+  allCount: number;
+  currentUser: ProductionEmployee;
+  onLogout?: () => void;
+  onRefresh: () => void;
+  onSelectTab: (tab: InstallationMobileTab) => void;
+  todayCount: number;
+  unreadCount: number;
+}) {
+  return (
+    <section className="installation-mobile-profile">
+      <div className="installation-profile-summary">
+        <div className="worker-avatar">
+          {currentUser.avatarDataUrl ? <img alt={currentUser.name} src={currentUser.avatarDataUrl} /> : initialsFor(currentUser.name)}
+        </div>
+        <div>
+          <h2>{currentUser.name}</h2>
+          <span>Монтажник</span>
+        </div>
+      </div>
+      <div className="installation-profile-stats">
+        <div>
+          <span>Сегодня</span>
+          <strong>{todayCount}</strong>
+        </div>
+        <div>
+          <span>Всего</span>
+          <strong>{allCount}</strong>
+        </div>
+        <div>
+          <span>Новые</span>
+          <strong>{unreadCount}</strong>
+        </div>
+      </div>
+      <div className="installation-profile-actions">
+        <button onClick={() => onSelectTab("today")} type="button">
+          <CalendarDays size={18} />
+          <span>Монтажи на день</span>
+          <ChevronRight size={17} />
+        </button>
+        <button onClick={() => onSelectTab("all")} type="button">
+          <ClipboardList size={18} />
+          <span>Все мои монтажи</span>
+          <ChevronRight size={17} />
+        </button>
+        <button onClick={() => onSelectTab("notifications")} type="button">
+          <Bell size={18} />
+          <span>Уведомления</span>
+          {unreadCount ? <em>{unreadCount}</em> : null}
+          <ChevronRight size={17} />
+        </button>
+        <button onClick={onRefresh} type="button">
+          <RefreshCcw size={18} />
+          <span>Обновить данные</span>
+        </button>
+        {onLogout ? (
+          <button className="danger" onClick={onLogout} type="button">
+            <LogOut size={18} />
+            <span>Выйти</span>
+          </button>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -671,8 +900,17 @@ function InstallationMapPanel({
   onRouteReset: () => void;
   onRouteSelectAll: () => void;
 }) {
-  const routePoints = points.filter((point) => routePointIds.includes(point.id));
-  const routeLink = buildYandexRouteLink(routePoints.length >= 2 ? routePoints : points.slice(0, 2));
+  const routeablePoints = points.filter(isRouteableMapPoint);
+  const installerPoints = points.filter((point) => point.kind === "installer");
+  const routePoints = routeablePoints.filter((point) => routePointIds.includes(point.id));
+  const selectedDealIds = new Set(routePoints.map((point) => point.dealId));
+  const visibleMapPoints = routePoints.length
+    ? [
+        ...routePoints,
+        ...installerPoints.filter((point) => selectedDealIds.has(point.dealId)),
+      ]
+    : points;
+  const routeLink = buildYandexRouteLink(routePoints.length >= 2 ? routePoints : routePoints.length === 1 ? routePoints : routeablePoints.slice(0, 2));
 
   return (
     <section className="installation-map-panel">
@@ -681,12 +919,12 @@ function InstallationMapPanel({
           <h2>Карта монтажей</h2>
           <p>Адреса готовых сделок и назначенных монтажей. Адрес можно поправить в форме назначения.</p>
         </div>
-        <span>{points.length}</span>
+        <span>{routeablePoints.length}</span>
       </div>
       <div className="installation-map-layout">
         <aside className="installation-map-sidebar" aria-label="Адреса на карте">
           <div className="installation-map-actions">
-            <button className="secondary compact" disabled={!points.length} onClick={onRouteSelectAll} type="button">
+            <button className="secondary compact" disabled={!routeablePoints.length} onClick={onRouteSelectAll} type="button">
               Все точки
             </button>
             <button className="secondary compact" disabled={!routePointIds.length} onClick={onRouteReset} type="button">
@@ -700,9 +938,9 @@ function InstallationMapPanel({
             ) : null}
           </div>
           <div className="installation-map-list">
-            {points.length ? (
-              points.map((point) => (
-                <article className={`installation-map-item status-${point.status}`} key={point.id}>
+            {routeablePoints.length ? (
+              routeablePoints.map((point) => (
+                <article className={`installation-map-item status-${point.status} ${routePointIds.includes(point.id) ? "selected" : ""}`} key={point.id}>
                   <label>
                     <input
                       checked={routePointIds.includes(point.id)}
@@ -739,7 +977,7 @@ function InstallationMapPanel({
             )}
           </div>
         </aside>
-        <YandexInstallationsMap points={points} routePoints={routePoints} />
+        <YandexInstallationsMap points={visibleMapPoints} routePoints={routePoints} />
       </div>
     </section>
   );
@@ -757,8 +995,12 @@ function YandexInstallationsMap({
   const collectionRef = useRef<any>(null);
   const routeRef = useRef<any>(null);
   const [error, setError] = useState("");
-  const signature = points.map((point) => `${point.id}:${point.address}:${point.status}`).join("|");
-  const routeSignature = routePoints.map((point) => `${point.id}:${point.address}`).join("|");
+  const signature = points
+    .map((point) => `${point.id}:${point.address}:${point.coordinates?.join(",") || ""}:${point.status}`)
+    .join("|");
+  const routeSignature = routePoints
+    .map((point) => `${point.id}:${point.address}:${point.coordinates?.join(",") || ""}`)
+    .join("|");
 
   useEffect(() => {
     if (!YANDEX_MAPS_API_KEY || !mapElementRef.current) return;
@@ -785,6 +1027,7 @@ function YandexInstallationsMap({
           const geocoded = await Promise.all(
             points.map(async (point) => {
               try {
+                if (point.coordinates) return { coordinates: point.coordinates, point };
                 const coordinates = await geocodeInstallationAddress(ymaps, point.address);
                 return coordinates ? { coordinates, point } : undefined;
               } catch {
@@ -793,29 +1036,52 @@ function YandexInstallationsMap({
             }),
           );
 
+          let selectedPlacemark: any = null;
+          const selectedRoutePointIds = new Set(routePoints.map((point) => point.id));
           for (const item of geocoded.filter(Boolean) as Array<{ coordinates: number[]; point: InstallationMapPoint }>) {
-            collection.add(
-              new ymaps.Placemark(
-                item.coordinates,
-                {
-                  balloonContent: `<strong>${escapeHtml(item.point.title)}</strong><br>${escapeHtml(item.point.address)}<br>${escapeHtml(item.point.statusLabel)}`,
-                  hintContent: item.point.title,
-                },
-                {
-                  preset: item.point.kind === "readyDeal" ? "islands#orangeDotIcon" : "islands#blueDotIcon",
-                },
-              ),
+            const isSelected = selectedRoutePointIds.has(item.point.id);
+            const preset =
+              item.point.kind === "installer"
+                ? "islands#greenPersonIcon"
+                : isSelected
+                  ? "islands#orangeDotIcon"
+                  : item.point.kind === "readyDeal"
+                    ? "islands#orangeDotIcon"
+                    : "islands#blueDotIcon";
+            const placemark = new ymaps.Placemark(
+              item.coordinates,
+              {
+                balloonContent: `<strong>${escapeHtml(item.point.title)}</strong><br>${escapeHtml(item.point.address)}<br>${escapeHtml(item.point.statusLabel)}`,
+                hintContent: item.point.title,
+              },
+              {
+                preset,
+              },
             );
+            if (isSelected && routePoints.length === 1) selectedPlacemark = placemark;
+            collection.add(placemark);
           }
+
+          if (points.length && !collection.getLength()) {
+            setError("Не удалось найти адрес на карте. Проверьте адрес в карточке монтажа.");
+            return;
+          }
+
+          setError("");
 
           map.geoObjects.add(collection);
           collectionRef.current = collection;
 
-          if (routePoints.length >= 2) {
+          if (routePoints.length === 1 && selectedPlacemark) {
+            const coordinates = selectedPlacemark.geometry.getCoordinates();
+            const centerResult = map.setCenter(coordinates, 14, { duration: 200 });
+            if (centerResult?.catch) centerResult.catch(() => undefined);
+            window.setTimeout(() => selectedPlacemark.balloon.open(), 180);
+          } else if (routePoints.length >= 2) {
             routeRef.current = new ymaps.multiRouter.MultiRoute(
               {
                 params: { routingMode: "auto" },
-                referencePoints: routePoints.map((point) => point.address),
+                referencePoints: routePoints.map((point) => point.coordinates || point.address),
               },
               {
                 boundsAutoApply: true,
@@ -900,17 +1166,23 @@ function InstallationPlannerTimeline({
   dateKey,
   installers,
   installations,
+  plannerHourRange,
+  plannerHourSlots,
   selectedInstallationId,
   viewMode,
   onEdit,
+  onWheel,
   onSelect,
 }: {
   dateKey: string;
   installers: ProductionEmployee[];
   installations: Installation[];
+  plannerHourRange: PlannerHourRange;
+  plannerHourSlots: number[];
   selectedInstallationId?: string;
   viewMode: Exclude<InstallationViewMode, "list">;
   onEdit: (installation: Installation) => void;
+  onWheel: (event: WheelEvent<HTMLDivElement>) => void;
   onSelect: (installation: Installation) => void;
 }) {
   const unplanned = installations.filter(isUnplannedInstallation);
@@ -918,7 +1190,7 @@ function InstallationPlannerTimeline({
 
   if (viewMode === "month") {
     return (
-      <div className="installation-planner-shell">
+      <div className="installation-planner-shell" onWheel={onWheel}>
         <MonthPlanner
           dateKey={dateKey}
           installations={planned}
@@ -941,10 +1213,22 @@ function InstallationPlannerTimeline({
     ...installers.map((installer) => ({ id: installer.id, name: installer.name })),
   ];
   const periodDays = viewMode === "week" ? dateKeysBetween(plannerRange("week", dateKey).start, plannerRange("week", dateKey).end) : [dateKey];
+  const schedulerStyle =
+    viewMode === "day"
+      ? ({
+          "--planner-hour-columns": plannerHourSlots.length,
+          "--planner-hour-min-width": `${Math.max(680, plannerHourSlots.length * 66)}px`,
+        } as CSSProperties)
+      : undefined;
 
   return (
     <div className="installation-planner-shell">
-      <div className={`installation-scheduler installation-scheduler-${viewMode}`}>
+      <div
+        className={`installation-scheduler installation-scheduler-${viewMode}`}
+        style={schedulerStyle}
+        title="Колесо: расширить или сузить часы. Shift/Alt + колесо: сдвинуть диапазон. В неделе и месяце колесо листает период."
+        onWheel={onWheel}
+      >
         <div className="planner-corner">Монтажник</div>
         {viewMode === "day" ? (
           <div className="planner-scale planner-hour-scale">
@@ -979,7 +1263,7 @@ function InstallationPlannerTimeline({
                       installation={installation}
                       key={installation.id}
                       selected={selectedInstallationId === installation.id}
-                      style={plannerTimeStyle(installation)}
+                      style={plannerTimeStyle(installation, plannerHourRange)}
                       variant="bar"
                       onEdit={onEdit}
                       onSelect={onSelect}
@@ -1025,6 +1309,11 @@ type PlannerLane = {
   id: string;
   name: string;
   unassigned?: boolean;
+};
+
+type PlannerHourRange = {
+  start: number;
+  end: number;
 };
 
 function PlannerJobCard({
@@ -1569,6 +1858,31 @@ function buildInstallationMapPoints(installations: Installation[], readyDeals: D
       title: `#${installation.dealNumber || installation.dealId} ${installation.dealTitle || "Монтаж"}`,
     }));
 
+  const installerPoints = installations
+    .filter(
+      (installation) =>
+        Boolean(installation.installerLocation) &&
+        (installation.status === "in_progress" || installation.status === "arrived"),
+    )
+    .map((installation) => {
+      const location = installation.installerLocation!;
+      return {
+        address: installation.address?.trim() || installation.installerName || "Монтажник",
+        coordinates: [location.lat, location.lon] as [number, number],
+        date: installation.date,
+        dealId: installation.dealId,
+        id: `installer_${installation.id}`,
+        kind: "installer" as const,
+        status: installation.status,
+        statusLabel: installation.status === "arrived" ? "Монтажник на месте" : "Монтажник выехал",
+        subtitle: installation.installerName || "Монтажник",
+        time: location.capturedAt
+          ? new Date(location.capturedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+          : "",
+        title: `${installation.installerName || "Монтажник"}: #${installation.dealNumber || installation.dealId}`,
+      };
+    });
+
   const plannedDealIds = new Set(installationPoints.map((point) => point.dealId));
   const readyPoints = readyDeals
     .filter((deal) => !plannedDealIds.has(deal.id))
@@ -1586,7 +1900,11 @@ function buildInstallationMapPoints(installations: Installation[], readyDeals: D
       title: `#${deal.number || deal.id} ${deal.title || "Без названия"}`,
     }));
 
-  return [...installationPoints, ...readyPoints];
+  return [...installationPoints, ...readyPoints, ...installerPoints];
+}
+
+function isRouteableMapPoint(point: InstallationMapPoint) {
+  return point.kind === "installation" || point.kind === "readyDeal";
 }
 
 function buildYandexRouteLink(points: InstallationMapPoint[]) {
@@ -1690,16 +2008,51 @@ function plannerDayLabel(dateKey: string) {
   return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", weekday: "short" });
 }
 
-function plannerTimeStyle(installation: Installation): CSSProperties {
-  const dayStart = plannerStartHour * 60;
-  const dayEnd = plannerEndHour * 60;
-  const start = Math.max(dayStart, Math.min(dayEnd, minutesFromTime(installation.timeFrom) ?? 10 * 60));
-  const fallbackEnd = start + 90;
-  const end = Math.max(start + 30, Math.min(dayEnd, minutesFromTime(installation.timeTo) ?? fallbackEnd));
+function buildPlannerHourSlots(range: PlannerHourRange) {
+  return Array.from({ length: range.end - range.start + 1 }, (_, index) => range.start + index);
+}
+
+function adjustPlannerHourRange(range: PlannerHourRange, deltaY: number, shiftRange: boolean): PlannerHourRange {
+  const direction = deltaY > 0 ? 1 : -1;
+  const span = range.end - range.start;
+
+  if (shiftRange) {
+    const nextStart = clampNumber(range.start + direction, minPlannerHour, maxPlannerHour - span);
+    return { start: nextStart, end: nextStart + span };
+  }
+
+  if (direction > 0) {
+    if (span >= maxPlannerHour - minPlannerHour) return range;
+    let start = Math.max(minPlannerHour, range.start - 1);
+    let end = Math.min(maxPlannerHour, range.end + 1);
+    if (start === range.start && end < maxPlannerHour) end += 1;
+    if (end === range.end && start > minPlannerHour) start -= 1;
+    return { start, end };
+  }
+
+  if (span <= minPlannerHourSpan) return range;
+  const nextSpan = Math.max(minPlannerHourSpan, span - 2);
+  const center = (range.start + range.end) / 2;
+  const start = clampNumber(Math.round(center - nextSpan / 2), minPlannerHour, maxPlannerHour - nextSpan);
+  return { start, end: start + nextSpan };
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function plannerTimeStyle(installation: Installation, hourRange: PlannerHourRange): CSSProperties {
+  const dayStart = hourRange.start * 60;
+  const dayEnd = hourRange.end * 60;
+  const rawStart = minutesFromTime(installation.timeFrom) ?? 10 * 60;
+  const rawEnd = Math.max(rawStart + 30, minutesFromTime(installation.timeTo) ?? rawStart + 90);
+  if (rawEnd <= dayStart || rawStart >= dayEnd) return { display: "none" };
+  const start = Math.max(dayStart, Math.min(dayEnd, rawStart));
+  const end = Math.min(dayEnd, Math.max(start + 1, rawEnd));
   const span = dayEnd - dayStart;
   return {
     "--job-left": `${((start - dayStart) / span) * 100}%`,
-    "--job-width": `${Math.max(8, ((end - start) / span) * 100)}%`,
+    "--job-width": `${Math.max(4, ((end - start) / span) * 100)}%`,
   } as CSSProperties;
 }
 
@@ -1733,32 +2086,78 @@ function loadYandexMaps(apiKey: string) {
 async function geocodeInstallationAddress(ymaps: any, address: string) {
   const normalizedAddress = String(address || "").trim();
   if (!normalizedAddress) return undefined;
+  const spacedAddress = normalizedAddress.replace(/([A-Za-zА-Яа-яЁё])(\d)/g, "$1 $2");
+  const hasRegionHint = /[,]|москва|область|край|республика|санкт|г\./i.test(normalizedAddress);
+  const candidates = Array.from(
+    new Set(
+      hasRegionHint
+        ? [normalizedAddress, spacedAddress]
+        : [`Москва, ${spacedAddress}`, `Московская область, ${spacedAddress}`, normalizedAddress, spacedAddress],
+    ),
+  );
 
-  try {
-    const result = await ymaps.geocode(normalizedAddress, { results: 1 });
-    const first = result.geoObjects.get(0);
-    const coordinates = first?.geometry?.getCoordinates?.();
-    if (Array.isArray(coordinates) && coordinates.length >= 2) return coordinates;
-  } catch {
-    // A server-side geocoder proxy can be connected as a fallback below.
+  for (const candidate of candidates) {
+    try {
+      const result = await ymaps.geocode(candidate, { results: 1 });
+      const first = result.geoObjects.get(0);
+      const coordinates = first?.geometry?.getCoordinates?.();
+      if (Array.isArray(coordinates) && coordinates.length >= 2) return coordinates;
+    } catch {
+      // A server-side geocoder proxy can be connected as a fallback below.
+    }
   }
 
-  if (!YANDEX_GEOCODER_PROXY_URL) return undefined;
+  const proxyUrl =
+    YANDEX_GEOCODER_PROXY_URL ||
+    new URL("api/geocode", new URL(import.meta.env.BASE_URL || "/", window.location.origin)).toString();
 
-  try {
-    const url = new URL(YANDEX_GEOCODER_PROXY_URL, window.location.origin);
-    url.searchParams.set("geocode", normalizedAddress);
-    const response = await fetch(url.toString());
-    if (!response.ok) return undefined;
-    const data = await response.json();
-    const pos = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject?.Point?.pos;
-    if (typeof pos !== "string") return undefined;
-    const [lon, lat] = pos.split(/\s+/).map(Number);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return undefined;
-    return [lat, lon];
-  } catch {
-    return undefined;
+  for (const candidate of candidates) {
+    try {
+      const url = new URL(proxyUrl, window.location.origin);
+      url.searchParams.set("geocode", candidate);
+      const response = await fetch(url.toString());
+      if (!response.ok) continue;
+      const data = await response.json();
+      if (Array.isArray(data?.coordinates) && data.coordinates.length >= 2) {
+        const [lat, lon] = data.coordinates.map(Number);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) return [lat, lon];
+      }
+      const pos = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject?.Point?.pos;
+      if (typeof pos !== "string") continue;
+      const [lon, lat] = pos.split(/\s+/).map(Number);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+      return [lat, lon];
+    } catch {
+      // Try the next candidate.
+    }
   }
+  return undefined;
+}
+
+function getInstallerLocationSnapshot(): Promise<InstallationLocation | undefined> {
+  if (!("geolocation" in navigator)) return Promise.resolve(undefined);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: InstallationLocation | undefined) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      resolve(value);
+    };
+    const timeout = window.setTimeout(() => finish(undefined), 6500);
+    navigator.geolocation.getCurrentPosition(
+      (position) =>
+        finish({
+          accuracy: position.coords.accuracy,
+          capturedAt: new Date().toISOString(),
+          lat: position.coords.latitude,
+          lon: position.coords.longitude,
+          source: "browser",
+        }),
+      () => finish(undefined),
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 5500 },
+    );
+  });
 }
 
 function escapeHtml(value: string) {
@@ -1875,6 +2274,7 @@ function updateLocalInstallationStatus(
   action: "start" | "arrive" | "complete" | "approve" | "return" | "cancel" | "no-installation",
   actor: ProductionEmployee,
   note?: string,
+  installerLocation?: InstallationLocation,
 ): StoredInstallations {
   const now = new Date().toISOString();
   const statusByAction: Record<typeof action, InstallationStatus> = {
@@ -1902,6 +2302,9 @@ function updateLocalInstallationStatus(
       installation.id === id
         ? {
             ...installation,
+            ...(action === "start" ? { startedAt: installation.startedAt || now } : {}),
+            ...(action === "arrive" ? { arrivedAt: now } : {}),
+            ...(installerLocation ? { installerLocation } : {}),
             status: statusByAction[action],
             updatedAt: now,
             history: [

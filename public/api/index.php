@@ -51,6 +51,10 @@ try {
         json_response(['success' => true, 'data' => read_installations()]);
     }
 
+    if ($method === 'GET' && $path === '/geocode') {
+        json_response(geocode_address((string)array_get($_GET, 'geocode', '')), 200);
+    }
+
     if ($method === 'GET' && $path === '/warehouse') {
         json_response(['success' => true, 'data' => read_warehouse()]);
     }
@@ -309,6 +313,96 @@ function read_data_file($name)
     return is_array($json) ? $json : default_data($name);
 }
 
+function geocode_address($address)
+{
+    $normalized = trim((string)$address);
+    if ($normalized === '') {
+        return ['success' => false, 'error' => 'Empty address'];
+    }
+    $apiKey = yandex_geocoder_api_key();
+    if ($apiKey === '') {
+        return ['success' => false, 'error' => 'Geocoder key is not configured'];
+    }
+
+    $spaced = preg_replace('/([A-Za-zА-Яа-яЁё])(\d)/u', '$1 $2', $normalized);
+    $hasRegionHint = preg_match('/[,]|москва|область|край|республика|санкт|г\./iu', $normalized);
+    $candidates = $hasRegionHint
+        ? [$normalized, $spaced]
+        : ['Москва, ' . $spaced, 'Московская область, ' . $spaced, $normalized, $spaced];
+    $candidates = array_values(array_unique($candidates));
+
+    foreach ($candidates as $candidate) {
+        $url = 'https://geocode-maps.yandex.ru/1.x/?' . http_build_query([
+            'apikey' => $apiKey,
+            'format' => 'json',
+            'geocode' => $candidate,
+            'results' => 1,
+        ]);
+        $raw = geocoder_http_get($url);
+        if (!$raw) continue;
+        $data = json_decode($raw, true);
+        $pos = array_deep_get($data, ['response', 'GeoObjectCollection', 'featureMember', 0, 'GeoObject', 'Point', 'pos'], '');
+        if (!is_string($pos) || $pos === '') continue;
+        $parts = preg_split('/\s+/', trim($pos));
+        if (count($parts) < 2) continue;
+        $lon = (float)$parts[0];
+        $lat = (float)$parts[1];
+        if ($lat < -90 || $lat > 90 || $lon < -180 || $lon > 180) continue;
+        return [
+            'success' => true,
+            'address' => $candidate,
+            'coordinates' => [$lat, $lon],
+        ];
+    }
+
+    return ['success' => false, 'error' => 'Address not found'];
+}
+
+function geocoder_http_get($url)
+{
+    $referer = 'https://manager.verkup.ru/verkup/';
+    $context = stream_context_create([
+        'http' => [
+            'header' => "Referer: {$referer}\r\nUser-Agent: Verkup/1.0\r\n",
+            'ignore_errors' => true,
+            'timeout' => 8,
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $context);
+    if ($raw) return $raw;
+
+    if (!function_exists('curl_init')) return '';
+    $curl = curl_init($url);
+    curl_setopt_array($curl, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 8,
+        CURLOPT_HTTPHEADER => [
+            "Referer: {$referer}",
+            'User-Agent: Verkup/1.0',
+        ],
+    ]);
+    $response = curl_exec($curl);
+    curl_close($curl);
+    return is_string($response) ? $response : '';
+}
+
+function yandex_geocoder_api_key()
+{
+    $env = trim((string)getenv('YANDEX_GEOCODER_API_KEY'));
+    if ($env !== '') return $env;
+    $configPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'config.js';
+    if (!is_file($configPath)) return '';
+    $raw = file_get_contents($configPath) ?: '';
+    if (preg_match('/YANDEX_GEOCODER_API_KEY\s*:\s*"([^"]+)"/', $raw, $match)) {
+        return trim((string)$match[1]);
+    }
+    return '';
+}
+
 function write_data_file($name, $data)
 {
     $path = data_path($name);
@@ -512,6 +606,7 @@ function update_installation_workflow($installationId, $body, $action)
     $now = gmdate('c');
     $actor = trim((string)(array_get($body, 'actor', '')));
     $actorId = sanitize_segment((string)(array_get($body, 'actorId', '')));
+    $installerLocation = sanitize_installation_location(array_get($body, 'installerLocation', null));
     $updated = false;
 
     foreach ($store['installations'] as &$installation) {
@@ -519,11 +614,13 @@ function update_installation_workflow($installationId, $body, $action)
         if ($action === 'start') {
             $installation['status'] = 'in_progress';
             if (empty($installation['startedAt'])) $installation['startedAt'] = $now;
+            if ($installerLocation) $installation['installerLocation'] = $installerLocation;
             $installation['history'][] = installation_event('started', $actor, $actorId, array_get($body, 'note', ''));
             $store['notifications'][] = installation_notification('started', $installation, $actor, $actorId, '');
         } elseif ($action === 'arrive') {
             $installation['status'] = 'arrived';
             $installation['arrivedAt'] = $now;
+            if ($installerLocation) $installation['installerLocation'] = $installerLocation;
             $installation['history'][] = installation_event('arrived', $actor, $actorId, array_get($body, 'note', ''));
             $store['notifications'][] = installation_notification('arrived', $installation, $actor, $actorId, '');
         } elseif ($action === 'complete') {
@@ -1120,6 +1217,26 @@ function create_thumbnail($source, $target, $mime)
     imagedestroy($image);
     imagedestroy($thumb);
     return $ok;
+}
+
+function sanitize_installation_location($value)
+{
+    if (!is_array($value)) return null;
+    $latRaw = array_get($value, 'lat', null);
+    $lonRaw = array_get($value, 'lon', null);
+    if (!is_numeric($latRaw) || !is_numeric($lonRaw)) return null;
+    $lat = (float)$latRaw;
+    $lon = (float)$lonRaw;
+    if ($lat < -90 || $lat > 90 || $lon < -180 || $lon > 180) return null;
+    $accuracyRaw = array_get($value, 'accuracy', null);
+    $capturedAt = trim((string)array_get($value, 'capturedAt', gmdate('c')));
+    return [
+        'accuracy' => is_numeric($accuracyRaw) ? (float)$accuracyRaw : null,
+        'capturedAt' => $capturedAt !== '' ? $capturedAt : gmdate('c'),
+        'lat' => $lat,
+        'lon' => $lon,
+        'source' => 'browser',
+    ];
 }
 
 function sanitize_segment($value)

@@ -425,6 +425,14 @@ export type InstallationHistoryEvent = {
   note?: string;
 };
 
+export type InstallationLocation = {
+  accuracy?: number;
+  capturedAt: string;
+  lat: number;
+  lon: number;
+  source: "browser";
+};
+
 export type Installation = {
   id: string;
   dealId: string;
@@ -454,6 +462,7 @@ export type Installation = {
   arrivedAt?: string;
   completedAt?: string;
   approvedAt?: string;
+  installerLocation?: InstallationLocation;
 };
 
 export type InstallationNotificationType =

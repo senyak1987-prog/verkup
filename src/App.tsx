@@ -1475,6 +1475,7 @@ export default function App() {
           storedProduction={storedProduction}
           techSpecs={techSpecsMap}
           onChange={handleInstallationsChange}
+          onLogout={handleLogout}
           onOpenDeal={handleProductionDealOpen}
           onRefresh={refreshAllDataNow}
         />

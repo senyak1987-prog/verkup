@@ -3,6 +3,7 @@ import type {
   CatalogItem,
   DealStageCode,
   Installation,
+  InstallationLocation,
   InstallationPhoto,
   InstallationPhotoType,
   ProductionPhoto,
@@ -130,6 +131,7 @@ export async function changeInstallationStatus(
   payload: {
     actor?: string;
     actorId?: string;
+    installerLocation?: InstallationLocation;
     note?: string;
     resultComment?: string;
     returnComment?: string;
