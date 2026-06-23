@@ -1,4 +1,4 @@
-const CACHE_NAME = "verkup-offline-v14";
+const CACHE_NAME = "verkup-offline-v15";
 const APP_SHELL = [
   "./",
   "./manifest.webmanifest",
@@ -39,8 +39,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const shouldBypassCache =
+    url.pathname.endsWith("/config.js") ||
+    url.pathname.includes("/api/") ||
+    url.pathname.includes("/data/");
+
+  if (shouldBypassCache) {
+    event.respondWith(fetch(request, { cache: "no-store" }));
+    return;
+  }
+
   event.respondWith(
-    fetch(request, url.pathname.includes("/data/") ? { cache: "no-store" } : undefined)
+    fetch(request)
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();

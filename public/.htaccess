@@ -1,0 +1,6 @@
+RewriteEngine On
+RewriteBase /verkup/
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /verkup/index.html [L]

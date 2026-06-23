@@ -19,6 +19,11 @@ const categoryId = env.BITRIX_CATEGORY_ID || "";
 const customFields = {
   classification: env.BITRIX_FIELD_CLASSIFICATION || "",
   installAmount: env.BITRIX_FIELD_INSTALL_AMOUNT || "",
+  installAddress: env.BITRIX_FIELD_INSTALL_ADDRESS || "",
+  installClientName: env.BITRIX_FIELD_INSTALL_CLIENT_NAME || "",
+  installClientPhone: env.BITRIX_FIELD_INSTALL_CLIENT_PHONE || "",
+  installComment: env.BITRIX_FIELD_INSTALL_COMMENT || "",
+  installFiles: env.BITRIX_FIELD_INSTALL_FILES || "",
   startDate: env.BITRIX_FIELD_START_DATE || "",
   expectedFinishDate: env.BITRIX_FIELD_EXPECTED_FINISH_DATE || "",
 };
@@ -88,6 +93,7 @@ async function fetchDeals(targetStageIds) {
     "BEGINDATE",
     "CLOSEDATE",
     "DATE_CREATE",
+    "UF_*",
     ...Object.values(customFields).filter(Boolean),
   ];
 
@@ -537,6 +543,35 @@ function normalizeDeal(deal, users, stageMap) {
     installSaleAmount > 0 ? Math.max(0, totalSaleAmount - installSaleAmount) : totalSaleAmount;
   const responsibleId = String(deal.ASSIGNED_BY_ID || "");
   const responsibleUser = users.get(responsibleId);
+  const installationAddress = valueByField(deal, customFields.installAddress) || inferDealTextField(deal, [
+    "INSTALL_ADDRESS",
+    "INSTALLATION_ADDRESS",
+    "MOUNT_ADDRESS",
+    "MOUNTING_ADDRESS",
+    "ADDRESS",
+    "АДРЕС",
+    "МОНТАЖ",
+  ]);
+  const installationClientName = valueByField(deal, customFields.installClientName) || inferDealTextField(deal, [
+    "INSTALL_CLIENT",
+    "INSTALLATION_CLIENT",
+    "CLIENT_NAME",
+    "CUSTOMER",
+    "КЛИЕНТ",
+    "ЗАКАЗЧИК",
+  ]);
+  const installationClientPhone = valueByField(deal, customFields.installClientPhone) || inferDealPhoneField(deal);
+  const installationComment = valueByField(deal, customFields.installComment) || inferDealTextField(deal, [
+    "INSTALL_COMMENT",
+    "INSTALLATION_COMMENT",
+    "MOUNT_COMMENT",
+    "COMMENT",
+    "КОММЕНТ",
+    "ПРИМЕЧ",
+  ]);
+  const installationFiles = extractBitrixFiles(
+    customFields.installFiles ? deal[customFields.installFiles] : inferDealFileField(deal),
+  );
 
   return {
     id,
@@ -558,6 +593,11 @@ function normalizeDeal(deal, users, stageMap) {
     createdDate: deal.DATE_CREATE || "",
     stageName,
     bitrixUrl: `https://${bitrixDomain}/crm/deal/details/${id}/`,
+    installationAddress,
+    installationClientName,
+    installationClientPhone,
+    installationComment,
+    installationFiles,
   };
 }
 
@@ -638,6 +678,85 @@ function valueByField(row, fieldName) {
   const value = row[fieldName];
   if (Array.isArray(value)) return value.join(", ");
   return value ?? "";
+}
+
+function inferDealTextField(deal, needles) {
+  const normalizedNeedles = needles.map(normalize);
+  for (const [field, value] of Object.entries(deal || {})) {
+    const normalizedField = normalize(field);
+    if (!normalizedNeedles.some((needle) => normalizedField.includes(needle))) continue;
+    if (/FILE|PHOTO|IMAGE|ФАЙЛ|ФОТО/i.test(field)) continue;
+    const text = firstText(value);
+    if (text && !/^\d+$/.test(text)) return text;
+  }
+  return "";
+}
+
+function inferDealPhoneField(deal) {
+  for (const [field, value] of Object.entries(deal || {})) {
+    if (!/PHONE|TEL|MOBILE|ТЕЛ/i.test(field)) continue;
+    const phone = extractPhoneValue(value);
+    if (phone) return phone;
+  }
+  return "";
+}
+
+function inferDealFileField(deal) {
+  for (const [field, value] of Object.entries(deal || {})) {
+    if (!/FILE|PHOTO|IMAGE|ATTACH|ФАЙЛ|ФОТО|МАКЕТ/i.test(field)) continue;
+    const files = extractBitrixFiles(value);
+    if (files.length) return value;
+  }
+  return undefined;
+}
+
+function extractBitrixFiles(value) {
+  const files = [];
+  collectBitrixFiles(value, files);
+  return files;
+}
+
+function collectBitrixFiles(value, files) {
+  if (!value) return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectBitrixFiles(item, files);
+    return;
+  }
+
+  if (typeof value === "object") {
+    const url = firstText(value.URL, value.SRC, value.DOWNLOAD_URL, value.downloadUrl, value.url);
+    const id = firstText(value.ID, value.id, value.FILE_ID, value.fileId) || (url ? String(files.length + 1) : "");
+    const name = firstText(value.ORIGINAL_NAME, value.FILE_NAME, value.NAME, value.TITLE, value.name) || `Файл ${id || files.length + 1}`;
+    if (url) {
+      const absoluteUrl = absoluteBitrixUrl(url);
+      files.push({
+        id: String(id),
+        name,
+        url: absoluteUrl,
+        downloadUrl: absoluteUrl,
+        type: /\.(png|jpe?g|webp|gif)$/i.test(name) || /image/i.test(firstText(value.CONTENT_TYPE, value.type))
+          ? "image"
+          : "file",
+      });
+      return;
+    }
+
+    for (const item of Object.values(value)) collectBitrixFiles(item, files);
+    return;
+  }
+
+  const text = String(value || "").trim();
+  if (/^https?:\/\//i.test(text) || text.startsWith("/")) {
+    const absoluteUrl = absoluteBitrixUrl(text);
+    const name = decodeURIComponent(absoluteUrl.split("/").pop() || `Файл ${files.length + 1}`);
+    files.push({
+      id: String(files.length + 1),
+      name,
+      url: absoluteUrl,
+      downloadUrl: absoluteUrl,
+      type: /\.(png|jpe?g|webp|gif)$/i.test(name) ? "image" : "file",
+    });
+  }
 }
 
 function displayValueByField(row, fieldName) {

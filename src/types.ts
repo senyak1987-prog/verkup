@@ -35,6 +35,19 @@ export type Deal = {
   createdDate: string;
   stageName: string;
   bitrixUrl: string;
+  installationAddress?: string;
+  installationClientName?: string;
+  installationClientPhone?: string;
+  installationComment?: string;
+  installationFiles?: BitrixDealFile[];
+};
+
+export type BitrixDealFile = {
+  id: string;
+  name: string;
+  url: string;
+  downloadUrl?: string;
+  type?: "image" | "file";
 };
 
 export type DealStageCode = "tz" | "tzApproval" | "launch" | "production" | "defect";
@@ -246,9 +259,18 @@ export type ProductionAssignmentStatus =
   | "submitted"
   | "readyForShipment";
 
+export type ProductionWorkerStatus =
+  | "new"
+  | "inWork"
+  | "photosAdded"
+  | "reviewPending"
+  | "checked"
+  | "needsRevision";
+
 export type ProductionPhotoKind = "lit" | "unlit" | "packed";
 
 export type ProductionPhoto = {
+  id?: string;
   assignmentId?: string;
   dealId?: string;
   dealNumber?: string;
@@ -256,7 +278,13 @@ export type ProductionPhoto = {
   employeeId?: string;
   kind: ProductionPhotoKind;
   name: string;
-  dataUrl: string;
+  originalName?: string;
+  dataUrl?: string;
+  url?: string;
+  thumbnailUrl?: string;
+  mimeType?: string;
+  size?: number;
+  uploadedBy?: string;
   techSpecItemId?: string;
   uploadedAt: string;
 };
@@ -293,12 +321,14 @@ export type ProductionAssignment = {
   techSpecItemId?: string;
   employeeId: string;
   status: ProductionAssignmentStatus;
+  workerStatus?: ProductionWorkerStatus;
   assignedAt: string;
   assignedBy: string;
   notificationText: string;
   startedAt?: string;
   submittedAt?: string;
   readyForShipmentAt?: string;
+  photosAddedAt?: string;
   completion?: ProductionCompletion;
   history: ProductionAssignmentEvent[];
 };
@@ -312,6 +342,28 @@ export type ProductionPayout = {
   note?: string;
 };
 
+export type ProductionNotificationType =
+  | "started"
+  | "photosAdded"
+  | "completed"
+  | "checked"
+  | "needsRevision";
+
+export type ProductionNotification = {
+  id: string;
+  type: ProductionNotificationType;
+  dealId: string;
+  dealNumber?: string;
+  dealTitle?: string;
+  message: string;
+  actor?: string;
+  actorId?: string;
+  actorName?: string;
+  createdAt: string;
+  readBy?: string[];
+  readAt?: string;
+};
+
 export type StoredProduction = {
   generatedAt: string;
   employees: ProductionEmployee[];
@@ -319,4 +371,268 @@ export type StoredProduction = {
   registrationLinks: ProductionRegistrationLink[];
   assignments: ProductionAssignment[];
   payouts: ProductionPayout[];
+  notifications?: ProductionNotification[];
+};
+
+export type InstallationStatus =
+  | "not_scheduled"
+  | "scheduled"
+  | "assigned"
+  | "in_progress"
+  | "arrived"
+  | "review_pending"
+  | "completed"
+  | "needs_revision"
+  | "canceled"
+  | "no_installation";
+
+export type InstallationPhotoType = "before" | "process" | "after" | "issue";
+
+export type InstallationPhoto = {
+  id: string;
+  installationId: string;
+  dealId: string;
+  url: string;
+  thumbnailUrl?: string;
+  originalName: string;
+  mimeType?: string;
+  size?: number;
+  type: InstallationPhotoType;
+  uploadedAt: string;
+  uploadedBy?: string;
+  uploadedById?: string;
+};
+
+export type InstallationHistoryEventType =
+  | "created"
+  | "assigned"
+  | "updated"
+  | "started"
+  | "arrived"
+  | "photoAdded"
+  | "completed"
+  | "approved"
+  | "returned"
+  | "canceled"
+  | "noInstallation";
+
+export type InstallationHistoryEvent = {
+  id: string;
+  type: InstallationHistoryEventType;
+  at: string;
+  actor?: string;
+  actorId?: string;
+  note?: string;
+};
+
+export type Installation = {
+  id: string;
+  dealId: string;
+  dealNumber?: string;
+  dealTitle?: string;
+  date: string;
+  timeFrom: string;
+  timeTo: string;
+  address: string;
+  installerId: string;
+  installerName: string;
+  status: InstallationStatus;
+  clientName?: string;
+  clientPhone?: string;
+  comment?: string;
+  resultComment?: string;
+  returnComment?: string;
+  addressEdited?: boolean;
+  addressSource?: "bitrix" | "manual";
+  sourceFiles?: BitrixDealFile[];
+  photos: InstallationPhoto[];
+  history: InstallationHistoryEvent[];
+  createdAt: string;
+  createdBy?: string;
+  updatedAt: string;
+  startedAt?: string;
+  arrivedAt?: string;
+  completedAt?: string;
+  approvedAt?: string;
+};
+
+export type InstallationNotificationType =
+  | "assigned"
+  | "started"
+  | "arrived"
+  | "photoAdded"
+  | "completed"
+  | "approved"
+  | "needsRevision"
+  | "problem";
+
+export type InstallationNotification = {
+  id: string;
+  type: InstallationNotificationType;
+  installationId: string;
+  dealId: string;
+  dealNumber?: string;
+  dealTitle?: string;
+  message: string;
+  actor?: string;
+  actorId?: string;
+  targetEmployeeId?: string;
+  createdAt: string;
+  readBy?: string[];
+  readAt?: string;
+};
+
+export type StoredInstallations = {
+  generatedAt: string;
+  installations: Installation[];
+  notifications?: InstallationNotification[];
+};
+
+export type StockTransactionType = "receipt" | "issue" | "adjustment" | "reserve" | "release";
+
+export type StockReceiptStatus = "draft" | "parsed" | "needs_review" | "approved" | "posted" | "canceled";
+
+export type StockDocumentType = "invoice_photo" | "invoice_pdf" | "invoice_excel";
+
+export type StockDocumentStatus = "uploaded" | "parsing" | "parsed" | "needs_review" | "error";
+
+export type StockReceiptItemStatus = "matched" | "unmatched" | "needs_review" | "approved";
+
+export type PriceUpdateProposalStatus = "pending" | "approved" | "rejected";
+
+export type MaterialStockStatus = "ok" | "low" | "empty";
+
+export type MaterialStockItem = {
+  materialId: string;
+  materialName: string;
+  category?: string;
+  unit: string;
+  quantityOnHand: number;
+  reservedQuantity: number;
+  availableQuantity: number;
+  averagePrice: number;
+  lastPurchasePrice: number;
+  lastPurchaseDate?: string;
+  minQuantity: number;
+  supplier?: string;
+  updatedAt: string;
+};
+
+export type StockTransaction = {
+  id: string;
+  type: StockTransactionType;
+  materialId: string;
+  materialName: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalPrice: number;
+  dealId?: string;
+  documentId?: string;
+  receiptId?: string;
+  supplier?: string;
+  comment?: string;
+  createdAt: string;
+  createdBy?: string;
+};
+
+export type StockReceiptItem = {
+  id: string;
+  materialId?: string;
+  rawName: string;
+  matchedMaterialName?: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  totalPrice: number;
+  vat?: number;
+  confidence?: number;
+  status: StockReceiptItemStatus;
+};
+
+export type StockReceipt = {
+  id: string;
+  date: string;
+  supplier?: string;
+  documentNumber?: string;
+  documentDate?: string;
+  sourceFileId?: string;
+  totalAmount: number;
+  status: StockReceiptStatus;
+  items: StockReceiptItem[];
+  createdAt: string;
+  createdBy?: string;
+  postedAt?: string;
+};
+
+export type StockIssue = {
+  id: string;
+  date: string;
+  dealId?: string;
+  items: StockReceiptItem[];
+  createdAt: string;
+  createdBy?: string;
+  comment?: string;
+};
+
+export type StockDocument = {
+  id: string;
+  type: StockDocumentType;
+  originalName: string;
+  url: string;
+  size?: number;
+  mimeType?: string;
+  uploadedAt: string;
+  uploadedBy?: string;
+  processingStatus: StockDocumentStatus;
+  parseError?: string;
+  linkedReceiptId?: string;
+};
+
+export type PriceUpdateProposal = {
+  id: string;
+  materialId: string;
+  materialName: string;
+  oldPrice: number;
+  newPrice: number;
+  differencePercent: number;
+  sourceReceiptId?: string;
+  sourceDocumentId?: string;
+  status: PriceUpdateProposalStatus;
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
+};
+
+export type MaterialPriceHistory = {
+  id: string;
+  materialId: string;
+  oldPrice: number;
+  newPrice: number;
+  source: "manual" | "invoice" | "stock_receipt";
+  sourceDocumentId?: string;
+  changedAt: string;
+  changedBy?: string;
+};
+
+export type MaterialAlias = {
+  id: string;
+  rawName: string;
+  materialId: string;
+  materialName: string;
+  supplier?: string;
+  createdAt: string;
+  createdBy?: string;
+};
+
+export type StoredWarehouse = {
+  generatedAt: string;
+  items: MaterialStockItem[];
+  transactions: StockTransaction[];
+  receipts: StockReceipt[];
+  issues: StockIssue[];
+  documents: StockDocument[];
+  priceProposals: PriceUpdateProposal[];
+  materialAliases: MaterialAlias[];
+  priceHistory: MaterialPriceHistory[];
 };

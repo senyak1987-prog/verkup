@@ -47,6 +47,8 @@ export function responsibleNameFromCard(card?: ResponsibleCard | null, fallbackN
 }
 
 export function hydrateResponsibleCard(card?: ResponsibleCard | null, fallbackName?: string | null): ResponsibleCard | undefined {
+  const fallbackText = String(fallbackName || "").trim();
+  const fallbackId = numericResponsiblePattern.test(fallbackText) ? fallbackText : "";
   const key = normalizeResponsibleKey(card?.name || fallbackName);
   const knownCard = key ? knownResponsibleCardsByName[key] : undefined;
   if (!card && !knownCard && !fallbackName) return undefined;
@@ -54,13 +56,14 @@ export function hydrateResponsibleCard(card?: ResponsibleCard | null, fallbackNa
   const knownPhone = cleanPhoneText(knownCard?.phone);
   const cardInternalPhone = cleanPhoneText(card?.internalPhone);
   const knownInternalPhone = cleanPhoneText(knownCard?.internalPhone);
-  const cardId = String(card?.id || knownCard?.id || "").trim();
+  const cardId = String(card?.id || knownCard?.id || fallbackId).trim();
+  const fallbackDisplayName = fallbackId ? `ID ${fallbackId}` : fallbackText;
 
   return {
     id: cardId,
-    name: card?.name || knownCard?.name || String(fallbackName || "").trim(),
+    name: card?.name || knownCard?.name || fallbackDisplayName,
     avatarUrl: card?.avatarUrl || knownCard?.avatarUrl || "",
-    position: card?.position || knownCard?.position || "",
+    position: card?.position || knownCard?.position || (fallbackId ? "Bitrix24" : ""),
     phone: (isFullPhone(cardPhone) ? cardPhone : "") || knownPhone || "",
     internalPhone: cardInternalPhone || (isInternalPhone(cardPhone) ? cardPhone : "") || knownInternalPhone || "",
     email: card?.email || knownCard?.email || "",

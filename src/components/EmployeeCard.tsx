@@ -41,7 +41,7 @@ export function EmployeeCard({
   const visiblePhone = phone || internalPhone;
   const isUnresolved = isUnresolvedResponsible(profileCard?.name || fallbackName);
   const profileUrl = profileCard?.bitrixUrl;
-  const hasDetails = Boolean(!isUnresolved && (visiblePhone || profileCard?.email || profileUrl));
+  const hasDetails = Boolean(visiblePhone || profileCard?.email || profileUrl);
   const classes = [
     "employee-card",
     compact ? "compact" : "",

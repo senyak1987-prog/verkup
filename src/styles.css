@@ -8980,6 +8980,29 @@ tr.selected td,
   cursor: pointer;
 }
 
+.production-photo-upload-state {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.production-photo-upload-state.success {
+  color: #027a48;
+}
+
+.production-photo-upload-state.error {
+  color: #b42318;
+}
+
+.production-photo-upload-state.uploading {
+  color: #b45309;
+}
+
 .production-photo-slot input[type="file"] {
   display: none;
 }
@@ -9024,6 +9047,7 @@ tr.selected td,
 }
 
 .production-photo-strip figure {
+  position: relative;
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -9046,6 +9070,164 @@ tr.selected td,
   text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.production-photo-strip-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid rgba(180, 35, 24, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #b42318;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.14);
+}
+
+.production-photo-strip-delete:hover {
+  border-color: rgba(180, 35, 24, 0.34);
+  background: #fff5f5;
+}
+
+.production-review-ready {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: fit-content;
+  border: 1px solid #abefc6;
+  border-radius: 999px;
+  background: #ecfdf3;
+  padding: 8px 12px;
+  color: #067647;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.production-notification-center {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  padding: 10px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.1);
+}
+
+.production-notification-center-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.production-notification-center-head div {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #101828;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.production-notification-center-head strong {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff3eb;
+  color: #ff7500;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.production-notification-center-head button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #475467;
+}
+
+.production-notification-list {
+  display: grid;
+  gap: 6px;
+  max-height: min(360px, 58vh);
+  overflow: auto;
+}
+
+.production-notification-list > button {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  width: 100%;
+  border: 1px solid #edf0f5;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px;
+  color: #101828;
+  text-align: left;
+}
+
+.production-notification-list > button.unread {
+  border-color: #fed7aa;
+  background: #fffaf6;
+}
+
+.production-notification-list > button span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.production-notification-list strong {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.production-notification-list small {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.production-notification-list em {
+  color: #ff7500;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.production-notification-list p {
+  margin: 8px 0;
+  color: #667085;
+  font-size: 14px;
+  text-align: center;
+}
+
+.production-notification-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: #ff7500;
+}
+
+.production-notification-dot.checked {
+  background: #12b76a;
+}
+
+.production-notification-dot.needsRevision {
+  background: #d92d20;
 }
 
 .production-note-field textarea {
@@ -11856,5 +12038,2903 @@ textarea {
   .production-worker-date,
   .production-worker-view .worker-deadline-status .production-deadline-chip {
     font-size: 12px;
+  }
+}
+/* Installations */
+.installations-app {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  width: 100%;
+  color: var(--text-primary, #111827);
+}
+
+.installations-toolbar,
+.installations-filters,
+.installations-summary-grid,
+.installations-layout,
+.installation-card,
+.installations-queue,
+.installations-board,
+.installations-notifications,
+.installation-details-panel,
+.installation-editor {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.installations-toolbar {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.installations-toolbar h1,
+.installation-editor h2 {
+  font-size: 22px;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.installations-toolbar .eyebrow,
+.installation-editor .eyebrow {
+  color: var(--text-muted, #6b7280);
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.installations-toolbar-actions,
+.installation-date-control,
+.installation-card-actions,
+.worker-installation-quick-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.installation-date-control {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.installation-date-control button,
+.installation-date-control input,
+.installations-filters input,
+.installations-filters select,
+.installation-editor input,
+.installation-editor select,
+.installation-editor textarea {
+  border: 1px solid var(--border, #d9e1ea);
+  border-radius: 10px;
+  color: var(--text-primary, #111827);
+  font: inherit;
+  min-height: 36px;
+  min-width: 0;
+}
+
+.installation-date-control button {
+  background: transparent;
+  border-color: transparent;
+  padding: 0 10px;
+}
+
+.installation-date-control input {
+  padding: 0 8px;
+}
+
+.installations-filters {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(220px, 1fr) minmax(160px, 220px) minmax(160px, 220px);
+}
+
+.installations-filters label {
+  align-items: center;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 12px;
+}
+
+.installations-filters input {
+  background: transparent;
+  border: 0;
+  flex: 1;
+  outline: 0;
+}
+
+.installations-filters select {
+  background: var(--surface, #fff);
+  padding: 0 10px;
+}
+
+.installations-summary-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.installation-summary-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.installation-summary-card span {
+  color: var(--text-muted, #6b7280);
+  display: block;
+  font-size: 12px;
+}
+
+.installation-summary-card strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1.1;
+  margin-top: 4px;
+}
+
+.installation-map-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.installation-map-panel .installations-section-head {
+  align-items: start;
+}
+
+.installation-map-panel .installations-section-head p {
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  line-height: 1.35;
+  margin: 4px 0 0;
+}
+
+.installation-map-layout {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  min-width: 0;
+}
+
+.installation-map-sidebar,
+.installation-map-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.installation-map-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.installation-map-actions a {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.installation-map-list {
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.installation-map-item {
+  border: 1px solid var(--border, #e5e7eb);
+  border-left: 4px solid var(--primary, #ff7900);
+  border-radius: 12px;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 9px;
+}
+
+.installation-map-item label {
+  align-items: start;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.installation-map-item input {
+  margin-top: 2px;
+}
+
+.installation-map-item strong,
+.installation-map-item small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.installation-map-item strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.installation-map-item small {
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+  line-height: 1.25;
+  margin-top: 2px;
+}
+
+.installation-map-item > div {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.installation-map-item em,
+.installation-map-item time,
+.installation-map-item footer span {
+  border-radius: 999px;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1;
+  padding: 5px 7px;
+}
+
+.installation-map-item em {
+  background: rgba(255, 121, 0, 0.1);
+  color: #b45309;
+  font-weight: 600;
+}
+
+.installation-map-item time,
+.installation-map-item footer span {
+  background: var(--surface-muted, #f3f4f6);
+  color: var(--text-secondary, #64748b);
+}
+
+.installation-map-item footer {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.installation-yandex-map,
+.installation-map-fallback {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  min-height: 420px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.installation-map-fallback {
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(255, 121, 0, 0.07), rgba(59, 130, 246, 0.05)),
+    var(--surface-muted, #f8fafc);
+  color: var(--text-secondary, #64748b);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  padding: 20px;
+  text-align: center;
+}
+
+.installation-map-fallback strong {
+  color: var(--text-primary, #111827);
+  font-size: 16px;
+}
+
+.installation-map-fallback span {
+  font-size: 13px;
+  max-width: 420px;
+}
+
+.installation-map-fallback a {
+  color: var(--primary, #ff7900);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.installations-layout {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) minmax(240px, 300px);
+}
+
+.installations-queue,
+.installations-board,
+.installations-notifications {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.installations-section-head {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.installations-section-head h2 {
+  font-size: 16px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.installations-section-head span {
+  background: var(--surface-muted, #f3f4f6);
+  border-radius: 999px;
+  color: var(--text-secondary, #4b5563);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+}
+
+.ready-installation-card,
+.installation-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.ready-installation-card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 12px;
+}
+
+.ready-installation-card a,
+.ready-installation-card strong,
+.installation-card-main span,
+.installation-card-main strong {
+  overflow-wrap: anywhere;
+}
+
+.ready-installation-card a,
+.installation-card-main span {
+  color: var(--primary, #ff7900);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.ready-installation-card strong,
+.installation-card-main strong {
+  display: block;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.ready-installation-card span,
+.installation-card-main small {
+  color: var(--text-secondary, #64748b);
+  display: block;
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.ready-installation-card span svg {
+  margin-right: 3px;
+  vertical-align: -2px;
+}
+
+.installation-day-timeline {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.installation-lane {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.installation-lane-head {
+  align-items: center;
+  background: var(--surface-muted, #f8fafc);
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.installation-lane-head strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.installation-lane-body {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.timeline-installation-card {
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-left: 4px solid var(--primary, #ff7900);
+  border-radius: 10px;
+  color: inherit;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px;
+  text-align: left;
+}
+
+.timeline-installation-card.selected {
+  border-color: var(--primary, #ff7900);
+  box-shadow: 0 0 0 3px rgba(255, 121, 0, 0.16);
+}
+
+.timeline-installation-card span,
+.timeline-installation-card small {
+  color: var(--text-secondary, #64748b);
+  font-size: 12px;
+}
+
+.timeline-installation-card strong,
+.timeline-installation-card em {
+  font-size: 13px;
+  font-style: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.installation-card-list {
+  display: grid;
+  gap: 10px;
+}
+
+.installation-card {
+  padding: 12px;
+}
+
+.installation-card-head {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(116px, auto);
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.installation-card-icon {
+  align-items: center;
+  background: rgba(255, 121, 0, 0.08);
+  border: 1px solid rgba(255, 121, 0, 0.18);
+  border-radius: 12px;
+  color: var(--primary, #ff7900);
+  display: flex;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.installation-card-main,
+.installation-card-side {
+  min-width: 0;
+}
+
+.installation-card-side {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+}
+
+.installation-card-side time,
+.installation-card-side span {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.installation-status {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1;
+  padding: 6px 8px;
+  white-space: nowrap;
+}
+
+.status-not_scheduled,
+.status-scheduled {
+  background: #eef2f7;
+  color: #475569;
+}
+
+.status-assigned {
+  background: #eaf3ff;
+  color: #1d4ed8;
+}
+
+.status-in_progress,
+.status-arrived {
+  background: #fff7e8;
+  color: #b45309;
+}
+
+.status-review_pending,
+.status-needs_revision {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.status-completed {
+  background: #eaf8ef;
+  color: #047857;
+}
+
+.status-canceled,
+.status-no_installation {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.installation-card-actions {
+  margin-top: 10px;
+}
+
+.worker-installation-quick-actions {
+  margin-top: 10px;
+}
+
+.worker-installation-quick-actions a,
+.installation-upload-button {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.installation-upload-button input {
+  display: none;
+}
+
+.installation-upload-state {
+  align-items: center;
+  border-radius: 10px;
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px 10px;
+}
+
+.installation-upload-state.success {
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.installation-upload-state.error {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.installation-photo-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  margin-top: 12px;
+}
+
+.installation-photo-grid figure {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.installation-photo-grid img {
+  aspect-ratio: 1;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.installation-photo-grid figcaption {
+  color: var(--text-secondary, #64748b);
+  font-size: 11px;
+  padding: 5px 6px;
+}
+
+.installation-photo-grid button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 999px;
+  display: flex;
+  height: 30px;
+  justify-content: center;
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 30px;
+}
+
+.installation-empty-state,
+.installation-empty-photos {
+  color: var(--text-muted, #64748b);
+  font-size: 13px;
+  padding: 16px;
+  text-align: center;
+}
+
+.installation-notification-list {
+  display: grid;
+  gap: 8px;
+}
+
+.installation-notification-list button {
+  align-items: start;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  color: inherit;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  padding: 9px;
+  text-align: left;
+}
+
+.installation-notification-list button.unread {
+  background: rgba(255, 121, 0, 0.07);
+  border-color: rgba(255, 121, 0, 0.22);
+}
+
+.installation-notification-list span {
+  font-size: 13px;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.installation-notification-list time {
+  color: var(--text-muted, #64748b);
+  font-size: 11px;
+}
+
+.installation-details-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+  bottom: 24px;
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+  padding: 16px;
+  position: fixed;
+  right: 24px;
+  width: min(420px, calc(100vw - 48px));
+  z-index: 30;
+}
+
+.installation-details-panel > .icon-button {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+.installation-details-panel h2 {
+  font-size: 19px;
+  line-height: 1.2;
+  margin: 10px 34px 14px 0;
+}
+
+.installation-details-panel dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.installation-details-panel dl div {
+  background: var(--surface-muted, #f8fafc);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.installation-details-panel dt {
+  color: var(--text-muted, #64748b);
+  font-size: 11px;
+}
+
+.installation-details-panel dd {
+  font-size: 13px;
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.installation-details-panel dd a {
+  color: var(--primary, #ff7900);
+  display: block;
+  font-weight: 600;
+  margin-top: 4px;
+  text-decoration: none;
+}
+
+.installation-editor-backdrop {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.38);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 18px;
+  position: fixed;
+  z-index: 50;
+}
+
+.installation-editor {
+  background: var(--surface, #fff);
+  border-radius: 16px;
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.22);
+  max-height: min(720px, calc(100dvh - 36px));
+  overflow: auto;
+  padding: 18px;
+  width: min(680px, 100%);
+}
+
+.installation-editor header,
+.installation-editor footer {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.installation-editor-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 16px 0;
+}
+
+.installation-editor label {
+  color: var(--text-secondary, #475569);
+  display: grid;
+  font-size: 12px;
+  gap: 5px;
+  min-width: 0;
+}
+
+.installation-editor label.full {
+  grid-column: 1 / -1;
+}
+
+.installation-editor-files {
+  background: var(--surface-muted, #f8fafc);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 10px;
+}
+
+.installation-editor-files span {
+  color: var(--text-muted, #64748b);
+  flex-basis: 100%;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.installation-editor-files a {
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 999px;
+  color: var(--primary, #ff7900);
+  font-size: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 5px 8px;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.installation-editor input,
+.installation-editor select,
+.installation-editor textarea {
+  background: var(--surface, #fff);
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.installation-toast {
+  background: #111827;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 13px;
+  left: 50%;
+  padding: 9px 14px;
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  transform: translateX(-50%);
+  z-index: 70;
+}
+
+.installations-mobile {
+  background: #f5f6f8;
+  min-height: 100dvh;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 12px calc(env(safe-area-inset-bottom, 0px) + 18px);
+}
+
+.installation-mobile-header {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 18px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 58px minmax(0, 1fr) 44px 44px;
+  padding: 12px;
+}
+
+.installation-mobile-header .worker-avatar {
+  align-items: center;
+  background: rgba(255, 121, 0, 0.08);
+  border-radius: 50%;
+  color: var(--primary, #ff7900);
+  display: flex;
+  font-size: 20px;
+  font-weight: 600;
+  height: 58px;
+  justify-content: center;
+  width: 58px;
+}
+
+.installation-mobile-header strong {
+  display: block;
+  font-size: 21px;
+  line-height: 1.15;
+}
+
+.installation-mobile-header span {
+  color: var(--text-secondary, #64748b);
+}
+
+.installation-mobile-header button,
+.installation-bell {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 50%;
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  position: relative;
+  width: 44px;
+}
+
+.installation-bell span {
+  align-items: center;
+  background: #ef4444;
+  border-radius: 999px;
+  color: #fff;
+  display: flex;
+  font-size: 11px;
+  height: 18px;
+  justify-content: center;
+  min-width: 18px;
+  position: absolute;
+  right: -3px;
+  top: -3px;
+}
+
+.installation-mobile-tabs {
+  background: #fff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 16px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 4px;
+}
+
+.installation-mobile-tabs button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  color: var(--text-secondary, #64748b);
+  display: flex;
+  font-size: 15px;
+  font-weight: 500;
+  gap: 6px;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 0;
+}
+
+.installation-mobile-tabs button.active {
+  background: var(--primary, #ff7900);
+  color: #fff;
+}
+
+.installation-mobile-tabs span {
+  background: rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  font-size: 12px;
+  min-width: 22px;
+  padding: 2px 6px;
+}
+
+.worker-installation-card {
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.installation-expanded p {
+  color: var(--text-secondary, #475569);
+  font-size: 14px;
+  line-height: 1.35;
+  margin: 12px 0 0;
+}
+
+@media (max-width: 1180px) {
+  .installations-layout {
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  }
+
+  .installation-map-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .installation-map-list {
+    max-height: 260px;
+  }
+
+  .installations-notifications {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 860px) {
+  .installations-toolbar,
+  .installations-toolbar-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .installations-filters,
+  .installations-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .installation-yandex-map,
+  .installation-map-fallback {
+    min-height: 320px;
+  }
+
+  .installations-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .installation-editor-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .installation-card-head {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .installation-card-side {
+    align-items: flex-start;
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
+@media (max-width: 520px) {
+  .installations-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .installation-mobile-header {
+    grid-template-columns: 58px minmax(0, 1fr) 44px 44px;
+  }
+
+  .installation-card-head {
+    gap: 10px;
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .installation-card-icon {
+    height: 44px;
+    width: 44px;
+  }
+
+  .installation-mobile-tabs button {
+    font-size: 14px;
+  }
+}
+
+/* Calm system typography layer: closer to native iOS/macOS weight and rhythm. */
+body,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+:where(h1, h2, h3, h4, strong, b) {
+  font-weight: 600;
+}
+
+:where(
+  .stage-tabs button,
+  .deal-workspace-tabs button,
+  .production-section-tabs button,
+  .production-view-switch button,
+  .worker-tabs button,
+  .primary,
+  .secondary,
+  .danger,
+  .row-actions button,
+  .row-actions a,
+  .production-row-actions button,
+  .production-row-actions select,
+  .production-batch-bar button,
+  .employee-access-actions button,
+  .employee-payout-controls button,
+  .worker-profile-menu button,
+  .worker-profile-menu label,
+  .worker-profile-menu-trigger
+) {
+  font-weight: 500;
+}
+
+:where(
+  .stage-tabs span,
+  .production-section-tabs span,
+  .production-compact-meta span,
+  .production-status,
+  .production-deadline-chip,
+  .mobile-deal-stage,
+  .chip,
+  .cost-chip small
+) {
+  font-weight: 500;
+}
+
+:where(.deals-table, .production-mobile, .installations-app, .manager-deal-portal) {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.deals-table th {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.deals-table td,
+.deals-table small,
+.mobile-deal-meta,
+.production-compact-meta,
+.production-assignment-line,
+.production-compact-status > span:last-child {
+  font-weight: 400;
+}
+
+.deal-title strong,
+.mobile-deal-number,
+.production-card-title strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.deal-title span,
+.mobile-deal-title strong,
+.production-card-title h2,
+.production-card-title.compact-title h2 {
+  font-weight: 600;
+  line-height: 1.22;
+}
+
+.production-card-title.compact-title h2 {
+  font-size: 14.5px;
+}
+
+.production-compact-meta span {
+  font-size: 11.5px;
+  line-height: 1.1;
+}
+
+.production-row-actions {
+  font-size: 13px;
+}
+
+.production-row-actions button,
+.production-toggle-tech-spec,
+.production-row-actions select {
+  min-height: 38px;
+  border-radius: 10px;
+  padding: 8px 11px;
+}
+
+.production-deal-summary.opens-workspace {
+  cursor: pointer;
+}
+
+.production-deal-summary.opens-workspace:hover .production-card-title h2 {
+  color: var(--primary-hover);
+}
+
+.employee-card-chip {
+  background: #eefbfc;
+  color: #263548;
+  font-weight: 500;
+}
+
+.employee-card-name,
+.employee-card-phone {
+  font-weight: 500;
+}
+
+.employee-card-phone,
+.employee-profile-label,
+.employee-popover-title small {
+  font-size: 12px;
+}
+
+.employee-avatar {
+  font-weight: 600;
+}
+
+.employee-popover-title strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.employee-popover-title span {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.worker-profile h1,
+.worker-profile strong,
+.worker-profile-menu button,
+.worker-profile-menu label {
+  font-weight: 500;
+}
+
+.worker-profile h1 {
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  :where(.production-mobile, .installations-app, .manager-deal-portal) {
+    font-size: 14.5px;
+    line-height: 1.3;
+  }
+
+  .production-card-title.compact-title h2,
+  .production-worker-view .production-card-title.compact-title h2 {
+    font-size: 15.5px;
+    font-weight: 600;
+  }
+
+  .production-worker-view .production-compact-meta span,
+  .production-deadline-chip,
+  .production-status {
+    font-weight: 500;
+  }
+}
+
+/* Final app typography pass: lighter native-style weights across deal lists and staff pages. */
+:where(
+  .workspace-shell,
+  .deals-table,
+  .production-mobile,
+  .employee-management-shell,
+  .installations-app,
+  .manager-deal-portal
+) {
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.34;
+  text-rendering: optimizeLegibility;
+}
+
+:where(
+  .deals-table td,
+  .deals-table small,
+  .deal-title,
+  .production-deal-card,
+  .production-deal-summary,
+  .production-compact-meta,
+  .production-row-actions,
+  .production-assignment-line,
+  .production-employee-row,
+  .employee-group-grid button,
+  .employee-list-head,
+  .employee-access-controls,
+  .employee-payout-controls
+) {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.3;
+}
+
+.deals-table th,
+.column-head,
+.column-head button,
+.column-head label,
+.stage-tabs button,
+.app-mode-switch button,
+.workspace-user-card,
+.workspace-brand,
+.production-section-tabs button,
+.production-view-switch button,
+.production-batch-bar,
+.production-employee-form input,
+.production-employee-form select,
+.employee-access-controls input,
+.employee-access-controls select,
+.employee-access-actions button,
+.employee-payout-controls button {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.deal-title strong,
+.mobile-deal-number,
+.production-card-title strong {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.deal-title span,
+.mobile-deal-title strong,
+.production-card-title h2,
+.production-card-title.compact-title h2,
+.production-worker-view .production-card-title.compact-title h2 {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.22;
+}
+
+.deals-table .deal-title span {
+  display: block;
+  max-width: 100%;
+}
+
+.production-compact-meta span,
+.production-status,
+.production-deadline-chip,
+.mobile-deal-stage,
+.chip,
+.cost-chip small,
+.employee-row-summary small,
+.employee-group-grid small,
+.employee-list-head span {
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.18;
+}
+
+.cost-chip span,
+.deals-table td > strong,
+.production-kpi strong,
+.production-review-head strong,
+.employee-row-summary strong,
+.employee-list-head strong,
+.employee-group-grid span,
+.employee-card-name,
+.employee-popover-title strong {
+  font-weight: 500;
+}
+
+.employee-row-summary strong,
+.employee-list-head strong,
+.employee-group-grid span {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+.employee-group-grid strong,
+.employee-list-head em {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.employee-row-avatar,
+.employee-avatar {
+  font-weight: 500;
+}
+
+.primary,
+.secondary,
+.danger,
+.row-actions button,
+.row-actions a,
+.production-row-actions button,
+.production-row-actions select,
+.employee-access-actions button,
+.employee-payout-controls button {
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+@media (max-width: 768px) {
+  :where(.production-mobile, .employee-management-shell, .installations-app, .manager-deal-portal) {
+    font-size: 14.5px;
+    line-height: 1.3;
+  }
+
+  .deal-title span,
+  .mobile-deal-title strong,
+  .production-card-title h2,
+  .production-card-title.compact-title h2,
+  .production-worker-view .production-card-title.compact-title h2 {
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .primary,
+  .secondary,
+  .danger,
+  .production-row-actions button,
+  .employee-access-actions button,
+  .employee-payout-controls button {
+    font-size: 14px;
+  }
+}
+
+/* Focused production/costing cleanup: denser desktop, calmer typography and no batch assignment bar. */
+.workspace-brand-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.workspace-brand-button:hover img,
+.workspace-brand-button:focus-visible img {
+  transform: translateY(-1px);
+}
+
+.workspace-brand-button:focus-visible {
+  outline: 2px solid rgba(249, 115, 22, 0.35);
+  outline-offset: 3px;
+}
+
+.deal-list > .toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+}
+
+.deal-list > .toolbar > div:first-child,
+.deal-list > .toolbar .toolbar-actions {
+  width: 100%;
+  flex: none;
+}
+
+.deal-list > .toolbar .toolbar-actions {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+}
+
+.deal-list > .toolbar .search {
+  flex: 1 1 560px;
+  width: min(720px, 100%);
+}
+
+.deal-list > .toolbar .toolbar-catalog {
+  margin-left: auto;
+}
+
+.resizable-th {
+  position: relative;
+  overflow: visible;
+}
+
+.column-resizer {
+  right: -6px;
+  width: 12px;
+}
+
+.column-resizer::after {
+  top: 16px;
+  right: 5px;
+  bottom: 16px;
+  width: 1px;
+  background: #d8e1eb;
+  box-shadow: 0 0 0 1px rgba(216, 225, 235, 0.45);
+}
+
+.resizable-th:hover .column-resizer::after,
+.column-resizer:hover::after,
+.is-resizing-columns .column-resizer::after {
+  width: 2px;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+}
+
+.deals-table .deal-title span,
+.production-card-title.compact-title h2,
+.production-worker-view .production-card-title.compact-title h2,
+.employee-row-summary strong,
+.employee-list-head strong,
+.employee-group-grid span {
+  font-weight: 500 !important;
+}
+
+.deals-table .deal-title span,
+.production-card-title.compact-title h2 {
+  font-size: 13.5px;
+  line-height: 1.2;
+}
+
+.production-batch-bar.production-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: stretch;
+  padding: 10px 12px;
+}
+
+.production-batch-bar.production-search-row .production-search {
+  width: 100%;
+  max-width: none;
+}
+
+.production-compact-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.production-deal-summary.opens-workspace {
+  cursor: pointer;
+}
+
+.production-row-actions {
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.part-assignment-panel {
+  background: #f8fafc;
+}
+
+.part-assignment-panel h3 {
+  font-weight: 500;
+}
+
+.part-assignment-row {
+  grid-template-columns: 54px minmax(0, 1fr) minmax(150px, 220px) auto;
+}
+
+.part-assignment-row span {
+  font-weight: 400;
+}
+
+.worker-gallery-search {
+  width: 100%;
+  max-width: none;
+}
+
+.worker-gallery.worker-gallery-list {
+  display: grid;
+  gap: 9px;
+}
+
+.worker-gallery-deal {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 10px;
+}
+
+.worker-gallery-thumb {
+  display: grid;
+  width: 58px;
+  height: 48px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-muted);
+  color: var(--text-secondary);
+}
+
+.worker-gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.worker-gallery-deal > div:last-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.worker-gallery-deal strong,
+.worker-gallery-deal span,
+.worker-gallery-deal small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worker-gallery-deal strong {
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.worker-gallery-deal span {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.worker-gallery-deal small {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .deal-list > .toolbar .toolbar-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(2, 44px);
+  }
+
+  .deal-list > .toolbar .toolbar-catalog {
+    grid-column: 1 / -1;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .production-compact-row,
+  .part-assignment-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .production-row-actions {
+    justify-content: stretch;
+  }
+
+  .production-row-actions button,
+  .production-row-actions select {
+    width: 100%;
+  }
+}
+
+/* Final responsive polish: clickable photos, readable worker gallery, and non-blocking tooltips. */
+.production-photo-preview-link,
+.production-photo-strip a,
+.worker-gallery-thumb a,
+.installation-photo-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.production-photo-preview-link img,
+.production-photo-strip a img,
+.worker-gallery-thumb a img,
+.installation-photo-link img {
+  display: block;
+}
+
+.worker-gallery.worker-gallery-list {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.worker-gallery.worker-gallery-list .worker-gallery-deal {
+  grid-template-columns: 92px minmax(0, 1fr);
+  min-height: 94px;
+  align-items: center;
+}
+
+.worker-gallery.worker-gallery-list .worker-gallery-thumb {
+  width: 92px;
+  height: 74px;
+}
+
+.worker-gallery.worker-gallery-list .worker-gallery-deal strong,
+.worker-gallery.worker-gallery-list .worker-gallery-deal span,
+.worker-gallery.worker-gallery-list .worker-gallery-deal small {
+  display: block;
+  width: auto;
+  aspect-ratio: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.worker-gallery.worker-gallery-list .worker-gallery-deal span {
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.worker-gallery.worker-gallery-list > span {
+  aspect-ratio: auto;
+  min-height: 110px;
+  border-style: dashed;
+}
+
+.data-health-warning,
+.data-health-warning * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.stage-tabs {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.installation-photo-link {
+  background: var(--surface-muted, #f3f4f6);
+}
+
+.installation-yandex-map [class*="route"],
+.installation-yandex-map [class*="route"] * {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button[aria-label],
+  a[aria-label],
+  button[title],
+  a[title],
+  [data-tooltip] {
+    position: relative;
+  }
+
+  button[aria-label]:hover::after,
+  a[aria-label]:hover::after,
+  button[title]:hover::after,
+  a[title]:hover::after,
+  [data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 10000;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    max-width: min(280px, calc(100vw - 24px));
+    transform: translateX(-50%);
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    background: rgba(17, 24, 39, 0.94);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.25;
+    opacity: 0;
+    padding: 7px 9px;
+    pointer-events: none;
+    text-align: center;
+    white-space: normal;
+    animation: tooltip-fade-in 120ms ease forwards;
+  }
+
+  button[aria-label]:hover::after,
+  a[aria-label]:hover::after {
+    content: attr(aria-label);
+  }
+
+  button[title]:hover::after,
+  a[title]:hover::after {
+    content: attr(title);
+  }
+}
+
+@keyframes tooltip-fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 3px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (max-width: 430px) {
+  .worker-gallery.worker-gallery-list .worker-gallery-deal {
+    grid-template-columns: 84px minmax(0, 1fr);
+  }
+
+  .worker-gallery.worker-gallery-list .worker-gallery-thumb {
+    width: 84px;
+    height: 68px;
+  }
+}
+
+.workspace-warehouse .workspace-content {
+  overflow-x: clip;
+}
+
+.warehouse-app {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.warehouse-hero,
+.warehouse-ai-panel,
+.warehouse-panel,
+.warehouse-summary-card {
+  border: 1px solid var(--border, #dbe3ee);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(15, 23, 42, 0.08));
+}
+
+.warehouse-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+}
+
+.warehouse-hero h1 {
+  margin: 2px 0 4px;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.warehouse-hero p,
+.warehouse-ai-panel span,
+.warehouse-settings-grid span {
+  color: var(--text-secondary, #667085);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.warehouse-actions,
+.warehouse-panel-actions,
+.warehouse-row-actions,
+.warehouse-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+
+.warehouse-actions .file-action {
+  cursor: pointer;
+}
+
+.warehouse-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.warehouse-summary-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+}
+
+.warehouse-summary-card span {
+  color: var(--text-secondary, #667085);
+  font-size: 12px;
+}
+
+.warehouse-summary-card strong {
+  color: var(--text-primary, #101828);
+  font-size: 20px;
+}
+
+.warehouse-summary-card.warning strong {
+  color: #b45309;
+}
+
+.warehouse-summary-card.danger strong {
+  color: #b42318;
+}
+
+.warehouse-ai-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.warehouse-ai-panel > svg {
+  color: var(--primary, #f97316);
+}
+
+.warehouse-ai-panel strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 15px;
+}
+
+.warehouse-upload-status {
+  max-width: 360px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: var(--text-secondary, #667085);
+  font-size: 12px;
+  padding: 7px 10px;
+}
+
+.warehouse-upload-status.parsed {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.warehouse-upload-status.manual,
+.warehouse-upload-status.error {
+  background: #fff4ed;
+  color: #b54708;
+}
+
+.warehouse-tabs {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 4px;
+}
+
+.warehouse-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-secondary, #667085);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 13px;
+  white-space: nowrap;
+}
+
+.warehouse-tabs button.active {
+  border-color: rgba(249, 115, 22, 0.28);
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--primary, #f97316);
+}
+
+.warehouse-tabs button span {
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.16);
+  padding: 2px 7px;
+}
+
+.warehouse-panel {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.warehouse-stock-list,
+.warehouse-history-list,
+.warehouse-price-list,
+.warehouse-receipt-rows {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.warehouse-stock-row,
+.warehouse-history-row,
+.warehouse-document-row,
+.warehouse-price-row,
+.warehouse-receipt-row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid var(--border, #dbe3ee);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  padding: 12px;
+}
+
+.warehouse-stock-row {
+  grid-template-columns: minmax(220px, 1.8fr) repeat(3, minmax(90px, 0.6fr)) auto;
+}
+
+.warehouse-stock-row strong,
+.warehouse-history-row strong,
+.warehouse-price-row strong,
+.warehouse-document-row strong {
+  color: var(--text-primary, #101828);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.warehouse-stock-row span,
+.warehouse-history-row span,
+.warehouse-document-row span,
+.warehouse-price-row span {
+  display: block;
+  color: var(--text-secondary, #667085);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.stock-status,
+.warehouse-confidence {
+  justify-self: end;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #027a48;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 9px;
+}
+
+.stock-status.low,
+.warehouse-confidence.warn {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.stock-status.empty {
+  background: #fef3f2;
+  color: #b42318;
+}
+
+.warehouse-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.warehouse-form-grid label,
+.warehouse-wide-field,
+.warehouse-receipt-row label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-secondary, #667085);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.warehouse-form-grid input,
+.warehouse-form-grid select,
+.warehouse-wide-field textarea,
+.warehouse-receipt-row input,
+.warehouse-receipt-row select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--border, #dbe3ee);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  color: var(--text-primary, #101828);
+  font: inherit;
+  padding: 8px 10px;
+}
+
+.warehouse-wide-field textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.warehouse-receipt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.warehouse-receipt-row {
+  grid-template-columns: minmax(150px, 1.2fr) minmax(220px, 1.4fr) 84px 70px 90px auto auto;
+}
+
+.warehouse-empty {
+  border: 1px dashed var(--border, #dbe3ee);
+  border-radius: 12px;
+  color: var(--text-secondary, #667085);
+  font-size: 14px;
+  padding: 18px;
+  text-align: center;
+}
+
+.warehouse-document-row {
+  grid-template-columns: auto minmax(0, 1fr);
+  color: inherit;
+  text-decoration: none;
+}
+
+.warehouse-price-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.warehouse-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.warehouse-settings-grid > div {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border, #dbe3ee);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+@media (max-width: 1024px) {
+  .warehouse-summary,
+  .warehouse-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .warehouse-stock-row,
+  .warehouse-receipt-row,
+  .warehouse-price-row {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .stock-status,
+  .warehouse-confidence {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .warehouse-app {
+    padding: 12px;
+  }
+
+  .warehouse-hero,
+  .warehouse-ai-panel {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .warehouse-summary,
+  .warehouse-form-grid,
+  .warehouse-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .warehouse-actions .primary,
+  .warehouse-actions .secondary,
+  .warehouse-panel-actions .primary,
+  .warehouse-panel-actions .secondary {
+    width: 100%;
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+/* Editorial visual system */
+:root {
+  --bg: #f6f2ec;
+  --bg-elevated: #faf7f1;
+  --surface: #fffdf8;
+  --surface-soft: #fbf7ef;
+  --surface-muted: #f1ebe2;
+  --surface-hover: #f8efe4;
+  --border: #ded4c7;
+  --border-soft: #e9dfd3;
+  --border-strong: #c9b9a8;
+  --text: #161616;
+  --text-secondary: #4f5965;
+  --text-muted: #6d7480;
+  --text-soft: #9a9289;
+  --primary: #ef6b18;
+  --primary-hover: #d95b0e;
+  --primary-soft: #fff2e5;
+  --primary-muted: #ffd2ae;
+  --shadow-sm: 0 1px 0 rgba(35, 31, 27, 0.05);
+  --shadow-md: 0 10px 26px rgba(35, 31, 27, 0.06);
+  --shadow-lg: 0 24px 60px rgba(35, 31, 27, 0.08);
+}
+
+body,
+.app,
+.workspace-app {
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.74), rgba(246, 242, 236, 0) 260px),
+    var(--bg);
+}
+
+:where(.workspace-content, .deal-list, .employee-management-shell, .installations-app, .warehouse-app, .production-mobile) {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.34;
+}
+
+:where(h1, h2, h3, .workspace-brand, .installations-toolbar h1, .warehouse-hero h1, .manager-deal-head h1) {
+  color: #151515;
+  font-weight: 560;
+  letter-spacing: 0;
+}
+
+:where(h1, .installations-toolbar h1, .warehouse-hero h1) {
+  font-size: clamp(20px, 2vw, 26px);
+  line-height: 1.08;
+}
+
+:where(h2, .installations-section-head h2, .tech-spec-panel-head h2, .tech-spec-item-head h2) {
+  font-size: 16px;
+  line-height: 1.18;
+}
+
+:where(strong, b, .deal-title span, .mobile-deal-title strong, .production-card-title, .production-card-title strong, .employee-row-summary strong, .employee-group-grid span) {
+  font-weight: 560;
+}
+
+:where(small, .tech-spec-muted, .employee-row-summary small, .employee-group-grid small, .installation-map-panel .installations-section-head p) {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+:where(.app-mode-sidebar, .workspace-user-card, .access-card, .table-wrap, .kpi, .summary, .production-deal-card, .employee-group-grid button, .production-employee-row, .installations-queue, .installations-board, .installations-notifications, .installation-map-panel, .warehouse-panel, .warehouse-hero, .warehouse-ai-panel, .warehouse-summary-card, .tech-spec-panel, .tech-spec-item, .tech-spec-hero, .mobile-deal-card) {
+  border-color: var(--border-soft);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-mode-sidebar {
+  background: rgba(255, 253, 248, 0.94);
+}
+
+.workspace-brand {
+  font-size: 12px;
+  font-weight: 520;
+}
+
+.workspace-brand img {
+  filter: saturate(0.95);
+}
+
+.app-mode-switch button {
+  min-height: 40px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.app-mode-switch button.active {
+  border-color: var(--primary-muted);
+  background: var(--primary-soft);
+  color: var(--primary-hover);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+:where(.primary, .secondary, .ghost, .icon-button, .stage-tabs button, .production-row-actions button, .production-row-actions select, .employee-access-actions button, .employee-payout-controls button, .tech-spec-export-popover button, .warehouse-tabs button) {
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  box-shadow: none;
+}
+
+.primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.secondary,
+.icon-button {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.secondary:hover,
+.icon-button:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+
+.stage-tabs,
+.deal-list .stage-tabs,
+.warehouse-tabs {
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.stage-tabs button,
+.deal-list .stage-tabs button,
+.warehouse-tabs button {
+  min-height: 34px;
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.stage-tabs button.active,
+.deal-list .stage-tabs button.active,
+.warehouse-tabs button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.stage-tabs span,
+.deal-list .stage-tabs span,
+.warehouse-tabs button span {
+  background: var(--surface-muted);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.stage-tabs button.active span,
+.deal-list .stage-tabs button.active span,
+.warehouse-tabs button.active span {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.search,
+.installations-filters label,
+.installations-filters select,
+.warehouse-form-grid input,
+.warehouse-form-grid select,
+.warehouse-wide-field textarea,
+.production-employee-form input,
+.production-employee-form select,
+.employee-access-controls input,
+.employee-access-controls select,
+.tech-spec-header input,
+.tech-spec-header textarea,
+.tech-spec-item-grid input,
+.tech-spec-item-grid select,
+.tech-spec-item-grid textarea {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.table-wrap {
+  border-radius: 16px;
+  overflow: auto;
+}
+
+th,
+.deals-table th {
+  background: #f4eee6;
+  color: #4d4b47;
+  font-size: 11px;
+  font-weight: 560;
+  letter-spacing: 0.02em;
+}
+
+td,
+.deals-table td {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.deals-table .deal-title {
+  color: var(--primary-hover);
+}
+
+.deals-table .deal-title span {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.24;
+}
+
+.deals-table td > strong,
+.cost-chip span,
+.column-label,
+.sort-button {
+  font-weight: 560;
+}
+
+.cost-chip,
+.production-status,
+.installation-status,
+.stock-status,
+.mobile-deal-stage,
+.employee-card-chip {
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.production-deal-card,
+.ready-installation-card,
+.installation-card,
+.warehouse-stock-row,
+.warehouse-history-row,
+.warehouse-document-row,
+.warehouse-price-row,
+.warehouse-receipt-row,
+.production-employee-row {
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.production-deal-card:hover,
+.ready-installation-card:hover,
+.installation-card:hover,
+.warehouse-stock-row:hover,
+.production-employee-row:hover {
+  border-color: var(--border-strong);
+  background: #fffaf3;
+}
+
+.production-row-actions button,
+.production-toggle-tech-spec,
+.production-row-actions select {
+  min-height: 34px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.employee-group-grid button {
+  border-radius: 14px;
+  color: var(--text-secondary);
+}
+
+.employee-group-grid button.active {
+  border-color: var(--primary-muted);
+  background: var(--primary-soft);
+  color: var(--primary-hover);
+}
+
+.employee-list-head strong,
+.employee-row-summary strong,
+.employee-group-grid span,
+.employee-card-name,
+.employee-popover-title strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 560;
+}
+
+.employee-group-grid strong,
+.employee-list-head em {
+  font-weight: 500;
+}
+
+.employee-row-summary small,
+.employee-group-grid small,
+.employee-list-head span {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.tech-spec-hero,
+.warehouse-hero {
+  border-radius: 16px;
+  background:
+    linear-gradient(90deg, rgba(239, 107, 24, 0.06), rgba(255, 253, 248, 0) 45%),
+    var(--surface);
+}
+
+.tech-spec-export-popover {
+  border-color: var(--border-soft);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.installation-map-panel {
+  overflow: hidden;
+}
+
+.installation-yandex-map {
+  background: var(--surface-soft);
+}
+
+.installation-yandex-map [class*="route"],
+.installation-yandex-map [class*="route"] * {
+  max-width: 100%;
+}
+
+@media (max-width: 768px) {
+  :where(.production-mobile, .installations-app, .warehouse-app, .manager-deal-portal) {
+    font-size: 14px;
+  }
+
+  :where(.mobile-deal-title strong, .production-card-title, .production-card-title strong) {
+    font-size: 15px;
+    font-weight: 560;
+  }
+}
+
+/* Mobile workspace completion layer: all desktop sections stay reachable and feel native on phones. */
+@media (max-width: 720px) {
+  .workspace-app {
+    min-height: 100dvh;
+    background: var(--bg);
+    overflow-x: clip;
+  }
+
+  .workspace-app:has(.workspace-bottom-nav) .workspace-shell {
+    padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  }
+
+  .workspace-content {
+    display: grid;
+    gap: 12px;
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+  }
+
+  .workspace-mobile-title {
+    min-width: 0;
+    border-bottom: 1px solid rgba(35, 31, 27, 0.08);
+    background: rgba(246, 242, 236, 0.92);
+  }
+
+  .workspace-mobile-title span {
+    font-size: 11px;
+    font-weight: 520;
+    letter-spacing: 0.08em;
+  }
+
+  .workspace-mobile-title strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 560;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .workspace-bottom-nav {
+    left: 8px;
+    right: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 18px;
+    padding: 6px;
+    scrollbar-width: none;
+  }
+
+  .workspace-bottom-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .workspace-bottom-nav button {
+    flex: 0 0 clamp(66px, 22vw, 92px);
+    scroll-snap-align: center;
+    min-width: 66px;
+    min-height: 54px;
+    border-radius: 14px;
+    padding: 6px 8px;
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-weight: 500;
+  }
+
+  .workspace-bottom-nav button svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .workspace-bottom-nav button.active {
+    background: var(--primary);
+    color: #fff;
+  }
+
+  .workspace-bottom-nav button span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .workspace-costing .deal-list,
+  .workspace-production .production-mobile,
+  .workspace-employees .production-mobile,
+  .workspace-installations .installations-app,
+  .workspace-warehouse .warehouse-app {
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .workspace-costing .deal-list {
+    padding-top: 10px;
+  }
+
+  .stage-tabs,
+  .deal-list .stage-tabs,
+  .warehouse-tabs,
+  .installation-mobile-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .stage-tabs::-webkit-scrollbar,
+  .deal-list .stage-tabs::-webkit-scrollbar,
+  .warehouse-tabs::-webkit-scrollbar,
+  .installation-mobile-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .stage-tabs button,
+  .deal-list .stage-tabs button,
+  .warehouse-tabs button,
+  .installation-mobile-tabs button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .mobile-deal-filters,
+  .deal-toolbar,
+  .production-filters,
+  .employee-access-controls,
+  .warehouse-toolbar,
+  .installations-filters {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .mobile-deal-card,
+  .production-deal-card,
+  .production-employee-row,
+  .employee-group-grid button,
+  .warehouse-panel,
+  .warehouse-hero,
+  .warehouse-ai-panel,
+  .warehouse-summary-card,
+  .installation-map-panel,
+  .installations-queue,
+  .installations-board,
+  .installations-notifications,
+  .installation-card,
+  .ready-installation-card {
+    border-radius: 16px;
+    box-shadow: 0 1px 0 rgba(35, 31, 27, 0.04);
+  }
+
+  .production-layout,
+  .production-columns,
+  .employee-access-grid,
+  .employee-group-grid,
+  .installations-layout,
+  .installation-map-layout,
+  .warehouse-summary,
+  .warehouse-form-grid,
+  .warehouse-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .installations-toolbar,
+  .installations-toolbar-actions,
+  .warehouse-hero,
+  .warehouse-ai-panel,
+  .warehouse-actions,
+  .warehouse-panel-actions,
+  .production-actions,
+  .employee-access-actions {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .installations-toolbar {
+    gap: 10px;
+  }
+
+  .installations-toolbar h1,
+  .warehouse-hero h1 {
+    font-size: 20px;
+    font-weight: 560;
+  }
+
+  .installations-toolbar .eyebrow,
+  .warehouse-hero .eyebrow {
+    font-size: 11px;
+    font-weight: 520;
+  }
+
+  .installation-date-control {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px minmax(82px, auto);
+    width: 100%;
+    min-width: 0;
+  }
+
+  .installation-date-control input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .installations-filters {
+    gap: 8px;
+  }
+
+  .installations-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .installation-summary-card {
+    padding: 10px;
+  }
+
+  .installation-summary-card strong {
+    font-size: 18px;
+  }
+
+  .installation-map-panel {
+    padding: 10px;
+  }
+
+  .installation-map-list {
+    display: flex;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 2px;
+    scroll-snap-type: x proximity;
+  }
+
+  .installation-map-item {
+    flex: 0 0 min(280px, 84vw);
+    scroll-snap-align: start;
+  }
+
+  .installation-yandex-map,
+  .installation-map-fallback {
+    min-height: 300px;
+    border-radius: 16px;
+  }
+
+  .installation-card-head {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .installation-card-side {
+    grid-column: 1 / -1;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .installation-card-actions,
+  .worker-installation-quick-actions,
+  .warehouse-row-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .installation-card-actions button,
+  .worker-installation-quick-actions button,
+  .worker-installation-quick-actions a,
+  .warehouse-row-actions button {
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .installation-details-panel {
+    inset: auto 8px calc(86px + env(safe-area-inset-bottom)) 8px;
+    width: auto;
+    max-height: min(78dvh, 680px);
+    border-radius: 18px;
+  }
+
+  .warehouse-app {
+    gap: 10px;
+  }
+
+  .warehouse-hero {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .warehouse-hero p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .warehouse-actions .primary,
+  .warehouse-actions .secondary,
+  .warehouse-panel-actions .primary,
+  .warehouse-panel-actions .secondary {
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .warehouse-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .warehouse-summary-card {
+    padding: 10px;
+  }
+
+  .warehouse-summary-card strong {
+    font-size: 17px;
+  }
+
+  .warehouse-ai-panel {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 12px;
+  }
+
+  .warehouse-ai-panel .warehouse-upload-status {
+    grid-column: 1 / -1;
+    max-width: 100%;
+    border-radius: 12px;
+  }
+
+  .warehouse-tabs {
+    border-radius: 16px;
+    padding: 5px;
+  }
+
+  .warehouse-panel {
+    padding: 10px;
+  }
+
+  .warehouse-stock-row,
+  .warehouse-history-row,
+  .warehouse-document-row,
+  .warehouse-price-row,
+  .warehouse-receipt-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .warehouse-stock-row > div,
+  .warehouse-history-row > div,
+  .warehouse-document-row > div,
+  .warehouse-price-row > div,
+  .warehouse-receipt-row > label {
+    min-width: 0;
+  }
+
+  .stock-status,
+  .warehouse-confidence {
+    justify-self: start;
+  }
+
+  .warehouse-receipt-head {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .warehouse-receipt-head button,
+  .warehouse-receipt-row .icon-button {
+    justify-content: center;
+    min-height: 44px;
+    width: 100%;
+  }
+
+  .warehouse-history-list,
+  .warehouse-stock-list,
+  .warehouse-price-list,
+  .warehouse-receipt-rows {
+    gap: 8px;
+  }
+
+  .production-employee-form,
+  .employee-access-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 380px) {
+  .workspace-bottom-nav button {
+    min-width: 62px;
+    padding-inline: 6px;
+    font-size: 10px;
+  }
+
+  .workspace-bottom-nav button svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .installations-summary-grid,
+  .warehouse-summary {
+    grid-template-columns: 1fr;
   }
 }

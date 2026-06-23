@@ -720,7 +720,7 @@ type WorkCostOption = {
   note?: string;
 };
 
-const WORK_COST_SECTIONS = new Set(["assembly", "milling", "mounting", "subcontract"]);
+const WORK_COST_SECTIONS = new Set(["assembly", "mounting", "subcontract"]);
 
 const WORK_COST_SECTION_LABELS: Record<string, string> = {
   assembly: "Стоимость сборки",
@@ -764,7 +764,7 @@ function getPrintableFields(item: TechSpecItem, workCostOptions: WorkCostOption[
 
   const workCost = getSelectedWorkCost(item, workCostOptions);
   if (workCost.total > 0) {
-    fields.push({ label: "Стоимость работ", value: formatMoney(workCost.total) });
+    fields.push({ label: "Оплата сборки", value: formatMoney(workCost.total) });
   }
 
   return fields;
@@ -2311,12 +2311,6 @@ export function TechSpecBuilder({
             {copyState === "copied" ? <CheckCircle2 size={16} /> : <Copy size={16} />}
             {copyState === "copied" ? "Скопировано" : "Копировать"}
           </button>
-          {costNote ? (
-            <button className="secondary compact" onClick={addCostNote} type="button">
-              <Plus size={16} />
-              Стоимость работ в ТЗ
-            </button>
-          ) : null}
           <div className="tech-spec-export-menu" ref={exportMenuRef}>
             <button
               aria-expanded={exportMenuOpen}
@@ -2326,7 +2320,7 @@ export function TechSpecBuilder({
               type="button"
             >
               <Download size={16} />
-              Экспорт
+              Сохранить как
             </button>
             {exportMenuOpen ? (
               <div className="tech-spec-export-popover" role="menu">
@@ -2471,8 +2465,8 @@ export function TechSpecBuilder({
         <div className="tech-spec-notices">
           {storageIssue ? <span className="warn">{storageIssue}</span> : null}
           {attachmentNotice ? <span>{attachmentNotice}</span> : null}
-          {exportState === "error" ? <span className="warn">Экспорт не сработал. Попробуйте PDF или уменьшите макеты.</span> : null}
-          {exportState === "done" ? <span>Экспорт подготовлен.</span> : null}
+          {exportState === "error" ? <span className="warn">Сохранение не сработало. Попробуйте PDF или уменьшите макеты.</span> : null}
+          {exportState === "done" ? <span>Файл подготовлен.</span> : null}
           {bitrixUploadState === "done" ? <span>ТЗ выгружено в Bitrix.</span> : null}
           {bitrixUploadState === "error" ? <span className="warn">{bitrixUploadError}</span> : null}
           {storedSpec?.bitrixFile ? (
@@ -2632,8 +2626,8 @@ export function TechSpecBuilder({
                 {workCostOptions.length ? (
                   <div className="tech-spec-work-cost-link">
                     <div>
-                      <h3>Стоимость работ в ТЗ</h3>
-                      <p>Выберите позиции из себестоимости, которые нужно вывести в лист этого изделия.</p>
+                      <h3>Оплата сборки</h3>
+                      <p>Выберите только позиции, которые идут макетчику за сборку этого изделия.</p>
                     </div>
                     <div className="tech-spec-work-cost-options">
                       {workCostOptions.map((option) => {

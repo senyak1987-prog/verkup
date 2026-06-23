@@ -18,7 +18,6 @@ import {
   Play,
   Plus,
   Search,
-  Send,
   ShieldOff,
   Sun,
   Trash2,
@@ -30,7 +29,15 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject, TouchEvent } from "react";
 import { formatMoney, positionTotal } from "../lib/costing";
-import { moveDealToStage, sendProductionPush } from "../lib/saveApi";
+import {
+  completeProductionWork,
+  deleteProductionPhoto,
+  markProductionNotificationRead,
+  moveDealToStage,
+  sendProductionPush,
+  startProductionWork,
+  uploadProductionPhoto,
+} from "../lib/saveApi";
 import type {
   Deal,
   DealCalculation,
@@ -47,6 +54,8 @@ import type {
   ProductionEmployeeRole,
   ProductionPhoto,
   ProductionPhotoKind,
+  ProductionNotification,
+  ProductionNotificationType,
   ProductionPushSubscription,
   ProductionRegistrationLink,
   ProductionRegistrationRequest,
@@ -101,6 +110,15 @@ type ProductionCommitOptions = {
   saveNow?: boolean;
 };
 
+type PhotoUploadState = {
+  message?: string;
+  photoUrl?: string;
+  progress?: number;
+  status: "idle" | "selected" | "uploading" | "success" | "error";
+};
+
+type EmployeeAccessChoice = ProductionAccessRole | "installer";
+
 type ProductionMobileAppProps = {
   calculations?: Map<string, DealCalculation>;
   catalogItems?: CatalogItem[];
@@ -145,7 +163,7 @@ const WORKER_DEAL_TABS: WorkerDealTab[] = ["assigned", "inProgress", "ready"];
 
 const employeeRoleLabels: Record<ProductionEmployeeRole, string> = {
   maker: "Макетчик",
-  assembler: "Сборщик",
+  assembler: "Монтажник",
 };
 
 const statusLabels: Record<ProductionAssignmentStatus, string> = {
@@ -157,7 +175,7 @@ const statusLabels: Record<ProductionAssignmentStatus, string> = {
 
 const employeeGroupConfigs: Array<Omit<EmployeeGroup, "employees">> = [
   { id: "makers", label: "Макетчики", description: "Сборка изделий и фотоотчеты" },
-  { id: "assemblers", label: "Сборщики", description: "Сборочные работы" },
+  { id: "assemblers", label: "Монтажники", description: "Выезды, монтажи и фотоотчеты" },
   { id: "managers", label: "Менеджеры", description: "Свои сделки из Битрикс" },
   { id: "technologists", label: "Сметчики / технологи", description: "Себестоимость и ТЗ" },
   { id: "shopChiefs", label: "Начальники цеха", description: "Распределение в работу" },
@@ -260,15 +278,15 @@ export function ProductionMobileApp({
   const [newEmployeePhone, setNewEmployeePhone] = useState("");
   const [newEmployeeLogin, setNewEmployeeLogin] = useState("");
   const [newEmployeeRole, setNewEmployeeRole] = useState<ProductionEmployeeRole>("maker");
-  const [newEmployeeAccessRole, setNewEmployeeAccessRole] = useState<ProductionAccessRole>("maker");
+  const [newEmployeeAccessRole, setNewEmployeeAccessRole] = useState<EmployeeAccessChoice>("maker");
   const [newEmployeePin, setNewEmployeePin] = useState("");
-  const [registrationRoles, setRegistrationRoles] = useState<Record<string, ProductionAccessRole>>({});
+  const [registrationRoles, setRegistrationRoles] = useState<Record<string, EmployeeAccessChoice>>({});
   const [registrationLogins, setRegistrationLogins] = useState<Record<string, string>>({});
   const [registrationWorkerRoles, setRegistrationWorkerRoles] = useState<
     Record<string, ProductionEmployeeRole>
   >({});
   const [registrationPins, setRegistrationPins] = useState<Record<string, string>>({});
-  const [employeeAccessRoles, setEmployeeAccessRoles] = useState<Record<string, ProductionAccessRole>>({});
+  const [employeeAccessRoles, setEmployeeAccessRoles] = useState<Record<string, EmployeeAccessChoice>>({});
   const [employeeLogins, setEmployeeLogins] = useState<Record<string, string>>({});
   const [employeeWorkerRoles, setEmployeeWorkerRoles] = useState<Record<string, ProductionEmployeeRole>>({});
   const [employeePins, setEmployeePins] = useState<Record<string, string>>({});
@@ -276,6 +294,8 @@ export function ProductionMobileApp({
   const [selectedEmployeeGroupId, setSelectedEmployeeGroupId] = useState<EmployeeGroupId>("makers");
   const [staffDetailEmployeeId, setStaffDetailEmployeeId] = useState("");
   const [notificationPermission, setNotificationPermission] = useState(() => notificationPermissionState());
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
+  const [photoUploadStates, setPhotoUploadStates] = useState<Record<string, PhotoUploadState>>({});
   const [notice, setNotice] = useState("");
   const currentAccessRole = accessRoleFor(currentUser);
   const canManageStaff = canManageEmployees(currentUser);
@@ -369,8 +389,9 @@ export function ProductionMobileApp({
   const visibleSupervisorDeals = useMemo(() => {
     const needle = query.trim().toLowerCase();
     const byTab = productionDeals.filter((deal) => {
-      const done = isDealReadyForShipment(deal.id, techSpecs.get(deal.id), storedProduction.assignments);
-      return supervisorTab === "done" ? done : !done;
+      const done = hasSupervisorDoneAssignments(deal.id, techSpecs.get(deal.id), storedProduction.assignments);
+      if (supervisorTab === "done") return done;
+      return hasSupervisorActiveAssignments(deal.id, techSpecs.get(deal.id), storedProduction.assignments) || !done;
     });
     if (!needle) return byTab;
 
@@ -433,6 +454,24 @@ export function ProductionMobileApp({
         : 0,
     [currentAccessRole, seenAssignmentIds, workerAssignments],
   );
+  const visibleNotifications = useMemo(() => {
+    const notifications = storedProduction.notifications || [];
+    if (currentAccessRole !== "maker") {
+      return notifications;
+    }
+
+    const workerDealIds = new Set(workerAssignments.map((assignment) => assignment.dealId));
+    return notifications.filter((notification) => {
+      if (!notification.dealId) return true;
+      return workerDealIds.has(notification.dealId);
+    });
+  }, [currentAccessRole, storedProduction.notifications, workerAssignments]);
+  const unreadProductionNotificationCount = useMemo(
+    () =>
+      visibleNotifications.filter((notification) => !notification.readBy?.includes(currentUser.id)).length,
+    [currentUser.id, visibleNotifications],
+  );
+  const totalNotificationCount = unreadAssignmentCount + unreadProductionNotificationCount;
   const workerMoney = useMemo(
     () =>
       selectedWorker
@@ -622,7 +661,7 @@ export function ProductionMobileApp({
   }, [currentAccessRole, productionWorkers, selectedEmployeeId, targetEmployeeId]);
 
   useEffect(() => {
-    if (!canCreateAccessRole(currentUser, newEmployeeAccessRole)) {
+    if (!canCreateAccessChoice(currentUser, newEmployeeAccessRole)) {
       setNewEmployeeAccessRole("maker");
     }
   }, [currentUser, newEmployeeAccessRole]);
@@ -643,7 +682,8 @@ export function ProductionMobileApp({
     const name = newEmployeeName.trim();
     const login = newEmployeeLogin.trim() || newEmployeePhone.trim() || name;
     if (!name) return;
-    if (!canCreateAccessRole(currentUser, newEmployeeAccessRole)) return;
+    const normalizedAccess = normalizeEmployeeAccessChoice(newEmployeeAccessRole, newEmployeeRole);
+    if (!canCreateAccessRole(currentUser, normalizedAccess.accessRole)) return;
 
     const pin = newEmployeePin.trim();
     if (pin.length < 4) {
@@ -657,8 +697,8 @@ export function ProductionMobileApp({
       id,
       name,
       login,
-      role: newEmployeeAccessRole === "maker" ? newEmployeeRole : "maker",
-      accessRole: newEmployeeAccessRole,
+      role: normalizedAccess.accessRole === "maker" ? normalizedAccess.workerRole : "maker",
+      accessRole: normalizedAccess.accessRole,
       phone: newEmployeePhone.trim(),
       active: true,
       createdAt: new Date().toISOString(),
@@ -674,6 +714,7 @@ export function ProductionMobileApp({
     setNewEmployeeLogin("");
     setNewEmployeePin("");
     setNewEmployeeAccessRole("maker");
+    setNewEmployeeRole("maker");
     setTargetEmployeeId(employee.id);
     if (isProductionWorker(employee)) setSelectedEmployeeId(employee.id);
   }
@@ -705,9 +746,14 @@ export function ProductionMobileApp({
   }
 
   async function approveRegistration(request: ProductionRegistrationRequest) {
-    const accessRole = registrationRoles[request.id] || "maker";
+    const accessChoice = registrationRoles[request.id] || "maker";
+    const normalizedAccess = normalizeEmployeeAccessChoice(
+      accessChoice,
+      registrationWorkerRoles[request.id] || "maker",
+    );
+    const accessRole = normalizedAccess.accessRole;
     const login = (registrationLogins[request.id] || request.phone || request.name).trim();
-    const workerRole = registrationWorkerRoles[request.id] || "maker";
+    const workerRole = normalizedAccess.workerRole;
     const pin = (registrationPins[request.id] || "").trim();
 
     if (!canCreateAccessRole(currentUser, accessRole)) return;
@@ -770,10 +816,15 @@ export function ProductionMobileApp({
   }
 
   async function saveEmployeeAccess(employee: ProductionEmployee) {
-    const accessRole = employeeAccessRoles[employee.id] ?? accessRoleFor(employee);
+    const accessChoice = employeeAccessRoles[employee.id] ?? employeeAccessChoiceFor(employee);
+    const normalizedAccess = normalizeEmployeeAccessChoice(
+      accessChoice,
+      employeeWorkerRoles[employee.id] ?? employee.role,
+    );
+    const accessRole = normalizedAccess.accessRole;
     const loginDraft = employeeLogins[employee.id];
     const login = (loginDraft === undefined ? employee.login ?? employee.phone ?? employee.name : loginDraft).trim();
-    const workerRole = employeeWorkerRoles[employee.id] ?? employee.role;
+    const workerRole = normalizedAccess.workerRole;
     const pin = (employeePins[employee.id] || "").trim();
 
     if (!canCreateAccessRole(currentUser, accessRole)) return;
@@ -1048,7 +1099,7 @@ export function ProductionMobileApp({
   }
 
   function openDealTechSpecInProduction(deal: Deal) {
-    const done = isDealReadyForShipment(deal.id, techSpecs.get(deal.id), storedProduction.assignments);
+    const done = hasSupervisorDoneAssignments(deal.id, techSpecs.get(deal.id), storedProduction.assignments);
     setSupervisorTab(done ? "done" : "active");
     setExpandedDealIds((current) => {
       const next = new Set(current);
@@ -1080,15 +1131,98 @@ export function ProductionMobileApp({
     }), options);
   }
 
+  function addProductionNotification(
+    type: ProductionNotificationType,
+    assignment: ProductionAssignment,
+    message: string,
+  ) {
+    const deal = dealsById.get(assignment.dealId);
+    return {
+      actorId: currentUser.id,
+      actorName: currentUser.name,
+      createdAt: new Date().toISOString(),
+      dealId: assignment.dealId,
+      dealNumber: deal?.number,
+      dealTitle: deal?.title,
+      id: createId(),
+      message,
+      readBy: [],
+      type,
+    } satisfies ProductionNotification;
+  }
+
+  function commitNotification(notification: ProductionNotification) {
+    commitProduction((current) => ({
+      ...current,
+      notifications: [notification, ...(current.notifications || [])].slice(0, 200),
+    }), { saveNow: true });
+  }
+
+  function markNotificationRead(notification: ProductionNotification) {
+    if (notification.readBy?.includes(currentUser.id)) return;
+
+    commitProduction((current) => ({
+      ...current,
+      notifications: (current.notifications || []).map((item) =>
+        item.id === notification.id
+          ? { ...item, readBy: [...(item.readBy || []), currentUser.id] }
+          : item,
+      ),
+    }), { saveNow: true });
+
+    if (saveApiUrl) {
+      void markProductionNotificationRead({ apiUrl: saveApiUrl }, notification.id, currentUser.id).catch(
+        () => undefined,
+      );
+    }
+  }
+
+  function openNotification(notification: ProductionNotification) {
+    markNotificationRead(notification);
+    setNotificationCenterOpen(false);
+    if (notification.dealId) {
+      onOpenDeal?.(notification.dealId, canAccessCosting(currentUser) ? "cost" : "techSpec");
+    }
+  }
+
+  function setPhotoUploadState(
+    assignmentId: string,
+    kind: ProductionPhotoKind,
+    state: PhotoUploadState,
+  ) {
+    setPhotoUploadStates((current) => ({
+      ...current,
+      [photoUploadStateKey(assignmentId, kind)]: state,
+    }));
+  }
+
   function startAssignment(assignment: ProductionAssignment) {
     markAssignmentSeen(assignment.id);
     const actor = employeesById.get(assignment.employeeId)?.name || "Макетчик";
+    const deal = dealsById.get(assignment.dealId);
     patchAssignment(assignment.id, (current) => ({
       ...current,
       status: "inProgress",
+      workerStatus: "inWork",
       startedAt: current.startedAt || new Date().toISOString(),
       history: [...current.history, createEvent("started", actor)],
     }), { saveNow: true });
+
+    commitNotification(addProductionNotification(
+      "started",
+      assignment,
+      `Сделка #${deal?.number || assignment.dealId} взята в работу макетчиком ${actor}.`,
+    ));
+
+    if (saveApiUrl) {
+      void startProductionWork({ apiUrl: saveApiUrl }, {
+        actor,
+        assignmentId: assignment.id,
+        dealId: assignment.dealId,
+        dealNumber: deal?.number,
+        dealTitle: deal?.title,
+      }).catch(() => undefined);
+    }
   }
 
   function updateCompletion(
@@ -1112,14 +1246,25 @@ export function ProductionMobileApp({
     file?: File,
   ) {
     if (!file) return;
+    const deal = dealsById.get(assignment.dealId);
+    setPhotoUploadState(assignment.id, kind, {
+      message: "Загружаю фото...",
+      progress: 12,
+      status: "uploading",
+    });
     try {
       const dataUrl = await readImageFileAsDataUrl(file, {
         maxHeight: 960,
         maxWidth: 960,
         quality: 0.62,
       });
-      const deal = dealsById.get(assignment.dealId);
-      const nextPhoto: ProductionPhoto = {
+      setPhotoUploadState(assignment.id, kind, {
+        message: "Отправляю на сервер...",
+        progress: 62,
+        status: "uploading",
+      });
+
+      let nextPhoto: ProductionPhoto = {
         assignmentId: assignment.id,
         dealId: assignment.dealId,
         dealNumber: deal?.number || "",
@@ -1127,30 +1272,75 @@ export function ProductionMobileApp({
         employeeId: assignment.employeeId,
         kind,
         name: file.name,
-        dataUrl,
+        originalName: file.name,
         techSpecItemId: assignment.techSpecItemId,
         uploadedAt: new Date().toISOString(),
+        uploadedBy: currentUser.name,
       };
+
+      if (saveApiUrl) {
+        const uploadFile = dataUrlToFile(dataUrl, file.name || `${kind}.jpg`);
+        const result = await uploadProductionPhoto({ apiUrl: saveApiUrl }, {
+          assignmentId: assignment.id,
+          dealId: assignment.dealId,
+          dealNumber: deal?.number,
+          dealTitle: deal?.title,
+          employeeId: assignment.employeeId,
+          file: uploadFile,
+          kind,
+          techSpecItemId: assignment.techSpecItemId,
+          uploadedBy: currentUser.name,
+        });
+        nextPhoto = {
+          ...nextPhoto,
+          ...(result.photos[0] || {}),
+          dataUrl: undefined,
+        };
+      } else {
+        nextPhoto.dataUrl = dataUrl;
+      }
+
       const completion = completionFor(assignment);
-      setNotice("Фото добавлено. Сохраняю на сайте...");
-      updateCompletion(assignment.id, {
-        photos: [
-          ...completion.photos.filter((photo) => photo.kind !== kind),
-          nextPhoto,
-        ],
-      }, {
+      patchAssignment(assignment.id, (current) => ({
+        ...current,
+        workerStatus: "photosAdded",
+        photosAddedAt: new Date().toISOString(),
+        completion: {
+          ...emptyCompletion,
+          ...current.completion,
+          photos: [
+            ...completion.photos.filter((photo) => photo.kind !== kind),
+            nextPhoto,
+          ],
+        },
+      }), {
         saveNow: true,
         onSaved: () => {
           setNotice("Фото сохранено на сайте.");
-          window.setTimeout(() => setNotice(""), 2200);
-        },
-        onSaveError: () => {
-          setNotice("Фото видно в приложении, но пока не отправилось на сайт. Проверьте интернет и откройте приложение еще раз.");
-          window.setTimeout(() => setNotice(""), 5200);
+          window.setTimeout(() => setNotice(""), 1800);
         },
       });
-    } catch {
-      setNotice("Фото не загрузилось. Выберите JPG, PNG или WebP и попробуйте еще раз.");
+      setPhotoUploadState(assignment.id, kind, {
+        message: "Фото добавлено",
+        photoUrl: productionPhotoSrc(nextPhoto),
+        progress: 100,
+        status: "success",
+      });
+      commitNotification(addProductionNotification(
+        "photosAdded",
+        assignment,
+        `По сделке #${deal?.number || assignment.dealId} добавлены фото.`,
+      ));
+    } catch (error) {
+      const message = error instanceof Error && error.message
+        ? error.message
+        : "Фото не загрузилось. Выберите JPG, PNG, WebP или HEIC и попробуйте еще раз.";
+      setPhotoUploadState(assignment.id, kind, {
+        message,
+        progress: 0,
+        status: "error",
+      });
+      setNotice(message);
       window.setTimeout(() => setNotice(""), 2600);
     }
   }
@@ -1162,7 +1352,53 @@ export function ProductionMobileApp({
     }, { saveNow: true });
   }
 
-  function submitAssignment(assignment: ProductionAssignment) {
+  async function deleteAssignmentPhoto(assignment: ProductionAssignment, photo: ProductionPhoto) {
+    const photoId = String(photo.id || "").trim();
+    const photoSrc = productionPhotoSrc(photo);
+
+    if (!photoId && !photoSrc) return;
+    if (!window.confirm("Удалить фото из сделки?")) return;
+
+    try {
+      if (saveApiUrl && photoId) {
+        await deleteProductionPhoto({ apiUrl: saveApiUrl }, {
+          dealId: assignment.dealId,
+          photoId,
+        });
+      }
+
+      patchAssignment(assignment.id, (current) => {
+        const currentCompletion = completionFor(current);
+        const nextPhotos = currentCompletion.photos.filter((item) => {
+          if (photoId) return item.id !== photoId;
+          return !(item.kind === photo.kind && productionPhotoSrc(item) === photoSrc);
+        });
+
+        return {
+          ...current,
+          completion: {
+            ...emptyCompletion,
+            ...current.completion,
+            photos: nextPhotos,
+          },
+        };
+      }, {
+        saveNow: true,
+        onSaved: () => {
+          setNotice("Фото удалено.");
+          window.setTimeout(() => setNotice(""), 1800);
+        },
+      });
+    } catch (error) {
+      const message = error instanceof Error && error.message
+        ? error.message
+        : "Фото не удалось удалить. Проверьте соединение и попробуйте еще раз.";
+      setNotice(message);
+      window.setTimeout(() => setNotice(""), 2600);
+    }
+  }
+
+  async function submitAssignment(assignment: ProductionAssignment) {
     const completion = completionWithCatalogItems(
       completionFor(assignment),
       diodeCatalogItems,
@@ -1181,22 +1417,65 @@ export function ProductionMobileApp({
     );
 
     const actor = employeesById.get(assignment.employeeId)?.name || "Макетчик";
+    const deal = dealsById.get(assignment.dealId);
     patchAssignment(assignment.id, (current) => ({
       ...current,
       status: "submitted",
+      workerStatus: "reviewPending",
       submittedAt: new Date().toISOString(),
       completion,
       history: [...current.history, createEvent("submitted", actor)],
     }), { saveNow: true });
+
+    commitNotification(addProductionNotification(
+      "completed",
+      assignment,
+      `Сделка #${deal?.number || assignment.dealId} завершена. Нужно проверить.`,
+    ));
+
+    if (!saveApiUrl) {
+      setNotice("Сделка отмечена локально. Для отправки руководителю нужен серверный API.");
+      window.setTimeout(() => setNotice(""), 2800);
+      return;
+    }
+
+    try {
+      const result = await completeProductionWork({ apiUrl: saveApiUrl }, {
+        actor,
+        assignmentId: assignment.id,
+        dealId: assignment.dealId,
+        dealNumber: deal?.number,
+        dealTitle: deal?.title,
+      }) as { updated?: boolean };
+
+      if (result.updated === false) {
+        throw new Error("Сервер не нашел назначение сделки. Обновите страницу и попробуйте еще раз.");
+      }
+
+      setNotice("Сделка отправлена руководителю на проверку.");
+    } catch (error) {
+      const message = error instanceof Error && error.message
+        ? error.message
+        : "Сделка не отправилась руководителю. Проверьте интернет и попробуйте еще раз.";
+      setNotice(message);
+    }
+    window.setTimeout(() => setNotice(""), 3200);
   }
 
   function markReadyForShipment(assignment: ProductionAssignment) {
+    const deal = dealsById.get(assignment.dealId);
     patchAssignment(assignment.id, (current) => ({
       ...current,
       status: "readyForShipment",
+      workerStatus: "checked",
       readyForShipmentAt: new Date().toISOString(),
       history: [...current.history, createEvent("readyForShipment", "Руководитель")],
     }), { saveNow: true });
+    commitNotification(addProductionNotification(
+      "checked",
+      assignment,
+      `Сделка #${deal?.number || assignment.dealId} проверена.`,
+    ));
   }
 
   function toggleDealSelection(dealId: string, checked: boolean) {
@@ -1569,12 +1848,16 @@ export function ProductionMobileApp({
               diodeCatalogItems={diodeCatalogItems}
               expanded={expandedAssignmentIds.has(assignment.id)}
               key={assignment.id}
+              photoUploadStates={photoSlots.reduce((states, slot) => ({
+                ...states,
+                [slot.kind]: photoUploadStates[photoUploadStateKey(assignment.id, slot.kind)],
+              }), {} as Partial<Record<ProductionPhotoKind, PhotoUploadState>>)}
               powerSupplyCatalogItems={powerSupplyCatalogItems}
               techSpec={techSpecs.get(deal.id)}
               onAddPhoto={(kind, file) => void addPhoto(assignment, kind, file)}
               onRemovePhoto={(kind) => removePhoto(assignment, kind)}
               onStart={() => startAssignment(assignment)}
-              onSubmit={() => submitAssignment(assignment)}
+              onSubmit={() => void submitAssignment(assignment)}
               onToggle={() => openWorkerAssignment(assignment)}
               onUpdateCompletion={(patch) => updateCompletion(assignment.id, patch)}
             />
@@ -1648,16 +1931,16 @@ export function ProductionMobileApp({
                     onChange={(event) =>
                       setRegistrationRoles((current) => ({
                         ...current,
-                        [request.id]: event.target.value as ProductionAccessRole,
+                        [request.id]: event.target.value as EmployeeAccessChoice,
                       }))
                     }
                     value={selectedAccessRole}
                   >
-                    {(["maker", "shopChief", "technologist", "manager", "leader"] as ProductionAccessRole[])
-                      .filter((role) => canCreateAccessRole(currentUser, role))
-                      .map((role) => (
-                        <option key={role} value={role}>
-                          {accessRoleLabels[role]}
+                    {employeeAccessChoiceOptions(false)
+                      .filter((choice) => canCreateAccessChoice(currentUser, choice))
+                      .map((choice) => (
+                        <option key={choice} value={choice}>
+                          {employeeAccessChoiceLabel(choice)}
                         </option>
                       ))}
                   </select>
@@ -1671,20 +1954,6 @@ export function ProductionMobileApp({
                     placeholder="Логин"
                     value={registrationLogins[request.id] || request.phone || request.name}
                   />
-                  {selectedAccessRole === "maker" ? (
-                    <select
-                      onChange={(event) =>
-                        setRegistrationWorkerRoles((current) => ({
-                          ...current,
-                          [request.id]: event.target.value as ProductionEmployeeRole,
-                        }))
-                      }
-                      value={registrationWorkerRoles[request.id] || "maker"}
-                    >
-                      <option value="maker">Макетчик</option>
-                      <option value="assembler">Сборщик</option>
-                    </select>
-                  ) : null}
                   <input
                     onChange={(event) =>
                       setRegistrationPins((current) => ({
@@ -1729,26 +1998,17 @@ export function ProductionMobileApp({
             value={newEmployeeLogin}
           />
           <select
-            onChange={(event) => setNewEmployeeAccessRole(event.target.value as ProductionAccessRole)}
+            onChange={(event) => setNewEmployeeAccessRole(event.target.value as EmployeeAccessChoice)}
             value={newEmployeeAccessRole}
           >
-            {(["maker", "shopChief", "technologist", "manager", "leader"] as ProductionAccessRole[])
-              .filter((role) => canCreateAccessRole(currentUser, role))
-              .map((role) => (
-                <option key={role} value={role}>
-                  {accessRoleLabels[role]}
+            {employeeAccessChoiceOptions(false)
+              .filter((choice) => canCreateAccessChoice(currentUser, choice))
+              .map((choice) => (
+                <option key={choice} value={choice}>
+                  {employeeAccessChoiceLabel(choice)}
                 </option>
               ))}
           </select>
-          {newEmployeeAccessRole === "maker" ? (
-            <select
-              onChange={(event) => setNewEmployeeRole(event.target.value as ProductionEmployeeRole)}
-              value={newEmployeeRole}
-            >
-              <option value="maker">Макетчик</option>
-              <option value="assembler">Сборщик</option>
-            </select>
-          ) : null}
           <input
             onChange={(event) => setNewEmployeePin(event.target.value)}
             placeholder="Пароль для входа"
@@ -1797,9 +2057,8 @@ export function ProductionMobileApp({
                 <div>
                   <strong>{employee.name}</strong>
                   <small>
-                    {accessRoleLabels[accessRoleFor(employee)]}
+                    {employeeAccessChoiceLabel(employeeAccessChoiceFor(employee))}
                     {employee.login ? ` · ${employee.login}` : ""}
-                    {accessRoleFor(employee) === "maker" ? ` · ${employeeRoleLabels[employee.role]}` : ""}
                     {employee.phone ? ` · ${employee.phone}` : ""}
                   </small>
                 </div>
@@ -1809,16 +2068,16 @@ export function ProductionMobileApp({
                   onChange={(event) =>
                     setEmployeeAccessRoles((current) => ({
                       ...current,
-                      [employee.id]: event.target.value as ProductionAccessRole,
+                      [employee.id]: event.target.value as EmployeeAccessChoice,
                     }))
                   }
-                  value={employeeAccessRoles[employee.id] ?? accessRoleFor(employee)}
+                  value={employeeAccessRoles[employee.id] ?? employeeAccessChoiceFor(employee)}
                 >
-                  {(["none", "maker", "shopChief", "technologist", "manager", "leader"] as ProductionAccessRole[])
-                    .filter((role) => canCreateAccessRole(currentUser, role))
-                    .map((role) => (
-                      <option key={role} value={role}>
-                        {accessRoleLabels[role]}
+                  {employeeAccessChoiceOptions(true)
+                    .filter((choice) => canCreateAccessChoice(currentUser, choice))
+                    .map((choice) => (
+                      <option key={choice} value={choice}>
+                        {employeeAccessChoiceLabel(choice)}
                       </option>
                     ))}
                 </select>
@@ -1833,20 +2092,6 @@ export function ProductionMobileApp({
                   placeholder="Логин"
                   value={employeeLogins[employee.id] ?? employee.login ?? ""}
                 />
-                {(employeeAccessRoles[employee.id] ?? accessRoleFor(employee)) === "maker" ? (
-                  <select
-                    onChange={(event) =>
-                      setEmployeeWorkerRoles((current) => ({
-                        ...current,
-                        [employee.id]: event.target.value as ProductionEmployeeRole,
-                      }))
-                    }
-                    value={employeeWorkerRoles[employee.id] ?? employee.role}
-                  >
-                    <option value="maker">Макетчик</option>
-                    <option value="assembler">Сборщик</option>
-                  </select>
-                ) : null}
                 <input
                   onChange={(event) =>
                     setEmployeePins((current) => ({
@@ -1940,6 +2185,7 @@ export function ProductionMobileApp({
             employee={staffDetailEmployee}
             techSpecs={techSpecs}
             onClose={() => setStaffDetailEmployeeId("")}
+            onDeletePhoto={deleteAssignmentPhoto}
             onOpenAssignment={openStaffAssignmentDeal}
           />
         ) : null}
@@ -2047,11 +2293,11 @@ export function ProductionMobileApp({
                 onClick={() => setSupervisorTab("done")}
                 type="button"
               >
-                Завершенные сделки
+                На проверке
               </button>
             </div>
 
-            <div className="production-batch-bar">
+            <div className="production-batch-bar production-search-row">
               <label className="search production-search">
                 <Search size={18} />
                 <input
@@ -2060,64 +2306,37 @@ export function ProductionMobileApp({
                   value={query}
                 />
               </label>
-              <label className="production-select-all">
-                <input
-                  checked={
-                    visibleSupervisorDeals.length > 0 &&
-                    visibleSupervisorDeals.every((deal) => selectedDealIds.has(deal.id))
-                  }
-                  onChange={(event) => toggleAllVisible(event.target.checked)}
-                  type="checkbox"
-                />
-                Все
-              </label>
-              <select
-                disabled={!productionWorkers.length || !canAssignDeals}
-                onChange={(event) => setTargetEmployeeId(event.target.value)}
-                value={targetEmployeeId}
-              >
-                {productionWorkers.map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {employee.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                className="primary"
-                disabled={!canAssignDeals || !targetEmployeeId || !selectedDeals.length}
-                onClick={assignSelectedDeals}
-                type="button"
-              >
-                <Send size={16} />
-                Назначить {selectedDeals.length || ""}
-              </button>
             </div>
 
             <div className="production-deal-list">
               {visibleSupervisorDeals.map((deal) => {
                 const currentAssignments = currentAssignmentsForDeal(storedProduction.assignments, deal.id, techSpecs.get(deal.id));
                 const assignment = representativeAssignment(currentAssignments);
-                const submittedAssignments = currentAssignments.filter((item) => item.status === "submitted");
+                const reviewAssignments = currentAssignments.filter(
+                  (item) => item.status === "submitted" || item.status === "readyForShipment",
+                );
                 return (
                   <SupervisorDealCard
                     assignment={assignment}
                     employee={assignment ? employeesById.get(assignment.employeeId) : undefined}
                     assignmentsByPart={assignmentsByPart}
-                    reviewAssignments={submittedAssignments}
+                    reviewAssignments={reviewAssignments}
                     employeesById={employeesById}
                     key={deal.id}
                     deal={deal}
                     expanded={expandedDealIds.has(deal.id)}
-                    selected={selectedDealIds.has(deal.id)}
                     techSpec={techSpecs.get(deal.id)}
                     productionWorkers={productionWorkers}
-                    targetEmployeeId={targetEmployeeId}
-                    onAssign={() => assignSingleDeal(deal.id)}
                     onAssignPart={(itemId, employeeId) => assignDealPart(deal.id, itemId, employeeId)}
                     onStageChange={(stage) => void changeDealStage(deal, stage)}
                     onToggle={() => toggleDealExpanded(deal.id)}
+                    onDeletePhoto={(reviewAssignment, photo) => void deleteAssignmentPhoto(reviewAssignment, photo)}
                     onMarkReady={(reviewAssignment) => markReadyForShipment(reviewAssignment)}
-                    onSelect={(checked) => toggleDealSelection(deal.id, checked)}
+                    onOpenDeal={
+                      canAccessCosting(currentUser) && onOpenDeal
+                        ? () => onOpenDeal(deal.id, "techSpec")
+                        : undefined
+                    }
                   />
                 );
               })}
@@ -2143,7 +2362,7 @@ export function ProductionMobileApp({
               galleryCount={workerGalleryPhotos.length}
               menuOpen={profileMenuOpen}
               menuRef={profileMenuRef}
-              notificationCount={unreadAssignmentCount}
+              notificationCount={totalNotificationCount}
               notificationDisabled={
                 notificationPermission === "unsupported" ||
                 (notificationPermission === "granted" && Boolean(PUSH_PUBLIC_KEY))
@@ -2169,6 +2388,9 @@ export function ProductionMobileApp({
               onMenuToggle={() => setProfileMenuOpen((current) => !current)}
               onNotificationClick={() => {
                 selectWorkerDealTab("assigned");
+                if (visibleNotifications.length) {
+                  setNotificationCenterOpen((current) => !current);
+                }
                 setProfileMenuOpen(false);
               }}
               onPasswordClick={() => {
@@ -2179,6 +2401,16 @@ export function ProductionMobileApp({
                 setTheme((current) => (current === "night" ? "day" : "night"));
                 setProfileMenuOpen(false);
               }}
+            />
+          ) : null}
+
+          {notificationCenterOpen ? (
+            <ProductionNotificationCenter
+              currentUserId={currentUser.id}
+              notifications={visibleNotifications}
+              onClose={() => setNotificationCenterOpen(false)}
+              onOpen={openNotification}
+              onRead={markNotificationRead}
             />
           ) : null}
 
@@ -2288,16 +2520,14 @@ function SupervisorDealCard({
   employeesById,
   expanded,
   reviewAssignments,
-  selected,
   techSpec,
   productionWorkers,
-  targetEmployeeId,
-  onAssign,
   onAssignPart,
+  onDeletePhoto,
   onStageChange,
   onToggle,
   onMarkReady,
-  onSelect,
+  onOpenDeal,
 }: {
   assignment?: ProductionAssignment;
   assignmentsByPart: Map<string, ProductionAssignment>;
@@ -2306,16 +2536,14 @@ function SupervisorDealCard({
   employeesById: Map<string, ProductionEmployee>;
   expanded: boolean;
   reviewAssignments: ProductionAssignment[];
-  selected: boolean;
   techSpec?: DealTechSpec;
   productionWorkers: ProductionEmployee[];
-  targetEmployeeId: string;
-  onAssign: () => void;
   onAssignPart: (itemId: string, employeeId: string) => void;
+  onDeletePhoto: (assignment: ProductionAssignment, photo: ProductionPhoto) => void;
   onStageChange: (stage: DealStageCode) => void;
   onToggle: () => void;
   onMarkReady: (assignment: ProductionAssignment) => void;
-  onSelect: (checked: boolean) => void;
+  onOpenDeal?: () => void;
 }) {
   const currentStage = stageCodeForDeal(deal);
 
@@ -2325,15 +2553,6 @@ function SupervisorDealCard({
       data-production-deal-id={deal.id}
     >
       <div className="production-compact-row">
-        <label className="production-card-check">
-          <input
-            checked={selected}
-            onChange={(event) => onSelect(event.target.checked)}
-            onClick={(event) => event.stopPropagation()}
-            type="checkbox"
-          />
-        </label>
-
         <button
           aria-expanded={expanded}
           className="production-deal-summary"
@@ -2374,10 +2593,11 @@ function SupervisorDealCard({
               <span>Не назначена</span>
             </div>
           )}
-          <button className="secondary" disabled={!targetEmployeeId} onClick={onAssign} type="button">
-            <Send size={16} />
-            {assignment ? "Переназначить" : "Назначить"}
-          </button>
+          {onOpenDeal ? (
+            <button className="secondary production-toggle-tech-spec" onClick={onOpenDeal} type="button">
+              Перейти в ТЗ
+            </button>
+          ) : null}
           <select
             aria-label="Изменить стадию сделки"
             onChange={(event) => onStageChange(event.target.value as DealStageCode)}
@@ -2429,11 +2649,22 @@ function SupervisorDealCard({
               </span>
             </div>
             {completion.note ? <p>{completion.note}</p> : null}
-            <PhotoStrip photos={photosWithAssignmentLink(reviewAssignment, deal)} />
+            <PhotoStrip
+              canDelete={reviewAssignment.status === "readyForShipment"}
+              photos={photosWithAssignmentLink(reviewAssignment, deal)}
+              onDeletePhoto={(photo) => onDeletePhoto(reviewAssignment, photo)}
+            />
+            {reviewAssignment.status === "readyForShipment" ? (
+              <span className="production-review-ready">
+                <PackageCheck size={16} />
+                Готово к отгрузке
+              </span>
+            ) : (
             <button className="primary" onClick={() => onMarkReady(reviewAssignment)} type="button">
               <PackageCheck size={16} />
               Готово к отгрузке
             </button>
+            )}
           </div>
         );
       })}
@@ -2456,11 +2687,9 @@ function PartAssignmentPanel({
   spec: DealTechSpec;
   onAssign: (itemId: string, employeeId: string) => void;
 }) {
-  if (spec.draft.items.length < 2) return null;
-
   return (
     <section className="part-assignment-panel">
-      <h3>Исполнители по частям ТЗ</h3>
+      <h3>Назначение по изделиям</h3>
       {spec.draft.items.map((item, index) => {
         const assignment = assignmentsByPart.get(assignmentPartKey(deal.id, item.id));
         const employee = assignment ? employeesById.get(assignment.employeeId) : undefined;
@@ -2501,6 +2730,7 @@ function EmployeeProductionDetail({
   employee,
   techSpecs,
   onClose,
+  onDeletePhoto,
   onOpenAssignment,
 }: {
   assignments: ProductionAssignment[];
@@ -2509,6 +2739,7 @@ function EmployeeProductionDetail({
   employee: ProductionEmployee;
   techSpecs: Map<string, DealTechSpec>;
   onClose: () => void;
+  onDeletePhoto: (assignment: ProductionAssignment, photo: ProductionPhoto) => void;
   onOpenAssignment: (assignment: ProductionAssignment) => void;
 }) {
   const activeAssignments = assignments.filter(
@@ -2544,6 +2775,7 @@ function EmployeeProductionDetail({
         emptyText="Активных назначений пока нет."
         techSpecs={techSpecs}
         title="Назначены и в работе"
+        onDeletePhoto={onDeletePhoto}
         onOpenAssignment={onOpenAssignment}
       />
       <EmployeeAssignmentSection
@@ -2553,6 +2785,7 @@ function EmployeeProductionDetail({
         emptyText="Собранных сделок пока нет."
         techSpecs={techSpecs}
         title="Собранные сделки"
+        onDeletePhoto={onDeletePhoto}
         onOpenAssignment={onOpenAssignment}
       />
     </section>
@@ -2566,6 +2799,7 @@ function EmployeeAssignmentSection({
   emptyText,
   techSpecs,
   title,
+  onDeletePhoto,
   onOpenAssignment,
 }: {
   assignments: ProductionAssignment[];
@@ -2574,6 +2808,7 @@ function EmployeeAssignmentSection({
   emptyText: string;
   techSpecs: Map<string, DealTechSpec>;
   title: string;
+  onDeletePhoto: (assignment: ProductionAssignment, photo: ProductionPhoto) => void;
   onOpenAssignment: (assignment: ProductionAssignment) => void;
 }) {
   return (
@@ -2591,6 +2826,7 @@ function EmployeeAssignmentSection({
             key={assignment.id}
             techSpec={techSpecs.get(assignment.dealId)}
             techSpecs={techSpecs}
+            onDeletePhoto={(photo) => onDeletePhoto(assignment, photo)}
             onOpen={() => onOpenAssignment(assignment)}
           />
         ))}
@@ -2606,6 +2842,7 @@ function EmployeeAssignmentCard({
   deal,
   techSpec,
   techSpecs,
+  onDeletePhoto,
   onOpen,
 }: {
   assignment: ProductionAssignment;
@@ -2613,6 +2850,7 @@ function EmployeeAssignmentCard({
   deal?: Deal;
   techSpec?: DealTechSpec;
   techSpecs: Map<string, DealTechSpec>;
+  onDeletePhoto: (photo: ProductionPhoto) => void;
   onOpen: () => void;
 }) {
   const completion = completionFor(assignment);
@@ -2658,7 +2896,11 @@ function EmployeeAssignmentCard({
           <strong>{completion.noPowerSupply ? "Не нужен" : completion.powerSupplyCatalogTitle || completion.powerSupply || "-"}</strong>
         </span>
       </div>
-      <PhotoStrip photos={photos} />
+      <PhotoStrip
+        canDelete={assignment.status === "readyForShipment"}
+        photos={photos}
+        onDeletePhoto={onDeletePhoto}
+      />
     </article>
   );
 }
@@ -2796,7 +3038,7 @@ function WorkerProfile({
         <div className="worker-profile-title">
           <div>
             <h2>{employee.name}</h2>
-            <span>{accessRoleLabels[accessRoleFor(employee)]}</span>
+            <span>{employeeAccessChoiceLabel(employeeAccessChoiceFor(employee))}</span>
           </div>
           <div className="worker-profile-actions">
             {notificationCount ? (
@@ -2876,23 +3118,145 @@ function WorkerProfile({
 }
 
 function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[] }) {
+  const [galleryQuery, setGalleryQuery] = useState("");
+  const dealGroups = useMemo(() => {
+    const query = galleryQuery.trim().toLowerCase();
+    const groups = new Map<
+      string,
+      {
+        dealId: string;
+        dealNumber: string;
+        dealTitle: string;
+        photos: ProductionPhoto[];
+      }
+    >();
+
+    galleryPhotos.forEach((photo) => {
+      const dealId = photo.dealId || photo.dealNumber || "unknown";
+      const current = groups.get(dealId) || {
+        dealId,
+        dealNumber: photo.dealNumber || "",
+        dealTitle: photo.dealTitle || "",
+        photos: [],
+      };
+      current.dealNumber ||= photo.dealNumber || "";
+      current.dealTitle ||= photo.dealTitle || "";
+      current.photos.push(photo);
+      groups.set(dealId, current);
+    });
+
+    return [...groups.values()]
+      .filter((group) => {
+        if (!query) return true;
+        return `${group.dealNumber} ${group.dealTitle}`.toLowerCase().includes(query);
+      })
+      .sort((first, second) => {
+        const firstNumber = Number(first.dealNumber);
+        const secondNumber = Number(second.dealNumber);
+        if (Number.isFinite(firstNumber) && Number.isFinite(secondNumber)) return secondNumber - firstNumber;
+        return `${second.dealNumber} ${second.dealTitle}`.localeCompare(`${first.dealNumber} ${first.dealTitle}`, "ru");
+      });
+  }, [galleryPhotos, galleryQuery]);
+
   return (
     <section className="production-panel">
-      <div className="worker-gallery">
-        {galleryPhotos.map((photo, index) => {
-          const label = photo.dealNumber
-            ? `Готовая работа по сделке #${photo.dealNumber}`
-            : `Готовая работа ${index + 1}`;
+      <label className="search worker-gallery-search">
+        <Search size={17} />
+        <input
+          onChange={(event) => setGalleryQuery(event.target.value)}
+          placeholder="Поиск по сделке"
+          value={galleryQuery}
+        />
+      </label>
+      <div className="worker-gallery worker-gallery-list">
+        {dealGroups.map((group) => {
+          const firstPhoto = group.photos.find((photo) => productionPhotoSrc(photo));
+          const thumbnail = firstPhoto ? productionPhotoSrc(firstPhoto) : "";
+          const fullPhoto = firstPhoto ? productionPhotoFullSrc(firstPhoto) || thumbnail : "";
+          const title = group.dealTitle || (group.dealNumber ? `Сделка #${group.dealNumber}` : "Готовая работа");
+
           return (
-            <img
-              alt={label}
-              key={`${photo.assignmentId || photo.uploadedAt}-${photo.kind}-${index}`}
-              src={photo.dataUrl}
-              title={label}
-            />
+            <article className="worker-gallery-deal" key={group.dealId}>
+              <div className="worker-gallery-thumb">
+                {thumbnail ? (
+                  <a aria-label="Открыть фото сделки" href={fullPhoto} rel="noreferrer" target="_blank" title="Открыть фото">
+                    <img alt={title} src={thumbnail} />
+                  </a>
+                ) : (
+                  <Images size={18} />
+                )}
+              </div>
+              <div>
+                <strong>{group.dealNumber ? `#${group.dealNumber}` : "Сделка без номера"}</strong>
+                <span>{title}</span>
+                <small>{group.photos.length} фото</small>
+              </div>
+            </article>
           );
         })}
-        {!galleryPhotos.length ? <span>Галерея готовых работ пока пустая</span> : null}
+        {!dealGroups.length ? <span>Галерея готовых работ пока пустая</span> : null}
+      </div>
+    </section>
+  );
+}
+
+function ProductionNotificationCenter({
+  currentUserId,
+  notifications,
+  onClose,
+  onOpen,
+  onRead,
+}: {
+  currentUserId: string;
+  notifications: ProductionNotification[];
+  onClose: () => void;
+  onOpen: (notification: ProductionNotification) => void;
+  onRead: (notification: ProductionNotification) => void;
+}) {
+  const visibleNotifications = notifications.slice(0, 30);
+
+  return (
+    <section className="production-notification-center" aria-label="Уведомления">
+      <div className="production-notification-center-head">
+        <div>
+          <span>Уведомления</span>
+          <strong>{notifications.filter((item) => !item.readBy?.includes(currentUserId)).length}</strong>
+        </div>
+        <button aria-label="Закрыть уведомления" onClick={onClose} type="button">
+          <X size={18} />
+        </button>
+      </div>
+      <div className="production-notification-list">
+        {visibleNotifications.map((notification) => {
+          const unread = !notification.readBy?.includes(currentUserId);
+          return (
+            <button
+              className={unread ? "unread" : ""}
+              key={notification.id}
+              onClick={() => onOpen(notification)}
+              type="button"
+            >
+              <span className={`production-notification-dot ${notification.type}`} />
+              <span>
+                <strong>{notification.message}</strong>
+                <small>{formatDateTime(notification.createdAt)}</small>
+              </span>
+              {unread ? (
+                <em
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onRead(notification);
+                  }}
+                >
+                  Прочитано
+                </em>
+              ) : null}
+            </button>
+          );
+        })}
+        {!visibleNotifications.length ? (
+          <p>Новых событий пока нет.</p>
+        ) : null}
       </div>
     </section>
   );
@@ -2981,6 +3345,7 @@ function WorkerDealCard({
   deal,
   diodeCatalogItems,
   expanded,
+  photoUploadStates,
   powerSupplyCatalogItems,
   techSpec,
   onAddPhoto,
@@ -2994,6 +3359,7 @@ function WorkerDealCard({
   deal: Deal;
   diodeCatalogItems: CatalogItem[];
   expanded: boolean;
+  photoUploadStates: Partial<Record<ProductionPhotoKind, PhotoUploadState>>;
   powerSupplyCatalogItems: CatalogItem[];
   techSpec?: DealTechSpec;
   onAddPhoto: (kind: ProductionPhotoKind, file?: File) => void;
@@ -3165,6 +3531,7 @@ function WorkerDealCard({
                     <PhotoInput
                       key={slot.kind}
                       photo={photo}
+                      state={photoUploadStates[slot.kind]}
                       slot={slot}
                       onChange={(file) => onAddPhoto(slot.kind, file)}
                       onRemove={() => onRemovePhoto(slot.kind)}
@@ -3346,21 +3713,38 @@ function SpecAttachmentGrid({ item }: { item: TechSpecItem }) {
 
 function PhotoInput({
   photo,
+  state,
   slot,
   onChange,
   onRemove,
 }: {
   photo?: ProductionPhoto;
+  state?: PhotoUploadState;
   slot: (typeof photoSlots)[number];
   onChange: (file?: File) => void;
   onRemove: () => void;
 }) {
+  const photoSrc = productionPhotoSrc(photo) || state?.photoUrl || "";
+  const photoFullSrc = productionPhotoFullSrc(photo) || photoSrc;
+  const isUploading = state?.status === "uploading";
+  const isSuccess = state?.status === "success" || Boolean(photoSrc);
+  const isError = state?.status === "error";
+
   return (
-    <div className={photo ? "production-photo-slot filled" : "production-photo-slot"}>
+    <div className={photoSrc ? "production-photo-slot filled" : "production-photo-slot"}>
       <div className="production-photo-preview">
-        {photo ? (
+        {photoSrc ? (
           <>
-            <img alt={slot.title} src={photo.dataUrl} />
+            <a
+              aria-label="Открыть фото"
+              className="production-photo-preview-link"
+              href={photoFullSrc}
+              rel="noreferrer"
+              target="_blank"
+              title="Открыть фото"
+            >
+              <img alt={slot.title} src={photoSrc} />
+            </a>
             <button aria-label="Удалить фото" onClick={onRemove} type="button">
               <X size={15} />
             </button>
@@ -3371,11 +3755,25 @@ function PhotoInput({
       </div>
       <strong>{slot.title}*</strong>
       <small>{slot.hint}</small>
+      {state?.message || isSuccess ? (
+        <span
+          className={[
+            "production-photo-upload-state",
+            isSuccess ? "success" : "",
+            isError ? "error" : "",
+            isUploading ? "uploading" : "",
+          ].filter(Boolean).join(" ")}
+        >
+          {isSuccess ? <CheckCircle2 size={14} /> : null}
+          {state?.message || "Фото добавлено"}
+        </span>
+      ) : null}
       <label className="secondary compact">
         <Camera size={15} />
-        {photo ? "Заменить" : "Загрузить фото"}
+        {photoSrc ? "Заменить" : isUploading ? "Загрузка..." : "Загрузить фото"}
         <input
           accept="image/jpeg,image/png,image/webp,image/*"
+          disabled={isUploading}
           onChange={(event) => {
             onChange(event.target.files?.[0]);
             event.target.value = "";
@@ -3387,7 +3785,15 @@ function PhotoInput({
   );
 }
 
-function PhotoStrip({ photos }: { photos: ProductionPhoto[] }) {
+function PhotoStrip({
+  canDelete = false,
+  photos,
+  onDeletePhoto,
+}: {
+  canDelete?: boolean;
+  photos: ProductionPhoto[];
+  onDeletePhoto?: (photo: ProductionPhoto) => void;
+}) {
   if (!photos.length) return null;
 
   return (
@@ -3396,9 +3802,24 @@ function PhotoStrip({ photos }: { photos: ProductionPhoto[] }) {
         const photo = photos.find((item) => item.kind === slot.kind);
         if (!photo) return null;
         const caption = photo.dealNumber ? `#${photo.dealNumber} · ${slot.title}` : slot.title;
+        const photoSrc = productionPhotoSrc(photo);
+        const photoFullSrc = productionPhotoFullSrc(photo) || photoSrc;
+        if (!photoSrc) return null;
         return (
           <figure key={slot.kind}>
-            <img alt={slot.title} src={photo.dataUrl} />
+            <a aria-label="Открыть фото" href={photoFullSrc} rel="noreferrer" target="_blank" title="Открыть фото">
+              <img alt={slot.title} src={photoSrc} />
+            </a>
+            {canDelete && onDeletePhoto ? (
+              <button
+                aria-label="Удалить фото"
+                className="production-photo-strip-delete"
+                onClick={() => onDeletePhoto(photo)}
+                type="button"
+              >
+                <Trash2 size={14} />
+              </button>
+            ) : null}
             <figcaption>{caption}</figcaption>
           </figure>
         );
@@ -3454,6 +3875,46 @@ function employeeGroupIdFor(employee: ProductionEmployee): EmployeeGroupId {
   if (role === "shopChief") return "shopChiefs";
   if (role === "leader") return "leaders";
   return "noAccess";
+}
+
+function employeeAccessChoiceFor(employee: ProductionEmployee): EmployeeAccessChoice {
+  const role = accessRoleFor(employee);
+  if (role === "maker" && employee.role === "assembler") return "installer";
+  return role;
+}
+
+function employeeAccessChoiceOptions(includeNone: boolean): EmployeeAccessChoice[] {
+  return [
+    ...(includeNone ? (["none"] as EmployeeAccessChoice[]) : []),
+    "maker",
+    "installer",
+    "shopChief",
+    "technologist",
+    "manager",
+    "leader",
+  ];
+}
+
+function employeeAccessChoiceLabel(choice: EmployeeAccessChoice) {
+  if (choice === "installer") return "Монтажник";
+  return accessRoleLabels[choice];
+}
+
+function canCreateAccessChoice(currentUser: ProductionEmployee | undefined, choice: EmployeeAccessChoice) {
+  return canCreateAccessRole(currentUser, choice === "installer" ? "maker" : choice);
+}
+
+function normalizeEmployeeAccessChoice(
+  choice: EmployeeAccessChoice,
+  fallbackWorkerRole: ProductionEmployeeRole = "maker",
+): { accessRole: ProductionAccessRole; workerRole: ProductionEmployeeRole } {
+  if (choice === "installer") {
+    return { accessRole: "maker", workerRole: "assembler" };
+  }
+  if (choice === "maker") {
+    return { accessRole: "maker", workerRole: "maker" };
+  }
+  return { accessRole: choice, workerRole: fallbackWorkerRole };
 }
 
 function latestAssignmentByPart(assignments: ProductionAssignment[]) {
@@ -3539,6 +4000,28 @@ function isDealReadyForShipment(
 
   const currentAssignments = currentAssignmentsForDeal(assignments, dealId, spec);
   return currentAssignments.length > 0 && currentAssignments.every((assignment) => assignment.status === "readyForShipment");
+}
+
+function hasSupervisorDoneAssignments(
+  dealId: string,
+  spec: DealTechSpec | undefined,
+  assignments: ProductionAssignment[],
+) {
+  const currentAssignments = currentAssignmentsForDeal(assignments, dealId, spec);
+  return currentAssignments.some(
+    (assignment) => assignment.status === "submitted" || assignment.status === "readyForShipment",
+  );
+}
+
+function hasSupervisorActiveAssignments(
+  dealId: string,
+  spec: DealTechSpec | undefined,
+  assignments: ProductionAssignment[],
+) {
+  const currentAssignments = currentAssignmentsForDeal(assignments, dealId, spec);
+  return currentAssignments.some(
+    (assignment) => assignment.status === "assigned" || assignment.status === "inProgress",
+  );
 }
 
 function representativeAssignment(assignments: ProductionAssignment[]) {
@@ -3939,6 +4422,44 @@ function removeRecordValue<T>(record: Record<string, T>, key: string) {
   const nextRecord = { ...record };
   delete nextRecord[key];
   return nextRecord;
+}
+
+function photoUploadStateKey(assignmentId: string, kind: ProductionPhotoKind) {
+  return `${assignmentId}:${kind}`;
+}
+
+function productionPhotoSrc(photo?: ProductionPhoto) {
+  return normalizeProductionAssetUrl(photo?.thumbnailUrl || photo?.url || photo?.dataUrl || "");
+}
+
+function productionPhotoFullSrc(photo?: ProductionPhoto) {
+  return normalizeProductionAssetUrl(photo?.url || photo?.dataUrl || photo?.thumbnailUrl || "");
+}
+
+function normalizeProductionAssetUrl(value: string) {
+  if (!value) return "";
+  if (/^(data:|blob:|https?:\/\/)/i.test(value)) return value;
+  const base = import.meta.env.BASE_URL.replace(/\/+$/, "");
+  if (value.startsWith("/uploads/") && base) return `${base}${value}`;
+  if (base && value.startsWith(`${base}/`)) return value;
+  if (value.startsWith("/")) return value;
+  return `${import.meta.env.BASE_URL}${value.replace(/^\/+/, "")}`;
+}
+
+function dataUrlToFile(dataUrl: string, fileName: string) {
+  const [header, payload] = dataUrl.split(",");
+  const mime = header.match(/^data:([^;]+);/)?.[1] || "image/jpeg";
+  const binary = window.atob(payload || "");
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  const normalizedName = mime === "image/jpeg"
+    ? fileName.replace(/\.[^.]+$/, "") + ".jpg"
+    : fileName;
+
+  return new File([bytes], normalizedName, { type: mime });
 }
 
 function urlBase64ToUint8Array(value: string) {

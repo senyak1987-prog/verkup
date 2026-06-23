@@ -3,16 +3,19 @@ import type {
   CatalogItem,
   Deal,
   StoredCalculations,
+  StoredInstallations,
   StoredProduction,
   StoredTechSpecs,
+  StoredWarehouse,
 } from "../types";
+import { createEmptyStoredWarehouse, normalizeWarehouse } from "./warehouse";
 
 const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim().replace(/\/+$/, "");
 const CACHE_PREFIX = "verkup:data:";
 const CATALOG_FAVORITES_KEY = `${CACHE_PREFIX}catalog:favorites`;
 const REQUEST_TIMEOUT_MS = 6000;
 const DEAL_CACHE_RETAIN_MS = 24 * 60 * 60 * 1000;
-const DEAL_CACHE_VERSION = 2;
+const DEAL_CACHE_VERSION = 3;
 const EMBEDDED_PRODUCTION_KEY = "__production";
 
 type CatalogFavoriteOverride = {
@@ -53,7 +56,16 @@ const fallbackProduction: StoredProduction = {
   registrationLinks: [],
   assignments: [],
   payouts: [],
+  notifications: [],
 };
+
+const fallbackInstallations: StoredInstallations = {
+  generatedAt: new Date().toISOString(),
+  installations: [],
+  notifications: [],
+};
+
+const fallbackWarehouse: StoredWarehouse = createEmptyStoredWarehouse();
 
 const fallbackCatalogs: AppData<CatalogItem> = {
   generatedAt: new Date().toISOString(),
@@ -108,9 +120,41 @@ export async function loadFreshProduction() {
   return withLoadedEmbeddedProduction(production, true);
 }
 
+export async function loadInstallations() {
+  return loadJson<StoredInstallations>("/data/installations.json", fallbackInstallations, {
+    preferApi: true,
+  });
+}
+
+export async function loadFreshInstallations() {
+  return loadJson<StoredInstallations>("/data/installations.json", fallbackInstallations, {
+    ignoreCache: true,
+    preferApi: true,
+  });
+}
+
 export async function loadCatalogs() {
   return withCatalogFavoriteOverrides(
-    await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs),
+    await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs, {
+      preferApi: true,
+    }),
+  );
+}
+
+export async function loadWarehouse() {
+  return normalizeWarehouse(
+    await loadJson<StoredWarehouse>("/data/warehouse.json", fallbackWarehouse, {
+      preferApi: true,
+    }),
+  );
+}
+
+export async function loadFreshWarehouse() {
+  return normalizeWarehouse(
+    await loadJson<StoredWarehouse>("/data/warehouse.json", fallbackWarehouse, {
+      ignoreCache: true,
+      preferApi: true,
+    }),
   );
 }
 
@@ -132,8 +176,17 @@ export function readCachedProduction() {
     readCache<StoredTechSpecsWithEmbeddedProduction>("data/tech-specs.json"),
   );
 
-  if (production && embeddedProduction) return mergeStoredProduction(production, embeddedProduction);
+  if (production && embeddedProduction) return mergeServerStoredProduction(production, embeddedProduction);
   return embeddedProduction || production;
+}
+
+export function readCachedInstallations() {
+  return readCache<StoredInstallations>("data/installations.json");
+}
+
+export function readCachedWarehouse() {
+  const data = readCache<StoredWarehouse>("data/warehouse.json");
+  return data ? normalizeWarehouse(data) : undefined;
 }
 
 export function readCachedCatalogs() {
@@ -173,6 +226,14 @@ export function withEmbeddedProduction(
 
 export function writeCachedProduction(data: StoredProduction) {
   writeCache("data/production.json", data);
+}
+
+export function writeCachedInstallations(data: StoredInstallations) {
+  writeCache("data/installations.json", data);
+}
+
+export function writeCachedWarehouse(data: StoredWarehouse) {
+  writeCache("data/warehouse.json", normalizeWarehouse(data));
 }
 
 export function writeCachedCatalogs(data: AppData<CatalogItem>) {
@@ -233,6 +294,10 @@ async function loadJson<T>(
         cachedData,
         cachedRecord?.savedAt,
       );
+      if (isProductionPath(normalizedPath) || isInstallationsPath(normalizedPath)) {
+        writeCache(normalizedPath, resolvedApiData);
+        return resolvedApiData;
+      }
       if (shouldKeepCachedData(resolvedApiData, cachedData)) return cachedData;
       writeCacheIfUseful(normalizedPath, resolvedApiData, cachedData);
       return resolvedApiData;
@@ -412,7 +477,7 @@ function reconcileFetchedData<T>(
 function reconcileFetchedProduction<T>(data: T, cachedData?: T): T {
   if (!isStoredProduction(data) || !isStoredProduction(cachedData)) return data;
 
-  return mergeStoredProduction(data, cachedData) as T;
+  return mergeServerStoredProduction(data, cachedData) as T;
 }
 
 async function withLoadedEmbeddedProduction(
@@ -428,7 +493,55 @@ async function withLoadedEmbeddedProduction(
     },
   );
   const embeddedProduction = embeddedProductionFromTechSpecs(techSpecs);
-  return embeddedProduction ? mergeStoredProduction(production, embeddedProduction) : production;
+  return embeddedProduction ? mergeServerStoredProduction(production, embeddedProduction) : production;
+}
+
+export function mergeServerStoredProduction(
+  serverProduction: StoredProduction,
+  localProduction: StoredProduction,
+): StoredProduction {
+  return {
+    ...localProduction,
+    ...serverProduction,
+    generatedAt: serverProduction.generatedAt || localProduction.generatedAt,
+    employees: mergeServerAuthoritativeRecords(serverProduction.employees || [], localProduction.employees || []),
+    registrations: mergeServerAuthoritativeRecords(
+      serverProduction.registrations || [],
+      localProduction.registrations || [],
+    ),
+    registrationLinks: mergeServerAuthoritativeRecords(
+      serverProduction.registrationLinks || [],
+      localProduction.registrationLinks || [],
+    ),
+    assignments: mergeServerAuthoritativeRecords(
+      serverProduction.assignments || [],
+      localProduction.assignments || [],
+    ),
+    payouts: mergeServerAuthoritativeRecords(serverProduction.payouts || [], localProduction.payouts || []),
+    notifications: mergeServerAuthoritativeRecords(
+      serverProduction.notifications || [],
+      localProduction.notifications || [],
+    ),
+  };
+}
+
+export function mergeServerStoredInstallations(
+  serverInstallations: StoredInstallations,
+  localInstallations: StoredInstallations,
+): StoredInstallations {
+  return {
+    ...localInstallations,
+    ...serverInstallations,
+    generatedAt: serverInstallations.generatedAt || localInstallations.generatedAt,
+    installations: mergeServerAuthoritativeRecords(
+      serverInstallations.installations || [],
+      localInstallations.installations || [],
+    ),
+    notifications: mergeServerAuthoritativeRecords(
+      serverInstallations.notifications || [],
+      localInstallations.notifications || [],
+    ),
+  };
 }
 
 export function mergeStoredProduction(
@@ -463,6 +576,12 @@ export function mergeStoredProduction(
       preferIncomingRecords,
       { keepMissingIncomingRecords: preferIncomingRecords },
     ),
+    notifications: mergeProductionRecords(
+      base.notifications || [],
+      incoming.notifications || [],
+      preferIncomingRecords,
+      { keepMissingIncomingRecords: true },
+    ),
   };
 }
 
@@ -479,6 +598,16 @@ function mergeProductionRecords<T extends { id: string }>(
       records.set(record.id, record);
     }
   }
+  return Array.from(records.values());
+}
+
+function mergeServerAuthoritativeRecords<T extends { id: string }>(
+  serverRecords: T[],
+  localRecords: T[],
+) {
+  const records = new Map<string, T>();
+  for (const record of localRecords) records.set(record.id, record);
+  for (const record of serverRecords) records.set(record.id, record);
   return Array.from(records.values());
 }
 
@@ -506,6 +635,7 @@ function shouldKeepCachedData<T>(data: T, cachedData?: T): cachedData is T {
       isNonEmptyStoredTechSpecs(cachedData) &&
       shouldKeepNonEmptyCachedData(data, cachedData)) ||
     (isEmptyStoredProduction(data) && isNonEmptyStoredProduction(cachedData)) ||
+    (isEmptyStoredInstallations(data) && isNonEmptyStoredInstallations(cachedData)) ||
     (isStoredProduction(data) &&
       isStoredProduction(cachedData) &&
       isGeneratedAtNewer(cachedData.generatedAt, data.generatedAt))
@@ -544,6 +674,7 @@ function isEmptyStoredProduction(value: unknown): value is StoredProduction {
     isStoredProduction(value) &&
     !value.assignments.length &&
     !(value.payouts || []).length &&
+    !(value.notifications || []).length &&
     !value.employees.length &&
     !(value.registrations || []).length &&
     !(value.registrationLinks || []).length
@@ -555,10 +686,19 @@ function isNonEmptyStoredProduction(value: unknown): value is StoredProduction {
     isStoredProduction(value) &&
     (value.assignments.length > 0 ||
       (value.payouts || []).length > 0 ||
+      (value.notifications || []).length > 0 ||
       value.employees.length > 0 ||
       (value.registrations || []).length > 0 ||
       (value.registrationLinks || []).length > 0)
   );
+}
+
+function isEmptyStoredInstallations(value: unknown): value is StoredInstallations {
+  return isStoredInstallations(value) && !value.installations.length && !(value.notifications || []).length;
+}
+
+function isNonEmptyStoredInstallations(value: unknown): value is StoredInstallations {
+  return isStoredInstallations(value) && (value.installations.length > 0 || (value.notifications || []).length > 0);
 }
 
 function isAppData<T>(value: unknown): value is AppData<T> {
@@ -590,6 +730,15 @@ function isStoredProduction(value: unknown): value is StoredProduction {
   );
 }
 
+function isStoredInstallations(value: unknown): value is StoredInstallations {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      Array.isArray((value as StoredInstallations).installations) &&
+      (!("notifications" in value) || Array.isArray((value as StoredInstallations).notifications)),
+  );
+}
+
 function isGeneratedAtNewer(candidate?: string, baseline?: string) {
   const candidateMs = Date.parse(candidate || "");
   const baselineMs = Date.parse(baseline || "");
@@ -602,4 +751,8 @@ function isDealsPath(path: string) {
 
 function isProductionPath(path: string) {
   return path.replace(/^\//, "") === "data/production.json";
+}
+
+function isInstallationsPath(path: string) {
+  return path.replace(/^\//, "") === "data/installations.json";
 }

@@ -312,7 +312,11 @@ export function DealTable({
               : animatedExpandedRow?.content || expandedRowCacheRef.current.get(deal.id);
 
           return (
-            <article className={isSelected ? "mobile-deal-card selected" : "mobile-deal-card"} key={deal.id}>
+            <article
+              className={isSelected ? "mobile-deal-card selected" : "mobile-deal-card"}
+              data-deal-id={deal.id}
+              key={deal.id}
+            >
               <button className="mobile-deal-card-main" onClick={() => onSelect(deal)} type="button">
                 <span className="mobile-deal-number">#{deal.number}</span>
                 <span className="mobile-deal-title">
@@ -422,6 +426,7 @@ export function DealTable({
                 <Fragment key={deal.id}>
                   <tr
                     className={isSelected ? "selected clickable-row" : "clickable-row"}
+                    data-deal-id={deal.id}
                     onClick={() => onSelect(deal)}
                   >
                     <td>
@@ -490,7 +495,10 @@ export function DealTable({
                     </td>
                   </tr>
                   {animatedExpandedRow && animatedExpandedContent && (
-                    <tr className={`calculation-panel-row ${animatedExpandedRow.status}`}>
+                    <tr
+                      className={`calculation-panel-row ${animatedExpandedRow.status}`}
+                      data-deal-panel-id={deal.id}
+                    >
                       <td colSpan={tableColumns.length}>
                         <div className="deal-expand-shell">
                           <div className="deal-expand-inner">{animatedExpandedContent}</div>

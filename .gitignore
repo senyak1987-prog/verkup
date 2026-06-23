@@ -2,3 +2,11 @@ node_modules/
 dist/
 .tools/
 *.tsbuildinfo
+backups/
+uploads/
+storage/
+.env
+.env.local
+.env.*.local
+public/config.js
+*.log

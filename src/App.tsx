@@ -1,32 +1,43 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Calculator, Factory, LogOut, UsersRound } from "lucide-react";
+import { Calculator, CalendarDays, Factory, LogOut, PackageSearch, UsersRound } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
 import { DealTable } from "./components/DealTable";
+import { InstallationsApp } from "./components/InstallationsApp";
 import { ProductionMobileApp } from "./components/ProductionMobileApp";
 import { TechSpecBuilder } from "./components/TechSpecBuilder";
+import { WarehouseApp } from "./components/WarehouseApp";
 import {
   loadCalculations,
   loadCatalogs,
   loadDeals,
+  loadFreshInstallations,
   loadFreshProduction,
+  loadFreshWarehouse,
+  loadInstallations,
   loadProduction,
   loadTechSpecs,
-  mergeStoredProduction,
+  loadWarehouse,
+  mergeServerStoredInstallations,
+  mergeServerStoredProduction,
   embeddedProductionFromTechSpecs,
   readCachedCalculations,
   readCachedCatalogs,
   readCachedDeals,
+  readCachedInstallations,
   readCachedProduction,
   readCachedTechSpecs,
+  readCachedWarehouse,
   rememberCatalogFavoriteChanges,
   withEmbeddedProduction,
   writeCachedCalculations,
   writeCachedCatalogs,
   writeCachedDeals,
+  writeCachedInstallations,
   writeCachedProduction,
   writeCachedTechSpecs,
+  writeCachedWarehouse,
 } from "./lib/data";
 import { finalCost, formatMoney } from "./lib/costing";
 import {
@@ -41,12 +52,15 @@ import {
 import {
   defaultSaveApiUrl,
   saveCalculations,
+  saveInstallations,
   saveProduction,
   saveTechSpecs,
+  saveWarehouse,
   uploadTechSpecToBitrix,
 } from "./lib/saveApi";
 import { isUnresolvedResponsible } from "./lib/responsible";
 import { stageCodeForDeal, stageLabels } from "./lib/stages";
+import { createEmptyStoredWarehouse } from "./lib/warehouse";
 import type {
   CatalogItem,
   CostCalcMode,
@@ -59,8 +73,10 @@ import type {
   ProductionEmployee,
   ProductionRegistrationRequest,
   StoredCalculations,
+  StoredInstallations,
   StoredProduction,
   StoredTechSpecs,
+  StoredWarehouse,
   TechSpecDraft,
 } from "./types";
 import "./styles.css";
@@ -70,6 +86,8 @@ const DEAL_REFRESH_INTERVAL_MS = 2000;
 const PRODUCTION_REFRESH_INTERVAL_MS = 10000;
 const TECH_SPEC_SAVE_DELAY_MS = 900;
 const PRODUCTION_SAVE_DELAY_MS = 700;
+const INSTALLATIONS_SAVE_DELAY_MS = 700;
+const WAREHOUSE_SAVE_DELAY_MS = 700;
 const DEAL_STAGE_TABS: DealStageCode[] = ["tz", "tzApproval", "launch", "production", "defect"];
 
 type PendingStageMove = {
@@ -79,11 +97,13 @@ type PendingStageMove = {
 
 type AppTab = DealStageCode;
 
-type WorkspaceMode = "costing" | "production" | "employees";
+type WorkspaceMode = "costing" | "production" | "installations" | "warehouse" | "employees";
 
 const WORKSPACE_MODE_ROUTES: Record<WorkspaceMode, string> = {
   costing: "/cost",
   production: "/production",
+  installations: "/installations",
+  warehouse: "/warehouse",
   employees: "/employees",
 };
 
@@ -100,6 +120,14 @@ const WORKSPACE_ROUTE_ALIASES: Record<string, WorkspaceMode> = {
   shop: "production",
   proizvodstvo: "production",
   производство: "production",
+  installations: "installations",
+  installation: "installations",
+  montazhi: "installations",
+  montage: "installations",
+  warehouse: "warehouse",
+  sklad: "warehouse",
+  склад: "warehouse",
+  монтажи: "installations",
   employees: "employees",
   staff: "employees",
   sotrudniki: "employees",
@@ -237,6 +265,12 @@ export default function App() {
   const [storedProduction, setStoredProduction] = useState<StoredProduction>(
     () => readCachedProduction() || createEmptyStoredProduction(),
   );
+  const [storedInstallations, setStoredInstallations] = useState<StoredInstallations>(
+    () => readCachedInstallations() || createEmptyStoredInstallations(),
+  );
+  const [storedWarehouse, setStoredWarehouse] = useState<StoredWarehouse>(
+    () => readCachedWarehouse() || createEmptyStoredWarehouse(),
+  );
   const [selectedDealId, setSelectedDealId] = useState<string>();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(() => !hasCachedStartupData());
@@ -251,10 +285,14 @@ export default function App() {
   const pendingStageMovesRef = useRef(new Map<string, PendingStageMove>());
   const techSpecSaveTimerRef = useRef<number>();
   const productionSaveTimerRef = useRef<number>();
+  const installationsSaveTimerRef = useRef<number>();
+  const warehouseSaveTimerRef = useRef<number>();
   const productionSaveInFlightRef = useRef(false);
   const queuedProductionSaveRef = useRef<QueuedProductionSave>();
   const storedTechSpecsRef = useRef(storedTechSpecs);
   const storedProductionRef = useRef(storedProduction);
+  const storedInstallationsRef = useRef(storedInstallations);
+  const storedWarehouseRef = useRef(storedWarehouse);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent>();
 
   const activeEmployees = useMemo(
@@ -288,9 +326,13 @@ export default function App() {
   const managerDealId = useMemo(() => managerDealIdFromUrl(), []);
 
   const canUseCosting = canAccessCosting(currentEmployee);
-  const canUseProduction = canAccessProduction(currentEmployee);
+  const canUseProduction =
+    canAccessProduction(currentEmployee) &&
+    !(accessRoleFor(currentEmployee) === "maker" && currentEmployee?.role === "assembler");
   const canUseEmployees = canManageEmployees(currentEmployee);
-  const availableModeCount = [canUseCosting, canUseProduction, canUseEmployees].filter(Boolean).length;
+  const canUseInstallations = canAccessInstallations(currentEmployee);
+  const canUseWarehouse = canAccessWarehouse(currentEmployee);
+  const availableModeCount = [canUseCosting, canUseProduction, canUseInstallations, canUseWarehouse, canUseEmployees].filter(Boolean).length;
 
   useEffect(() => {
     storedTechSpecsRef.current = storedTechSpecs;
@@ -299,6 +341,14 @@ export default function App() {
   useEffect(() => {
     storedProductionRef.current = storedProduction;
   }, [storedProduction]);
+
+  useEffect(() => {
+    storedInstallationsRef.current = storedInstallations;
+  }, [storedInstallations]);
+
+  useEffect(() => {
+    storedWarehouseRef.current = storedWarehouse;
+  }, [storedWarehouse]);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -322,7 +372,7 @@ export default function App() {
     options: { syncBack?: boolean } = {},
   ) {
     const loadedProduction = productionWithEmbeddedFallback(productionData, techSpecsData);
-    const nextProduction = mergeStoredProduction(loadedProduction, storedProductionRef.current);
+    const nextProduction = mergeServerStoredProduction(loadedProduction, storedProductionRef.current);
 
     setStoredTechSpecs(techSpecsData);
     setStoredProduction(nextProduction);
@@ -338,17 +388,91 @@ export default function App() {
     return nextProduction;
   }
 
+  function applyLoadedInstallationsData(installationsData: StoredInstallations) {
+    const nextInstallations = mergeServerStoredInstallations(
+      installationsData,
+      storedInstallationsRef.current,
+    );
+
+    setStoredInstallations(nextInstallations);
+    storedInstallationsRef.current = nextInstallations;
+    writeCachedInstallations(nextInstallations);
+
+    return nextInstallations;
+  }
+
+  useEffect(() => {
+    if (!currentEmployeeId || !defaultSaveApiUrl()) return;
+
+    let canceled = false;
+    let inFlight = false;
+
+    async function refreshProductionDataFromServer() {
+      if (inFlight) return;
+      inFlight = true;
+
+      try {
+        const [freshProduction, freshInstallations, freshWarehouse] = await Promise.all([
+          loadFreshProduction(),
+          loadFreshInstallations(),
+          loadFreshWarehouse(),
+        ]);
+        if (canceled) return;
+
+        const currentProduction = storedProductionRef.current;
+        const nextProduction = mergeServerStoredProduction(freshProduction, currentProduction);
+        applyLoadedInstallationsData(freshInstallations);
+        setStoredWarehouse(freshWarehouse);
+        storedWarehouseRef.current = freshWarehouse;
+        writeCachedWarehouse(freshWarehouse);
+        if (JSON.stringify(nextProduction) === JSON.stringify(currentProduction)) return;
+
+        storedProductionRef.current = nextProduction;
+        setStoredProduction(nextProduction);
+        writeCachedProduction(nextProduction);
+        writeCachedTechSpecs(withEmbeddedProduction(storedTechSpecsRef.current, nextProduction));
+      } catch {
+        // Тихо пропускаем сетевой сбой: пользователь все еще может обновить данные вручную.
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    const handleFocus = () => {
+      void refreshProductionDataFromServer();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refreshProductionDataFromServer();
+    };
+
+    const intervalId = window.setInterval(
+      () => void refreshProductionDataFromServer(),
+      PRODUCTION_REFRESH_INTERVAL_MS,
+    );
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      canceled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [currentEmployeeId]);
+
   useEffect(() => {
     let canceled = false;
 
     async function loadInitialData() {
       try {
-        const [dealsData, calculationsData, catalogsData, techSpecsData, productionData] = await Promise.all([
+        const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
           loadDeals(),
           loadCalculations(),
           loadCatalogs(),
           loadTechSpecs(),
           loadProduction(),
+          loadInstallations(),
+          loadWarehouse(),
         ]);
         if (canceled) return;
 
@@ -357,9 +481,13 @@ export default function App() {
         setStoredCalculations(calculationsData);
         setCatalogItems(catalogsData.items);
         applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
+        applyLoadedInstallationsData(installationsData);
+        setStoredWarehouse(warehouseData);
+        storedWarehouseRef.current = warehouseData;
         writeCachedDeals({ ...dealsData, items: nextDeals });
         writeCachedCalculations(calculationsData);
         writeCachedCatalogs(catalogsData);
+        writeCachedWarehouse(warehouseData);
       } finally {
         if (!canceled) setLoading(false);
       }
@@ -385,22 +513,30 @@ export default function App() {
     }
 
     async function refreshProductionData() {
-      const [techSpecsData, productionData] = await Promise.all([
+      const [techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
         loadTechSpecs(),
         loadProduction(),
+        loadInstallations(),
+        loadWarehouse(),
       ]);
       if (canceled) return;
 
       applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
+      applyLoadedInstallationsData(installationsData);
+      setStoredWarehouse(warehouseData);
+      storedWarehouseRef.current = warehouseData;
+      writeCachedWarehouse(warehouseData);
     }
 
     async function refreshAllData() {
-      const [dealsData, calculationsData, catalogsData, techSpecsData, productionData] = await Promise.all([
+      const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
         loadDeals(),
         loadCalculations(),
         loadCatalogs(),
         loadTechSpecs(),
         loadProduction(),
+        loadInstallations(),
+        loadWarehouse(),
       ]);
       if (canceled) return;
 
@@ -409,9 +545,13 @@ export default function App() {
       setStoredCalculations(calculationsData);
       setCatalogItems(catalogsData.items);
       applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
+      applyLoadedInstallationsData(installationsData);
+      setStoredWarehouse(warehouseData);
+      storedWarehouseRef.current = warehouseData;
       writeCachedDeals({ ...dealsData, items: nextDeals });
       writeCachedCalculations(calculationsData);
       writeCachedCatalogs(catalogsData);
+      writeCachedWarehouse(warehouseData);
     }
 
     const intervalId = window.setInterval(refreshDeals, DEAL_REFRESH_INTERVAL_MS);
@@ -471,6 +611,8 @@ export default function App() {
     const availableModes: WorkspaceMode[] = [
       ...(canUseCosting ? (["costing"] as const) : []),
       ...(canUseProduction ? (["production"] as const) : []),
+      ...(canUseInstallations ? (["installations"] as const) : []),
+      ...(canUseWarehouse ? (["warehouse"] as const) : []),
       ...(canUseEmployees ? (["employees"] as const) : []),
     ];
     if (!availableModes.includes(workspaceMode) && availableModes[0]) {
@@ -483,7 +625,7 @@ export default function App() {
     if (workspaceMode === "production" && !canUseProduction && canUseCosting) {
       setWorkspaceMode("costing");
     }
-  }, [canUseCosting, canUseEmployees, canUseProduction, currentEmployee, workspaceMode]);
+  }, [canUseCosting, canUseEmployees, canUseInstallations, canUseProduction, canUseWarehouse, currentEmployee, workspaceMode]);
 
   const calculationsMap = useMemo(() => {
     return new Map(storedCalculations.calculations.map((calculation) => [calculation.dealId, calculation]));
@@ -607,11 +749,27 @@ export default function App() {
     else scheduleProductionSave(data, options);
   }
 
+  function handleInstallationsChange(data: StoredInstallations, options: { saveNow?: boolean } = {}) {
+    setStoredInstallations(data);
+    storedInstallationsRef.current = data;
+    writeCachedInstallations(data);
+    if (options.saveNow) saveInstallationsNow(data);
+    else scheduleInstallationsSave(data);
+  }
+
+  function handleWarehouseChange(data: StoredWarehouse, options: { saveNow?: boolean } = {}) {
+    setStoredWarehouse(data);
+    storedWarehouseRef.current = data;
+    writeCachedWarehouse(data);
+    if (options.saveNow) saveWarehouseNow(data);
+    else scheduleWarehouseSave(data);
+  }
+
   async function syncProductionCacheWithServer(localProduction: StoredProduction) {
     const serverProduction = await loadFreshProduction();
     if (!shouldSyncProductionToServer(serverProduction, localProduction)) return;
 
-    const mergedProduction = mergeStoredProduction(serverProduction, localProduction);
+    const mergedProduction = mergeServerStoredProduction(serverProduction, localProduction);
     setStoredProduction(mergedProduction);
     storedProductionRef.current = mergedProduction;
     writeCachedProduction(mergedProduction);
@@ -620,12 +778,14 @@ export default function App() {
   }
 
   async function refreshAllDataNow() {
-    const [dealsData, calculationsData, catalogsData, techSpecsData, productionData] = await Promise.all([
+    const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
       loadDeals(),
       loadCalculations(),
       loadCatalogs(),
       loadTechSpecs(),
       loadFreshProduction(),
+      loadFreshInstallations(),
+      loadFreshWarehouse(),
     ]);
 
     const nextDeals = applyPendingStageMoves(dealsData.items);
@@ -633,9 +793,13 @@ export default function App() {
     setStoredCalculations(calculationsData);
     setCatalogItems(catalogsData.items);
     applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
+    applyLoadedInstallationsData(installationsData);
+    setStoredWarehouse(warehouseData);
+    storedWarehouseRef.current = warehouseData;
     writeCachedDeals({ ...dealsData, items: nextDeals });
     writeCachedCalculations(calculationsData);
     writeCachedCatalogs(catalogsData);
+    writeCachedWarehouse(warehouseData);
   }
 
   async function handleEmployeeLogin(login: string, password: string) {
@@ -645,10 +809,18 @@ export default function App() {
       return true;
     }
 
-    const freshProduction = await loadFreshProduction();
+    const [freshProduction, freshInstallations, freshWarehouse] = await Promise.all([
+      loadFreshProduction(),
+      loadFreshInstallations(),
+      loadFreshWarehouse(),
+    ]);
     setStoredProduction(freshProduction);
+    applyLoadedInstallationsData(freshInstallations);
+    setStoredWarehouse(freshWarehouse);
+    storedWarehouseRef.current = freshWarehouse;
     storedProductionRef.current = freshProduction;
     writeCachedProduction(freshProduction);
+    writeCachedWarehouse(freshWarehouse);
     writeCachedTechSpecs(withEmbeddedProduction(storedTechSpecsRef.current, freshProduction));
 
     const freshEmployee = await findVerifiedLoginEmployee(
@@ -859,6 +1031,56 @@ export default function App() {
     }, PRODUCTION_SAVE_DELAY_MS);
   }
 
+  function saveInstallationsNow(data: StoredInstallations) {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+    if (installationsSaveTimerRef.current) {
+      window.clearTimeout(installationsSaveTimerRef.current);
+      installationsSaveTimerRef.current = undefined;
+    }
+    void saveInstallations({ apiUrl }, data).catch(() => {
+      scheduleInstallationsSave(data);
+    });
+  }
+
+  function scheduleInstallationsSave(data: StoredInstallations) {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+    if (installationsSaveTimerRef.current) {
+      window.clearTimeout(installationsSaveTimerRef.current);
+    }
+    installationsSaveTimerRef.current = window.setTimeout(() => {
+      void saveInstallations({ apiUrl }, data).catch(() => {
+        // Локальный кэш уже обновлен, следующая правка повторит синхронизацию.
+      });
+    }, INSTALLATIONS_SAVE_DELAY_MS);
+  }
+
+  function saveWarehouseNow(data: StoredWarehouse) {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+    if (warehouseSaveTimerRef.current) {
+      window.clearTimeout(warehouseSaveTimerRef.current);
+      warehouseSaveTimerRef.current = undefined;
+    }
+    void saveWarehouse({ apiUrl }, data).catch(() => {
+      scheduleWarehouseSave(data);
+    });
+  }
+
+  function scheduleWarehouseSave(data: StoredWarehouse) {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+    if (warehouseSaveTimerRef.current) {
+      window.clearTimeout(warehouseSaveTimerRef.current);
+    }
+    warehouseSaveTimerRef.current = window.setTimeout(() => {
+      void saveWarehouse({ apiUrl }, data).catch(() => {
+        // Local cache already has the latest warehouse state; the next edit will retry saving.
+      });
+    }, WAREHOUSE_SAVE_DELAY_MS);
+  }
+
   function handleCatalogChange(items: CatalogItem[]) {
     setCatalogItems((current) => {
       rememberCatalogFavoriteChanges(current, items);
@@ -952,6 +1174,40 @@ export default function App() {
     updateWorkspaceUrl(mode);
   }
 
+  function handleWorkspaceLogoClick() {
+    if (canUseCosting) {
+      handleWorkspaceModeChange("costing");
+    } else if (canUseProduction) {
+      handleWorkspaceModeChange("production");
+    } else if (canUseInstallations) {
+      handleWorkspaceModeChange("installations");
+    } else if (canUseWarehouse) {
+      handleWorkspaceModeChange("warehouse");
+    } else if (canUseEmployees) {
+      handleWorkspaceModeChange("employees");
+    }
+
+    window.setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+  }
+
+  function scrollDealIntoView(dealId: string) {
+    const safeDealId = dealId.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const selectors = [
+      `[data-deal-panel-id="${safeDealId}"]`,
+      `[data-deal-id="${safeDealId}"]`,
+      `[data-production-deal-id="${safeDealId}"]`,
+    ];
+
+    window.setTimeout(() => {
+      window.requestAnimationFrame(() => {
+        const element = selectors
+          .map((selector) => document.querySelector<HTMLElement>(selector))
+          .find(Boolean);
+        element?.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+      });
+    }, 180);
+  }
+
   async function handleInstallApp() {
     if (!installPrompt) return;
     const prompt = installPrompt;
@@ -973,6 +1229,7 @@ export default function App() {
     } else if (canUseProduction) {
       handleWorkspaceModeChange("production");
     }
+    scrollDealIntoView(deal.id);
   }
 
   function renderWorkspaceModeButtons() {
@@ -1002,6 +1259,30 @@ export default function App() {
             <span>Производство</span>
           </button>
         ) : null}
+        {canUseInstallations ? (
+          <button
+            aria-selected={workspaceMode === "installations"}
+            className={workspaceMode === "installations" ? "active" : ""}
+            onClick={() => handleWorkspaceModeChange("installations")}
+            role="tab"
+            type="button"
+          >
+            <CalendarDays size={18} />
+            <span>Монтажи</span>
+          </button>
+        ) : null}
+        {canUseWarehouse ? (
+          <button
+            aria-selected={workspaceMode === "warehouse"}
+            className={workspaceMode === "warehouse" ? "active" : ""}
+            onClick={() => handleWorkspaceModeChange("warehouse")}
+            role="tab"
+            type="button"
+          >
+            <PackageSearch size={18} />
+            <span>Склад</span>
+          </button>
+        ) : null}
         {canUseEmployees ? (
           <button
             aria-selected={workspaceMode === "employees"}
@@ -1023,7 +1304,11 @@ export default function App() {
       ? "Себестоимость"
       : workspaceMode === "production"
         ? "Производство"
-        : "Сотрудники";
+        : workspaceMode === "installations"
+          ? "Монтажи"
+          : workspaceMode === "warehouse"
+            ? "Склад"
+            : "Сотрудники";
 
   function applyPendingStageMoves(items: Deal[]) {
     const now = Date.now();
@@ -1111,10 +1396,15 @@ export default function App() {
       ) : null}
       {availableModeCount > 1 ? (
         <aside className="app-mode-sidebar" aria-label="Навигация Verkup">
-          <div className="workspace-brand">
+          <button
+            aria-label="Открыть главный экран Verkup"
+            className="workspace-brand workspace-brand-button"
+            onClick={handleWorkspaceLogoClick}
+            type="button"
+          >
             <img alt="Verkup" src={`${import.meta.env.BASE_URL}verkup-logo-vector.svg`} />
             <span>Рабочее пространство</span>
-          </div>
+          </button>
           <div className="app-mode-switch" role="tablist" aria-label="Режим приложения">
             {renderWorkspaceModeButtons()}
           </div>
@@ -1175,6 +1465,28 @@ export default function App() {
           onLogout={handleLogout}
           onOpenDeal={handleProductionDealOpen}
           onRefresh={refreshAllDataNow}
+        />
+      ) : workspaceMode === "installations" && canUseInstallations ? (
+        <InstallationsApp
+          currentUser={currentEmployee}
+          deals={deals}
+          saveApiUrl={defaultSaveApiUrl()}
+          storedInstallations={storedInstallations}
+          storedProduction={storedProduction}
+          techSpecs={techSpecsMap}
+          onChange={handleInstallationsChange}
+          onOpenDeal={handleProductionDealOpen}
+          onRefresh={refreshAllDataNow}
+        />
+      ) : workspaceMode === "warehouse" && canUseWarehouse ? (
+        <WarehouseApp
+          catalogItems={catalogItems}
+          currentUser={currentEmployee}
+          deals={deals}
+          saveApiUrl={defaultSaveApiUrl()}
+          storedWarehouse={storedWarehouse}
+          onCatalogChange={handleCatalogChange}
+          onChange={handleWarehouseChange}
         />
       ) : canUseCosting ? (
         <DealTable
@@ -1490,6 +1802,15 @@ function createEmptyStoredProduction(): StoredProduction {
     registrationLinks: [],
     assignments: [],
     payouts: [],
+    notifications: [],
+  };
+}
+
+function createEmptyStoredInstallations(): StoredInstallations {
+  return {
+    generatedAt: new Date().toISOString(),
+    installations: [],
+    notifications: [],
   };
 }
 
@@ -1498,7 +1819,7 @@ function productionWithEmbeddedFallback(
   techSpecs: StoredTechSpecs,
 ) {
   const embeddedProduction = embeddedProductionFromTechSpecs(techSpecs);
-  return embeddedProduction ? mergeStoredProduction(production, embeddedProduction) : production;
+  return embeddedProduction ? mergeServerStoredProduction(production, embeddedProduction) : production;
 }
 
 function createEmptyStageCounts(): Record<DealStageCode, number> {
@@ -1517,7 +1838,9 @@ function hasCachedStartupData() {
       readCachedCalculations() ||
       readCachedCatalogs() ||
       readCachedTechSpecs() ||
-      readCachedProduction(),
+      readCachedProduction() ||
+      readCachedInstallations() ||
+      readCachedWarehouse(),
   );
 }
 
@@ -1527,6 +1850,21 @@ function uniqueSortedValues(values: string[]) {
   );
 }
 
+function canAccessInstallations(employee?: ProductionEmployee) {
+  const role = accessRoleFor(employee);
+  return (
+    role === "leader" ||
+    role === "technologist" ||
+    role === "shopChief" ||
+    (role === "maker" && employee?.role === "assembler")
+  );
+}
+
+function canAccessWarehouse(employee?: ProductionEmployee) {
+  const role = accessRoleFor(employee);
+  return role === "leader" || role === "technologist" || role === "shopChief";
+}
+
 function defaultWorkspaceMode(): WorkspaceMode {
   if (typeof window === "undefined") return "costing";
 
@@ -1534,7 +1872,13 @@ function defaultWorkspaceMode(): WorkspaceMode {
   if (requestedMode) return requestedMode;
 
   const saved = localStorage.getItem("verkup-workspace-mode");
-  if (saved === "costing" || saved === "production" || saved === "employees") return saved;
+  if (
+    saved === "costing" ||
+    saved === "production" ||
+    saved === "installations" ||
+    saved === "warehouse" ||
+    saved === "employees"
+  ) return saved;
 
   return window.matchMedia("(max-width: 760px)").matches ? "production" : "costing";
 }
@@ -1615,7 +1959,12 @@ function shouldSyncProductionToServer(
       localProduction.assignments || [],
       preferLocalRecords,
     ) ||
-    hasMissingOrNewerRecords(serverProduction.payouts || [], localProduction.payouts || [], preferLocalRecords)
+    hasMissingOrNewerRecords(serverProduction.payouts || [], localProduction.payouts || [], preferLocalRecords) ||
+    hasMissingOrNewerRecords(
+      serverProduction.notifications || [],
+      localProduction.notifications || [],
+      preferLocalRecords,
+    )
   );
 }
 

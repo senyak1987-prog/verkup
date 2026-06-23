@@ -2,10 +2,17 @@ import type {
   AppData,
   CatalogItem,
   DealStageCode,
+  Installation,
+  InstallationPhoto,
+  InstallationPhotoType,
+  ProductionPhoto,
+  ProductionPhotoKind,
   ProductionPushSubscription,
   StoredCalculations,
+  StoredInstallations,
   StoredProduction,
   StoredTechSpecs,
+  StoredWarehouse,
   TechSpecDraft,
 } from "../types";
 
@@ -50,6 +57,238 @@ export async function saveProduction(settings: SaveApiSettings, data: StoredProd
   return postToSaveApi(settings, "/save-production", { data });
 }
 
+export async function saveInstallations(settings: SaveApiSettings, data: StoredInstallations) {
+  return postToSaveApi(settings, "/save-installations", { data });
+}
+
+export async function saveWarehouse(settings: SaveApiSettings, data: StoredWarehouse) {
+  return postToSaveApi(settings, "/save-warehouse", { data }) as Promise<{
+    data: StoredWarehouse;
+    ok: boolean;
+  }>;
+}
+
+export async function uploadWarehouseDocument(
+  settings: SaveApiSettings,
+  payload: {
+    actor?: string;
+    file: File;
+    type?: "invoice_photo" | "invoice_pdf" | "invoice_excel";
+  },
+) {
+  const formData = new FormData();
+  formData.append("files[]", payload.file);
+  formData.append("actor", payload.actor || "");
+  formData.append("type", payload.type || "");
+
+  return postFormToSaveApi(settings, "/warehouse/documents", formData) as Promise<{
+    data: StoredWarehouse;
+    documents: Array<{
+      id: string;
+      originalName: string;
+      url: string;
+      processingStatus: string;
+    }>;
+    success: boolean;
+  }>;
+}
+
+export async function createInstallation(
+  settings: SaveApiSettings,
+  payload: Partial<Installation> & {
+    actor?: string;
+    actorId?: string;
+    dealId: string;
+  },
+) {
+  return postToSaveApi(settings, "/installations", payload) as Promise<{
+    data: StoredInstallations;
+    installation: Installation;
+    success: boolean;
+  }>;
+}
+
+export async function updateInstallation(
+  settings: SaveApiSettings,
+  installationId: string,
+  payload: Partial<Installation> & {
+    actor?: string;
+    actorId?: string;
+  },
+) {
+  return postToSaveApi(settings, `/installations/${encodeURIComponent(installationId)}`, payload) as Promise<{
+    data: StoredInstallations;
+    installation: Installation;
+    success: boolean;
+  }>;
+}
+
+export async function changeInstallationStatus(
+  settings: SaveApiSettings,
+  installationId: string,
+  action: "start" | "arrive" | "complete" | "approve" | "return" | "cancel" | "no-installation",
+  payload: {
+    actor?: string;
+    actorId?: string;
+    note?: string;
+    resultComment?: string;
+    returnComment?: string;
+  } = {},
+) {
+  return postToSaveApi(settings, `/installations/${encodeURIComponent(installationId)}/${action}`, payload) as Promise<{
+    data: StoredInstallations;
+    installation: Installation;
+    success: boolean;
+  }>;
+}
+
+export async function uploadInstallationPhoto(
+  settings: SaveApiSettings,
+  payload: {
+    actor?: string;
+    actorId?: string;
+    dealId: string;
+    file: File;
+    installationId: string;
+    type: InstallationPhotoType;
+  },
+) {
+  const formData = new FormData();
+  formData.append("files[]", payload.file);
+  formData.append("actor", payload.actor || "");
+  formData.append("actorId", payload.actorId || "");
+  formData.append("dealId", payload.dealId);
+  formData.append("type", payload.type);
+
+  return postFormToSaveApi(
+    settings,
+    `/installations/${encodeURIComponent(payload.installationId)}/photos`,
+    formData,
+  ) as Promise<{
+    data: StoredInstallations;
+    installation: Installation;
+    photos: InstallationPhoto[];
+    success: boolean;
+  }>;
+}
+
+export async function deleteInstallationPhoto(
+  settings: SaveApiSettings,
+  payload: {
+    installationId: string;
+    photoId: string;
+  },
+) {
+  return requestSaveApi(
+    settings,
+    `/installations/${encodeURIComponent(payload.installationId)}/photos/${encodeURIComponent(payload.photoId)}`,
+    {
+      method: "DELETE",
+    },
+  ) as Promise<{
+    data: StoredInstallations;
+    installation: Installation;
+    success: boolean;
+  }>;
+}
+
+export async function markInstallationNotificationRead(
+  settings: SaveApiSettings,
+  notificationId: string,
+  employeeId: string,
+) {
+  return postToSaveApi(
+    settings,
+    `/installation-notifications/${encodeURIComponent(notificationId)}/read`,
+    { employeeId },
+  );
+}
+
+export async function uploadProductionPhoto(
+  settings: SaveApiSettings,
+  payload: {
+    assignmentId: string;
+    dealId: string;
+    dealNumber?: string;
+    dealTitle?: string;
+    employeeId: string;
+    file: File;
+    kind: ProductionPhotoKind;
+    techSpecItemId?: string;
+    uploadedBy?: string;
+  },
+) {
+  const formData = new FormData();
+  formData.append("files[]", payload.file);
+  formData.append("assignmentId", payload.assignmentId);
+  formData.append("employeeId", payload.employeeId);
+  formData.append("kind", payload.kind);
+  formData.append("dealNumber", payload.dealNumber || "");
+  formData.append("dealTitle", payload.dealTitle || "");
+  formData.append("techSpecItemId", payload.techSpecItemId || "");
+  formData.append("uploadedBy", payload.uploadedBy || "");
+
+  return postFormToSaveApi(
+    settings,
+    `/deals/${encodeURIComponent(payload.dealId)}/photos`,
+    formData,
+  ) as Promise<{
+    assignmentUpdated?: boolean;
+    photos: ProductionPhoto[];
+    success: boolean;
+  }>;
+}
+
+export async function deleteProductionPhoto(
+  settings: SaveApiSettings,
+  payload: {
+    dealId: string;
+    photoId: string;
+  },
+) {
+  return requestSaveApi(settings, `/deals/${encodeURIComponent(payload.dealId)}/photos/${encodeURIComponent(payload.photoId)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function startProductionWork(
+  settings: SaveApiSettings,
+  payload: {
+    actor?: string;
+    assignmentId: string;
+    dealId: string;
+    dealNumber?: string;
+    dealTitle?: string;
+  },
+) {
+  return postToSaveApi(settings, `/deals/${encodeURIComponent(payload.dealId)}/start-work`, payload);
+}
+
+export async function completeProductionWork(
+  settings: SaveApiSettings,
+  payload: {
+    actor?: string;
+    assignmentId: string;
+    dealId: string;
+    dealNumber?: string;
+    dealTitle?: string;
+  },
+) {
+  return postToSaveApi(settings, `/deals/${encodeURIComponent(payload.dealId)}/complete`, payload);
+}
+
+export async function markProductionNotificationRead(
+  settings: SaveApiSettings,
+  notificationId: string,
+  employeeId: string,
+) {
+  return postToSaveApi(
+    settings,
+    `/notifications/${encodeURIComponent(notificationId)}/read`,
+    { employeeId },
+  );
+}
+
 export async function sendProductionPush(
   settings: SaveApiSettings,
   payload: {
@@ -88,6 +327,39 @@ export async function uploadTechSpecToBitrix(
 }
 
 async function postToSaveApi(settings: SaveApiSettings, path: string, payload: unknown) {
+  return requestSaveApi(settings, path, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "POST",
+  });
+}
+
+async function requestSaveApi(settings: SaveApiSettings, path: string, init: RequestInit) {
+  const apiUrl = normalizeApiUrl(settings.apiUrl);
+
+  if (!apiUrl) {
+    throw new Error("Не указан адрес API сохранения.");
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${apiUrl}${path}`, init);
+  } catch {
+    throw new Error("Не удалось подключиться к API сохранения. Проверьте доступ к сети.");
+  }
+
+  if (!response.ok) {
+    const error = await readApiError(response);
+    throw new Error(error || `API сохранения ответил ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function postFormToSaveApi(settings: SaveApiSettings, path: string, formData: FormData) {
   const apiUrl = normalizeApiUrl(settings.apiUrl);
 
   if (!apiUrl) {
@@ -99,18 +371,18 @@ async function postToSaveApi(settings: SaveApiSettings, path: string, payload: u
   try {
     response = await fetch(`${apiUrl}${path}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+      body: formData,
     });
   } catch {
-    throw new Error("Не удалось подключиться к API сохранения. Проверьте Worker/доступ к сети.");
+    throw new Error("Не удалось загрузить фото. Проверьте интернет и попробуйте еще раз.");
   }
 
   if (!response.ok) {
     const error = await readApiError(response);
-    throw new Error(error || `API сохранения ответил ${response.status}`);
+    if (response.status === 413) {
+      throw new Error("Файл слишком большой. Выберите файл до 20 МБ.");
+    }
+    throw new Error(error || `API фото ответил ${response.status}`);
   }
 
   return response.json();

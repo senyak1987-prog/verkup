@@ -647,6 +647,7 @@ async function fetchBitrixDeals(env, targetStageIds) {
     "BEGINDATE",
     "CLOSEDATE",
     "DATE_CREATE",
+    "UF_*",
     ...liveCustomFields(env),
   ];
 
@@ -676,32 +677,112 @@ async function fetchBitrixUsers(env, ids) {
         const response = await callBitrixRest(env, "user.get", { ID: id });
         const user = response.result?.[0];
         if (user) {
-          const name = [user.NAME, user.LAST_NAME].filter(Boolean).join(" ");
-          const phone = extractBitrixUserPhone(user);
-          users.set(String(id), { name, phone });
+          users.set(String(id), normalizeBitrixUser(env, user, id));
         }
       } catch {
-        users.set(String(id), { name: String(id), phone: "" });
+        users.set(String(id), createResponsibleFallback(env, id));
       }
     }),
   );
   return users;
 }
 
+function normalizeBitrixUser(env, user, id) {
+  const idText = String(id || "");
+  const name = [user.LAST_NAME, user.NAME, user.SECOND_NAME].filter(Boolean).join(" ").trim();
+  return {
+    id: idText,
+    name: name || idText,
+    phone: extractBitrixUserPhone(user),
+    internalPhone: extractBitrixUserInternalPhone(user),
+    email: firstText(user.EMAIL, user.WORK_EMAIL, user.PERSONAL_EMAIL),
+    position: firstText(user.WORK_POSITION, user.UF_POSITION, user.PERSONAL_PROFESSION),
+    department: firstText(user.WORK_DEPARTMENT),
+    supervisor: normalizeBitrixSupervisor(user.UF_HEAD),
+    avatarUrl: extractBitrixUserPhoto(env, user),
+    bitrixUrl: bitrixUserUrl(env, idText),
+    chatUrl: bitrixChatUrl(env, idText),
+    videoUrl: bitrixChatUrl(env, idText),
+    lastSeenAt: normalizeDateText(
+      user.LAST_ACTIVITY_DATE || user.LAST_ACTIVITY || user.LAST_LOGIN || user.TIMESTAMP_X,
+    ),
+  };
+}
+
+function createResponsibleFallback(env, id) {
+  const idText = String(id || "");
+  return {
+    id: idText,
+    name: idText,
+    phone: "",
+    bitrixUrl: idText ? bitrixUserUrl(env, idText) : "",
+    chatUrl: idText ? bitrixChatUrl(env, idText) : "",
+    videoUrl: idText ? bitrixChatUrl(env, idText) : "",
+  };
+}
+
+function cleanResponsibleCard(user) {
+  if (!user) return undefined;
+  return { ...user };
+}
+
+function bitrixUserUrl(env, id) {
+  return `https://${env.BITRIX_DOMAIN || new URL(env.BITRIX_WEBHOOK_URL).host}/company/personal/user/${id}/`;
+}
+
+function bitrixChatUrl(env, id) {
+  return `https://${env.BITRIX_DOMAIN || new URL(env.BITRIX_WEBHOOK_URL).host}/online/?IM_DIALOG=U${id}`;
+}
+
+function normalizeBitrixSupervisor(value) {
+  const text = firstText(value);
+  if (!text) return "";
+  return /^\d+$/.test(text) ? `ID ${text}` : text;
+}
+
+function extractBitrixUserPhoto(env, user) {
+  for (const field of ["PERSONAL_PHOTO", "WORK_LOGO", "PERSONAL_PHOTO_URL"]) {
+    const url = firstText(user?.[field]);
+    if (url && !/^\d+$/.test(url)) return absoluteBitrixFileUrl(url, env.BITRIX_DOMAIN || new URL(env.BITRIX_WEBHOOK_URL).host);
+  }
+  return "";
+}
+
+function normalizeDateText(value) {
+  const text = firstText(value);
+  if (!text || /^\d+$/.test(text)) return "";
+  const timestamp = Date.parse(text);
+  if (Number.isNaN(timestamp)) return "";
+  return new Date(timestamp).toISOString();
+}
+
 const BITRIX_USER_PHONE_FIELDS = [
   "PERSONAL_MOBILE",
+  "PERSONAL_MOBILE_PHONE",
+  "UF_MOBILE_PHONE",
   "WORK_PHONE",
   "PERSONAL_PHONE",
-  "UF_PHONE_INNER",
   "UF_PHONE",
   "UF_MOBILE",
   "UF_WORK_PHONE",
   "UF_PERSONAL_MOBILE",
+  "UF_PERSONAL_PHONE",
+  "UF_CRM_PHONE",
+];
+
+const BITRIX_USER_INTERNAL_PHONE_FIELDS = [
+  "UF_PHONE_INNER",
+  "UF_PHONE_INTERNAL",
+  "UF_INNER_PHONE",
+  "UF_INTERNAL_PHONE",
+  "UF_EXTENSION",
+  "WORK_PHONE_INNER",
+  "UF_WORK_PHONE_INNER",
 ];
 
 function extractBitrixUserPhone(user) {
   for (const field of BITRIX_USER_PHONE_FIELDS) {
-    const phone = extractPhoneValue(user[field], true);
+    const phone = extractPhoneValue(user[field], false);
     if (phone) return phone;
   }
 
@@ -713,8 +794,27 @@ function extractBitrixUserPhone(user) {
   return "";
 }
 
+function extractBitrixUserInternalPhone(user) {
+  for (const field of BITRIX_USER_INTERNAL_PHONE_FIELDS) {
+    const phone = extractPhoneValue(user[field], true);
+    if (phone) return phone;
+  }
+
+  for (const [field, value] of Object.entries(user || {})) {
+    if (!isInternalPhoneFieldName(field)) continue;
+    const phone = extractPhoneValue(value, true);
+    if (phone) return phone;
+  }
+
+  return "";
+}
+
 function isPhoneFieldName(field) {
-  return /PHONE|MOBILE|TEL|INNER|EXT/i.test(String(field || ""));
+  return /PHONE|MOBILE|TEL/i.test(String(field || "")) && !isInternalPhoneFieldName(field);
+}
+
+function isInternalPhoneFieldName(field) {
+  return /INNER|INTERNAL|EXTENSION/i.test(String(field || ""));
 }
 
 function extractPhoneValue(value, allowExtension) {
@@ -832,7 +932,38 @@ function normalizeBitrixDeal(env, deal, users, dictionaries, stageCodesById) {
   const productionSaleAmount =
     installSaleAmount > 0 ? Math.max(0, totalSaleAmount - installSaleAmount) : totalSaleAmount;
   const bitrixDomain = env.BITRIX_DOMAIN || new URL(env.BITRIX_WEBHOOK_URL).host;
-  const responsibleUser = users.get(String(deal.ASSIGNED_BY_ID));
+  const responsibleId = String(deal.ASSIGNED_BY_ID || "");
+  const responsibleUser = users.get(responsibleId);
+  const installationAddress = valueByField(deal, fields.installAddress) || inferDealTextField(deal, [
+    "INSTALL_ADDRESS",
+    "INSTALLATION_ADDRESS",
+    "MOUNT_ADDRESS",
+    "MOUNTING_ADDRESS",
+    "ADDRESS",
+    "АДРЕС",
+    "МОНТАЖ",
+  ]);
+  const installationClientName = valueByField(deal, fields.installClientName) || inferDealTextField(deal, [
+    "INSTALL_CLIENT",
+    "INSTALLATION_CLIENT",
+    "CLIENT_NAME",
+    "CUSTOMER",
+    "КЛИЕНТ",
+    "ЗАКАЗЧИК",
+  ]);
+  const installationClientPhone = valueByField(deal, fields.installClientPhone) || inferDealPhoneField(deal);
+  const installationComment = valueByField(deal, fields.installComment) || inferDealTextField(deal, [
+    "INSTALL_COMMENT",
+    "INSTALLATION_COMMENT",
+    "MOUNT_COMMENT",
+    "COMMENT",
+    "КОММЕНТ",
+    "ПРИМЕЧ",
+  ]);
+  const installationFiles = extractBitrixDealFiles(
+    fields.installFiles ? deal[fields.installFiles] : inferDealFileField(deal),
+    bitrixDomain,
+  );
 
   return {
     id,
@@ -845,13 +976,20 @@ function normalizeBitrixDeal(env, deal, users, dictionaries, stageCodesById) {
     classification: displayValueByField(deal, fields.classification, dictionaries.customFieldMaps),
     saleAmount: productionSaleAmount,
     installSaleAmount,
-    responsible: responsibleUser?.name || "",
+    responsibleId,
+    responsible: responsibleUser?.name || responsibleId,
     responsiblePhone: responsibleUser?.phone || "",
+    responsibleCard: cleanResponsibleCard(responsibleUser || (responsibleId ? createResponsibleFallback(env, responsibleId) : undefined)),
     startDate: valueByField(deal, fields.startDate) || deal.BEGINDATE || "",
     expectedFinishDate: valueByField(deal, fields.expectedFinishDate) || deal.CLOSEDATE || "",
     createdDate: deal.DATE_CREATE || "",
     stageName,
     bitrixUrl: `https://${bitrixDomain}/crm/deal/details/${id}/`,
+    installationAddress,
+    installationClientName,
+    installationClientPhone,
+    installationComment,
+    installationFiles,
   };
 }
 
@@ -891,6 +1029,11 @@ function liveFieldNames(env) {
   return {
     classification: env.BITRIX_FIELD_CLASSIFICATION || "UF_CRM_6512B7A78D965",
     installAmount: env.BITRIX_FIELD_INSTALL_AMOUNT || "UF_CRM_1547662428256",
+    installAddress: env.BITRIX_FIELD_INSTALL_ADDRESS || "",
+    installClientName: env.BITRIX_FIELD_INSTALL_CLIENT_NAME || "",
+    installClientPhone: env.BITRIX_FIELD_INSTALL_CLIENT_PHONE || "",
+    installComment: env.BITRIX_FIELD_INSTALL_COMMENT || "",
+    installFiles: env.BITRIX_FIELD_INSTALL_FILES || "",
     startDate: env.BITRIX_FIELD_START_DATE || "",
     expectedFinishDate: env.BITRIX_FIELD_EXPECTED_FINISH_DATE || "",
   };
@@ -921,6 +1064,121 @@ function valueByField(row, fieldName) {
   const value = row[fieldName];
   if (Array.isArray(value)) return value.join(", ");
   return value ?? "";
+}
+
+function firstText(...values) {
+  for (const value of values) {
+    const text = normalizeTextValue(value);
+    if (text) return text;
+  }
+  return "";
+}
+
+function normalizeTextValue(value) {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const text = normalizeTextValue(item);
+      if (text) return text;
+    }
+    return "";
+  }
+
+  if (value && typeof value === "object") {
+    for (const key of ["VALUE", "TEXT", "NAME", "TITLE", "URL", "SRC"]) {
+      const text = normalizeTextValue(value[key]);
+      if (text) return text;
+    }
+    return "";
+  }
+
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function inferDealTextField(deal, needles) {
+  const normalizedNeedles = needles.map(normalize);
+  for (const [field, value] of Object.entries(deal || {})) {
+    const normalizedField = normalize(field);
+    if (!normalizedNeedles.some((needle) => normalizedField.includes(needle))) continue;
+    if (/FILE|PHOTO|IMAGE|ФАЙЛ|ФОТО/i.test(field)) continue;
+    const text = firstText(value);
+    if (text && !/^\d+$/.test(text)) return text;
+  }
+  return "";
+}
+
+function inferDealPhoneField(deal) {
+  for (const [field, value] of Object.entries(deal || {})) {
+    if (!/PHONE|TEL|MOBILE|ТЕЛ/i.test(field)) continue;
+    const phone = extractPhoneValue(value, true);
+    if (phone) return phone;
+  }
+  return "";
+}
+
+function inferDealFileField(deal) {
+  for (const [field, value] of Object.entries(deal || {})) {
+    if (!/FILE|PHOTO|IMAGE|ATTACH|ФАЙЛ|ФОТО|МАКЕТ/i.test(field)) continue;
+    const files = extractBitrixDealFiles(value, "");
+    if (files.length) return value;
+  }
+  return undefined;
+}
+
+function extractBitrixDealFiles(value, bitrixDomain) {
+  const files = [];
+  collectBitrixDealFiles(value, files, bitrixDomain);
+  return files;
+}
+
+function collectBitrixDealFiles(value, files, bitrixDomain) {
+  if (!value) return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectBitrixDealFiles(item, files, bitrixDomain);
+    return;
+  }
+
+  if (typeof value === "object") {
+    const url = firstText(value.URL, value.SRC, value.DOWNLOAD_URL, value.downloadUrl, value.url);
+    const id = firstText(value.ID, value.id, value.FILE_ID, value.fileId) || (url ? String(files.length + 1) : "");
+    const name = firstText(value.ORIGINAL_NAME, value.FILE_NAME, value.NAME, value.TITLE, value.name) || `Файл ${id || files.length + 1}`;
+    if (url) {
+      const absoluteUrl = absoluteBitrixFileUrl(url, bitrixDomain);
+      files.push({
+        id: String(id),
+        name,
+        url: absoluteUrl,
+        downloadUrl: absoluteUrl,
+        type: /\.(png|jpe?g|webp|gif)$/i.test(name) || /image/i.test(firstText(value.CONTENT_TYPE, value.type))
+          ? "image"
+          : "file",
+      });
+      return;
+    }
+
+    for (const item of Object.values(value)) collectBitrixDealFiles(item, files, bitrixDomain);
+    return;
+  }
+
+  const text = String(value || "").trim();
+  if (/^https?:\/\//i.test(text) || text.startsWith("/")) {
+    const absoluteUrl = absoluteBitrixFileUrl(text, bitrixDomain);
+    const name = decodeURIComponent(absoluteUrl.split("/").pop() || `Файл ${files.length + 1}`);
+    files.push({
+      id: String(files.length + 1),
+      name,
+      url: absoluteUrl,
+      downloadUrl: absoluteUrl,
+      type: /\.(png|jpe?g|webp|gif)$/i.test(name) ? "image" : "file",
+    });
+  }
+}
+
+function absoluteBitrixFileUrl(value, bitrixDomain) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  if (/^(https?:|data:)/i.test(url)) return url;
+  if (url.startsWith("/") && bitrixDomain) return `https://${bitrixDomain}${url}`;
+  return url;
 }
 
 function displayValueByField(row, fieldName, customFieldMaps) {
