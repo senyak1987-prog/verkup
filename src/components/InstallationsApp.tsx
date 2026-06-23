@@ -15,6 +15,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   BitrixDealFile,
@@ -50,7 +51,7 @@ import {
   uploadInstallationPhoto,
 } from "../lib/saveApi";
 
-type InstallationViewMode = "day" | "list";
+type InstallationViewMode = "day" | "week" | "month" | "list";
 type InstallationMobileTab = "today" | "all" | "notifications";
 
 type InstallationCommitOptions = {
@@ -136,6 +137,13 @@ const statusFilterLabels: Record<InstallationStatus | "all" | "queue", string> =
   ...installationStatusLabels,
 };
 
+const plannerStartHour = 8;
+const plannerEndHour = 20;
+const plannerHourSlots = Array.from(
+  { length: plannerEndHour - plannerStartHour + 1 },
+  (_, index) => plannerStartHour + index,
+);
+
 export function InstallationsApp({
   currentUser,
   deals,
@@ -199,7 +207,7 @@ export function InstallationsApp({
         if (isMobileInstaller && installation.installerId !== currentUser.id) return false;
         if (installerFilter !== "all" && installation.installerId !== installerFilter) return false;
         if (statusFilter !== "all" && statusFilter !== "queue" && installation.status !== statusFilter) return false;
-        if (viewMode === "day" && !isMobileInstaller && installationDateKey(installation.date) !== dateKey) return false;
+        if (!isMobileInstaller && !isInstallationVisibleInPlanner(installation, viewMode, dateKey)) return false;
         if (!needle) return true;
         return [
           installation.dealNumber,
@@ -313,6 +321,12 @@ export function InstallationsApp({
             <button className={viewMode === "day" ? "active" : ""} onClick={() => setViewMode("day")} type="button">
               День
             </button>
+            <button className={viewMode === "week" ? "active" : ""} onClick={() => setViewMode("week")} type="button">
+              Неделя
+            </button>
+            <button className={viewMode === "month" ? "active" : ""} onClick={() => setViewMode("month")} type="button">
+              Месяц
+            </button>
             <button className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")} type="button">
               Список
             </button>
@@ -359,23 +373,6 @@ export function InstallationsApp({
 
       {toast ? <div className="installation-toast">{toast}</div> : null}
 
-      <InstallationMapPanel
-        points={mapPoints}
-        routePointIds={routePointIds}
-        onEditInstallation={(installationId) => {
-          const installation = installations.find((item) => item.id === installationId);
-          if (installation) setEditing(formStateFromInstallation(installation));
-        }}
-        onOpenDeal={onOpenDeal}
-        onRoutePointToggle={(pointId) =>
-          setRoutePointIds((current) =>
-            current.includes(pointId) ? current.filter((id) => id !== pointId) : [...current, pointId],
-          )
-        }
-        onRouteReset={() => setRoutePointIds([])}
-        onRouteSelectAll={() => setRoutePointIds(mapPoints.map((point) => point.id))}
-      />
-
       <section className="installations-layout">
         <aside className="installations-queue">
           <div className="installations-section-head">
@@ -398,17 +395,19 @@ export function InstallationsApp({
 
         <section className="installations-board">
           <div className="installations-section-head">
-            <h2>{viewMode === "day" ? `План на ${formatInstallationDate(dateKey)}` : "Все монтажи"}</h2>
+            <h2>{plannerTitle(viewMode, dateKey)}</h2>
             <button className="primary compact" onClick={() => setEditing(emptyForm(dateKey))} type="button">
               <Plus size={16} />
               Создать монтаж
             </button>
           </div>
-          {viewMode === "day" ? (
-            <DayTimeline
+          {viewMode !== "list" ? (
+            <InstallationPlannerTimeline
+              dateKey={dateKey}
               installers={installers}
               installations={filteredInstallations}
               selectedInstallationId={selectedInstallationId}
+              viewMode={viewMode}
               onEdit={(installation) => setEditing(formStateFromInstallation(installation))}
               onSelect={(installation) => setSelectedInstallationId(installation.id)}
             />
@@ -447,6 +446,23 @@ export function InstallationsApp({
         </aside>
       </section>
 
+      <InstallationMapPanel
+        points={mapPoints}
+        routePointIds={routePointIds}
+        onEditInstallation={(installationId) => {
+          const installation = installations.find((item) => item.id === installationId);
+          if (installation) setEditing(formStateFromInstallation(installation));
+        }}
+        onOpenDeal={onOpenDeal}
+        onRoutePointToggle={(pointId) =>
+          setRoutePointIds((current) =>
+            current.includes(pointId) ? current.filter((id) => id !== pointId) : [...current, pointId],
+          )
+        }
+        onRouteReset={() => setRoutePointIds([])}
+        onRouteSelectAll={() => setRoutePointIds(mapPoints.map((point) => point.id))}
+      />
+
       {selectedInstallation ? (
         <InstallationDetails
           canReview={canReview}
@@ -474,9 +490,11 @@ export function InstallationsApp({
   );
 
   function shiftDate(offset: number) {
-    const date = new Date(`${dateKey}T12:00:00`);
-    date.setDate(date.getDate() + offset);
-    setDateKey(installationDateKey(date.toISOString()));
+    if (viewMode === "month") {
+      setDateKey(addMonthsToDateKey(dateKey, offset));
+      return;
+    }
+    setDateKey(addDaysToDateKey(dateKey, viewMode === "week" ? offset * 7 : offset));
   }
 
   async function handleSaveInstallation(state: InstallationFormState) {
@@ -878,52 +896,242 @@ function ReadyDealCard({
   );
 }
 
-function DayTimeline({
+function InstallationPlannerTimeline({
+  dateKey,
   installers,
+  installations,
+  selectedInstallationId,
+  viewMode,
+  onEdit,
+  onSelect,
+}: {
+  dateKey: string;
+  installers: ProductionEmployee[];
+  installations: Installation[];
+  selectedInstallationId?: string;
+  viewMode: Exclude<InstallationViewMode, "list">;
+  onEdit: (installation: Installation) => void;
+  onSelect: (installation: Installation) => void;
+}) {
+  const unplanned = installations.filter(isUnplannedInstallation);
+  const planned = installations.filter((installation) => !isUnplannedInstallation(installation));
+
+  if (viewMode === "month") {
+    return (
+      <div className="installation-planner-shell">
+        <MonthPlanner
+          dateKey={dateKey}
+          installations={planned}
+          selectedInstallationId={selectedInstallationId}
+          onEdit={onEdit}
+          onSelect={onSelect}
+        />
+        <PlannerUnplannedPanel
+          installations={unplanned}
+          selectedInstallationId={selectedInstallationId}
+          onEdit={onEdit}
+          onSelect={onSelect}
+        />
+      </div>
+    );
+  }
+
+  const lanes: PlannerLane[] = [
+    { id: "unassigned", name: "Неназначенные", unassigned: true },
+    ...installers.map((installer) => ({ id: installer.id, name: installer.name })),
+  ];
+  const periodDays = viewMode === "week" ? dateKeysBetween(plannerRange("week", dateKey).start, plannerRange("week", dateKey).end) : [dateKey];
+
+  return (
+    <div className="installation-planner-shell">
+      <div className={`installation-scheduler installation-scheduler-${viewMode}`}>
+        <div className="planner-corner">Монтажник</div>
+        {viewMode === "day" ? (
+          <div className="planner-scale planner-hour-scale">
+            {plannerHourSlots.map((hour) => (
+              <span key={hour}>{String(hour).padStart(2, "0")}:00</span>
+            ))}
+          </div>
+        ) : (
+          <div className="planner-scale planner-day-scale">
+            {periodDays.map((day) => (
+              <span className={day === todayDateKey() ? "today" : ""} key={day}>
+                {plannerDayLabel(day)}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {lanes.map((lane) => {
+          const laneItems = planned.filter((item) => (lane.unassigned ? !item.installerId : item.installerId === lane.id));
+          return (
+            <div className="planner-row" key={lane.id}>
+              <div className="planner-lane-head">
+                <UserRound size={16} />
+                <strong>{lane.name}</strong>
+                <span>{laneItems.length}</span>
+              </div>
+              {viewMode === "day" ? (
+                <div className="planner-row-track planner-time-track">
+                  <div className="planner-track-grid" aria-hidden="true" />
+                  {laneItems.map((installation) => (
+                    <PlannerJobCard
+                      installation={installation}
+                      key={installation.id}
+                      selected={selectedInstallationId === installation.id}
+                      style={plannerTimeStyle(installation)}
+                      variant="bar"
+                      onEdit={onEdit}
+                      onSelect={onSelect}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="planner-row-track planner-week-track">
+                  {periodDays.map((day) => {
+                    const dayItems = laneItems.filter((installation) => installationDateKey(installation.date) === day);
+                    return (
+                      <div className={day === todayDateKey() ? "planner-day-cell today" : "planner-day-cell"} key={day}>
+                        {dayItems.map((installation) => (
+                          <PlannerJobCard
+                            installation={installation}
+                            key={installation.id}
+                            selected={selectedInstallationId === installation.id}
+                            variant="chip"
+                            onEdit={onEdit}
+                            onSelect={onSelect}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <PlannerUnplannedPanel
+        installations={unplanned}
+        selectedInstallationId={selectedInstallationId}
+        onEdit={onEdit}
+        onSelect={onSelect}
+      />
+    </div>
+  );
+}
+
+type PlannerLane = {
+  id: string;
+  name: string;
+  unassigned?: boolean;
+};
+
+function PlannerJobCard({
+  installation,
+  selected,
+  style,
+  variant,
+  onEdit,
+  onSelect,
+}: {
+  installation: Installation;
+  selected: boolean;
+  style?: CSSProperties;
+  variant: "bar" | "chip" | "month";
+  onEdit: (installation: Installation) => void;
+  onSelect: (installation: Installation) => void;
+}) {
+  return (
+    <button
+      className={`planner-job planner-job-${variant} status-${installation.status} ${selected ? "selected" : ""}`}
+      onClick={() => onSelect(installation)}
+      onDoubleClick={() => onEdit(installation)}
+      style={style}
+      title={`${formatInstallationTime(installation.timeFrom, installation.timeTo)} · #${installation.dealNumber || installation.dealId} · ${installation.dealTitle || "Монтаж"}`}
+      type="button"
+    >
+      <span>{formatInstallationTime(installation.timeFrom, installation.timeTo)}</span>
+      <strong>#{installation.dealNumber || installation.dealId}</strong>
+      <em>{installation.dealTitle || "Монтаж"}</em>
+      {variant !== "month" ? <small>{installation.address || "Адрес не указан"}</small> : null}
+    </button>
+  );
+}
+
+function PlannerUnplannedPanel({
   installations,
   selectedInstallationId,
   onEdit,
   onSelect,
 }: {
-  installers: ProductionEmployee[];
   installations: Installation[];
   selectedInstallationId?: string;
   onEdit: (installation: Installation) => void;
   onSelect: (installation: Installation) => void;
 }) {
-  const lanes = installers.length ? installers : [{ id: "unassigned", name: "Без монтажника" } as ProductionEmployee];
   return (
-    <div className="installation-day-timeline">
-      {lanes.map((installer) => {
-        const laneItems = installations.filter((item) =>
-          installer.id === "unassigned" ? !item.installerId : item.installerId === installer.id,
-        );
+    <aside className="planner-unplanned-panel">
+      <div>
+        <strong>Не запланированные</strong>
+        <span>{installations.length}</span>
+      </div>
+      {installations.length ? (
+        installations.map((installation) => (
+          <PlannerJobCard
+            installation={installation}
+            key={installation.id}
+            selected={selectedInstallationId === installation.id}
+            variant="chip"
+            onEdit={onEdit}
+            onSelect={onSelect}
+          />
+        ))
+      ) : (
+        <EmptyState text="Нет незапланированных монтажей" />
+      )}
+    </aside>
+  );
+}
+
+function MonthPlanner({
+  dateKey,
+  installations,
+  selectedInstallationId,
+  onEdit,
+  onSelect,
+}: {
+  dateKey: string;
+  installations: Installation[];
+  selectedInstallationId?: string;
+  onEdit: (installation: Installation) => void;
+  onSelect: (installation: Installation) => void;
+}) {
+  const calendarDays = monthCalendarDays(dateKey);
+  const currentMonth = parseDateKey(dateKey).getMonth();
+  return (
+    <div className="installation-month-calendar">
+      {["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((label) => (
+        <div className="month-weekday" key={label}>{label}</div>
+      ))}
+      {calendarDays.map((day) => {
+        const dayItems = installations.filter((installation) => installationDateKey(installation.date) === day);
+        const muted = parseDateKey(day).getMonth() !== currentMonth;
         return (
-          <section className="installation-lane" key={installer.id}>
-            <div className="installation-lane-head">
-              <UserRound size={18} />
-              <strong>{installer.name}</strong>
-              <span>{laneItems.length}</span>
-            </div>
-            <div className="installation-lane-body">
-              {laneItems.length ? (
-                laneItems.map((installation) => (
-                  <button
-                    className={`timeline-installation-card status-${installation.status} ${selectedInstallationId === installation.id ? "selected" : ""}`}
-                    key={installation.id}
-                    onClick={() => onSelect(installation)}
-                    onDoubleClick={() => onEdit(installation)}
-                    type="button"
-                  >
-                    <span>{formatInstallationTime(installation.timeFrom, installation.timeTo)}</span>
-                    <strong>#{installation.dealNumber || installation.dealId}</strong>
-                    <em>{installation.dealTitle || "Монтаж"}</em>
-                    <small>{installation.address || "Адрес не указан"}</small>
-                  </button>
-                ))
-              ) : (
-                <EmptyState text="Нет монтажей" />
-              )}
+          <section className={`month-day ${muted ? "muted" : ""} ${day === todayDateKey() ? "today" : ""}`} key={day}>
+            <time>{parseDateKey(day).getDate()}</time>
+            <div>
+              {dayItems.slice(0, 4).map((installation) => (
+                <PlannerJobCard
+                  installation={installation}
+                  key={installation.id}
+                  selected={selectedInstallationId === installation.id}
+                  variant="month"
+                  onEdit={onEdit}
+                  onSelect={onSelect}
+                />
+              ))}
+              {dayItems.length > 4 ? <span className="month-more">+{dayItems.length - 4}</span> : null}
             </div>
           </section>
         );
@@ -1385,6 +1593,124 @@ function buildYandexRouteLink(points: InstallationMapPoint[]) {
   if (!points.length) return "";
   if (points.length === 1) return `https://yandex.ru/maps/?text=${encodeURIComponent(points[0].address)}`;
   return `https://yandex.ru/maps/?rtext=${points.map((point) => encodeURIComponent(point.address)).join("~")}&rtt=auto`;
+}
+
+function isInstallationVisibleInPlanner(installation: Installation, viewMode: InstallationViewMode, dateKey: string) {
+  if (viewMode === "list") return true;
+  if (isUnplannedInstallation(installation)) return true;
+  const current = installationDateKey(installation.date);
+  if (!current) return true;
+  const range = plannerRange(viewMode, dateKey);
+  return current >= range.start && current <= range.end;
+}
+
+function plannerTitle(viewMode: InstallationViewMode, dateKey: string) {
+  if (viewMode === "day") return `План на ${formatInstallationDate(dateKey)}`;
+  if (viewMode === "week") {
+    const range = plannerRange("week", dateKey);
+    return `Неделя ${formatInstallationDate(range.start)} - ${formatInstallationDate(range.end)}`;
+  }
+  if (viewMode === "month") {
+    return parseDateKey(dateKey).toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  }
+  return "Все монтажи";
+}
+
+function plannerRange(viewMode: Exclude<InstallationViewMode, "list">, dateKey: string) {
+  if (viewMode === "day") return { start: dateKey, end: dateKey };
+  if (viewMode === "week") {
+    const start = startOfWeekDateKey(dateKey);
+    return { start, end: addDaysToDateKey(start, 6) };
+  }
+  const date = parseDateKey(dateKey);
+  const start = dateKeyFromDate(new Date(date.getFullYear(), date.getMonth(), 1, 12));
+  const end = dateKeyFromDate(new Date(date.getFullYear(), date.getMonth() + 1, 0, 12));
+  return { start, end };
+}
+
+function isUnplannedInstallation(installation: Installation) {
+  return installation.status === "not_scheduled" || !installation.date || (!installation.timeFrom && !installation.timeTo);
+}
+
+function parseDateKey(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return new Date();
+  return new Date(year, month - 1, day, 12);
+}
+
+function dateKeyFromDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function addDaysToDateKey(dateKey: string, offset: number) {
+  const date = parseDateKey(dateKey);
+  date.setDate(date.getDate() + offset);
+  return dateKeyFromDate(date);
+}
+
+function addMonthsToDateKey(dateKey: string, offset: number) {
+  const date = parseDateKey(dateKey);
+  date.setMonth(date.getMonth() + offset);
+  return dateKeyFromDate(date);
+}
+
+function startOfWeekDateKey(dateKey: string) {
+  const date = parseDateKey(dateKey);
+  const day = date.getDay() || 7;
+  date.setDate(date.getDate() - day + 1);
+  return dateKeyFromDate(date);
+}
+
+function dateKeysBetween(start: string, end: string) {
+  const days: string[] = [];
+  let current = start;
+  while (current <= end) {
+    days.push(current);
+    current = addDaysToDateKey(current, 1);
+  }
+  return days;
+}
+
+function monthCalendarDays(dateKey: string) {
+  const date = parseDateKey(dateKey);
+  const monthStart = dateKeyFromDate(new Date(date.getFullYear(), date.getMonth(), 1, 12));
+  const monthEnd = dateKeyFromDate(new Date(date.getFullYear(), date.getMonth() + 1, 0, 12));
+  const gridStart = startOfWeekDateKey(monthStart);
+  const lastDate = parseDateKey(monthEnd);
+  const lastDay = lastDate.getDay() || 7;
+  const gridEnd = addDaysToDateKey(monthEnd, 7 - lastDay);
+  return dateKeysBetween(gridStart, gridEnd);
+}
+
+function plannerDayLabel(dateKey: string) {
+  const date = parseDateKey(dateKey);
+  return date.toLocaleDateString("ru-RU", { day: "2-digit", month: "short", weekday: "short" });
+}
+
+function plannerTimeStyle(installation: Installation): CSSProperties {
+  const dayStart = plannerStartHour * 60;
+  const dayEnd = plannerEndHour * 60;
+  const start = Math.max(dayStart, Math.min(dayEnd, minutesFromTime(installation.timeFrom) ?? 10 * 60));
+  const fallbackEnd = start + 90;
+  const end = Math.max(start + 30, Math.min(dayEnd, minutesFromTime(installation.timeTo) ?? fallbackEnd));
+  const span = dayEnd - dayStart;
+  return {
+    "--job-left": `${((start - dayStart) / span) * 100}%`,
+    "--job-width": `${Math.max(8, ((end - start) / span) * 100)}%`,
+  } as CSSProperties;
+}
+
+function minutesFromTime(value?: string) {
+  if (!value) return undefined;
+  const match = value.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return undefined;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return undefined;
+  return hours * 60 + minutes;
 }
 
 function loadYandexMaps(apiKey: string) {
