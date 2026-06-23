@@ -782,6 +782,25 @@ function migrate_data_url_photo($photo, $assignment)
     ]);
 }
 
+function normalize_assignment_completion_payload($completion, $assignment)
+{
+    if (!is_array($completion)) {
+        $current = array_get($assignment, 'completion', []);
+        return is_array($current) ? $current : [];
+    }
+
+    $photos = array_get($completion, 'photos', []);
+    if (!is_array($photos)) $photos = [];
+    foreach ($photos as &$photo) {
+        if (is_array($photo) && !empty($photo['dataUrl']) && is_string($photo['dataUrl'])) {
+            $photo = migrate_data_url_photo($photo, $assignment);
+        }
+    }
+    unset($photo);
+    $completion['photos'] = $photos;
+    return $completion;
+}
+
 function handle_photo_upload($dealId)
 {
     $files = normalize_uploaded_files();
@@ -1346,25 +1365,67 @@ function update_assignment_workflow($dealId, $body, $action)
     $actor = trim((string)(array_get($body, 'actor', '')));
     $dealNumber = trim((string)(array_get($body, 'dealNumber', '')));
     $dealTitle = trim((string)(array_get($body, 'dealTitle', '')));
+    $employeeId = sanitize_segment((string)(array_get($body, 'employeeId', '')));
+    $techSpecItemId = sanitize_segment((string)(array_get($body, 'techSpecItemId', '')));
+    $completion = array_get($body, 'completion', null);
+    if ($assignmentId === 'unknown') $assignmentId = '';
+    if ($employeeId === 'unknown') $employeeId = '';
+    if ($techSpecItemId === 'unknown') $techSpecItemId = '';
     $production = read_production();
     $updated = false;
-    foreach ($production['assignments'] as &$assignment) {
+    $targetIndex = null;
+
+    foreach ($production['assignments'] as $index => $assignment) {
         if (!is_array($assignment)) continue;
-        if ($assignmentId && (string)(array_get($assignment, 'id', '')) !== $assignmentId) continue;
-        if (!$assignmentId && (string)(array_get($assignment, 'dealId', '')) !== $dealId) continue;
+        if ($assignmentId && (string)(array_get($assignment, 'id', '')) === $assignmentId) {
+            $targetIndex = $index;
+            break;
+        }
+    }
+
+    if ($targetIndex === null) {
+        foreach ($production['assignments'] as $index => $assignment) {
+            if (!is_array($assignment)) continue;
+            if ((string)(array_get($assignment, 'dealId', '')) !== $dealId) continue;
+            if ($employeeId !== '' && (string)(array_get($assignment, 'employeeId', '')) !== $employeeId) continue;
+
+            $assignmentTechSpecItemId = trim((string)(array_get($assignment, 'techSpecItemId', '')));
+            if ($techSpecItemId !== '' && $assignmentTechSpecItemId !== $techSpecItemId) continue;
+            if ($techSpecItemId === '' && $assignmentTechSpecItemId !== '') continue;
+
+            $targetIndex = $index;
+            break;
+        }
+    }
+
+    if ($targetIndex !== null && isset($production['assignments'][$targetIndex]) && is_array($production['assignments'][$targetIndex])) {
+        $assignment = &$production['assignments'][$targetIndex];
+        if (!isset($assignment['history']) || !is_array($assignment['history'])) $assignment['history'] = [];
         if ($action === 'start') {
             $assignment['status'] = 'inProgress';
             $assignment['workerStatus'] = 'inWork';
             if (empty($assignment['startedAt'])) $assignment['startedAt'] = gmdate('c');
+            $assignment['history'][] = [
+                'id' => 'event_' . gmdate('Ymd_His') . '_' . random_hex(4),
+                'type' => 'started',
+                'at' => gmdate('c'),
+                'actor' => $actor ?: 'Макетчик',
+            ];
             $production['notifications'][] = notification_record('started', $dealId, $dealNumber, $dealTitle, $actor);
         } else {
             $assignment['status'] = 'submitted';
             $assignment['workerStatus'] = 'reviewPending';
             $assignment['submittedAt'] = gmdate('c');
+            $assignment['completion'] = normalize_assignment_completion_payload($completion, $assignment);
+            $assignment['history'][] = [
+                'id' => 'event_' . gmdate('Ymd_His') . '_' . random_hex(4),
+                'type' => 'submitted',
+                'at' => gmdate('c'),
+                'actor' => $actor ?: 'Макетчик',
+            ];
             $production['notifications'][] = notification_record('completed', $dealId, $dealNumber, $dealTitle, $actor);
         }
         $updated = true;
-        break;
     }
     unset($assignment);
     $production['generatedAt'] = gmdate('c');
@@ -1375,8 +1436,11 @@ function update_assignment_workflow($dealId, $body, $action)
 function notification_record($type, $dealId, $dealNumber, $dealTitle, $actor)
 {
     $number = $dealNumber ?: $dealId;
+    $actorName = trim((string)$actor);
     $messages = [
-        'started' => "Сделка #{$number} взята в работу макетчиком",
+        'started' => $actorName !== ''
+            ? "Макетчик {$actorName} приступил к сборке сделки #{$number}"
+            : "Макетчик приступил к сборке сделки #{$number}",
         'photosAdded' => "По сделке #{$number} добавлены фото",
         'completed' => "Сделка #{$number} завершена. Нужно проверить",
         'checked' => "Сделка #{$number} проверена",

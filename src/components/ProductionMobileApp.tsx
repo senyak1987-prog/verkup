@@ -168,7 +168,7 @@ const employeeRoleLabels: Record<ProductionEmployeeRole, string> = {
 
 const statusLabels: Record<ProductionAssignmentStatus, string> = {
   assigned: "Назначено",
-  inProgress: "В работе",
+  inProgress: "На сборке",
   submitted: "На проверке",
   readyForShipment: "Готово к отгрузке",
 };
@@ -1196,10 +1196,51 @@ export function ProductionMobileApp({
     }));
   }
 
-  function startAssignment(assignment: ProductionAssignment) {
+  async function startAssignment(assignment: ProductionAssignment) {
     markAssignmentSeen(assignment.id);
     const actor = employeesById.get(assignment.employeeId)?.name || "Макетчик";
     const deal = dealsById.get(assignment.dealId);
+
+    if (saveApiUrl) {
+      try {
+        const result = await startProductionWork({ apiUrl: saveApiUrl }, {
+          actor,
+          assignmentId: assignment.id,
+          dealId: assignment.dealId,
+          dealNumber: deal?.number,
+          dealTitle: deal?.title,
+          employeeId: assignment.employeeId,
+          techSpecItemId: assignment.techSpecItemId,
+        });
+
+        if (result.updated === false) {
+          throw new Error("Сервер не нашел назначение сделки. Обновите страницу и попробуйте еще раз.");
+        }
+
+        if (result.data) {
+          onChange(result.data);
+        } else {
+          patchAssignment(assignment.id, (current) => ({
+            ...current,
+            status: "inProgress",
+            workerStatus: "inWork",
+            startedAt: current.startedAt || new Date().toISOString(),
+            history: [...current.history, createEvent("started", actor)],
+          }), { saveNow: false });
+        }
+
+        setNotice("Сборка начата. Руководитель увидит уведомление.");
+        window.setTimeout(() => setNotice(""), 2200);
+      } catch (error) {
+        const message = error instanceof Error && error.message
+          ? error.message
+          : "Не удалось отметить старт сборки. Проверьте интернет и попробуйте еще раз.";
+        setNotice(message);
+        window.setTimeout(() => setNotice(""), 3200);
+      }
+      return;
+    }
+
     patchAssignment(assignment.id, (current) => ({
       ...current,
       status: "inProgress",
@@ -1211,18 +1252,8 @@ export function ProductionMobileApp({
     commitNotification(addProductionNotification(
       "started",
       assignment,
-      `Сделка #${deal?.number || assignment.dealId} взята в работу макетчиком ${actor}.`,
+      `Макетчик ${actor} приступил к сборке сделки #${deal?.number || assignment.dealId}.`,
     ));
-
-    if (saveApiUrl) {
-      void startProductionWork({ apiUrl: saveApiUrl }, {
-        actor,
-        assignmentId: assignment.id,
-        dealId: assignment.dealId,
-        dealNumber: deal?.number,
-        dealTitle: deal?.title,
-      }).catch(() => undefined);
-    }
   }
 
   function updateCompletion(
@@ -1418,38 +1449,54 @@ export function ProductionMobileApp({
 
     const actor = employeesById.get(assignment.employeeId)?.name || "Макетчик";
     const deal = dealsById.get(assignment.dealId);
-    patchAssignment(assignment.id, (current) => ({
-      ...current,
-      status: "submitted",
-      workerStatus: "reviewPending",
-      submittedAt: new Date().toISOString(),
-      completion,
-      history: [...current.history, createEvent("submitted", actor)],
-    }), { saveNow: true });
-
-    commitNotification(addProductionNotification(
-      "completed",
-      assignment,
-      `Сделка #${deal?.number || assignment.dealId} завершена. Нужно проверить.`,
-    ));
-
-    if (!saveApiUrl) {
-      setNotice("Сделка отмечена локально. Для отправки руководителю нужен серверный API.");
-      window.setTimeout(() => setNotice(""), 2800);
-      return;
-    }
 
     try {
+      if (!saveApiUrl) {
+        patchAssignment(assignment.id, (current) => ({
+          ...current,
+          status: "submitted",
+          workerStatus: "reviewPending",
+          submittedAt: new Date().toISOString(),
+          completion,
+          history: [...current.history, createEvent("submitted", actor)],
+        }), { saveNow: true });
+
+        commitNotification(addProductionNotification(
+          "completed",
+          assignment,
+          `Сделка #${deal?.number || assignment.dealId} завершена. Нужно проверить.`,
+        ));
+        setNotice("Сделка отмечена локально. Для отправки руководителю нужен серверный API.");
+        window.setTimeout(() => setNotice(""), 2800);
+        return;
+      }
+
       const result = await completeProductionWork({ apiUrl: saveApiUrl }, {
         actor,
         assignmentId: assignment.id,
+        completion,
         dealId: assignment.dealId,
         dealNumber: deal?.number,
         dealTitle: deal?.title,
-      }) as { updated?: boolean };
+        employeeId: assignment.employeeId,
+        techSpecItemId: assignment.techSpecItemId,
+      });
 
       if (result.updated === false) {
         throw new Error("Сервер не нашел назначение сделки. Обновите страницу и попробуйте еще раз.");
+      }
+
+      if (result.data) {
+        onChange(result.data);
+      } else {
+        patchAssignment(assignment.id, (current) => ({
+          ...current,
+          status: "submitted",
+          workerStatus: "reviewPending",
+          submittedAt: new Date().toISOString(),
+          completion,
+          history: [...current.history, createEvent("submitted", actor)],
+        }), { saveNow: false });
       }
 
       setNotice("Сделка отправлена руководителю на проверку.");
@@ -2273,9 +2320,9 @@ export function ProductionMobileApp({
           <section className="production-main-column">
             <section className="production-kpis" aria-label="Сводка производства">
               <ProductionKpi label="К запуску" value={productionDeals.length} />
-              <ProductionKpi label="В работе" value={productionStats.inProgress} />
+              <ProductionKpi label="На сборке" value={productionStats.inProgress} />
               <ProductionKpi label="На проверке" value={productionStats.submitted} />
-              <ProductionKpi label="К отгрузке" value={productionStats.readyForShipment} />
+              <ProductionKpi label="Готово к отгрузке" value={productionStats.readyForShipment} />
             </section>
 
             <div className="production-section-tabs" role="tablist" aria-label="Сделки">
@@ -2460,13 +2507,13 @@ export function ProductionMobileApp({
             className={workerTabsClassName}
             ref={workerTabsRef}
             role="tablist"
-            aria-label="Работа"
+            aria-label="Сборка"
             style={workerTabsStyle}
           >
             <span className="worker-tab-glider" aria-hidden="true" style={workerTabGliderStyle} />
             <div className="worker-tab-rail">
               <WorkerTabButton active={workerTab === "assigned"} count={workerDealTabAssignments.assigned.length} label="Новые" onClick={() => selectWorkerDealTab("assigned")} />
-              <WorkerTabButton active={workerTab === "inProgress"} count={workerDealTabAssignments.inProgress.length} label="Работа" onClick={() => selectWorkerDealTab("inProgress")} />
+              <WorkerTabButton active={workerTab === "inProgress"} count={workerDealTabAssignments.inProgress.length} label="Сборка" onClick={() => selectWorkerDealTab("inProgress")} />
               <WorkerTabButton active={workerTab === "ready"} count={workerDealTabAssignments.ready.length} label="Готово" onClick={() => selectWorkerDealTab("ready")} />
             </div>
           </div>
@@ -3119,6 +3166,11 @@ function WorkerProfile({
 
 function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[] }) {
   const [galleryQuery, setGalleryQuery] = useState("");
+  const [viewer, setViewer] = useState<{
+    index: number;
+    photos: ProductionPhoto[];
+    title: string;
+  } | null>(null);
   const dealGroups = useMemo(() => {
     const query = galleryQuery.trim().toLowerCase();
     const groups = new Map<
@@ -3172,16 +3224,22 @@ function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[
         {dealGroups.map((group) => {
           const firstPhoto = group.photos.find((photo) => productionPhotoSrc(photo));
           const thumbnail = firstPhoto ? productionPhotoSrc(firstPhoto) : "";
-          const fullPhoto = firstPhoto ? productionPhotoFullSrc(firstPhoto) || thumbnail : "";
+          const visiblePhotos = group.photos.filter((photo) => productionPhotoSrc(photo));
           const title = group.dealTitle || (group.dealNumber ? `Сделка #${group.dealNumber}` : "Готовая работа");
 
           return (
             <article className="worker-gallery-deal" key={group.dealId}>
               <div className="worker-gallery-thumb">
                 {thumbnail ? (
-                  <a aria-label="Открыть фото сделки" href={fullPhoto} rel="noreferrer" target="_blank" title="Открыть фото">
+                  <button
+                    aria-label="Открыть фото сделки"
+                    className="worker-gallery-thumb-button"
+                    onClick={() => setViewer({ index: 0, photos: visiblePhotos, title })}
+                    title="Открыть фото"
+                    type="button"
+                  >
                     <img alt={title} src={thumbnail} />
-                  </a>
+                  </button>
                 ) : (
                   <Images size={18} />
                 )}
@@ -3196,7 +3254,97 @@ function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[
         })}
         {!dealGroups.length ? <span>Галерея готовых работ пока пустая</span> : null}
       </div>
+      {viewer ? (
+        <WorkerGalleryViewer
+          index={viewer.index}
+          onClose={() => setViewer(null)}
+          onIndexChange={(index) => setViewer((current) => current ? { ...current, index } : current)}
+          photos={viewer.photos}
+          title={viewer.title}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function WorkerGalleryViewer({
+  index,
+  onClose,
+  onIndexChange,
+  photos,
+  title,
+}: {
+  index: number;
+  onClose: () => void;
+  onIndexChange: (index: number) => void;
+  photos: ProductionPhoto[];
+  title: string;
+}) {
+  const safeIndex = Math.min(Math.max(index, 0), Math.max(photos.length - 1, 0));
+  const photo = photos[safeIndex];
+  const src = productionPhotoFullSrc(photo) || productionPhotoSrc(photo);
+  const canNavigate = photos.length > 1;
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft" && canNavigate) onIndexChange((safeIndex - 1 + photos.length) % photos.length);
+      if (event.key === "ArrowRight" && canNavigate) onIndexChange((safeIndex + 1) % photos.length);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [canNavigate, onClose, onIndexChange, photos.length, safeIndex]);
+
+  if (!src) return null;
+
+  return (
+    <div className="worker-gallery-viewer-backdrop" onClick={onClose} role="presentation">
+      <div
+        aria-label="Просмотр фото"
+        aria-modal="true"
+        className="worker-gallery-viewer"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="worker-gallery-viewer-head">
+          <div>
+            <strong>{title}</strong>
+            <span>{safeIndex + 1} из {photos.length}</span>
+          </div>
+          <button aria-label="Закрыть фото" onClick={onClose} type="button">
+            <X size={22} />
+          </button>
+        </div>
+        <div className="worker-gallery-viewer-stage">
+          {canNavigate ? (
+            <button
+              aria-label="Предыдущее фото"
+              className="worker-gallery-viewer-nav previous"
+              onClick={() => onIndexChange((safeIndex - 1 + photos.length) % photos.length)}
+              type="button"
+            >
+              <ChevronRight size={26} />
+            </button>
+          ) : null}
+          <img alt={title} src={src} />
+          {canNavigate ? (
+            <button
+              aria-label="Следующее фото"
+              className="worker-gallery-viewer-nav next"
+              onClick={() => onIndexChange((safeIndex + 1) % photos.length)}
+              type="button"
+            >
+              <ChevronRight size={26} />
+            </button>
+          ) : null}
+        </div>
+        <div className="worker-gallery-viewer-footer">
+          <span>{photo?.uploadedAt ? formatDate(photo.uploadedAt) : "Фото работы"}</span>
+          <a href={src} rel="noreferrer" target="_blank">Открыть оригинал</a>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -3312,7 +3460,7 @@ function WorkerMoneyPanel({
           <strong>{formatMoney(money.balance)}</strong>
         </span>
         <span>
-          В работе
+          На сборке
           <strong>{formatMoney(money.planned)}</strong>
         </span>
       </div>

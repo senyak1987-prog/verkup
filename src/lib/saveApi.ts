@@ -261,9 +261,15 @@ export async function startProductionWork(
     dealId: string;
     dealNumber?: string;
     dealTitle?: string;
+    employeeId?: string;
+    techSpecItemId?: string;
   },
 ) {
-  return postToSaveApi(settings, `/deals/${encodeURIComponent(payload.dealId)}/start-work`, payload);
+  return postToSaveApi(settings, `/deals/${encodeURIComponent(payload.dealId)}/start-work`, payload) as Promise<{
+    data?: StoredProduction;
+    success: boolean;
+    updated?: boolean;
+  }>;
 }
 
 export async function completeProductionWork(
@@ -271,12 +277,19 @@ export async function completeProductionWork(
   payload: {
     actor?: string;
     assignmentId: string;
+    completion?: unknown;
     dealId: string;
     dealNumber?: string;
     dealTitle?: string;
+    employeeId?: string;
+    techSpecItemId?: string;
   },
 ) {
-  return postToSaveApi(settings, `/deals/${encodeURIComponent(payload.dealId)}/complete`, payload);
+  return postToSaveApi(settings, `/deals/${encodeURIComponent(payload.dealId)}/complete`, payload) as Promise<{
+    data?: StoredProduction;
+    success: boolean;
+    updated?: boolean;
+  }>;
 }
 
 export async function markProductionNotificationRead(
