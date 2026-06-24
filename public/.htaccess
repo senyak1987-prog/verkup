@@ -1,5 +1,14 @@
 RewriteEngine On
 RewriteBase /verkup/
+
+AddDefaultCharset UTF-8
+AddCharset UTF-8 .html .css .js .mjs .json .webmanifest .svg
+AddType text/html;charset=UTF-8 .html
+AddType text/css;charset=UTF-8 .css
+AddType application/javascript;charset=UTF-8 .js .mjs
+AddType application/json;charset=UTF-8 .json
+AddType application/manifest+json;charset=UTF-8 .webmanifest
+AddType image/svg+xml;charset=UTF-8 .svg
 RewriteRule ^index\.html$ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

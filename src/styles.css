@@ -16741,3 +16741,20 @@ td,
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Release fix: keep catalog entry visible after compact toolbar changes. */
+.deal-list > .toolbar .toolbar-catalog,
+.deal-list .toolbar-actions .toolbar-catalog {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (min-width: 761px) {
+  .deal-list > .toolbar .toolbar-catalog {
+    flex: 0 0 auto;
+    width: auto;
+  }
+}
