@@ -6,6 +6,8 @@ $rootDir = dirname(__DIR__);
 $dataDir = $rootDir . DIRECTORY_SEPARATOR . 'data';
 $uploadsDir = $rootDir . DIRECTORY_SEPARATOR . 'uploads';
 
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'bitrix-sync.php';
+
 header('X-Content-Type-Options: nosniff');
 header('Cache-Control: no-store');
 
@@ -27,6 +29,11 @@ $path = request_path();
 try {
     if ($method === 'GET' && $path === '/health') {
         json_response(['ok' => true, 'storage' => 'beget']);
+    }
+
+    if (($method === 'GET' || $method === 'POST') && $path === '/bitrix/sync') {
+        require_bitrix_sync_token();
+        json_response(sync_bitrix_deals(true), 200);
     }
 
     if ($method === 'GET' && preg_match('#^/data/([a-z0-9_-]+\.json)$#i', $path, $match)) {
@@ -305,6 +312,14 @@ function data_path($name)
 }
 
 function read_data_file($name)
+{
+    if ($name === 'deals.json') {
+        maybe_sync_bitrix_deals();
+    }
+    return read_data_file_raw($name);
+}
+
+function read_data_file_raw($name)
 {
     $path = data_path($name);
     if (!is_file($path)) return default_data($name);

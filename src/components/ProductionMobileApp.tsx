@@ -88,6 +88,7 @@ type ProductionTheme = "day" | "night";
 type EmployeeGroupId =
   | "makers"
   | "assemblers"
+  | "installationChiefs"
   | "managers"
   | "technologists"
   | "shopChiefs"
@@ -176,6 +177,7 @@ const statusLabels: Record<ProductionAssignmentStatus, string> = {
 const employeeGroupConfigs: Array<Omit<EmployeeGroup, "employees">> = [
   { id: "makers", label: "Макетчики", description: "Сборка изделий и фотоотчеты" },
   { id: "assemblers", label: "Монтажники", description: "Выезды, монтажи и фотоотчеты" },
+  { id: "installationChiefs", label: "Начальники монтажей", description: "Планирование и проверка монтажей" },
   { id: "managers", label: "Менеджеры", description: "Свои сделки из Битрикс" },
   { id: "technologists", label: "Сметчики / технологи", description: "Себестоимость и ТЗ" },
   { id: "shopChiefs", label: "Начальники цеха", description: "Распределение в работу" },
@@ -293,6 +295,7 @@ export function ProductionMobileApp({
   const [employeePayouts, setEmployeePayouts] = useState<Record<string, string>>({});
   const [selectedEmployeeGroupId, setSelectedEmployeeGroupId] = useState<EmployeeGroupId>("makers");
   const [staffDetailEmployeeId, setStaffDetailEmployeeId] = useState("");
+  const [credentialEditorEmployeeId, setCredentialEditorEmployeeId] = useState("");
   const [notificationPermission, setNotificationPermission] = useState(() => notificationPermissionState());
   const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
   const [photoUploadStates, setPhotoUploadStates] = useState<Record<string, PhotoUploadState>>({});
@@ -666,6 +669,20 @@ export function ProductionMobileApp({
     }
   }, [currentUser, newEmployeeAccessRole]);
 
+  useEffect(() => {
+    const accessChoice = employeeAccessChoiceForGroup(selectedEmployeeGroupId);
+    if (!canCreateAccessChoice(currentUser, accessChoice)) return;
+    setNewEmployeeAccessRole(accessChoice);
+    setNewEmployeeRole(accessChoice === "installer" ? "assembler" : "maker");
+  }, [currentUser, selectedEmployeeGroupId]);
+
+  function applyEmployeeGroupDefaults(groupId: EmployeeGroupId) {
+    const accessChoice = employeeAccessChoiceForGroup(groupId);
+    if (!canCreateAccessChoice(currentUser, accessChoice)) return;
+    setNewEmployeeAccessRole(accessChoice);
+    setNewEmployeeRole(accessChoice === "installer" ? "assembler" : "maker");
+  }
+
   function commitProduction(
     updater: (current: StoredProduction) => StoredProduction,
     options: ProductionCommitOptions = {},
@@ -686,7 +703,7 @@ export function ProductionMobileApp({
     if (!canCreateAccessRole(currentUser, normalizedAccess.accessRole)) return;
 
     const pin = newEmployeePin.trim();
-    if (pin.length < 4) {
+    if (normalizedAccess.accessRole !== "none" && pin.length < 4) {
       setNotice("Пароль сотрудника должен быть не короче 4 символов.");
       window.setTimeout(() => setNotice(""), 2600);
       return;
@@ -702,7 +719,7 @@ export function ProductionMobileApp({
       phone: newEmployeePhone.trim(),
       active: true,
       createdAt: new Date().toISOString(),
-      pinHash: await pinHashForEmployee(id, pin),
+      pinHash: normalizedAccess.accessRole === "none" ? undefined : await pinHashForEmployee(id, pin),
     };
 
     commitProduction((current) => ({
@@ -713,8 +730,7 @@ export function ProductionMobileApp({
     setNewEmployeePhone("");
     setNewEmployeeLogin("");
     setNewEmployeePin("");
-    setNewEmployeeAccessRole("maker");
-    setNewEmployeeRole("maker");
+    applyEmployeeGroupDefaults(selectedEmployeeGroupId);
     setTargetEmployeeId(employee.id);
     if (isProductionWorker(employee)) setSelectedEmployeeId(employee.id);
   }
@@ -838,8 +854,8 @@ export function ProductionMobileApp({
       window.setTimeout(() => setNotice(""), 2600);
       return;
     }
-    if (accessRole !== "none" && !employee.pinHash && pin.length < 4) {
-      setNotice("Чтобы выдать доступ, задайте пароль не короче 4 символов.");
+    if (pin.length > 0 && pin.length < 4) {
+      setNotice("Пароль должен быть не короче 4 символов.");
       window.setTimeout(() => setNotice(""), 2600);
       return;
     }
@@ -864,8 +880,13 @@ export function ProductionMobileApp({
     setEmployeeLogins((current) => removeRecordValue(current, employee.id));
     setEmployeeWorkerRoles((current) => removeRecordValue(current, employee.id));
     setEmployeePins((current) => removeRecordValue(current, employee.id));
+    setCredentialEditorEmployeeId("");
     setNotice(`Доступ сохранен: ${employee.name}`);
     window.setTimeout(() => setNotice(""), 2200);
+  }
+
+  function toggleStaffDetailEmployee(employeeId: string) {
+    setStaffDetailEmployeeId((current) => (current === employeeId ? "" : employeeId));
   }
 
   function closeEmployeeAccess(employee: ProductionEmployee) {
@@ -1285,9 +1306,9 @@ export function ProductionMobileApp({
     });
     try {
       const dataUrl = await readImageFileAsDataUrl(file, {
-        maxHeight: 960,
-        maxWidth: 960,
-        quality: 0.62,
+        maxHeight: 1600,
+        maxWidth: 1600,
+        quality: 0.82,
       });
       setPhotoUploadState(assignment.id, kind, {
         message: "Отправляю на сервер...",
@@ -1945,7 +1966,6 @@ export function ProductionMobileApp({
               <button
                 className="icon-button"
                 onClick={() => void copyText(registrationUrl(link))}
-                title="Скопировать ссылку"
                 type="button"
               >
                 <Copy size={16} />
@@ -1953,7 +1973,6 @@ export function ProductionMobileApp({
               <button
                 className="icon-button"
                 onClick={() => revokeRegistrationLink(link.id)}
-                title="Закрыть ссылку"
                 type="button"
               >
                 <X size={16} />
@@ -2045,10 +2064,14 @@ export function ProductionMobileApp({
             value={newEmployeeLogin}
           />
           <select
-            onChange={(event) => setNewEmployeeAccessRole(event.target.value as EmployeeAccessChoice)}
+            onChange={(event) => {
+              const choice = event.target.value as EmployeeAccessChoice;
+              setNewEmployeeAccessRole(choice);
+              setNewEmployeeRole(choice === "installer" ? "assembler" : "maker");
+            }}
             value={newEmployeeAccessRole}
           >
-            {employeeAccessChoiceOptions(false)
+            {employeeAccessChoiceOptions(true)
               .filter((choice) => canCreateAccessChoice(currentUser, choice))
               .map((choice) => (
                 <option key={choice} value={choice}>
@@ -2073,7 +2096,12 @@ export function ProductionMobileApp({
               aria-selected={selectedEmployeeGroupId === group.id}
               className={selectedEmployeeGroupId === group.id ? "active" : ""}
               key={group.id}
-              onClick={() => setSelectedEmployeeGroupId(group.id)}
+              onClick={() => {
+                setSelectedEmployeeGroupId(group.id);
+                applyEmployeeGroupDefaults(group.id);
+                setStaffDetailEmployeeId("");
+                setCredentialEditorEmployeeId("");
+              }}
               type="button"
             >
               <span>{group.label}</span>
@@ -2093,126 +2121,149 @@ export function ProductionMobileApp({
               <em>{selectedEmployeeGroup.employees.length}</em>
             </div>
           ) : null}
-          {visibleEmployees.map((employee) => (
-            <div className="production-employee-row employee-admin-row" key={employee.id}>
-              <button
-                className="employee-row-summary"
-                onClick={() => setStaffDetailEmployeeId(employee.id)}
-                type="button"
+          {visibleEmployees.map((employee) => {
+            const credentialsOpen = credentialEditorEmployeeId === employee.id;
+
+            return (
+              <div
+                className={`production-employee-row employee-admin-row${credentialsOpen ? " credentials-open" : ""}`}
+                key={employee.id}
               >
-                <span className="employee-row-avatar">{initials(employee.name)}</span>
-                <div>
-                  <strong>{employee.name}</strong>
-                  <small>
-                    {employeeAccessChoiceLabel(employeeAccessChoiceFor(employee))}
-                    {employee.login ? ` · ${employee.login}` : ""}
-                    {employee.phone ? ` · ${employee.phone}` : ""}
-                  </small>
-                </div>
-              </button>
-              <div className="employee-access-controls">
-                <select
-                  onChange={(event) =>
-                    setEmployeeAccessRoles((current) => ({
-                      ...current,
-                      [employee.id]: event.target.value as EmployeeAccessChoice,
-                    }))
-                  }
-                  value={employeeAccessRoles[employee.id] ?? employeeAccessChoiceFor(employee)}
+                <button
+                  className="employee-row-summary"
+                  onClick={() => toggleStaffDetailEmployee(employee.id)}
+                  type="button"
                 >
-                  {employeeAccessChoiceOptions(true)
-                    .filter((choice) => canCreateAccessChoice(currentUser, choice))
-                    .map((choice) => (
-                      <option key={choice} value={choice}>
-                        {employeeAccessChoiceLabel(choice)}
-                      </option>
-                    ))}
-                </select>
-                <input
-                  autoComplete="username"
-                  onChange={(event) =>
-                    setEmployeeLogins((current) => ({
-                      ...current,
-                      [employee.id]: event.target.value,
-                    }))
-                  }
-                  placeholder="Логин"
-                  value={employeeLogins[employee.id] ?? employee.login ?? ""}
-                />
-                <input
-                  onChange={(event) =>
-                    setEmployeePins((current) => ({
-                      ...current,
-                      [employee.id]: event.target.value,
-                    }))
-                  }
-                  placeholder={employee.pinHash ? "Новый пароль" : "Пароль для входа"}
-                  type="password"
-                  value={employeePins[employee.id] || ""}
-                />
-                <div className="employee-access-actions">
-                  <button className="secondary" onClick={() => setStaffDetailEmployeeId(employee.id)} type="button">
-                    <ClipboardList size={16} />
-                    Сделки
-                  </button>
-                  <button className="secondary" onClick={() => void saveEmployeeAccess(employee)} type="button">
-                    <KeyRound size={16} />
-                    Сохранить
-                  </button>
-                  <button
-                    className="secondary"
-                    disabled={employee.id === currentUser.id}
-                    onClick={() => closeEmployeeAccess(employee)}
-                    type="button"
+                  <span className="employee-row-avatar">{initials(employee.name)}</span>
+                  <div>
+                    <strong>{employee.name}</strong>
+                    <small>
+                      {employeeAccessChoiceLabel(employeeAccessChoiceFor(employee))}
+                      {employee.login ? ` · ${employee.login}` : ""}
+                      {employee.phone ? ` · ${employee.phone}` : ""}
+                    </small>
+                  </div>
+                </button>
+                <div className="employee-access-controls">
+                  <select
+                    aria-label={`Роль ${employee.name}`}
+                    onChange={(event) =>
+                      setEmployeeAccessRoles((current) => ({
+                        ...current,
+                        [employee.id]: event.target.value as EmployeeAccessChoice,
+                      }))
+                    }
+                    value={employeeAccessRoles[employee.id] ?? employeeAccessChoiceFor(employee)}
                   >
-                    <ShieldOff size={16} />
-                    Закрыть
-                  </button>
-                  <button
-                    className="danger"
-                    disabled={employee.id === currentUser.id}
-                    onClick={() => deleteEmployee(employee)}
-                    type="button"
-                  >
-                    <Trash2 size={16} />
-                    Удалить
-                  </button>
-                </div>
-                {isProductionWorker(employee) ? (
-                  <div className="employee-payout-controls">
-                    <span>
-                      Баланс:{" "}
-                      <strong>
-                        {formatMoney(
-                          moneyForEmployee(
-                            employee.id,
-                            storedProduction.assignments,
-                            storedProduction.payouts || [],
-                            techSpecs,
-                            calculations,
-                          ).balance,
-                        )}
-                      </strong>
-                    </span>
-                    <input
-                      inputMode="decimal"
-                      onChange={(event) =>
-                        setEmployeePayouts((current) => ({
-                          ...current,
-                          [employee.id]: event.target.value,
-                        }))
+                    {employeeAccessChoiceOptions(true)
+                      .filter((choice) => canCreateAccessChoice(currentUser, choice))
+                      .map((choice) => (
+                        <option key={choice} value={choice}>
+                          {employeeAccessChoiceLabel(choice)}
+                        </option>
+                      ))}
+                  </select>
+                  <div className="employee-access-actions">
+                    <button className="secondary" onClick={() => toggleStaffDetailEmployee(employee.id)} type="button">
+                      <ClipboardList size={16} />
+                      Сделки
+                    </button>
+                    <button
+                      aria-expanded={credentialsOpen}
+                      className="secondary employee-credential-toggle"
+                      onClick={() =>
+                        setCredentialEditorEmployeeId((current) => (current === employee.id ? "" : employee.id))
                       }
-                      placeholder="Сумма выплаты"
-                      value={employeePayouts[employee.id] || ""}
-                    />
-                    <button className="secondary" onClick={() => addEmployeePayout(employee)} type="button">
-                      Выплатить
+                      type="button"
+                    >
+                      <KeyRound size={16} />
+                      Сменить логин/пароль
+                    </button>
+                    <button className="secondary" onClick={() => void saveEmployeeAccess(employee)} type="button">
+                      <CheckCircle2 size={16} />
+                      Сохранить
+                    </button>
+                    <button
+                      className="secondary"
+                      disabled={employee.id === currentUser.id}
+                      onClick={() => closeEmployeeAccess(employee)}
+                      type="button"
+                    >
+                      <ShieldOff size={16} />
+                      Закрыть
+                    </button>
+                    <button
+                      className="danger"
+                      disabled={employee.id === currentUser.id}
+                      onClick={() => deleteEmployee(employee)}
+                      type="button"
+                    >
+                      <Trash2 size={16} />
+                      Удалить
                     </button>
                   </div>
-                ) : null}
+                  {credentialsOpen ? (
+                    <div className="employee-credentials-panel">
+                      <input
+                        autoComplete="username"
+                        onChange={(event) =>
+                          setEmployeeLogins((current) => ({
+                            ...current,
+                            [employee.id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Логин"
+                        value={employeeLogins[employee.id] ?? employee.login ?? ""}
+                      />
+                      <input
+                        onChange={(event) =>
+                          setEmployeePins((current) => ({
+                            ...current,
+                            [employee.id]: event.target.value,
+                          }))
+                        }
+                        placeholder={employee.pinHash ? "Новый пароль" : "Пароль для входа"}
+                        type="password"
+                        value={employeePins[employee.id] || ""}
+                      />
+                    </div>
+                  ) : null}
+                  {isProductionWorker(employee) ? (
+                    <div className="employee-payout-controls">
+                      <span>
+                        Баланс:{" "}
+                        <strong>
+                          {formatMoney(
+                            moneyForEmployee(
+                              employee.id,
+                              storedProduction.assignments,
+                              storedProduction.payouts || [],
+                              techSpecs,
+                              calculations,
+                            ).balance,
+                          )}
+                        </strong>
+                      </span>
+                      <input
+                        inputMode="decimal"
+                        onChange={(event) =>
+                          setEmployeePayouts((current) => ({
+                            ...current,
+                            [employee.id]: event.target.value,
+                          }))
+                        }
+                        placeholder="Сумма выплаты"
+                        value={employeePayouts[employee.id] || ""}
+                      />
+                      <button className="secondary" onClick={() => addEmployeePayout(employee)} type="button">
+                        Выплатить
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {employees.length && !visibleEmployees.length ? (
             <p className="production-muted">
               В этом блоке пока нет сотрудников.
@@ -2961,9 +3012,9 @@ function PullRefreshIndicator({
 }) {
   const visible = refreshing || distance > 0;
   const progress = Math.min(1, distance / PULL_REFRESH_TRIGGER_PX);
-  const logoOffset = Math.round((1 - progress) * 4);
-  const logoScale = 0.9 + progress * 0.1;
-  const waveAmplitude = Math.sin(progress * Math.PI) * 8;
+  const logoOffset = Math.round((1 - progress) * 3);
+  const logoScale = 0.86 + progress * 0.08;
+  const waveAmplitude = Math.sin(progress * Math.PI) * 5;
   const waveOffset = (index: number) => {
     const localProgress = Math.max(0, Math.min(1, progress * 1.55 - index * 0.14));
     return `${Math.round(Math.sin(localProgress * Math.PI) * waveAmplitude)}px`;
@@ -2993,34 +3044,34 @@ function PullRefreshIndicator({
     >
       <svg
         className="production-pull-refresh-logo"
-        viewBox="-1 -1 546 120"
+        viewBox="0 0 220 56"
         role="img"
         aria-label="Verkup"
       >
         <g className="production-pull-refresh-logo-motion">
-          <g transform="translate(0 117.6284) scale(1 -1)">
           <g className="production-pull-refresh-logo-part logo-wave-1">
-            <path fill="#ff7500" d="M 543.6816 62.7576 C 543.6816 53.1391 540.6775 45.7744 534.6686 40.6837 C 528.6603 35.5929 520.1059 33.0480 509.0275 33.0480 L 500.8907 33.0480 L 500.8907 1.2515 L 481.9465 1.2515 L 481.9465 90.6313 L 510.4879 90.6313 C 521.3367 90.6313 529.5779 88.2947 535.2321 83.6422 C 540.8651 78.9687 543.6816 72.0000 543.6816 62.7576 Z M 500.8907 48.5705 L 507.1289 48.5705 C 512.9705 48.5705 517.3311 49.7177 520.2105 52.0336 C 523.1103 54.3285 524.5498 57.6876 524.5498 62.0901 C 524.5498 66.5340 523.3397 69.8094 520.9197 71.9376 C 518.4992 74.0446 514.7022 75.1085 509.5071 75.1085 L 500.8907 75.1085 Z Z M 460.0814 90.6313 L 460.0814 32.7767 C 460.0814 26.1836 458.6000 20.3834 455.6582 15.4182 C 452.6957 10.4318 448.4395 6.6345 442.8482 3.9849 C 437.2563 1.3351 430.6637 0.0000 423.0278 0.0000 C 411.5529 0.0000 402.6234 2.9415 396.2597 8.8461 C 389.8964 14.7294 386.7250 22.7829 386.7250 33.0270 L 386.7250 90.6313 L 405.6066 90.6313 L 405.6066 35.9065 C 405.6066 29.0004 407.0044 23.9513 409.7585 20.7383 C 412.5334 17.5045 417.1232 15.8978 423.5284 15.8978 C 429.7249 15.8978 434.2105 17.5255 437.0060 20.7592 C 439.8021 23.9930 441.1996 29.0837 441.1996 36.0105 L 441.1996 90.6313 Z" />
+            <g transform="translate(0 8) scale(0.34)">
+              <path fill="#ff7500" d="M 140.2427 89.3798 L 121.1108 89.3798 L 90.4986 0.0000 L 109.6305 0.0000 Z" />
+              <path fill="#ff7500" d="M 84.3738 70.1626 L 108.4039 0.0000 L 89.2721 0.0000 L 68.9315 59.3892 C 72.8082 61.8673 79.6830 66.7664 84.3738 70.1626" />
+              <path fill="#7a3800" d="M 54.8765 51.3612 L 72.4674 0.0000 L 53.3356 0.0000 L 38.3406 43.7825 C 43.9994 46.0670 49.4884 48.5779 54.8765 51.3612" />
+              <path fill="#351800" d="M 23.3844 38.3848 L 36.5309 0.0000 L 17.3991 0.0000 L 5.9474 33.4369 C 11.9965 34.9486 17.7902 36.5854 23.3844 38.3848" />
+              <path fill="#ff7500" d="M 67.1998 97.8358 L 59.4884 105.5469 L 101.1634 116.3769 L 90.3336 74.7020 L 82.6226 82.4131 C 59.8581 64.3320 37.1843 52.0240 0.0000 43.1558 C 34.7632 64.5486 51.2399 73.2787 67.1998 97.8358" />
+            </g>
           </g>
-          <g className="production-pull-refresh-logo-part logo-wave-2">
-            <path fill="#ff7500" d="M 240.5129 35.5516 L 240.5129 1.2515 L 221.5687 1.2515 L 221.5687 90.6313 L 247.6069 90.6313 C 259.7494 90.6313 268.7207 88.4197 274.5417 83.9968 C 280.3836 79.5739 283.2831 72.8555 283.2831 63.8634 C 283.2831 58.6057 281.8440 53.9320 278.9439 49.8220 C 276.0644 45.7330 271.9755 42.5200 266.6758 40.2041 C 280.1123 20.1127 288.8751 7.1141 292.9433 1.2515 L 271.9128 1.2515 L 250.5903 35.5516 Z Z M 376.0843 1.2515 L 354.5745 1.2515 L 331.1654 38.9106 L 323.1539 33.1727 L 323.1539 1.2515 L 304.2099 1.2515 L 304.2099 90.6313 L 323.1539 90.6313 L 323.1539 49.7387 L 330.6229 60.2541 L 354.8038 90.6313 L 375.8340 90.6313 L 344.6850 51.0741 Z Z M 240.5129 50.9488 L 246.6264 50.9488 C 252.6140 50.9488 257.0372 51.9500 259.8746 53.9529 C 262.7325 55.9349 264.1513 59.0856 264.1513 63.3626 C 264.1513 67.5978 262.6911 70.6229 259.7910 72.4173 C 256.8702 74.2119 252.3637 75.1085 246.2505 75.1085 L 240.5129 75.1085 Z Z M 202.9380 1.2515 L 151.4673 1.2515 L 151.4673 90.6313 L 202.9380 90.6313 L 202.9380 75.1085 L 170.4115 75.1085 L 170.4115 55.4553 L 200.6634 55.4553 L 200.6634 39.9328 L 170.4115 39.9328 L 170.4115 16.8996 L 202.9380 16.8996 Z" />
-          </g>
-          <g className="production-pull-refresh-logo-part logo-wave-3">
-            <path fill="#ff7500" d="M 140.2427 90.6313 L 121.1108 90.6313 L 90.4986 1.2515 L 109.6305 1.2515 Z" />
-          </g>
-          <g className="production-pull-refresh-logo-part logo-wave-4">
-            <path fill="#ff7500" d="M 84.3738 71.4141 L 108.4039 1.2515 L 89.2721 1.2515 L 68.9315 60.6407 C 72.8082 63.1188 79.6830 68.0179 84.3738 71.4141" />
-          </g>
-          <g className="production-pull-refresh-logo-part logo-wave-5">
-            <path fill="#7a3800" d="M 54.8765 52.6127 L 72.4674 1.2515 L 53.3356 1.2515 L 38.3406 45.0340 C 43.9994 47.3185 49.4884 49.8294 54.8765 52.6127" />
-          </g>
-          <g className="production-pull-refresh-logo-part logo-wave-6">
-            <path fill="#351800" d="M 23.3844 39.6363 L 36.5309 1.2515 L 17.3991 1.2515 L 5.9474 34.6884 C 11.9965 36.2001 17.7902 37.8369 23.3844 39.6363" />
-          </g>
-          <g className="production-pull-refresh-logo-part logo-wave-7">
-            <path fill="#ff7500" d="M 67.1998 99.0873 L 59.4884 106.7984 L 101.1634 117.6284 L 90.3336 75.9535 L 82.6226 83.6646 C 59.8581 65.5835 37.1843 53.2755 0.0000 44.4073 C 34.7632 65.8001 51.2399 74.5302 67.1998 99.0873" />
-          </g>
-          </g>
+          {["V", "E", "R", "K", "U", "P"].map((letter, index) => (
+            <text
+              className={`production-pull-refresh-logo-part logo-letter logo-wave-${index + 2}`}
+              fill="#ff7500"
+              fontFamily="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif"
+              fontSize="32"
+              fontWeight="800"
+              key={letter}
+              x={58 + index * 25}
+              y="39"
+            >
+              {letter}
+            </text>
+          ))}
         </g>
       </svg>
     </div>
@@ -3066,7 +3117,7 @@ function WorkerProfile({
 }) {
   return (
     <section className="worker-profile">
-      <label className="worker-avatar" title="Сменить фото">
+      <label className="worker-avatar" aria-label="Сменить фото">
         {employee.avatarDataUrl ? (
           <img alt={employee.name} src={employee.avatarDataUrl} />
         ) : (
@@ -3235,7 +3286,6 @@ function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[
                     aria-label="Открыть фото сделки"
                     className="worker-gallery-thumb-button"
                     onClick={() => setViewer({ index: 0, photos: visiblePhotos, title })}
-                    title="Открыть фото"
                     type="button"
                   >
                     <img alt={title} src={thumbnail} />
@@ -4021,6 +4071,7 @@ function employeeGroupIdFor(employee: ProductionEmployee): EmployeeGroupId {
   if (role === "manager") return "managers";
   if (role === "technologist") return "technologists";
   if (role === "shopChief") return "shopChiefs";
+  if (role === "installationChief") return "installationChiefs";
   if (role === "leader") return "leaders";
   return "noAccess";
 }
@@ -4031,11 +4082,26 @@ function employeeAccessChoiceFor(employee: ProductionEmployee): EmployeeAccessCh
   return role;
 }
 
+function employeeAccessChoiceForGroup(groupId: EmployeeGroupId): EmployeeAccessChoice {
+  const choices: Record<EmployeeGroupId, EmployeeAccessChoice> = {
+    assemblers: "installer",
+    installationChiefs: "installationChief",
+    leaders: "leader",
+    makers: "maker",
+    managers: "manager",
+    noAccess: "none",
+    shopChiefs: "shopChief",
+    technologists: "technologist",
+  };
+  return choices[groupId];
+}
+
 function employeeAccessChoiceOptions(includeNone: boolean): EmployeeAccessChoice[] {
   return [
     ...(includeNone ? (["none"] as EmployeeAccessChoice[]) : []),
     "maker",
     "installer",
+    "installationChief",
     "shopChief",
     "technologist",
     "manager",
@@ -4049,6 +4115,9 @@ function employeeAccessChoiceLabel(choice: EmployeeAccessChoice) {
 }
 
 function canCreateAccessChoice(currentUser: ProductionEmployee | undefined, choice: EmployeeAccessChoice) {
+  if (accessRoleFor(currentUser) === "installationChief") {
+    return choice === "installer" || choice === "none";
+  }
   return canCreateAccessRole(currentUser, choice === "installer" ? "maker" : choice);
 }
 

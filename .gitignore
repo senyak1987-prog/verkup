@@ -9,4 +9,6 @@ storage/
 .env.local
 .env.*.local
 public/config.js
+public/api/local-config.php
+public/api/*.local.php
 *.log

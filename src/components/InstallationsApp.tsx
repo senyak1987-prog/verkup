@@ -19,7 +19,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
-import type { CSSProperties, RefObject, WheelEvent } from "react";
+import type { CSSProperties, RefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   BitrixDealFile,
@@ -56,8 +56,12 @@ import {
   uploadInstallationPhoto,
 } from "../lib/saveApi";
 
-type InstallationViewMode = "day" | "week" | "month" | "list";
+type InstallationViewMode = "day" | "week" | "month" | "year" | "list";
 type InstallationMobileTab = "today" | "all" | "notifications" | "profile";
+type PlannerWheelContext = {
+  container: HTMLDivElement;
+  event: globalThis.WheelEvent;
+};
 
 type InstallationCommitOptions = {
   saveNow?: boolean;
@@ -144,10 +148,12 @@ const statusFilterLabels: Record<InstallationStatus | "all" | "queue", string> =
   ...installationStatusLabels,
 };
 
-const defaultPlannerHourRange = { start: 8, end: 20 };
 const minPlannerHour = 0;
 const maxPlannerHour = 24;
-const minPlannerHourSpan = 4;
+const fullPlannerHourRange = { start: minPlannerHour, end: maxPlannerHour };
+const defaultPlannerZoom = 1;
+const minPlannerZoom = 0.65;
+const maxPlannerZoom = 5.5;
 
 export function InstallationsApp({
   currentUser,
@@ -163,7 +169,7 @@ export function InstallationsApp({
 }: InstallationsAppProps) {
   const [dateKey, setDateKey] = useState(todayDateKey());
   const [viewMode, setViewMode] = useState<InstallationViewMode>("day");
-  const [plannerHourRange, setPlannerHourRange] = useState(defaultPlannerHourRange);
+  const [plannerZoom, setPlannerZoom] = useState(defaultPlannerZoom);
   const [mobileTab, setMobileTab] = useState<InstallationMobileTab>("today");
   const [query, setQuery] = useState("");
   const [installerFilter, setInstallerFilter] = useState("all");
@@ -203,7 +209,7 @@ export function InstallationsApp({
   );
 
   const isMobileInstaller = isInstaller(currentUser);
-  const canReview = ["leader", "technologist", "shopChief"].includes(accessRoleFor(currentUser));
+  const canReview = ["leader", "technologist", "shopChief", "installationChief"].includes(accessRoleFor(currentUser));
   const unreadNotifications = notifications.filter((notification) => !notification.readBy?.includes(currentUser.id));
   const visibleNotifications = notifications
     .filter((notification) => !notification.targetEmployeeId || notification.targetEmployeeId === currentUser.id || canReview)
@@ -241,7 +247,8 @@ export function InstallationsApp({
     () => buildInstallationMapPoints(filteredInstallations, readyDeals),
     [filteredInstallations, readyDeals],
   );
-  const plannerHourSlots = useMemo(() => buildPlannerHourSlots(plannerHourRange), [plannerHourRange]);
+  const plannerHourRange = fullPlannerHourRange;
+  const plannerHourSlots = useMemo(() => buildPlannerHourSlots(fullPlannerHourRange), []);
 
   useEffect(() => {
     setRoutePointIds((current) => current.filter((id) => mapPoints.some((point) => point.id === id)));
@@ -381,26 +388,6 @@ export function InstallationsApp({
           <h1>Монтажи</h1>
         </div>
         <div className="installations-toolbar-actions">
-          <div className="installation-date-control">
-            <button onClick={() => shiftDate(-1)} type="button">←</button>
-            <input type="date" value={dateKey} onChange={(event) => setDateKey(event.target.value)} />
-            <button onClick={() => shiftDate(1)} type="button">→</button>
-            <button onClick={() => setDateKey(todayDateKey())} type="button">Сегодня</button>
-          </div>
-          <div className="installation-view-switch segmented compact" role="group" aria-label="Режим календаря монтажей">
-            <button className={viewMode === "day" ? "active" : ""} onClick={() => setViewMode("day")} type="button">
-              День
-            </button>
-            <button className={viewMode === "week" ? "active" : ""} onClick={() => setViewMode("week")} type="button">
-              Неделя
-            </button>
-            <button className={viewMode === "month" ? "active" : ""} onClick={() => setViewMode("month")} type="button">
-              Месяц
-            </button>
-            <button className={viewMode === "list" ? "active" : ""} onClick={() => setViewMode("list")} type="button">
-              Список
-            </button>
-          </div>
           <button className="secondary compact" onClick={() => void onRefresh?.()} type="button">
             <RefreshCcw size={16} />
             Обновить
@@ -464,12 +451,53 @@ export function InstallationsApp({
         </aside>
 
         <section className="installations-board">
-          <div className="installations-section-head">
-            <h2>{plannerTitle(viewMode, dateKey)}</h2>
-            <button className="primary compact" onClick={() => setEditing(emptyForm(dateKey))} type="button">
-              <Plus size={16} />
-              Создать монтаж
-            </button>
+          <div className="installations-board-top">
+            <div className="installations-section-head">
+              <h2>{plannerTitle(viewMode, dateKey)}</h2>
+              <button className="primary compact" onClick={() => setEditing(emptyForm(dateKey))} type="button">
+                <Plus size={16} />
+                Создать монтаж
+              </button>
+            </div>
+            <div className="installation-planner-toolbar" aria-label="Управление планом монтажей">
+              <div className="installation-date-control">
+                <button onClick={() => shiftDate(-1)} type="button">←</button>
+                <input type="date" value={dateKey} onChange={(event) => setDateKey(event.target.value)} />
+                <button onClick={() => shiftDate(1)} type="button">→</button>
+                <button onClick={() => setDateKey(todayDateKey())} type="button">Сегодня</button>
+              </div>
+              <div className="installation-view-switch compact" role="group" aria-label="День и неделя">
+                <button className={viewMode === "day" ? "active" : ""} onClick={() => setViewMode("day")} type="button">
+                  День
+                </button>
+                <button className={viewMode === "week" ? "active" : ""} onClick={() => setViewMode("week")} type="button">
+                  Неделя
+                </button>
+              </div>
+              <div className="installation-month-view-control">
+                <input
+                  aria-label="Месяц монтажей"
+                  type="month"
+                  value={monthInputValue(dateKey)}
+                  onChange={(event) => setMonthValue(event.target.value)}
+                />
+                <div className="installation-view-switch compact" role="group" aria-label="Месяц и год">
+                  <button className={viewMode === "month" ? "active" : ""} onClick={() => setViewMode("month")} type="button">
+                    Месяц
+                  </button>
+                  <button className={viewMode === "year" ? "active" : ""} onClick={() => setViewMode("year")} type="button">
+                    Год
+                  </button>
+                </div>
+              </div>
+              <button
+                className={`installation-list-mode-button ${viewMode === "list" ? "active" : ""}`}
+                onClick={() => setViewMode("list")}
+                type="button"
+              >
+                Список монтажей
+              </button>
+            </div>
           </div>
           {viewMode !== "list" ? (
             <InstallationPlannerTimeline
@@ -478,8 +506,13 @@ export function InstallationsApp({
               installations={filteredInstallations}
               plannerHourRange={plannerHourRange}
               plannerHourSlots={plannerHourSlots}
+              plannerZoom={plannerZoom}
               selectedInstallationId={selectedInstallationId}
               viewMode={viewMode}
+              onMonthSelect={(monthDateKey) => {
+                setDateKey(monthDateKey);
+                setViewMode("month");
+              }}
               onEdit={(installation) => setEditing(formStateFromInstallation(installation))}
               onWheel={handlePlannerWheel}
               onSelect={(installation) => setSelectedInstallationId(installation.id)}
@@ -563,30 +596,81 @@ export function InstallationsApp({
   );
 
   function shiftDate(offset: number) {
+    if (viewMode === "year") {
+      setDateKey(addYearsToDateKey(dateKey, offset));
+      return;
+    }
     if (viewMode === "month") {
       setDateKey(addMonthsToDateKey(dateKey, offset));
       return;
     }
-    setDateKey(addDaysToDateKey(dateKey, viewMode === "week" ? offset * 7 : offset));
+    setDateKey(addDaysToDateKey(dateKey, viewMode === "week" ? offset * 15 : offset));
   }
 
-  function handlePlannerWheel(event: WheelEvent<HTMLDivElement>) {
+  function handlePlannerWheel({ container, event }: PlannerWheelContext) {
     if (Math.abs(event.deltaY) < 1) return;
     event.preventDefault();
+    event.stopPropagation();
+    const zoomOut = event.deltaY > 0;
+    const shiftRange = event.shiftKey || event.altKey;
+
+    if (shiftRange) {
+      if (viewMode === "day") {
+        setDateKey((current) => addDaysToDateKey(current, zoomOut ? 1 : -1));
+        return;
+      }
+
+      if (viewMode === "week") {
+        setDateKey((current) => addDaysToDateKey(current, zoomOut ? 15 : -15));
+        return;
+      }
+
+      if (viewMode === "month") {
+        setDateKey((current) => addMonthsToDateKey(current, zoomOut ? 1 : -1));
+        return;
+      }
+
+      if (viewMode === "year") {
+        setDateKey((current) => addYearsToDateKey(current, zoomOut ? 1 : -1));
+      }
+      return;
+    }
 
     if (viewMode === "day") {
-      setPlannerHourRange((current) => adjustPlannerHourRange(current, event.deltaY, event.shiftKey || event.altKey));
+      const scheduler = container.querySelector<HTMLElement>(".installation-scheduler");
+      const pointerRatio = scheduler ? plannerPointerRatio(scheduler, event.clientX) : 0.5;
+      const nextZoom = adjustPlannerZoom(plannerZoom, event.deltaY);
+      setPlannerZoom(nextZoom);
+
+      if (scheduler) {
+        window.requestAnimationFrame(() => keepPlannerPointerPosition(scheduler, pointerRatio, event.clientX));
+      }
       return;
     }
 
     if (viewMode === "week") {
-      setDateKey((current) => addDaysToDateKey(current, event.deltaY > 0 ? 7 : -7));
+      if (!zoomOut && plannerZoom >= maxPlannerZoom * 0.98) {
+        setViewMode("day");
+        return;
+      }
+      setPlannerZoom((current) => adjustPlannerZoom(current, event.deltaY));
       return;
     }
 
     if (viewMode === "month") {
-      setDateKey((current) => addMonthsToDateKey(current, event.deltaY > 0 ? 1 : -1));
+      setPlannerZoom((current) => adjustPlannerZoom(current, event.deltaY));
+      return;
     }
+
+    if (viewMode === "year") {
+      setDateKey((current) => addYearsToDateKey(current, zoomOut ? 1 : -1));
+    }
+  }
+
+  function setMonthValue(value: string) {
+    if (!value) return;
+    setDateKey(dateKeyFromMonthInput(value, dateKey));
+    if (viewMode === "day" || viewMode === "week") setViewMode("month");
   }
 
   async function handleSaveInstallation(state: InstallationFormState) {
@@ -1168,8 +1252,10 @@ function InstallationPlannerTimeline({
   installations,
   plannerHourRange,
   plannerHourSlots,
+  plannerZoom,
   selectedInstallationId,
   viewMode,
+  onMonthSelect,
   onEdit,
   onWheel,
   onSelect,
@@ -1179,24 +1265,57 @@ function InstallationPlannerTimeline({
   installations: Installation[];
   plannerHourRange: PlannerHourRange;
   plannerHourSlots: number[];
+  plannerZoom: number;
   selectedInstallationId?: string;
   viewMode: Exclude<InstallationViewMode, "list">;
+  onMonthSelect: (dateKey: string) => void;
   onEdit: (installation: Installation) => void;
-  onWheel: (event: WheelEvent<HTMLDivElement>) => void;
+  onWheel: (context: PlannerWheelContext) => void;
   onSelect: (installation: Installation) => void;
 }) {
+  const plannerShellRef = useRef<HTMLDivElement>(null);
   const unplanned = installations.filter(isUnplannedInstallation);
   const planned = installations.filter((installation) => !isUnplannedInstallation(installation));
 
+  useEffect(() => {
+    const node = plannerShellRef.current;
+    if (!node) return;
+
+    const handleNativeWheel = (event: globalThis.WheelEvent) => {
+      onWheel({ container: node, event });
+    };
+
+    node.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => node.removeEventListener("wheel", handleNativeWheel);
+  }, [onWheel]);
+
   if (viewMode === "month") {
     return (
-      <div className="installation-planner-shell" onWheel={onWheel}>
+      <div className="installation-planner-shell" ref={plannerShellRef}>
         <MonthPlanner
           dateKey={dateKey}
           installations={planned}
           selectedInstallationId={selectedInstallationId}
           onEdit={onEdit}
           onSelect={onSelect}
+        />
+        <PlannerUnplannedPanel
+          installations={unplanned}
+          selectedInstallationId={selectedInstallationId}
+          onEdit={onEdit}
+          onSelect={onSelect}
+        />
+      </div>
+    );
+  }
+
+  if (viewMode === "year") {
+    return (
+      <div className="installation-planner-shell" ref={plannerShellRef}>
+        <YearPlanner
+          dateKey={dateKey}
+          installations={planned}
+          onMonthSelect={onMonthSelect}
         />
         <PlannerUnplannedPanel
           installations={unplanned}
@@ -1217,17 +1336,18 @@ function InstallationPlannerTimeline({
     viewMode === "day"
       ? ({
           "--planner-hour-columns": plannerHourSlots.length,
-          "--planner-hour-min-width": `${Math.max(680, plannerHourSlots.length * 66)}px`,
+          "--planner-hour-min-width": `${Math.max(760, Math.round(plannerHourSlots.length * 54 * plannerZoom))}px`,
         } as CSSProperties)
-      : undefined;
+      : ({
+          "--planner-day-columns": periodDays.length,
+          "--planner-day-min-width": `${Math.max(900, periodDays.length * 118)}px`,
+        } as CSSProperties);
 
   return (
-    <div className="installation-planner-shell">
+    <div className="installation-planner-shell" ref={plannerShellRef}>
       <div
         className={`installation-scheduler installation-scheduler-${viewMode}`}
         style={schedulerStyle}
-        title="Колесо: расширить или сузить часы. Shift/Alt + колесо: сдвинуть диапазон. В неделе и месяце колесо листает период."
-        onWheel={onWheel}
       >
         <div className="planner-corner">Монтажник</div>
         {viewMode === "day" ? (
@@ -1429,6 +1549,39 @@ function MonthPlanner({
   );
 }
 
+function YearPlanner({
+  dateKey,
+  installations,
+  onMonthSelect,
+}: {
+  dateKey: string;
+  installations: Installation[];
+  onMonthSelect: (dateKey: string) => void;
+}) {
+  const year = parseDateKey(dateKey).getFullYear();
+
+  return (
+    <div className="installation-year-calendar">
+      {Array.from({ length: 12 }, (_, monthIndex) => {
+        const monthDateKey = dateKeyFromDate(new Date(year, monthIndex, 1, 12));
+        const monthItems = installations.filter((installation) => sameMonthDateKey(installationDateKey(installation.date), monthDateKey));
+        const isCurrentMonth = sameMonthDateKey(monthDateKey, todayDateKey());
+        return (
+          <button
+            className={isCurrentMonth ? "year-month-card today" : "year-month-card"}
+            key={monthDateKey}
+            onClick={() => onMonthSelect(monthDateKey)}
+            type="button"
+          >
+            <strong>{parseDateKey(monthDateKey).toLocaleDateString("ru-RU", { month: "long" })}</strong>
+            <span>{monthItems.length ? `${monthItems.length} монтажей` : "Нет монтажей"}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function InstallationPlannerCard({
   canReview,
   installation,
@@ -1588,7 +1741,6 @@ function InstallationPhotoGrid({
             href={photo.url || photo.thumbnailUrl}
             rel="noreferrer"
             target="_blank"
-            title="Открыть фото"
           >
             <img alt={photo.originalName || "Фото монтажа"} src={photo.thumbnailUrl || photo.url} />
           </a>
@@ -1926,10 +2078,13 @@ function plannerTitle(viewMode: InstallationViewMode, dateKey: string) {
   if (viewMode === "day") return `План на ${formatInstallationDate(dateKey)}`;
   if (viewMode === "week") {
     const range = plannerRange("week", dateKey);
-    return `Неделя ${formatInstallationDate(range.start)} - ${formatInstallationDate(range.end)}`;
+    return `Период ${formatInstallationDate(range.start)} - ${formatInstallationDate(range.end)}`;
   }
   if (viewMode === "month") {
     return parseDateKey(dateKey).toLocaleDateString("ru-RU", { month: "long", year: "numeric" });
+  }
+  if (viewMode === "year") {
+    return `${parseDateKey(dateKey).getFullYear()} год`;
   }
   return "Все монтажи";
 }
@@ -1937,10 +2092,14 @@ function plannerTitle(viewMode: InstallationViewMode, dateKey: string) {
 function plannerRange(viewMode: Exclude<InstallationViewMode, "list">, dateKey: string) {
   if (viewMode === "day") return { start: dateKey, end: dateKey };
   if (viewMode === "week") {
-    const start = startOfWeekDateKey(dateKey);
-    return { start, end: addDaysToDateKey(start, 6) };
+    return { start: addDaysToDateKey(dateKey, -7), end: addDaysToDateKey(dateKey, 7) };
   }
   const date = parseDateKey(dateKey);
+  if (viewMode === "year") {
+    const start = dateKeyFromDate(new Date(date.getFullYear(), 0, 1, 12));
+    const end = dateKeyFromDate(new Date(date.getFullYear(), 11, 31, 12));
+    return { start, end };
+  }
   const start = dateKeyFromDate(new Date(date.getFullYear(), date.getMonth(), 1, 12));
   const end = dateKeyFromDate(new Date(date.getFullYear(), date.getMonth() + 1, 0, 12));
   return { start, end };
@@ -1973,6 +2132,24 @@ function addMonthsToDateKey(dateKey: string, offset: number) {
   const date = parseDateKey(dateKey);
   date.setMonth(date.getMonth() + offset);
   return dateKeyFromDate(date);
+}
+
+function addYearsToDateKey(dateKey: string, offset: number) {
+  const date = parseDateKey(dateKey);
+  date.setFullYear(date.getFullYear() + offset);
+  return dateKeyFromDate(date);
+}
+
+function monthInputValue(dateKey: string) {
+  return dateKey.slice(0, 7);
+}
+
+function dateKeyFromMonthInput(monthValue: string, currentDateKey: string) {
+  const [year, month] = monthValue.split("-").map(Number);
+  if (!year || !month) return currentDateKey;
+  const currentDay = parseDateKey(currentDateKey).getDate();
+  const maxDay = new Date(year, month, 0).getDate();
+  return dateKeyFromDate(new Date(year, month - 1, Math.min(currentDay, maxDay), 12));
 }
 
 function startOfWeekDateKey(dateKey: string) {
@@ -2009,32 +2186,29 @@ function plannerDayLabel(dateKey: string) {
 }
 
 function buildPlannerHourSlots(range: PlannerHourRange) {
-  return Array.from({ length: range.end - range.start + 1 }, (_, index) => range.start + index);
+  return Array.from({ length: range.end - range.start }, (_, index) => range.start + index);
 }
 
-function adjustPlannerHourRange(range: PlannerHourRange, deltaY: number, shiftRange: boolean): PlannerHourRange {
-  const direction = deltaY > 0 ? 1 : -1;
-  const span = range.end - range.start;
+function adjustPlannerZoom(current: number, deltaY: number) {
+  const factor = deltaY > 0 ? 0.84 : 1.2;
+  return clampNumber(Number((current * factor).toFixed(3)), minPlannerZoom, maxPlannerZoom);
+}
 
-  if (shiftRange) {
-    const nextStart = clampNumber(range.start + direction, minPlannerHour, maxPlannerHour - span);
-    return { start: nextStart, end: nextStart + span };
-  }
+function plannerPointerRatio(element: HTMLElement, clientX: number) {
+  const rect = element.getBoundingClientRect();
+  const x = clientX - rect.left + element.scrollLeft;
+  return clampNumber(x / Math.max(1, element.scrollWidth), 0, 1);
+}
 
-  if (direction > 0) {
-    if (span >= maxPlannerHour - minPlannerHour) return range;
-    let start = Math.max(minPlannerHour, range.start - 1);
-    let end = Math.min(maxPlannerHour, range.end + 1);
-    if (start === range.start && end < maxPlannerHour) end += 1;
-    if (end === range.end && start > minPlannerHour) start -= 1;
-    return { start, end };
-  }
+function keepPlannerPointerPosition(element: HTMLElement, ratio: number, clientX: number) {
+  const rect = element.getBoundingClientRect();
+  const pointerOffset = clientX - rect.left;
+  element.scrollLeft = Math.max(0, ratio * element.scrollWidth - pointerOffset);
+}
 
-  if (span <= minPlannerHourSpan) return range;
-  const nextSpan = Math.max(minPlannerHourSpan, span - 2);
-  const center = (range.start + range.end) / 2;
-  const start = clampNumber(Math.round(center - nextSpan / 2), minPlannerHour, maxPlannerHour - nextSpan);
-  return { start, end: start + nextSpan };
+function sameMonthDateKey(first: string, second: string) {
+  if (!first || !second) return false;
+  return first.slice(0, 7) === second.slice(0, 7);
 }
 
 function clampNumber(value: number, min: number, max: number) {
@@ -2086,7 +2260,7 @@ function loadYandexMaps(apiKey: string) {
 async function geocodeInstallationAddress(ymaps: any, address: string) {
   const normalizedAddress = String(address || "").trim();
   if (!normalizedAddress) return undefined;
-  const spacedAddress = normalizedAddress.replace(/([A-Za-zА-Яа-яЁё])(\d)/g, "$1 $2");
+  const spacedAddress = normalizedAddress.replace(/([^\W\d_])(\d)/gu, "$1 $2");
   const hasRegionHint = /[,]|москва|область|край|республика|санкт|г\./i.test(normalizedAddress);
   const candidates = Array.from(
     new Set(

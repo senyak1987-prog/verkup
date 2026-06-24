@@ -9,6 +9,7 @@ interface ImportMetaEnv {
 
 interface Window {
   VERKUP_CONFIG?: {
+    SAVE_API_URL?: string;
     YANDEX_MAPS_API_KEY?: string;
     YANDEX_GEOCODER_API_KEY?: string;
     YANDEX_GEOCODER_PROXY_URL?: string;

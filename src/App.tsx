@@ -12,8 +12,11 @@ import {
   loadCalculations,
   loadCatalogs,
   loadDeals,
+  loadFreshCalculations,
+  loadFreshCatalogs,
   loadFreshInstallations,
   loadFreshProduction,
+  loadFreshTechSpecs,
   loadFreshWarehouse,
   loadInstallations,
   loadProduction,
@@ -51,6 +54,7 @@ import {
 } from "./lib/access";
 import {
   defaultSaveApiUrl,
+  saveCatalogs,
   saveCalculations,
   saveInstallations,
   saveProduction,
@@ -83,11 +87,11 @@ import "./styles.css";
 
 const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
 const DEAL_REFRESH_INTERVAL_MS = 2000;
-const PRODUCTION_REFRESH_INTERVAL_MS = 3000;
-const TECH_SPEC_SAVE_DELAY_MS = 900;
-const PRODUCTION_SAVE_DELAY_MS = 700;
-const INSTALLATIONS_SAVE_DELAY_MS = 700;
-const WAREHOUSE_SAVE_DELAY_MS = 700;
+const LIVE_DATA_REFRESH_INTERVAL_MS = 1200;
+const TECH_SPEC_SAVE_DELAY_MS = 180;
+const PRODUCTION_SAVE_DELAY_MS = 180;
+const INSTALLATIONS_SAVE_DELAY_MS = 180;
+const WAREHOUSE_SAVE_DELAY_MS = 180;
 const DEAL_STAGE_TABS: DealStageCode[] = ["tz", "tzApproval", "launch", "production", "defect"];
 
 type PendingStageMove = {
@@ -447,7 +451,7 @@ export default function App() {
 
     const intervalId = window.setInterval(
       () => void refreshProductionDataFromServer(),
-      PRODUCTION_REFRESH_INTERVAL_MS,
+      LIVE_DATA_REFRESH_INTERVAL_MS,
     );
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -513,30 +517,36 @@ export default function App() {
     }
 
     async function refreshProductionData() {
-      const [techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
-        loadTechSpecs(),
-        loadProduction(),
-        loadInstallations(),
-        loadWarehouse(),
+      const [calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
+        loadFreshCalculations(),
+        loadFreshCatalogs(),
+        loadFreshTechSpecs(),
+        loadFreshProduction(),
+        loadFreshInstallations(),
+        loadFreshWarehouse(),
       ]);
       if (canceled) return;
 
+      setStoredCalculations(calculationsData);
+      setCatalogItems(catalogsData.items);
       applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
       applyLoadedInstallationsData(installationsData);
       setStoredWarehouse(warehouseData);
       storedWarehouseRef.current = warehouseData;
+      writeCachedCalculations(calculationsData);
+      writeCachedCatalogs(catalogsData);
       writeCachedWarehouse(warehouseData);
     }
 
     async function refreshAllData() {
       const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
         loadDeals(),
-        loadCalculations(),
-        loadCatalogs(),
-        loadTechSpecs(),
-        loadProduction(),
-        loadInstallations(),
-        loadWarehouse(),
+        loadFreshCalculations(),
+        loadFreshCatalogs(),
+        loadFreshTechSpecs(),
+        loadFreshProduction(),
+        loadFreshInstallations(),
+        loadFreshWarehouse(),
       ]);
       if (canceled) return;
 
@@ -555,7 +565,7 @@ export default function App() {
     }
 
     const intervalId = window.setInterval(refreshDeals, DEAL_REFRESH_INTERVAL_MS);
-    const productionIntervalId = window.setInterval(refreshProductionData, PRODUCTION_REFRESH_INTERVAL_MS);
+    const productionIntervalId = window.setInterval(refreshProductionData, LIVE_DATA_REFRESH_INTERVAL_MS);
     window.addEventListener("focus", refreshAllData);
     window.addEventListener("online", refreshAllData);
 
@@ -699,6 +709,12 @@ export default function App() {
         ],
       };
       writeCachedCalculations(next);
+      const apiUrl = defaultSaveApiUrl();
+      if (apiUrl) {
+        void saveCalculations({ apiUrl }, next).catch(() => {
+          // Local cache already has this calculation; the next edit or refresh will retry sync.
+        });
+      }
       return next;
     });
   }
@@ -1084,10 +1100,17 @@ export default function App() {
   function handleCatalogChange(items: CatalogItem[]) {
     setCatalogItems((current) => {
       rememberCatalogFavoriteChanges(current, items);
-      writeCachedCatalogs({
+      const next = {
         generatedAt: new Date().toISOString(),
         items,
-      });
+      };
+      writeCachedCatalogs(next);
+      const apiUrl = defaultSaveApiUrl();
+      if (apiUrl) {
+        void saveCatalogs({ apiUrl }, next).catch(() => {
+          // Catalog changes remain cached locally and will be visible until the next successful sync.
+        });
+      }
       return items;
     });
   }
@@ -1239,7 +1262,7 @@ export default function App() {
           <button
             aria-selected={workspaceMode === "costing"}
             className={workspaceMode === "costing" ? "active" : ""}
-            onClick={() => handleWorkspaceModeChange("costing")}
+            onClick={(event) => { handleWorkspaceModeChange("costing"); event.currentTarget.blur(); }}
             role="tab"
             type="button"
           >
@@ -1251,7 +1274,7 @@ export default function App() {
           <button
             aria-selected={workspaceMode === "production"}
             className={workspaceMode === "production" ? "active" : ""}
-            onClick={() => handleWorkspaceModeChange("production")}
+            onClick={(event) => { handleWorkspaceModeChange("production"); event.currentTarget.blur(); }}
             role="tab"
             type="button"
           >
@@ -1263,7 +1286,7 @@ export default function App() {
           <button
             aria-selected={workspaceMode === "installations"}
             className={workspaceMode === "installations" ? "active" : ""}
-            onClick={() => handleWorkspaceModeChange("installations")}
+            onClick={(event) => { handleWorkspaceModeChange("installations"); event.currentTarget.blur(); }}
             role="tab"
             type="button"
           >
@@ -1275,7 +1298,7 @@ export default function App() {
           <button
             aria-selected={workspaceMode === "warehouse"}
             className={workspaceMode === "warehouse" ? "active" : ""}
-            onClick={() => handleWorkspaceModeChange("warehouse")}
+            onClick={(event) => { handleWorkspaceModeChange("warehouse"); event.currentTarget.blur(); }}
             role="tab"
             type="button"
           >
@@ -1287,7 +1310,7 @@ export default function App() {
           <button
             aria-selected={workspaceMode === "employees"}
             className={workspaceMode === "employees" ? "active" : ""}
-            onClick={() => handleWorkspaceModeChange("employees")}
+            onClick={(event) => { handleWorkspaceModeChange("employees"); event.currentTarget.blur(); }}
             role="tab"
             type="button"
           >
@@ -1402,7 +1425,18 @@ export default function App() {
             onClick={handleWorkspaceLogoClick}
             type="button"
           >
-            <img alt="Verkup" src={`${import.meta.env.BASE_URL}verkup-logo-vector.svg`} />
+            <img
+              alt=""
+              aria-hidden="true"
+              className="workspace-brand-mark"
+              src={`${import.meta.env.BASE_URL}verkup-app-icon-v4-mark.svg`}
+            />
+            <img
+              alt=""
+              aria-hidden="true"
+              className="workspace-brand-logo"
+              src={`${import.meta.env.BASE_URL}verkup-logo-vector.svg`}
+            />
             <span>Рабочее пространство</span>
           </button>
           <div className="app-mode-switch" role="tablist" aria-label="Режим приложения">
@@ -1857,6 +1891,7 @@ function canAccessInstallations(employee?: ProductionEmployee) {
     role === "leader" ||
     role === "technologist" ||
     role === "shopChief" ||
+    role === "installationChief" ||
     (role === "maker" && employee?.role === "assembler")
   );
 }

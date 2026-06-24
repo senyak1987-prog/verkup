@@ -25,11 +25,11 @@ export type SaveApiSettings = {
 
 export function defaultSaveApiUrl() {
   clearLegacyBrowserSecret();
-  return configuredApiUrl || localStorage.getItem("verkupSaveApiUrl") || "";
+  return configuredApiUrl || runtimeSaveApiUrl() || localStorage.getItem("verkupSaveApiUrl") || "";
 }
 
 export function isSaveApiUrlConfigured() {
-  return configuredApiUrl.length > 0;
+  return Boolean(configuredApiUrl || runtimeSaveApiUrl());
 }
 
 export function persistSaveApiSettings(settings: SaveApiSettings) {
@@ -405,6 +405,20 @@ async function postFormToSaveApi(settings: SaveApiSettings, path: string, formDa
 
 function normalizeApiUrl(value: string) {
   return value.trim().replace(/\/+$/, "");
+}
+
+function runtimeSaveApiUrl() {
+  if (typeof window === "undefined") return "";
+
+  const runtime = String(window.VERKUP_CONFIG?.SAVE_API_URL || "").trim();
+  if (runtime) return runtime;
+
+  const host = window.location.hostname;
+  const isLocalHost = host === "localhost" || host === "127.0.0.1" || host === "::1";
+  if (isLocalHost) return "";
+
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+  return `${base || ""}/api`;
 }
 
 function clearLegacyBrowserSecret() {

@@ -203,6 +203,7 @@ export type ProductionAccessRole =
   | "technologist"
   | "manager"
   | "shopChief"
+  | "installationChief"
   | "maker";
 
 export type ProductionEmployee = {

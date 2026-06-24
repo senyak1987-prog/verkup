@@ -99,8 +99,22 @@ export async function loadCalculations() {
   });
 }
 
+export async function loadFreshCalculations() {
+  return loadJson<StoredCalculations>("/data/calculations.json", fallbackCalculations, {
+    ignoreCache: true,
+    preferApi: true,
+  });
+}
+
 export async function loadTechSpecs() {
   return loadJson<StoredTechSpecs>("/data/tech-specs.json", fallbackTechSpecs, {
+    preferApi: true,
+  });
+}
+
+export async function loadFreshTechSpecs() {
+  return loadJson<StoredTechSpecs>("/data/tech-specs.json", fallbackTechSpecs, {
+    ignoreCache: true,
     preferApi: true,
   });
 }
@@ -136,6 +150,15 @@ export async function loadFreshInstallations() {
 export async function loadCatalogs() {
   return withCatalogFavoriteOverrides(
     await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs, {
+      preferApi: true,
+    }),
+  );
+}
+
+export async function loadFreshCatalogs() {
+  return withCatalogFavoriteOverrides(
+    await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs, {
+      ignoreCache: true,
       preferApi: true,
     }),
   );
@@ -285,19 +308,21 @@ async function loadJson<T>(
     return cachedData;
   }
 
-  if (configuredApiUrl && options.preferApi) {
-    const apiData = await fetchJson<T>(`${configuredApiUrl}/${normalizedPath}`);
+  const apiUrl = configuredDataApiUrl();
+  if (apiUrl && options.preferApi) {
+    const apiData = await fetchJson<T>(`${apiUrl}/${normalizedPath}`);
     if (apiData) {
+      if (isProductionPath(normalizedPath) || isInstallationsPath(normalizedPath)) {
+        writeCache(normalizedPath, apiData);
+        return apiData;
+      }
+
       const resolvedApiData = reconcileFetchedData(
         normalizedPath,
         apiData,
         cachedData,
         cachedRecord?.savedAt,
       );
-      if (isProductionPath(normalizedPath) || isInstallationsPath(normalizedPath)) {
-        writeCache(normalizedPath, resolvedApiData);
-        return resolvedApiData;
-      }
       if (shouldKeepCachedData(resolvedApiData, cachedData)) return cachedData;
       writeCacheIfUseful(normalizedPath, resolvedApiData, cachedData);
       return resolvedApiData;
@@ -493,6 +518,7 @@ async function withLoadedEmbeddedProduction(
     },
   );
   const embeddedProduction = embeddedProductionFromTechSpecs(techSpecs);
+  if (configuredDataApiUrl()) return production;
   return embeddedProduction ? mergeServerStoredProduction(production, embeddedProduction) : production;
 }
 
@@ -513,15 +539,9 @@ export function mergeServerStoredProduction(
       serverProduction.registrationLinks || [],
       localProduction.registrationLinks || [],
     ),
-    assignments: mergeServerAuthoritativeRecords(
-      serverProduction.assignments || [],
-      localProduction.assignments || [],
-    ),
-    payouts: mergeServerAuthoritativeRecords(serverProduction.payouts || [], localProduction.payouts || []),
-    notifications: mergeServerAuthoritativeRecords(
-      serverProduction.notifications || [],
-      localProduction.notifications || [],
-    ),
+    assignments: serverProduction.assignments || [],
+    payouts: serverProduction.payouts || [],
+    notifications: serverProduction.notifications || [],
   };
 }
 
@@ -533,14 +553,8 @@ export function mergeServerStoredInstallations(
     ...localInstallations,
     ...serverInstallations,
     generatedAt: serverInstallations.generatedAt || localInstallations.generatedAt,
-    installations: mergeServerAuthoritativeRecords(
-      serverInstallations.installations || [],
-      localInstallations.installations || [],
-    ),
-    notifications: mergeServerAuthoritativeRecords(
-      serverInstallations.notifications || [],
-      localInstallations.notifications || [],
-    ),
+    installations: serverInstallations.installations || [],
+    notifications: serverInstallations.notifications || [],
   };
 }
 
@@ -580,7 +594,6 @@ export function mergeStoredProduction(
       base.notifications || [],
       incoming.notifications || [],
       preferIncomingRecords,
-      { keepMissingIncomingRecords: true },
     ),
   };
 }
@@ -635,7 +648,6 @@ function shouldKeepCachedData<T>(data: T, cachedData?: T): cachedData is T {
       isNonEmptyStoredTechSpecs(cachedData) &&
       shouldKeepNonEmptyCachedData(data, cachedData)) ||
     (isEmptyStoredProduction(data) && isNonEmptyStoredProduction(cachedData)) ||
-    (isEmptyStoredInstallations(data) && isNonEmptyStoredInstallations(cachedData)) ||
     (isStoredProduction(data) &&
       isStoredProduction(cachedData) &&
       isGeneratedAtNewer(cachedData.generatedAt, data.generatedAt))
@@ -755,4 +767,23 @@ function isProductionPath(path: string) {
 
 function isInstallationsPath(path: string) {
   return path.replace(/^\//, "") === "data/installations.json";
+}
+
+function configuredDataApiUrl() {
+  const runtime = typeof window !== "undefined"
+    ? String(window.VERKUP_CONFIG?.SAVE_API_URL || "").trim()
+    : "";
+  const configured = configuredApiUrl || runtime || inferredProductionApiUrl();
+  return configured.trim().replace(/\/+$/, "");
+}
+
+function inferredProductionApiUrl() {
+  if (typeof window === "undefined") return "";
+
+  const host = window.location.hostname;
+  const isLocalHost = host === "localhost" || host === "127.0.0.1" || host === "::1";
+  if (isLocalHost) return "";
+
+  const base = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
+  return `${base || ""}/api`;
 }

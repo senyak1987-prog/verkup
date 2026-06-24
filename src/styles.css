@@ -6110,13 +6110,13 @@ div.employee-profile-field .employee-profile-value {
   left: 50%;
   z-index: 30;
   display: grid;
-  width: min(216px, 62vw);
-  height: 76px;
+  width: min(130px, 42vw);
+  height: 46px;
   place-items: center;
   border: 0;
   border-radius: 0;
   background: transparent;
-  filter: drop-shadow(0 8px 14px rgba(22, 18, 14, 0.1));
+  filter: drop-shadow(0 6px 10px rgba(22, 18, 14, 0.09));
   overflow: visible;
   pointer-events: none;
   transition:
@@ -6126,9 +6126,9 @@ div.employee-profile-field .employee-profile-value {
 
 .production-pull-refresh-logo {
   display: block;
-  width: min(196px, 56vw);
+  width: min(118px, 38vw);
   height: auto;
-  max-height: 52px;
+  max-height: 32px;
   overflow: visible;
   transform: translateY(var(--pull-logo-y, 4px)) scale(var(--pull-logo-scale, 0.9));
   transform-origin: center;
@@ -6208,7 +6208,7 @@ div.employee-profile-field .employee-profile-value {
   }
 
   28% {
-    transform: translateY(8px);
+    transform: translateY(5px);
   }
 
   56% {
@@ -12092,6 +12092,8 @@ textarea {
 
 .installations-toolbar-actions,
 .installation-date-control,
+.installation-planner-toolbar,
+.installation-month-view-control,
 .installation-card-actions,
 .worker-installation-quick-actions {
   align-items: center;
@@ -12135,6 +12137,32 @@ textarea {
   padding: 0 8px;
 }
 
+.installation-planner-toolbar {
+  align-items: stretch;
+  gap: 8px;
+}
+
+.installation-month-view-control {
+  align-items: stretch;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #d9e1ea);
+  border-radius: 12px;
+  box-sizing: border-box;
+  gap: 4px;
+  min-height: 52px;
+  padding: 4px;
+}
+
+.installation-month-view-control input {
+  background: transparent;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text-primary, #111827);
+  font: inherit;
+  min-height: 42px;
+  padding: 0 8px;
+}
+
 .installation-view-switch {
   align-items: center;
   background: var(--surface, #fff);
@@ -12167,6 +12195,12 @@ textarea {
   white-space: nowrap;
 }
 
+.installation-month-view-control .installation-view-switch {
+  border: 0;
+  min-height: 42px;
+  padding: 0;
+}
+
 .installation-view-switch button:hover {
   background: var(--surface-muted, #f4f7fb);
   color: var(--text-primary, #111827);
@@ -12181,6 +12215,41 @@ textarea {
 .installation-view-switch button:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--primary, #f97316) 38%, transparent);
   outline-offset: 2px;
+}
+
+.installation-list-mode-button {
+  appearance: none;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #d9e1ea);
+  border-radius: 12px;
+  color: var(--text-secondary, #536174);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 520;
+  line-height: 1.15;
+  min-height: 52px;
+  padding: 0 16px;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+  white-space: nowrap;
+}
+
+.installation-list-mode-button:hover {
+  background: var(--surface-muted, #f4f7fb);
+  color: var(--text-primary, #111827);
+}
+
+.installation-list-mode-button.active {
+  background: var(--primary, #f97316);
+  border-color: var(--primary, #f97316);
+  box-shadow: 0 8px 18px rgba(249, 115, 22, 0.18);
+  color: #fff;
+}
+
+.installations-board-top {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
 }
 
 .installations-toolbar-actions > .secondary.compact {
@@ -12649,7 +12718,8 @@ textarea {
 }
 
 .planner-day-scale {
-  grid-template-columns: repeat(7, minmax(120px, 1fr));
+  grid-template-columns: repeat(var(--planner-day-columns, 7), minmax(110px, 1fr));
+  min-width: var(--planner-day-min-width, 840px);
 }
 
 .planner-scale span {
@@ -12724,8 +12794,8 @@ textarea {
 .planner-week-track {
   background: #f3f6fa;
   display: grid;
-  grid-template-columns: repeat(7, minmax(120px, 1fr));
-  min-width: 840px;
+  grid-template-columns: repeat(var(--planner-day-columns, 7), minmax(110px, 1fr));
+  min-width: var(--planner-day-min-width, 840px);
 }
 
 .planner-day-cell {
@@ -12897,6 +12967,54 @@ textarea {
   color: var(--text-secondary, #64748b);
   font-size: 11px;
   padding-left: 4px;
+}
+
+.installation-year-calendar {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  min-width: 0;
+  overflow: hidden;
+}
+
+.year-month-card {
+  appearance: none;
+  background: #fff;
+  border: 0;
+  border-left: 1px solid var(--border, #e5e7eb);
+  border-top: 1px solid var(--border, #e5e7eb);
+  color: var(--text-primary, #111827);
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  min-height: 116px;
+  padding: 14px;
+  text-align: left;
+  transition: background 160ms ease, box-shadow 160ms ease, color 160ms ease;
+}
+
+.year-month-card:hover,
+.year-month-card:focus-visible {
+  background: #fff7ed;
+  box-shadow: inset 0 0 0 2px rgba(255, 121, 0, 0.2);
+  outline: none;
+}
+
+.year-month-card.today {
+  background: #fff7ed;
+}
+
+.year-month-card strong {
+  font-size: 16px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.year-month-card span {
+  color: var(--text-secondary, #64748b);
+  font-size: 13px;
 }
 
 .installation-card-list {
@@ -14493,65 +14611,6 @@ textarea {
   max-width: 100%;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  button[aria-label],
-  a[aria-label],
-  button[title],
-  a[title],
-  [data-tooltip] {
-    position: relative;
-  }
-
-  button[aria-label]:hover::after,
-  a[aria-label]:hover::after,
-  button[title]:hover::after,
-  a[title]:hover::after,
-  [data-tooltip]:hover::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    z-index: 10000;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    max-width: min(280px, calc(100vw - 24px));
-    transform: translateX(-50%);
-    border: 1px solid rgba(15, 23, 42, 0.12);
-    border-radius: 8px;
-    background: rgba(17, 24, 39, 0.94);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
-    color: #fff;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.25;
-    opacity: 0;
-    padding: 7px 9px;
-    pointer-events: none;
-    text-align: center;
-    white-space: normal;
-    animation: tooltip-fade-in 120ms ease forwards;
-  }
-
-  button[aria-label]:hover::after,
-  a[aria-label]:hover::after {
-    content: attr(aria-label);
-  }
-
-  button[title]:hover::after,
-  a[title]:hover::after {
-    content: attr(title);
-  }
-}
-
-@keyframes tooltip-fade-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 3px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-}
-
 @media (max-width: 430px) {
   .worker-gallery.worker-gallery-list .worker-gallery-deal {
     grid-template-columns: 84px minmax(0, 1fr);
@@ -15232,6 +15291,71 @@ td,
   font-weight: 400;
 }
 
+@media (min-width: 1180px) {
+  .employee-management-shell .production-employee-row.employee-admin-row {
+    grid-template-columns: minmax(250px, 0.82fr) minmax(0, 2fr);
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+  }
+
+  .employee-management-shell .employee-row-summary {
+    grid-column: 1 / 2;
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .employee-management-shell .employee-row-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+
+  .employee-management-shell .employee-access-controls {
+    grid-column: 2 / 3;
+    grid-template-columns:
+      minmax(125px, 0.8fr)
+      minmax(140px, 1fr)
+      minmax(140px, 0.95fr)
+      max-content;
+    gap: 8px;
+    align-items: center;
+    margin-top: 0;
+  }
+
+  .employee-management-shell .employee-access-controls input,
+  .employee-management-shell .employee-access-controls select {
+    min-height: 36px;
+    padding: 7px 10px;
+  }
+
+  .employee-management-shell .employee-access-actions {
+    display: flex;
+    grid-column: auto;
+    gap: 6px;
+    justify-self: end;
+    width: auto;
+  }
+
+  .employee-management-shell .employee-access-actions button {
+    min-height: 36px;
+    padding: 0 12px;
+  }
+
+  .employee-management-shell .employee-payout-controls {
+    grid-column: 2 / 3;
+    grid-template-columns: auto minmax(130px, 170px) auto;
+    justify-self: end;
+    width: auto;
+    margin-top: 2px;
+  }
+
+  .employee-management-shell .employee-payout-controls input {
+    min-height: 36px;
+    padding: 7px 10px;
+  }
+}
+
 .tech-spec-hero,
 .warehouse-hero {
   border-radius: 16px;
@@ -15682,6 +15806,176 @@ td,
   }
 }
 
+/* Employees access page: compact tablet/desktop layout */
+.employee-management-shell {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.employee-management-shell .employee-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.employee-management-shell .employee-group-grid button {
+  min-width: 0;
+  min-height: 62px;
+  border-radius: 12px;
+  padding: 9px 10px;
+}
+
+.employee-management-shell .employee-group-grid span {
+  white-space: normal;
+}
+
+.employee-management-shell .employee-group-grid small {
+  display: -webkit-box;
+  overflow: hidden;
+  min-height: 30px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.25;
+}
+
+.employee-management-shell .production-employee-row.employee-admin-row {
+  grid-template-columns: minmax(210px, 0.65fr) minmax(0, 1.35fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.employee-management-shell .employee-row-summary {
+  grid-column: 1 / 2;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.employee-management-shell .employee-row-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
+}
+
+.employee-management-shell .employee-access-controls {
+  display: grid;
+  grid-column: 2 / 3;
+  grid-template-columns: minmax(128px, 168px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.employee-management-shell .employee-access-controls select,
+.employee-management-shell .employee-access-controls input,
+.employee-management-shell .employee-payout-controls input {
+  min-height: 36px;
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+.employee-management-shell .employee-access-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  min-width: 0;
+  width: auto;
+}
+
+.employee-management-shell .employee-access-actions button {
+  min-height: 36px;
+  border-radius: 10px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.employee-management-shell .employee-credential-toggle {
+  max-width: 190px;
+}
+
+.employee-management-shell .employee-credentials-panel {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  padding: 8px;
+}
+
+.employee-management-shell .employee-payout-controls {
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(132px, 180px) auto;
+  justify-content: end;
+  width: 100%;
+  min-width: 0;
+  margin-top: 2px;
+}
+
+@media (max-width: 1180px) {
+  .employee-management-shell .production-employee-row.employee-admin-row {
+    grid-template-columns: minmax(180px, 0.75fr) minmax(0, 1.25fr);
+  }
+
+  .employee-management-shell .employee-access-controls {
+    grid-template-columns: minmax(124px, 150px) minmax(0, 1fr);
+  }
+
+  .employee-management-shell .employee-access-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 980px) {
+  .employee-management-shell .production-employee-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-management-shell .production-employee-form button {
+    grid-column: 1 / -1;
+  }
+
+  .employee-management-shell .production-employee-row.employee-admin-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .employee-management-shell .employee-row-summary,
+  .employee-management-shell .employee-access-controls {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .employee-management-shell .employee-group-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-management-shell .production-employee-form,
+  .employee-management-shell .employee-access-controls,
+  .employee-management-shell .employee-credentials-panel,
+  .employee-management-shell .employee-payout-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .employee-management-shell .employee-access-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-management-shell .employee-access-actions button,
+  .employee-management-shell .employee-credential-toggle {
+    max-width: none;
+    width: 100%;
+  }
+}
+
 @media (max-width: 380px) {
   .workspace-bottom-nav button {
     min-width: 62px;
@@ -15697,5 +15991,753 @@ td,
   .installations-summary-grid,
   .warehouse-summary {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Collapsed desktop workspace navigation. Expands as an overlay without resizing the content. */
+@media (min-width: 721px) {
+  .workspace-app:has(.app-mode-sidebar) {
+    --workspace-sidebar-collapsed: 72px;
+    --workspace-sidebar-expanded: 248px;
+  }
+
+  .app-mode-sidebar {
+    z-index: 80;
+    width: var(--workspace-sidebar-collapsed);
+    overflow: hidden;
+    gap: 16px;
+    padding: 14px 10px;
+    transition:
+      width 170ms ease,
+      box-shadow 170ms ease,
+      background-color 170ms ease,
+      border-color 170ms ease;
+  }
+
+  .app-mode-sidebar:hover {
+    width: var(--workspace-sidebar-expanded);
+    border-right-color: color-mix(in srgb, var(--primary) 18%, var(--border-soft));
+    background: rgba(255, 253, 248, 0.98);
+    box-shadow: 18px 0 42px rgba(15, 23, 42, 0.12);
+  }
+
+  .workspace-app:has(.app-mode-sidebar) .workspace-shell {
+    padding-left: var(--workspace-sidebar-collapsed);
+  }
+
+  .workspace-brand-button {
+    position: relative;
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    min-height: 68px;
+    overflow: hidden;
+    border-radius: 14px;
+    padding: 6px 0;
+  }
+
+  .workspace-brand-mark {
+    display: block;
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    opacity: 1;
+    transition: opacity 150ms ease, transform 150ms ease;
+  }
+
+  .workspace-brand-logo {
+    position: absolute;
+    top: 6px;
+    left: 0;
+    display: block;
+    width: 112px;
+    max-width: none;
+    height: auto;
+    opacity: 0;
+    transform: translateX(-8px) scale(0.96);
+    transition: opacity 150ms ease, transform 150ms ease;
+  }
+
+  .workspace-brand-button > span,
+  .app-mode-switch button > span {
+    overflow: hidden;
+    max-width: 0;
+    opacity: 0;
+    white-space: nowrap;
+    transition: max-width 170ms ease, opacity 140ms ease;
+  }
+
+  .workspace-brand-button > span {
+    grid-column: 1 / -1;
+    margin-top: 42px;
+  }
+
+  .app-mode-sidebar:hover .workspace-brand-logo {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+
+  .app-mode-sidebar:hover .workspace-brand-mark {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+
+  .app-mode-sidebar:hover .workspace-brand-button > span,
+  .app-mode-sidebar:hover .app-mode-switch button > span {
+    max-width: 180px;
+    opacity: 1;
+  }
+
+  .app-mode-sidebar .app-mode-switch {
+    gap: 8px;
+  }
+
+  .app-mode-sidebar .app-mode-switch button {
+    justify-content: flex-start;
+    width: 50px;
+    min-width: 50px;
+    min-height: 48px;
+    gap: 12px;
+    overflow: hidden;
+    border-radius: 14px;
+    padding: 0 15px;
+    transition:
+      width 170ms ease,
+      min-width 170ms ease,
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease;
+  }
+
+  .app-mode-sidebar:hover .app-mode-switch button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .app-mode-sidebar .app-mode-switch button svg {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+  }
+
+  .app-mode-sidebar .workspace-user-card {
+    width: 50px;
+    min-width: 50px;
+    overflow: hidden;
+    gap: 0;
+    border-color: transparent;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+    transition: width 170ms ease, padding 170ms ease, border-color 170ms ease, background-color 170ms ease;
+  }
+
+  .app-mode-sidebar:hover .workspace-user-card {
+    width: 100%;
+    min-width: 0;
+    gap: 7px;
+    border-color: var(--border-soft);
+    background: var(--surface);
+    padding: 10px;
+  }
+
+  .app-mode-sidebar .workspace-user-card > span,
+  .app-mode-sidebar .workspace-user-card > strong {
+    overflow: hidden;
+    max-width: 0;
+    max-height: 0;
+    opacity: 0;
+    white-space: nowrap;
+    transition: max-width 170ms ease, max-height 170ms ease, opacity 140ms ease;
+  }
+
+  .app-mode-sidebar:hover .workspace-user-card > span,
+  .app-mode-sidebar:hover .workspace-user-card > strong {
+    max-width: 190px;
+    max-height: 24px;
+    opacity: 1;
+  }
+
+  .app-mode-sidebar .workspace-user-card .secondary {
+    justify-content: center;
+    width: 50px;
+    min-width: 50px;
+    min-height: 44px;
+    overflow: hidden;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .app-mode-sidebar:hover .workspace-user-card .secondary {
+    width: 100%;
+    min-width: 0;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-mode-sidebar,
+  .app-mode-sidebar *,
+  .workspace-brand-logo {
+    transition: none !important;
+  }
+}
+
+/* Verkup OS polish: compact operational density, lighter type, stable hover states. */
+:where(body, button, input, select, textarea) {
+  font-family: var(--font-sans);
+  font-weight: 400;
+}
+
+:where(h1, h2, h3, h4, .workspace-mobile-title strong, .installations-section-head h2) {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+:where(strong, b) {
+  font-weight: 600;
+}
+
+:where(
+  .stage-tabs button,
+  .deal-title span,
+  .mobile-deal-title strong,
+  .production-card-title,
+  .production-card-title strong,
+  .employee-row-summary strong,
+  .employee-group-grid span,
+  .planner-job strong,
+  .planner-lane-head strong,
+  .installation-view-switch button,
+  .installation-list-mode-button
+) {
+  font-weight: 500;
+}
+
+:where(.deal-table, .deal-table td, .deal-table th, .production-deal-card, .production-employee-row, .installations-app) {
+  font-size: 13px;
+  line-height: 1.32;
+}
+
+:where(.secondary, .primary, .danger, .icon-button, .compact) {
+  font-weight: 500;
+}
+
+.deal-title span,
+.production-card-title strong,
+.employee-row-summary strong {
+  font-size: 14px;
+  line-height: 1.22;
+}
+
+.stage-tabs button {
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.stage-tabs button.active {
+  background: var(--primary);
+}
+
+.employee-management-shell .production-employee-form {
+  grid-template-columns: minmax(160px, 1.2fr) minmax(140px, 0.9fr) minmax(130px, 0.8fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr) auto;
+  gap: 8px;
+}
+
+.employee-management-shell .production-employee-form input,
+.employee-management-shell .production-employee-form select,
+.employee-access-controls select,
+.employee-credentials-panel input,
+.employee-payout-controls input {
+  min-height: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.employee-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  gap: 8px;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.employee-group-grid button {
+  min-height: 70px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.employee-group-grid span {
+  font-size: 14px;
+  line-height: 1.12;
+}
+
+.employee-group-grid small {
+  display: -webkit-box;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.22;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.employee-group-grid strong {
+  width: 26px;
+  height: 26px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.employee-management-shell .production-employee-row.employee-admin-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) minmax(520px, 2fr);
+  align-items: start;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 16px;
+}
+
+.employee-management-shell .employee-row-summary {
+  align-items: center;
+  min-height: 48px;
+  padding: 0;
+}
+
+.employee-management-shell .employee-row-avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.employee-access-controls {
+  display: grid;
+  grid-template-columns: minmax(142px, 0.7fr) minmax(0, 2fr);
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.employee-access-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.employee-access-actions button {
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.1;
+}
+
+.employee-credentials-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr);
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--primary-soft));
+}
+
+.employee-payout-controls {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.employee-payout-controls > span {
+  margin-right: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.employee-list-head {
+  padding: 8px 0;
+}
+
+.installation-planner-toolbar {
+  align-items: stretch;
+  gap: 8px;
+}
+
+.installation-date-control,
+.installation-view-switch,
+.installation-month-view-control,
+.installation-list-mode-button,
+.installation-planner-toolbar > button {
+  min-height: 42px;
+}
+
+.installation-view-switch button,
+.installation-list-mode-button,
+.installation-date-control button,
+.installation-date-control input,
+.installation-month-view-control input {
+  min-height: 42px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.installation-view-switch {
+  padding: 4px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, var(--primary-muted));
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.installation-view-switch button {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.installation-view-switch button.active,
+.installation-list-mode-button.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+.installation-planner-shell {
+  align-items: stretch;
+  overscroll-behavior: contain;
+}
+
+.installation-scheduler {
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
+}
+
+.planner-row,
+.planner-row-track {
+  min-height: 76px;
+}
+
+.planner-job {
+  min-height: 56px;
+  overflow: hidden;
+  border-radius: 10px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    background-color 160ms ease;
+}
+
+.planner-job:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.planner-job span,
+.planner-job small,
+.planner-job em {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-job-bar {
+  bottom: 10px;
+}
+
+.installation-details {
+  max-width: min(560px, calc(100vw - 32px));
+  overflow-x: clip;
+  scrollbar-gutter: stable;
+}
+
+.installation-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.installation-photo-grid figure {
+  min-width: 0;
+}
+
+.installation-photo-link img,
+.worker-gallery-thumb img,
+.worker-gallery-viewer-stage img {
+  image-rendering: auto;
+}
+
+.worker-gallery-viewer-backdrop {
+  z-index: 5000;
+}
+
+.worker-gallery-viewer {
+  width: min(960px, calc(100vw - 24px));
+  height: min(760px, calc(100dvh - 24px));
+  max-height: calc(100dvh - 24px);
+}
+
+.worker-gallery-viewer-stage {
+  min-height: 0;
+}
+
+.worker-gallery-viewer-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.worker-gallery-deal {
+  min-height: 74px;
+}
+
+.worker-gallery-thumb {
+  width: 58px;
+  height: 58px;
+}
+
+.worker-gallery-deal strong,
+.worker-gallery-deal span,
+.worker-gallery-deal small {
+  font-weight: 500;
+}
+
+@media (max-width: 1180px) {
+  .employee-management-shell .production-employee-form,
+  .employee-management-shell .production-employee-row.employee-admin-row,
+  .employee-access-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-access-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  :where(.deal-table, .deal-table td, .deal-table th, .production-deal-card, .production-employee-row, .installations-app) {
+    font-size: 14px;
+  }
+
+  .employee-group-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-management-shell .production-employee-row.employee-admin-row {
+    padding: 12px;
+  }
+
+  .employee-access-actions button {
+    min-height: 44px;
+  }
+
+  .employee-credentials-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .worker-gallery-viewer {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planner-job,
+  .worker-gallery-viewer,
+  .app-mode-sidebar,
+  .app-mode-sidebar * {
+    transition: none;
+  }
+}
+
+/* Final service polish: readable labels, overlay sidebar, compact staff rows, stable planner. */
+@media (min-width: 721px) {
+  .app-mode-sidebar {
+    isolation: isolate;
+    will-change: width, box-shadow;
+  }
+
+  .app-mode-sidebar:not(:hover) {
+    box-shadow: none;
+  }
+
+  .workspace-brand-button {
+    grid-template-columns: 50px minmax(0, 1fr);
+    min-height: 64px;
+  }
+
+  .workspace-brand-mark {
+    width: 40px;
+    height: 40px;
+    transform: none;
+  }
+
+  .workspace-brand-logo {
+    top: 8px;
+    left: 4px;
+    width: 142px;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .app-mode-sidebar:hover .workspace-brand-logo {
+    visibility: visible;
+  }
+
+  .app-mode-sidebar:hover .workspace-brand-mark {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.72);
+  }
+}
+
+.employee-management-shell {
+  overflow-x: clip;
+}
+
+.employee-management-shell .employee-group-grid {
+  grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+  gap: 8px;
+}
+
+.employee-management-shell .employee-group-grid button {
+  min-height: 62px;
+  padding: 9px 10px;
+}
+
+.employee-management-shell .employee-group-grid span {
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.employee-management-shell .employee-group-grid small {
+  font-size: 11.5px;
+  line-height: 1.18;
+}
+
+.employee-management-shell .production-employee-row.employee-admin-row {
+  grid-template-columns: minmax(210px, 0.75fr) minmax(0, 2.4fr);
+  gap: 10px;
+  padding: 9px 12px;
+}
+
+.employee-management-shell .employee-access-controls {
+  grid-template-columns:
+    minmax(122px, 0.7fr)
+    minmax(110px, 0.7fr)
+    minmax(140px, 0.8fr)
+    minmax(0, max-content);
+  align-items: center;
+}
+
+.employee-management-shell .employee-access-actions {
+  justify-content: flex-end;
+}
+
+.employee-management-shell .employee-access-actions button {
+  min-height: 36px;
+  padding: 7px 10px;
+}
+
+.installation-planner-shell,
+.installation-scheduler {
+  overscroll-behavior: contain;
+}
+
+.installation-scheduler {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+}
+
+.installation-scheduler:hover {
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: contain;
+}
+
+.planner-row-track,
+.planner-lane-head {
+  min-height: var(--planner-row-height, 92px);
+}
+
+.planner-job {
+  min-height: 62px;
+  padding-bottom: 10px;
+}
+
+.planner-job-bar {
+  bottom: 8px;
+}
+
+@media (max-width: 1360px) {
+  .employee-management-shell .production-employee-row.employee-admin-row {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-management-shell .employee-access-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .employee-management-shell .employee-access-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 900px) {
+  .employee-management-shell .production-employee-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .employee-management-shell .employee-group-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .installation-planner-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .installation-date-control,
+  .installation-view-switch,
+  .installation-month-view-control,
+  .installation-list-mode-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .employee-management-shell .production-employee-form,
+  .employee-management-shell .employee-access-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-management-shell .employee-group-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-management-shell .employee-access-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 }

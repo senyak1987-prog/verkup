@@ -6,6 +6,7 @@ export const accessRoleLabels: Record<ProductionAccessRole, string> = {
   technologist: "Сметчик / технолог",
   manager: "Менеджер",
   shopChief: "Начальник цеха",
+  installationChief: "Начальник монтажей",
   maker: "Макетчик",
 };
 
@@ -40,6 +41,7 @@ export function canCreateAccessRole(
   const currentRole = accessRoleFor(currentEmployee);
   if (currentRole === "leader") return true;
   if (currentRole === "shopChief") return targetRole === "maker" || targetRole === "none";
+  if (currentRole === "installationChief") return targetRole === "maker" || targetRole === "none";
   return false;
 }
 
