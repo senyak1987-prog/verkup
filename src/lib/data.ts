@@ -13,7 +13,7 @@ import { createEmptyStoredWarehouse, normalizeWarehouse } from "./warehouse";
 const configuredApiUrl = (import.meta.env.VITE_SAVE_API_URL || "").trim().replace(/\/+$/, "");
 const CACHE_PREFIX = "verkup:data:";
 const CATALOG_FAVORITES_KEY = `${CACHE_PREFIX}catalog:favorites`;
-const REQUEST_TIMEOUT_MS = 6000;
+const REQUEST_TIMEOUT_MS = 18000;
 const DEAL_CACHE_RETAIN_MS = 24 * 60 * 60 * 1000;
 const DEAL_CACHE_VERSION = 3;
 const EMBEDDED_PRODUCTION_KEY = "__production";
@@ -149,9 +149,7 @@ export async function loadFreshInstallations() {
 
 export async function loadCatalogs() {
   return withCatalogFavoriteOverrides(
-    await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs, {
-      preferApi: true,
-    }),
+    await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs),
   );
 }
 
@@ -159,7 +157,6 @@ export async function loadFreshCatalogs() {
   return withCatalogFavoriteOverrides(
     await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs, {
       ignoreCache: true,
-      preferApi: true,
     }),
   );
 }

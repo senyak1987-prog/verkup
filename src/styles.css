@@ -16591,6 +16591,8 @@ td,
   .workspace-brand-mark {
     width: 40px;
     height: 40px;
+    object-fit: cover;
+    object-position: left center;
     transform: none;
   }
 

@@ -471,10 +471,9 @@ export default function App() {
 
     async function loadInitialData() {
       try {
-        const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
+        const [dealsData, calculationsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
           loadDeals(),
           loadCalculations(),
-          loadCatalogs(),
           loadTechSpecs(),
           loadProduction(),
           loadInstallations(),
@@ -485,15 +484,18 @@ export default function App() {
         const nextDeals = applyPendingStageMoves(dealsData.items);
         setDeals(nextDeals);
         setStoredCalculations(calculationsData);
-        setCatalogItems(catalogsData.items);
         applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
         applyLoadedInstallationsData(installationsData);
         setStoredWarehouse(warehouseData);
         storedWarehouseRef.current = warehouseData;
         writeCachedDeals({ ...dealsData, items: nextDeals });
         writeCachedCalculations(calculationsData);
-        writeCachedCatalogs(catalogsData);
         writeCachedWarehouse(warehouseData);
+        void loadCatalogs().then((catalogsData) => {
+          if (canceled) return;
+          setCatalogItems(catalogsData.items);
+          writeCachedCatalogs(catalogsData);
+        });
       } finally {
         if (!canceled) setLoading(false);
       }
@@ -519,9 +521,8 @@ export default function App() {
     }
 
     async function refreshProductionData() {
-      const [calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
+      const [calculationsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
         loadFreshCalculations(),
-        loadFreshCatalogs(),
         loadFreshTechSpecs(),
         loadFreshProduction(),
         loadFreshInstallations(),
@@ -530,13 +531,11 @@ export default function App() {
       if (canceled) return;
 
       setStoredCalculations(calculationsData);
-      setCatalogItems(catalogsData.items);
       applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
       applyLoadedInstallationsData(installationsData);
       setStoredWarehouse(warehouseData);
       storedWarehouseRef.current = warehouseData;
       writeCachedCalculations(calculationsData);
-      writeCachedCatalogs(catalogsData);
       writeCachedWarehouse(warehouseData);
     }
 
@@ -1442,7 +1441,7 @@ export default function App() {
               alt=""
               aria-hidden="true"
               className="workspace-brand-mark"
-              src={`${import.meta.env.BASE_URL}verkup-app-icon-v4-mark.svg`}
+              src={`${import.meta.env.BASE_URL}verkup-logo-vector.svg`}
             />
             <img
               alt=""

@@ -103,7 +103,17 @@ try {
 
     if ($method === 'POST' && $path === '/save-catalogs') {
         $body = request_json();
-        write_data_file('catalogs.json', is_array(array_get($body, 'data', null)) ? $body['data'] : []);
+        $incoming = is_array(array_get($body, 'data', null)) ? $body['data'] : [];
+        $incomingItems = is_array(array_get($incoming, 'items', null)) ? $incoming['items'] : [];
+        $current = read_data_file('catalogs.json');
+        $currentItems = is_array(array_get($current, 'items', null)) ? $current['items'] : [];
+        if (!count($incomingItems) && count($currentItems)) {
+            json_response([
+                'ok' => false,
+                'error' => 'Refusing to overwrite non-empty catalogs.json with an empty catalog',
+            ], 409);
+        }
+        write_data_file('catalogs.json', $incoming);
         json_response(['ok' => true]);
     }
 
