@@ -221,6 +221,12 @@ export function DealTable({
 
   return (
     <main className="deal-list">
+      <section className="workspace-page-hero cost-page-hero">
+        <span className="eyebrow">Себестоимость</span>
+        <h1>Сделки</h1>
+        <p>Расчеты, ТЗ, статусы и производственная себестоимость в одном рабочем списке.</p>
+      </section>
+
       <div className="toolbar">
         <div>
           {topTabs}

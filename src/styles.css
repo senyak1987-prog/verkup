@@ -16591,8 +16591,8 @@ td,
   .workspace-brand-mark {
     width: 40px;
     height: 40px;
-    object-fit: cover;
-    object-position: left center;
+    object-fit: contain;
+    object-position: center;
     transform: none;
   }
 
@@ -16754,6 +16754,168 @@ td,
   opacity: 1 !important;
   align-items: center;
   gap: 8px;
+}
+
+/* Matte liquid-glass surface language for the workspace shell. */
+:root {
+  --liquid-glass-bg: rgba(255, 253, 248, 0.78);
+  --liquid-glass-strong: rgba(255, 255, 255, 0.88);
+  --liquid-glass-border: rgba(229, 214, 196, 0.82);
+  --liquid-glass-shadow: 0 18px 44px rgba(72, 54, 36, 0.09), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  --liquid-glass-blur: blur(18px) saturate(1.08);
+}
+
+.workspace-page-hero,
+.warehouse-hero,
+.installations-toolbar,
+.production-topbar,
+.toolbar,
+.production-batch-bar,
+.kpi,
+.production-kpi,
+.warehouse-summary-card,
+.installations-summary-card,
+.employee-management-shell,
+.table-wrap,
+.warehouse-panel,
+.installations-board,
+.installations-queue,
+.installations-notifications,
+.installation-map-panel {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(255, 247, 237, 0.62)),
+    var(--liquid-glass-bg);
+  border-color: var(--liquid-glass-border);
+  box-shadow: var(--liquid-glass-shadow);
+  backdrop-filter: var(--liquid-glass-blur);
+  -webkit-backdrop-filter: var(--liquid-glass-blur);
+}
+
+.workspace-page-hero {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 18px 20px;
+  border: 1px solid var(--liquid-glass-border);
+  border-radius: 20px;
+}
+
+.workspace-page-hero .eyebrow,
+.warehouse-hero .eyebrow,
+.installations-toolbar .eyebrow,
+.production-topbar .eyebrow {
+  color: color-mix(in srgb, var(--primary) 78%, #8b3a00);
+  font-size: 12px;
+  font-weight: 720;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.workspace-page-hero h1,
+.warehouse-hero h1,
+.installations-toolbar h1,
+.production-topbar h1 {
+  margin: 0;
+  color: #101828;
+  font-size: clamp(24px, 2.3vw, 34px);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.workspace-page-hero p,
+.warehouse-hero p,
+.installations-toolbar p {
+  max-width: 780px;
+  margin: 0;
+  color: #667085;
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.deal-list > .toolbar {
+  margin-top: 0;
+}
+
+.app-mode-sidebar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(255, 250, 243, 0.78)),
+    rgba(255, 253, 248, 0.84);
+  backdrop-filter: blur(18px) saturate(1.06);
+  -webkit-backdrop-filter: blur(18px) saturate(1.06);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .workspace-page-hero,
+  .warehouse-hero,
+  .installations-toolbar,
+  .production-topbar,
+  .toolbar,
+  .production-batch-bar,
+  .kpi,
+  .production-kpi,
+  .warehouse-summary-card,
+  .installations-summary-card,
+  .employee-management-shell,
+  .table-wrap,
+  .warehouse-panel,
+  .installations-board,
+  .installations-queue,
+  .installations-notifications,
+  .installation-map-panel {
+    background: #fffdfa;
+  }
+}
+
+/* Mobile pull-to-refresh brand: same scale as the header logo, animated per letter. */
+.production-pull-refresh {
+  width: min(156px, 46vw);
+  height: 54px;
+}
+
+.production-pull-refresh-logo {
+  width: min(148px, 42vw);
+  max-height: 34px;
+  transform: translateY(var(--pull-logo-y, 4px)) scale(var(--pull-logo-scale, 0.92));
+}
+
+.production-pull-refresh.refreshing .logo-letter {
+  animation-name: verkupRefreshLetterWave;
+}
+
+@keyframes verkupRefreshLetterWave {
+  0%,
+  100% {
+    opacity: 0.78;
+    transform: translateY(0) scale(1);
+  }
+
+  34% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.04);
+  }
+
+  68% {
+    opacity: 0.9;
+    transform: translateY(3px) scale(0.99);
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-page-hero,
+  .warehouse-hero,
+  .installations-toolbar,
+  .production-topbar {
+    border-radius: 18px;
+    padding: 14px 16px;
+  }
+
+  .workspace-page-hero h1,
+  .warehouse-hero h1,
+  .installations-toolbar h1,
+  .production-topbar h1 {
+    font-size: 22px;
+  }
 }
 
 @media (min-width: 761px) {

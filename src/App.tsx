@@ -1441,7 +1441,7 @@ export default function App() {
               alt=""
               aria-hidden="true"
               className="workspace-brand-mark"
-              src={`${import.meta.env.BASE_URL}verkup-logo-vector.svg`}
+              src={`${import.meta.env.BASE_URL}verkup-logo-mark-fixed.svg`}
             />
             <img
               alt=""

@@ -2369,6 +2369,11 @@ export function ProductionMobileApp({
       {effectiveView === "supervisor" ? (
         <section className="production-layout production-only-layout">
           <section className="production-main-column">
+            <section className="workspace-page-hero production-page-hero">
+              <span className="eyebrow">Производство</span>
+              <h1>Сборка и фотоотчеты</h1>
+              <p>Назначение макетчиков, контроль готовности и проверка выполненных сделок.</p>
+            </section>
             <section className="production-kpis" aria-label="Сводка производства">
               <ProductionKpi label="К запуску" value={productionDeals.length} />
               <ProductionKpi label="На сборке" value={productionStats.inProgress} />
@@ -3050,7 +3055,7 @@ function PullRefreshIndicator({
       >
         <g className="production-pull-refresh-logo-motion">
           <g className="production-pull-refresh-logo-part logo-wave-1">
-            <g transform="translate(0 8) scale(0.34)">
+            <g transform="translate(0 47.6) scale(0.34 -0.34)">
               <path fill="#ff7500" d="M 140.2427 89.3798 L 121.1108 89.3798 L 90.4986 0.0000 L 109.6305 0.0000 Z" />
               <path fill="#ff7500" d="M 84.3738 70.1626 L 108.4039 0.0000 L 89.2721 0.0000 L 68.9315 59.3892 C 72.8082 61.8673 79.6830 66.7664 84.3738 70.1626" />
               <path fill="#7a3800" d="M 54.8765 51.3612 L 72.4674 0.0000 L 53.3356 0.0000 L 38.3406 43.7825 C 43.9994 46.0670 49.4884 48.5779 54.8765 51.3612" />
