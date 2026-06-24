@@ -221,7 +221,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-22T11:48:42.986Z",
+    "generatedAt": "2026-06-24T10:16:38.717Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -258,11 +258,21 @@
         "name": "Иван",
         "login": "123",
         "role": "maker",
-        "accessRole": "maker",
+        "accessRole": "none",
         "phone": "",
-        "active": true,
+        "active": false,
         "createdAt": "2026-06-18T15:09:59.903Z",
-        "pinHash": "d5be3f9df5bf90dcb57a9c98a7e459c58194f920c2925661fec82dc0b3345fec"
+        "pushSubscriptions": [
+          {
+            "endpoint": "https://web.push.apple.com/QJvxRxeC98JPCcWgsKvu2nWOda_26B2wBeywe3C3sj7lK6GIspVNv-pyTwYW6jQSNkaSPwGJGNUbZjv9h3jTT57LYgWYGzs98YvMnFyfs5x0nMi1t8ezTxWt_3Pc4DOVIPa2PokKIz1HApMvsmLFBQ1_JSkmF3ehS1VQ_LFsDqI",
+            "keys": {
+              "auth": "ebDhOVbyCiw7Zk6w77-QKg",
+              "p256dh": "BNsZQggstZwTdoH2PciRbTNTQux9V7vuaQxwKdfJRDt9mDH271F7ZQLOeWoU3-EDhX9NPJEUZ3JUJ7FvVbnM-Lc"
+            },
+            "subscribedAt": "2026-06-19T16:45:21.981Z",
+            "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1"
+          }
+        ]
       },
       {
         "id": "a1ff7e46-ca73-476c-9375-b1dcc34bc84b",
@@ -333,7 +343,7 @@
         "token": "40a8a0d6371675c55bcb2b042e212f5c0cd8",
         "createdAt": "2026-06-19T16:10:17.363Z",
         "createdBy": "leader-semen",
-        "active": false
+        "active": true
       }
     ],
     "assignments": [
