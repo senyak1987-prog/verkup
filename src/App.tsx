@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Calculator, CalendarDays, Factory, LogOut, PackageSearch, UsersRound } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
 import { CatalogManager } from "./components/CatalogManager";
@@ -256,6 +257,7 @@ type ManagerDealPortalProps = {
 };
 
 export default function App() {
+  const prefersReducedMotion = useReducedMotion();
   const [deals, setDeals] = useState<Deal[]>(() => readCachedDeals()?.items || []);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>(
     () => readCachedCatalogs()?.items || [],
@@ -1393,7 +1395,12 @@ export default function App() {
   }
 
   return (
-    <div className={`app workspace-app workspace-${workspaceMode}`}>
+    <motion.div
+      className={`app workspace-app workspace-${workspaceMode}`}
+      initial={prefersReducedMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
+    >
       {loading && <div className="loading">Загружаю данные...</div>}
       {workspaceMode === "costing" && canUseCosting && unresolvedResponsibleIds.length > 0 && (
         <div className="data-health-warning" role="status">
@@ -1418,7 +1425,13 @@ export default function App() {
         </div>
       ) : null}
       {availableModeCount > 1 ? (
-        <aside className="app-mode-sidebar" aria-label="Навигация Verkup">
+        <motion.aside
+          className="app-mode-sidebar"
+          aria-label="Навигация Verkup"
+          initial={prefersReducedMotion ? false : { opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+        >
           <button
             aria-label="Открыть главный экран Verkup"
             className="workspace-brand workspace-brand-button"
@@ -1452,10 +1465,17 @@ export default function App() {
               </button>
             </div>
           ) : null}
-        </aside>
+        </motion.aside>
       ) : null}
       <div className="workspace-shell">
-        <section className="workspace-content" aria-label={workspaceTitle}>
+        <motion.section
+          key={workspaceMode}
+          className="workspace-content"
+          aria-label={workspaceTitle}
+          initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+        >
           {availableModeCount > 1 ? (
             <header className="workspace-mobile-title">
               <span>Verkup</span>
@@ -1574,23 +1594,33 @@ export default function App() {
             : "Для этой роли нет доступных разделов."}
         </main>
       )}
-        </section>
+        </motion.section>
         {availableModeCount > 1 ? (
           <nav className="workspace-bottom-nav app-mode-switch" role="tablist" aria-label="Режим приложения">
             {renderWorkspaceModeButtons()}
           </nav>
         ) : null}
       </div>
-      {catalogOpen && workspaceMode === "costing" && (
-        <CatalogManager
-          items={catalogItems}
-          initialDraft={pendingCatalogInsert?.item}
-          onApplyAndReturn={pendingCatalogInsert ? handleCatalogInsertApplied : undefined}
-          onChange={handleCatalogChange}
-          onClose={handleCatalogClose}
-        />
-      )}
-    </div>
+      <AnimatePresence>
+        {catalogOpen && workspaceMode === "costing" && (
+          <motion.div
+            className="motion-modal-host"
+            initial={prefersReducedMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+          >
+            <CatalogManager
+              items={catalogItems}
+              initialDraft={pendingCatalogInsert?.item}
+              onApplyAndReturn={pendingCatalogInsert ? handleCatalogInsertApplied : undefined}
+              onChange={handleCatalogChange}
+              onClose={handleCatalogClose}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -1782,17 +1812,20 @@ function AppTopTabs({
   return (
     <div className="stage-tabs" role="tablist" aria-label="Разделы">
       {DEAL_STAGE_TABS.map((stage) => (
-        <button
+        <motion.button
           aria-selected={activeTab === stage}
           className={activeTab === stage ? "active" : ""}
           key={stage}
           onClick={() => onChange(stage)}
           role="tab"
           type="button"
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ duration: 0.14, ease: "easeOut" }}
         >
           {stageLabels[stage]}
           <span>{stageCounts[stage]}</span>
-        </button>
+        </motion.button>
       ))}
     </div>
   );

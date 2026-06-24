@@ -16758,3 +16758,250 @@ td,
     width: auto;
   }
 }
+
+/* Motion design pass: compact editorial admin polish with stable layout. */
+:root {
+  --ease-ui: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-fast: 140ms;
+  --motion-base: 210ms;
+  --surface-glow: rgba(242, 106, 18, 0.08);
+  --shadow-focus: 0 0 0 3px color-mix(in srgb, var(--primary) 16%, transparent);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 26px rgba(15, 23, 42, 0.055);
+  --shadow-card-hover: 0 2px 4px rgba(15, 23, 42, 0.05), 0 16px 34px rgba(15, 23, 42, 0.085);
+}
+
+.motion-modal-host {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.motion-modal-host > * {
+  pointer-events: auto;
+}
+
+button,
+a,
+.mobile-deal-card,
+.production-deal-card,
+.employee-group-grid button,
+.employee-admin-row,
+.installation-card,
+.warehouse-card,
+.catalog-item-card,
+.kpi,
+.summary,
+.production-kpi,
+.table-wrap,
+.deal-workspace,
+.catalog-modal,
+.employee-popover-surface {
+  transition:
+    background-color var(--motion-base) var(--ease-ui),
+    border-color var(--motion-base) var(--ease-ui),
+    box-shadow var(--motion-base) var(--ease-ui),
+    color var(--motion-fast) var(--ease-ui),
+    opacity var(--motion-fast) var(--ease-ui),
+    transform var(--motion-fast) var(--ease-ui);
+}
+
+.primary,
+.secondary,
+.danger,
+.production-mobile .primary,
+.production-mobile .secondary,
+.manager-deal-head a,
+.worker-profile-menu button,
+.worker-profile-menu label,
+.worker-profile-menu-trigger,
+.tech-spec-export-popover button {
+  min-height: 40px;
+  border-radius: 13px;
+  font-weight: 620;
+  line-height: 1.12;
+}
+
+.primary,
+.production-mobile .primary,
+.public-upload {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #ffffff 10%, transparent), transparent),
+    var(--primary);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.primary:hover,
+.production-mobile .primary:hover,
+.public-upload:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--primary) 28%, transparent);
+}
+
+.primary:active,
+.secondary:active,
+.danger:active,
+.icon-button:active,
+.production-mobile .primary:active,
+.production-mobile .secondary:active {
+  transform: translateY(0) scale(0.985);
+}
+
+.secondary,
+.production-mobile .secondary,
+.manager-deal-head a,
+.worker-profile-menu button,
+.worker-profile-menu label,
+.worker-profile-menu-trigger {
+  border-color: color-mix(in srgb, var(--border) 86%, var(--surface));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, #ffffff 72%, transparent), transparent),
+    var(--surface);
+}
+
+.secondary:hover,
+.production-mobile .secondary:hover,
+.manager-deal-head a:hover,
+.worker-profile-menu button:hover,
+.worker-profile-menu label:hover,
+.worker-profile-menu-trigger:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.icon-button,
+.favorite-toggle,
+.row-actions button,
+.row-actions a,
+.drawer-head button,
+.catalog-modal-head button,
+.position-row button,
+.production-card-check {
+  border-radius: 12px;
+}
+
+.stage-tabs,
+.deal-workspace-tabs,
+.access-tabs,
+.worker-tabs,
+.production-section-tabs,
+.production-view-switch,
+.catalog-group-tabs,
+.installation-view-switch,
+.planner-view-switch {
+  border-radius: 16px;
+  padding: 4px;
+}
+
+.stage-tabs button,
+.deal-workspace-tabs button,
+.access-tabs button,
+.worker-tabs button,
+.production-section-tabs button,
+.production-view-switch button,
+.catalog-group-tabs button,
+.installation-view-switch button,
+.planner-view-switch button {
+  border-radius: 12px;
+  font-weight: 620;
+}
+
+.stage-tabs button.active,
+.deal-workspace-tabs button.active,
+.access-tabs button.active,
+.worker-tabs button.active,
+.production-section-tabs button.active,
+.production-view-switch button.active,
+.catalog-group-tabs button.active,
+.installation-view-switch button.active,
+.planner-view-switch button.active {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 8px 18px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.kpi,
+.summary,
+.cost-chip,
+.calc-block,
+.material-subblock,
+.block-add-card,
+.catalog-panel,
+.catalog-sidebar,
+.catalog-form,
+.catalog-modal-card,
+.tech-spec-doc-page,
+.deal-workspace,
+.builder-controls,
+.builder-summary,
+.builder-preview,
+.summary-block,
+.production-panel,
+.production-deal-card,
+.production-empty,
+.production-notification,
+.production-batch-bar,
+.production-kpi,
+.production-worker-head,
+.worker-profile,
+.worker-tabs,
+.worker-password-panel,
+.registration-links,
+.registration-requests,
+.employee-group-grid button,
+.mobile-deal-card,
+.mobile-deal-empty,
+.warehouse-panel,
+.installation-panel,
+.installation-map-card,
+.installation-planner-card {
+  box-shadow: var(--shadow-card);
+}
+
+.mobile-deal-card:hover,
+.production-deal-card:hover,
+.employee-group-grid button:hover,
+.catalog-item-card:hover,
+.kpi:hover,
+.summary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.deals-table .clickable-row td {
+  transition:
+    background-color var(--motion-fast) var(--ease-ui),
+    box-shadow var(--motion-fast) var(--ease-ui);
+}
+
+.clickable-row:hover td {
+  background: color-mix(in srgb, var(--surface-hover) 76%, var(--primary-soft));
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+select:focus,
+textarea:focus,
+.column-filter:focus,
+.autosave-input:focus {
+  box-shadow: var(--shadow-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .primary:hover,
+  .secondary:hover,
+  .mobile-deal-card:hover,
+  .production-deal-card:hover,
+  .employee-group-grid button:hover,
+  .catalog-item-card:hover,
+  .kpi:hover,
+  .summary:hover {
+    transform: none;
+  }
+}

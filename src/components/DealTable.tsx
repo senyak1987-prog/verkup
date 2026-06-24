@@ -1,4 +1,5 @@
 import { ArrowDownUp, Database, ExternalLink, FilterX, Pencil, RotateCcw, Search } from "lucide-react";
+import { motion } from "framer-motion";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Deal, DealCalculation } from "../types";
@@ -312,10 +313,13 @@ export function DealTable({
               : animatedExpandedRow?.content || expandedRowCacheRef.current.get(deal.id);
 
           return (
-            <article
+            <motion.article
               className={isSelected ? "mobile-deal-card selected" : "mobile-deal-card"}
               data-deal-id={deal.id}
               key={deal.id}
+              layout
+              whileTap={{ scale: 0.992 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
             >
               <button className="mobile-deal-card-main" onClick={() => onSelect(deal)} type="button">
                 <span className="mobile-deal-number">#{deal.number}</span>
@@ -371,7 +375,7 @@ export function DealTable({
                   </div>
                 </div>
               ) : null}
-            </article>
+            </motion.article>
           );
         })}
         {!visibleDeals.length ? (
