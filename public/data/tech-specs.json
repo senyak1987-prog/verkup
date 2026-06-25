@@ -221,7 +221,7 @@
     }
   ],
   "__production": {
-    "generatedAt": "2026-06-24T10:16:41.259Z",
+    "generatedAt": "2026-06-25T09:30:01.058Z",
     "employees": [
       {
         "id": "leader-semen",
@@ -258,10 +258,11 @@
         "name": "Иван",
         "login": "123",
         "role": "maker",
-        "accessRole": "none",
+        "accessRole": "maker",
         "phone": "",
-        "active": false,
+        "active": true,
         "createdAt": "2026-06-18T15:09:59.903Z",
+        "pinHash": "d5be3f9df5bf90dcb57a9c98a7e459c58194f920c2925661fec82dc0b3345fec",
         "pushSubscriptions": [
           {
             "endpoint": "https://web.push.apple.com/QJvxRxeC98JPCcWgsKvu2nWOda_26B2wBeywe3C3sj7lK6GIspVNv-pyTwYW6jQSNkaSPwGJGNUbZjv9h3jTT57LYgWYGzs98YvMnFyfs5x0nMi1t8ezTxWt_3Pc4DOVIPa2PokKIz1HApMvsmLFBQ1_JSkmF3ehS1VQ_LFsDqI",
@@ -345,22 +346,7 @@
       }
     ],
     "assignments": [],
-    "payouts": [
-      {
-        "id": "ef07243f-c4f0-4523-abfa-bdc6c8f280f9",
-        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
-        "amount": 10000,
-        "paidAt": "2026-06-22T06:27:19.645Z",
-        "paidBy": "leader-semen"
-      },
-      {
-        "id": "00571040-deed-46b7-8cd8-e18c4db03190",
-        "employeeId": "b00155ce-475d-420a-bfe9-8929107ab4e7",
-        "amount": 10000,
-        "paidAt": "2026-06-22T06:28:10.561Z",
-        "paidBy": "leader-semen"
-      }
-    ],
+    "payouts": [],
     "notifications": []
   }
 }
