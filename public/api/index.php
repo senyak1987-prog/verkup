@@ -52,15 +52,26 @@ try {
         require_bitrix_sync_token();
         $dealId = bitrix_request_deal_id();
         $eventName = bitrix_request_event_name();
-        if ($dealId !== '') {
-            $result = stripos($eventName, 'DELETE') !== false
-                ? remove_bitrix_deal_from_cache($dealId)
-                : sync_bitrix_deal($dealId);
-        } else {
+        try {
+            if ($dealId !== '') {
+                $result = stripos($eventName, 'DELETE') !== false
+                    ? remove_bitrix_deal_from_cache($dealId)
+                    : sync_bitrix_deal($dealId);
+            } else {
+                $result = [
+                    'success' => true,
+                    'skipped' => true,
+                    'reason' => 'missing_deal_id',
+                ];
+            }
+        } catch (Exception $syncError) {
+            error_log('Bitrix event sync failed: ' . $syncError->getMessage());
             $result = [
-                'success' => true,
+                'success' => false,
                 'skipped' => true,
-                'reason' => 'missing_deal_id',
+                'reason' => 'bitrix_sync_failed',
+                'error' => $syncError->getMessage(),
+                'dealId' => $dealId,
             ];
         }
         publish_realtime_event('bitrix.event', 'deals', [
