@@ -17976,3 +17976,130 @@ textarea:focus,
     max-height: min(64dvh, 520px);
   }
 }
+
+/* Mobile pull-refresh logo: one SVG, each letter has its own wave phase. */
+@media (max-width: 720px) {
+  .workspace-worker-shell .production-mobile,
+  .production-mobile:has(.production-worker-view) {
+    padding-top: calc(14px + env(safe-area-inset-top, 0px)) !important;
+  }
+
+  .production-worker-view .worker-mobile-brand {
+    min-height: 32px;
+    padding-top: 0 !important;
+    margin-top: -2px;
+    margin-bottom: 8px;
+    transform: translate3d(0, var(--pull-logo-y, 0px), 0) scale(var(--pull-logo-scale, 1));
+    transform-origin: center top;
+  }
+
+  .production-worker-view .worker-mobile-logo {
+    width: min(132px, 38vw);
+    max-height: none;
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-1 {
+    transform: translateY(var(--pull-wave-1, 0px));
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-2 {
+    transform: translateY(var(--pull-wave-2, 0px));
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-3 {
+    transform: translateY(var(--pull-wave-3, 0px));
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-4 {
+    transform: translateY(var(--pull-wave-4, 0px));
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-5 {
+    transform: translateY(var(--pull-wave-5, 0px));
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-6 {
+    transform: translateY(var(--pull-wave-6, 0px));
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-7 {
+    transform: translateY(var(--pull-wave-7, 0px));
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-8 {
+    transform: translateY(var(--pull-wave-8, 0px));
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-9 {
+    transform: translateY(var(--pull-wave-9, 0px));
+  }
+
+  .production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-10 {
+    transform: translateY(var(--pull-wave-10, 0px));
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .verkup-logo-piece {
+    animation: verkupHeaderLogoWaveStrong 900ms cubic-bezier(0.33, 1.45, 0.45, 1) infinite;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-1 {
+    animation-delay: 0ms;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-2 {
+    animation-delay: 54ms;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-3 {
+    animation-delay: 108ms;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-4 {
+    animation-delay: 162ms;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-5 {
+    animation-delay: 216ms;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-6 {
+    animation-delay: 270ms;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-7 {
+    animation-delay: 324ms;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-8 {
+    animation-delay: 378ms;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-9 {
+    animation-delay: 432ms;
+  }
+
+  .production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-10 {
+    animation-delay: 486ms;
+  }
+}
+
+@keyframes verkupHeaderLogoWaveStrong {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+
+  30% {
+    transform: translateY(7px) scale(1.018);
+  }
+
+  58% {
+    transform: translateY(-3px) scale(0.995);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .production-mobile.pull-refreshing .worker-mobile-logo .verkup-logo-piece {
+    animation: none !important;
+  }
+}
