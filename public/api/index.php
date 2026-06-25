@@ -50,9 +50,23 @@ try {
 
     if (($method === 'GET' || $method === 'POST') && $path === '/bitrix/event') {
         require_bitrix_sync_token();
-        $result = sync_bitrix_deals(true);
+        $dealId = bitrix_request_deal_id();
+        $eventName = bitrix_request_event_name();
+        if ($dealId !== '') {
+            $result = stripos($eventName, 'DELETE') !== false
+                ? remove_bitrix_deal_from_cache($dealId)
+                : sync_bitrix_deal($dealId);
+        } else {
+            $result = [
+                'success' => true,
+                'skipped' => true,
+                'reason' => 'missing_deal_id',
+            ];
+        }
         publish_realtime_event('bitrix.event', 'deals', [
-            'count' => count(array_get(array_get($result, 'data', []), 'items', [])),
+            'dealId' => $dealId,
+            'event' => $eventName,
+            'action' => array_get($result, 'action', ''),
         ]);
         json_response($result, 200);
     }

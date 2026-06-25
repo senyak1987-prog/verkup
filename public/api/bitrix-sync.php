@@ -77,6 +77,164 @@ function sync_bitrix_deals($force = false)
     }
 }
 
+function sync_bitrix_deal($dealId)
+{
+    $id = trim((string)$dealId);
+    if ($id === '') {
+        return ['success' => true, 'skipped' => true, 'reason' => 'missing_deal_id'];
+    }
+
+    if (!bitrix_config('BITRIX_WEBHOOK_URL', '')) {
+        return ['success' => false, 'skipped' => true, 'reason' => 'BITRIX_WEBHOOK_URL is not configured'];
+    }
+
+    $response = call_bitrix_rest('crm.deal.get', [
+        'id' => $id,
+    ]);
+    $deal = array_get($response, 'result', []);
+    if (!is_array($deal) || count($deal) === 0) {
+        return remove_bitrix_deal_from_cache($id);
+    }
+
+    $targetStageItems = bitrix_target_stage_items();
+    $targetStageIds = [];
+    $stageCodesById = [];
+    foreach ($targetStageItems as $stage) {
+        $stageId = (string)array_get($stage, 'id', '');
+        if ($stageId === '') continue;
+        $targetStageIds[$stageId] = true;
+        $stageCodesById[$stageId] = (string)array_get($stage, 'code', '');
+    }
+
+    $stageId = (string)array_get($deal, 'STAGE_ID', '');
+    if ($stageId !== '' && count($targetStageIds) > 0 && !isset($targetStageIds[$stageId])) {
+        return remove_bitrix_deal_from_cache($id);
+    }
+
+    $dictionaries = [
+        'stageMap' => load_bitrix_stage_map(),
+        'sourceMap' => load_bitrix_status_map('SOURCE'),
+        'typeMap' => load_bitrix_status_map('DEAL_TYPE'),
+        'customFieldMaps' => load_bitrix_custom_field_maps(),
+    ];
+
+    $responsibleId = trim((string)array_get($deal, 'ASSIGNED_BY_ID', ''));
+    $users = $responsibleId !== '' ? fetch_bitrix_users([$responsibleId]) : [];
+    $normalized = normalize_bitrix_deal($deal, $users, $dictionaries, $stageCodesById);
+
+    $data = read_data_file_raw('deals.json');
+    $items = array_get($data, 'items', []);
+    if (!is_array($items)) $items = [];
+
+    $nextItems = [];
+    $inserted = false;
+    foreach ($items as $item) {
+        if ((string)array_get($item, 'id', '') === $id) {
+            $nextItems[] = $normalized;
+            $inserted = true;
+        } else {
+            $nextItems[] = $item;
+        }
+    }
+    if (!$inserted) array_unshift($nextItems, $normalized);
+
+    $data['generatedAt'] = gmdate('c');
+    $data['stages'] = $targetStageItems;
+    $data['items'] = $nextItems;
+    write_data_file('deals.json', $data);
+
+    return [
+        'success' => true,
+        'skipped' => false,
+        'action' => $inserted ? 'updated' : 'added',
+        'dealId' => $id,
+        'data' => $data,
+    ];
+}
+
+function remove_bitrix_deal_from_cache($dealId)
+{
+    $id = trim((string)$dealId);
+    if ($id === '') {
+        return ['success' => true, 'skipped' => true, 'reason' => 'missing_deal_id'];
+    }
+
+    $data = read_data_file_raw('deals.json');
+    $items = array_get($data, 'items', []);
+    if (!is_array($items)) $items = [];
+
+    $before = count($items);
+    $items = array_values(array_filter($items, function ($item) use ($id) {
+        return (string)array_get($item, 'id', '') !== $id;
+    }));
+
+    $data['generatedAt'] = gmdate('c');
+    $data['items'] = $items;
+    if (!isset($data['stages']) || !is_array($data['stages'])) $data['stages'] = bitrix_target_stage_items();
+    write_data_file('deals.json', $data);
+
+    return [
+        'success' => true,
+        'skipped' => false,
+        'action' => $before === count($items) ? 'not_found' : 'removed',
+        'dealId' => $id,
+        'data' => $data,
+    ];
+}
+
+function bitrix_request_event_name()
+{
+    $payloads = [$_POST, $_GET, request_json_if_possible()];
+    foreach ($payloads as $payload) {
+        $event = first_text(
+            array_get($payload, 'event', ''),
+            array_get($payload, 'EVENT', ''),
+            array_get($payload, 'eventName', '')
+        );
+        if ($event !== '') return $event;
+    }
+    return '';
+}
+
+function bitrix_request_deal_id()
+{
+    $payloads = [$_POST, $_GET, request_json_if_possible()];
+    foreach ($payloads as $payload) {
+        $id = bitrix_extract_deal_id($payload);
+        if ($id !== '') return $id;
+    }
+    return '';
+}
+
+function bitrix_extract_deal_id($value)
+{
+    if (is_array($value)) {
+        foreach (['dealId', 'deal_id', 'DEAL_ID', 'ID'] as $key) {
+            $candidate = trim((string)array_get($value, $key, ''));
+            if ($candidate !== '' && preg_match('/^\d+$/', $candidate)) return $candidate;
+        }
+
+        foreach ($value as $key => $item) {
+            if (is_string($key) && preg_match('/deal/i', $key)) {
+                $candidate = bitrix_extract_deal_id($item);
+                if ($candidate !== '') return $candidate;
+            }
+        }
+
+        foreach ($value as $item) {
+            $candidate = bitrix_extract_deal_id($item);
+            if ($candidate !== '') return $candidate;
+        }
+    }
+
+    if (is_string($value)) {
+        if (preg_match('/DEAL_(\d+)/i', $value, $match)) return $match[1];
+        if (preg_match('#/crm/deal/details/(\d+)/#i', $value, $match)) return $match[1];
+    }
+
+    return '';
+}
+
 function require_bitrix_sync_token()
 {
     $token = trim((string)bitrix_config('BITRIX_SYNC_TOKEN', ''));
@@ -567,7 +725,7 @@ function move_bitrix_deal_stage($dealId, $targetStageId)
         ],
     ]);
 
-    $syncResult = sync_bitrix_deals(true);
+    $syncResult = sync_bitrix_deal($id);
     return [
         'success' => true,
         'bitrix' => $response,
