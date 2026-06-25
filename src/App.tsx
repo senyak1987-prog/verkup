@@ -337,12 +337,16 @@ export default function App() {
   );
   const managerDealId = useMemo(() => managerDealIdFromUrl(), []);
 
+  const currentAccessRole = accessRoleFor(currentEmployee);
+  const isMakerWorker = currentAccessRole === "maker" && currentEmployee?.role === "maker";
+  const isInstallerWorker = currentAccessRole === "maker" && currentEmployee?.role === "assembler";
+
   const canUseCosting = canAccessCosting(currentEmployee);
   const canUseProduction =
     canAccessProduction(currentEmployee) &&
-    !(accessRoleFor(currentEmployee) === "maker" && currentEmployee?.role === "assembler");
+    !isInstallerWorker;
   const canUseEmployees = canManageEmployees(currentEmployee);
-  const canUseInstallations = canAccessInstallations(currentEmployee);
+  const canUseInstallations = canAccessInstallations(currentEmployee) && !isMakerWorker;
   const canUseWarehouse = canAccessWarehouse(currentEmployee);
   const availableModeCount = [canUseCosting, canUseProduction, canUseInstallations, canUseWarehouse, canUseEmployees].filter(Boolean).length;
 
@@ -1445,7 +1449,7 @@ export default function App() {
 
   return (
     <motion.div
-      className={`app workspace-app workspace-${workspaceMode}`}
+      className={`app workspace-app workspace-${workspaceMode}${currentAccessRole === "maker" ? " workspace-worker-shell" : ""}`}
       initial={prefersReducedMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.18, ease: "easeOut" }}
