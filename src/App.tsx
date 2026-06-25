@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Calculator, CalendarDays, ChevronDown, CircleDollarSign, Factory, LogOut, PackageSearch, UsersRound } from "lucide-react";
+import { Calculator, CalendarDays, CircleDollarSign, Factory, LogOut, PackageSearch, UsersRound } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
@@ -71,7 +71,6 @@ import { subscribeToRealtime } from "./lib/realtime";
 import { isUnresolvedResponsible } from "./lib/responsible";
 import {
   buildDealStageOptions,
-  type DealStageOption,
   stageCodeForDeal,
   stageCodeFromStageId,
   stageIdForDeal,
@@ -1681,23 +1680,13 @@ export default function App() {
           calculations={calculationsMap}
           agentRatio={storedCalculations.agentCostRatio}
           selectedDealId={selectedDealId}
-          stageFilter={
-            <StageFilter
-              options={stageOptions}
-              selectedIds={selectedStageIds}
-              onChange={setSelectedStageIds}
-            />
-          }
-          filterLabel={
-            selectedStageIds.length
-              ? `${filteredDeals.length} сделок в выбранных стадиях`
-              : `${filteredDeals.length} сделок во всех стадиях`
-          }
           onSelect={handleDealToggle}
           onStageChange={(deal, stageId, stageName) => void handleDealStageSelect(deal, stageId, stageName)}
           onOpenCatalog={openCatalog}
           catalogCount={catalogItems.length}
           stageOptions={stageOptions}
+          selectedStageIds={selectedStageIds}
+          onStageFilterChange={setSelectedStageIds}
           query={query}
           onQueryChange={setQuery}
           expandedRow={
@@ -1937,75 +1926,6 @@ function modeForUnit(unit?: string): CostCalcMode {
 
 function defaultQuantityForMode(mode: CostCalcMode) {
   return mode === "area" ? 0 : 1;
-}
-
-function StageFilter({
-  options,
-  selectedIds,
-  onChange,
-}: {
-  options: DealStageOption[];
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const selected = new Set(selectedIds);
-  const total = options.reduce((sum, option) => sum + option.count, 0);
-  const selectedLabel =
-    selectedIds.length === 0
-      ? "Все стадии"
-      : selectedIds.length === 1
-        ? options.find((option) => option.id === selectedIds[0])?.name || "1 стадия"
-        : `${selectedIds.length} стадии`;
-
-  function toggleStage(stageId: string) {
-    const next = new Set(selectedIds);
-    if (next.has(stageId)) next.delete(stageId);
-    else next.add(stageId);
-    onChange([...next]);
-  }
-
-  return (
-    <div className="stage-filter">
-      <button
-        aria-expanded={open}
-        className="stage-filter-button"
-        onClick={() => setOpen((current) => !current)}
-        type="button"
-      >
-        <span>{selectedLabel}</span>
-        <b>{selectedIds.length === 0 ? total : selectedIds.length}</b>
-        <ChevronDown size={16} />
-      </button>
-      <AnimatePresence>
-        {open ? (
-          <motion.div
-            className="stage-filter-menu"
-            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
-          >
-            <button className="stage-filter-clear" onClick={() => onChange([])} type="button">
-              Все стадии
-              <span>{total}</span>
-            </button>
-            {options.map((option) => (
-              <label className="stage-filter-option" key={option.id}>
-                <input
-                  checked={selected.has(option.id)}
-                  onChange={() => toggleStage(option.id)}
-                  type="checkbox"
-                />
-                <span>{option.name}</span>
-                <b>{option.count}</b>
-              </label>
-            ))}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
-  );
 }
 
 function withStage(deal: Deal, stageId: string, stageName?: string, stageCode?: DealStageCode): Deal {

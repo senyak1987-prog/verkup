@@ -1,7 +1,7 @@
-import { ArrowDownUp, Database, ExternalLink, FilterX, Pencil, RotateCcw, Search } from "lucide-react";
-import { motion } from "framer-motion";
+import { ArrowDownUp, ChevronDown, Database, ExternalLink, FilterX, Pencil, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import type { Deal, DealCalculation } from "../types";
 import type { DealStageOption } from "../lib/stages";
 import {
@@ -41,11 +41,22 @@ type ColumnWidths = Record<ColumnId, number>;
 type ColumnFilters = {
   source: string;
   responsible: string;
+  type: string;
+  classification: string;
 };
 
 const emptyColumnFilters: ColumnFilters = {
   source: "",
   responsible: "",
+  type: "",
+  classification: "",
+};
+
+type DealFilterOptions = {
+  sources: string[];
+  responsibles: string[];
+  types: string[];
+  classifications: string[];
 };
 
 type SortColumnId = Extract<ColumnId, "startDate" | "finishDate">;
@@ -65,9 +76,9 @@ type DealTableProps = {
   calculations: Map<string, DealCalculation>;
   agentRatio: number;
   selectedDealId?: string;
-  stageFilter?: ReactNode;
-  filterLabel?: string;
   stageOptions?: DealStageOption[];
+  selectedStageIds?: string[];
+  onStageFilterChange?: (ids: string[]) => void;
   onStageChange?: (deal: Deal, stageId: string, stageName?: string) => void;
   onSelect: (deal: Deal) => void;
   onOpenCatalog: () => void;
@@ -82,9 +93,9 @@ export function DealTable({
   calculations,
   agentRatio,
   selectedDealId,
-  stageFilter,
-  filterLabel,
   stageOptions = [],
+  selectedStageIds = [],
+  onStageFilterChange,
   onStageChange,
   onSelect,
   onOpenCatalog,
@@ -152,6 +163,8 @@ export function DealTable({
     () => ({
       sources: uniqueValues(deals.map((deal) => deal.source)),
       responsibles: uniqueValues(deals.map((deal) => deal.responsible)),
+      types: uniqueValues(deals.map((deal) => deal.type)),
+      classifications: uniqueValues(deals.map((deal) => deal.classification)),
     }),
     [deals],
   );
@@ -163,6 +176,7 @@ export function DealTable({
   }, [columnFilters, dateSort, deals]);
 
   const hasColumnFilters = Object.values(columnFilters).some(Boolean);
+  const hasSmartFilters = hasColumnFilters || selectedStageIds.length > 0 || query.trim().length > 0;
   const animatedExpandedRowsByDeal = useMemo(
     () => new Map(animatedExpandedRows.map((row) => [row.dealId, row])),
     [animatedExpandedRows],
@@ -219,6 +233,12 @@ export function DealTable({
     setColumnFilters(emptyColumnFilters);
   }
 
+  function resetSmartFilters() {
+    setColumnFilters(emptyColumnFilters);
+    onStageFilterChange?.([]);
+    onQueryChange("");
+  }
+
   function toggleDateSort(column: SortColumnId) {
     setDateSort((current) => {
       if (!current || current.column !== column) {
@@ -236,20 +256,21 @@ export function DealTable({
         <p>Расчеты, ТЗ, статусы и производственная себестоимость в одном рабочем списке.</p>
       </section>
 
-      <div className="toolbar">
-        <div className="toolbar-filter">
-          {stageFilter}
-          <p>{filterLabel || `${visibleDeals.length} сделок в текущем фильтре`}</p>
-        </div>
+      <div className="toolbar smart-toolbar">
+        <DealSmartSearch
+          query={query}
+          onQueryChange={onQueryChange}
+          columnFilters={columnFilters}
+          onColumnFiltersChange={patchColumnFilters}
+          filterOptions={filterOptions}
+          stageOptions={stageOptions}
+          selectedStageIds={selectedStageIds}
+          onStageFilterChange={onStageFilterChange}
+          visibleCount={visibleDeals.length}
+          totalCount={deals.length}
+          onReset={resetSmartFilters}
+        />
         <div className="toolbar-actions">
-          <label className="search">
-            <Search size={18} />
-            <input
-              value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Поиск по номеру, названию, менеджеру"
-            />
-          </label>
           <button
             className="icon-button"
             title="Сбросить ширину столбцов"
@@ -258,10 +279,10 @@ export function DealTable({
             <RotateCcw size={18} />
           </button>
           <button
-            className={hasColumnFilters ? "icon-button active" : "icon-button"}
-            disabled={!hasColumnFilters}
-            title="Сбросить фильтры"
-            onClick={resetColumnFilters}
+            className={hasSmartFilters ? "icon-button active" : "icon-button"}
+            disabled={!hasSmartFilters}
+            title="Сбросить поиск и фильтры"
+            onClick={resetSmartFilters}
           >
             <FilterX size={18} />
           </button>
@@ -305,6 +326,20 @@ export function DealTable({
             {filterOptions.responsibles.map((responsible) => (
               <option key={responsible} value={responsible}>
                 {displayResponsible(responsible)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          <span>Тип</span>
+          <select
+            value={columnFilters.type}
+            onChange={(event) => patchColumnFilters({ type: event.target.value })}
+          >
+            <option value="">Все</option>
+            {filterOptions.types.map((type) => (
+              <option key={type} value={type}>
+                {type}
               </option>
             ))}
           </select>
@@ -578,6 +613,268 @@ export function DealTable({
   );
 }
 
+function DealSmartSearch({
+  query,
+  onQueryChange,
+  columnFilters,
+  onColumnFiltersChange,
+  filterOptions,
+  stageOptions,
+  selectedStageIds,
+  onStageFilterChange,
+  visibleCount,
+  totalCount,
+  onReset,
+}: {
+  query: string;
+  onQueryChange: (value: string) => void;
+  columnFilters: ColumnFilters;
+  onColumnFiltersChange: (patch: Partial<ColumnFilters>) => void;
+  filterOptions: DealFilterOptions;
+  stageOptions: DealStageOption[];
+  selectedStageIds: string[];
+  onStageFilterChange?: (ids: string[]) => void;
+  visibleCount: number;
+  totalCount: number;
+  onReset: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const selectedStages = new Set(selectedStageIds);
+  const hasFilters = Boolean(
+    query.trim() ||
+      selectedStageIds.length ||
+      columnFilters.source ||
+      columnFilters.responsible ||
+      columnFilters.type ||
+      columnFilters.classification,
+  );
+  const stageTotal = stageOptions.reduce((sum, option) => sum + option.count, 0);
+  const stageChipText =
+    selectedStageIds.length === 0
+      ? "Все стадии"
+      : selectedStageIds.length === 1
+        ? stageOptions.find((option) => option.id === selectedStageIds[0])?.name || "1 стадия"
+        : `${selectedStageIds.length} стадии`;
+
+  useEffect(() => {
+    if (!open) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [open]);
+
+  function toggleStage(stageId: string) {
+    if (!onStageFilterChange) return;
+    const next = new Set(selectedStageIds);
+    if (next.has(stageId)) next.delete(stageId);
+    else next.add(stageId);
+    onStageFilterChange([...next]);
+  }
+
+  function clearStageFilter(event: MouseEvent) {
+    event.stopPropagation();
+    onStageFilterChange?.([]);
+  }
+
+  function clearColumnFilter(key: keyof ColumnFilters) {
+    onColumnFiltersChange({ [key]: "" } as Partial<ColumnFilters>);
+  }
+
+  return (
+    <div className="deal-smart-search" ref={rootRef}>
+      <div className={open ? "deal-smart-search-box open" : "deal-smart-search-box"}>
+        <Search className="deal-smart-search-icon" size={20} />
+        <button
+          className={selectedStageIds.length ? "deal-filter-chip active" : "deal-filter-chip"}
+          onClick={() => setOpen((current) => !current)}
+          title="Фильтр по стадиям Bitrix"
+          type="button"
+        >
+          <span>{stageChipText}</span>
+          <b>{selectedStageIds.length === 0 ? stageTotal || totalCount : selectedStageIds.length}</b>
+          {selectedStageIds.length ? (
+            <X size={13} onClick={clearStageFilter} />
+          ) : (
+            <ChevronDown size={14} />
+          )}
+        </button>
+
+        {columnFilters.source ? (
+          <button className="deal-filter-chip active muted" onClick={() => clearColumnFilter("source")} type="button">
+            Источник: {columnFilters.source}
+            <X size={13} />
+          </button>
+        ) : null}
+        {columnFilters.type ? (
+          <button className="deal-filter-chip active muted" onClick={() => clearColumnFilter("type")} type="button">
+            Тип: {columnFilters.type}
+            <X size={13} />
+          </button>
+        ) : null}
+        {columnFilters.classification ? (
+          <button className="deal-filter-chip active muted" onClick={() => clearColumnFilter("classification")} type="button">
+            Класс: {columnFilters.classification}
+            <X size={13} />
+          </button>
+        ) : null}
+        {columnFilters.responsible ? (
+          <button className="deal-filter-chip active muted" onClick={() => clearColumnFilter("responsible")} type="button">
+            Ответственный: {displayResponsible(columnFilters.responsible)}
+            <X size={13} />
+          </button>
+        ) : null}
+
+        <input
+          aria-label="Фильтр и поиск сделок"
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          onFocus={() => setOpen(true)}
+          placeholder={hasFilters ? "Добавить поиск" : "Фильтр + поиск"}
+        />
+
+        <span className="deal-search-count">{visibleCount}</span>
+        <button
+          aria-expanded={open}
+          aria-label="Открыть фильтры"
+          className="deal-filter-open"
+          onClick={() => setOpen((current) => !current)}
+          type="button"
+        >
+          <SlidersHorizontal size={18} />
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            className="deal-filter-panel"
+            initial={{ opacity: 0, y: -8, scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.985 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+          >
+            <aside className="deal-filter-presets">
+              <button className={!hasFilters ? "active" : ""} onClick={onReset} type="button">
+                Все сделки
+                <span>{totalCount}</span>
+              </button>
+              <button onClick={() => onStageFilterChange?.([])} type="button">
+                Все стадии
+                <span>{stageTotal || totalCount}</span>
+              </button>
+              {stageOptions.slice(0, 6).map((option) => (
+                <button
+                  className={selectedStages.has(option.id) ? "active" : ""}
+                  key={option.id}
+                  onClick={() => toggleStage(option.id)}
+                  type="button"
+                >
+                  {option.name}
+                  <span>{option.count}</span>
+                </button>
+              ))}
+            </aside>
+
+            <div className="deal-filter-fields">
+              <label className="deal-filter-field wide">
+                <span>Название, номер, менеджер</span>
+                <input value={query} onChange={(event) => onQueryChange(event.target.value)} />
+              </label>
+              <label className="deal-filter-field">
+                <span>Ответственный</span>
+                <select
+                  value={columnFilters.responsible}
+                  onChange={(event) => onColumnFiltersChange({ responsible: event.target.value })}
+                >
+                  <option value="">Все</option>
+                  {filterOptions.responsibles.map((responsible) => (
+                    <option key={responsible} value={responsible}>
+                      {displayResponsible(responsible)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="deal-filter-field">
+                <span>Источник</span>
+                <select
+                  value={columnFilters.source}
+                  onChange={(event) => onColumnFiltersChange({ source: event.target.value })}
+                >
+                  <option value="">Все</option>
+                  {filterOptions.sources.map((source) => (
+                    <option key={source} value={source}>
+                      {source}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="deal-filter-field">
+                <span>Тип</span>
+                <select
+                  value={columnFilters.type}
+                  onChange={(event) => onColumnFiltersChange({ type: event.target.value })}
+                >
+                  <option value="">Все</option>
+                  {filterOptions.types.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="deal-filter-field">
+                <span>Классификация</span>
+                <select
+                  value={columnFilters.classification}
+                  onChange={(event) => onColumnFiltersChange({ classification: event.target.value })}
+                >
+                  <option value="">Все</option>
+                  {filterOptions.classifications.map((classification) => (
+                    <option key={classification} value={classification}>
+                      {classification}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="deal-filter-stage-list">
+                <span>Стадии Bitrix</span>
+                <div>
+                  {stageOptions.map((option) => (
+                    <label key={option.id}>
+                      <input
+                        checked={selectedStages.has(option.id)}
+                        onChange={() => toggleStage(option.id)}
+                        type="checkbox"
+                      />
+                      <span>{option.name}</span>
+                      <b>{option.count}</b>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="deal-filter-footer">
+                <button className="primary" onClick={() => setOpen(false)} type="button">
+                  Найти
+                </button>
+                <button className="ghost" disabled={!hasFilters} onClick={onReset} type="button">
+                  Сбросить
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 function ColumnHeader({
   column,
   filters,
@@ -701,6 +998,8 @@ function uniqueValues(values: string[]) {
 function matchesColumnFilters(deal: Deal, filters: ColumnFilters) {
   if (filters.source && deal.source !== filters.source) return false;
   if (filters.responsible && deal.responsible !== filters.responsible) return false;
+  if (filters.type && deal.type !== filters.type) return false;
+  if (filters.classification && deal.classification !== filters.classification) return false;
   return true;
 }
 
