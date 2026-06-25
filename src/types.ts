@@ -206,6 +206,24 @@ export type ProductionAccessRole =
   | "installationChief"
   | "maker";
 
+export type ProductionPermission =
+  | "cost.view"
+  | "cost.edit"
+  | "techspec.view"
+  | "techspec.edit"
+  | "production.view"
+  | "production.assign"
+  | "production.approve"
+  | "installations.view"
+  | "installations.assign"
+  | "installations.edit"
+  | "installations.approve"
+  | "warehouse.view"
+  | "warehouse.edit"
+  | "employees.view"
+  | "employees.edit"
+  | "notifications.view";
+
 export type ProductionEmployee = {
   id: string;
   name: string;
@@ -496,6 +514,28 @@ export type StoredInstallations = {
   generatedAt: string;
   installations: Installation[];
   notifications?: InstallationNotification[];
+};
+
+export type RealtimeEventScope =
+  | "deals"
+  | "calculations"
+  | "techSpecs"
+  | "production"
+  | "installations"
+  | "warehouse"
+  | "catalogs"
+  | "notifications"
+  | "system";
+
+export type RealtimeEvent = {
+  id: number;
+  type: string;
+  scope: RealtimeEventScope;
+  actorId?: string;
+  targetEmployeeIds?: string[];
+  targetRoles?: ProductionAccessRole[];
+  payload?: Record<string, unknown>;
+  createdAt: string;
 };
 
 export type StockTransactionType = "receipt" | "issue" | "adjustment" | "reserve" | "release";

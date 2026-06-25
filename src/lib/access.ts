@@ -1,4 +1,4 @@
-import type { ProductionAccessRole, ProductionEmployee } from "../types";
+import type { ProductionAccessRole, ProductionEmployee, ProductionPermission } from "../types";
 
 export const accessRoleLabels: Record<ProductionAccessRole, string> = {
   none: "Без доступа",
@@ -14,24 +14,79 @@ export function accessRoleFor(employee?: ProductionEmployee): ProductionAccessRo
   return employee?.accessRole || "none";
 }
 
+export const accessRolePermissions: Record<ProductionAccessRole, ProductionPermission[]> = {
+  none: [],
+  leader: [
+    "cost.view",
+    "cost.edit",
+    "techspec.view",
+    "techspec.edit",
+    "production.view",
+    "production.assign",
+    "production.approve",
+    "installations.view",
+    "installations.assign",
+    "installations.edit",
+    "installations.approve",
+    "warehouse.view",
+    "warehouse.edit",
+    "employees.view",
+    "employees.edit",
+    "notifications.view",
+  ],
+  technologist: [
+    "cost.view",
+    "cost.edit",
+    "techspec.view",
+    "techspec.edit",
+    "production.view",
+    "production.approve",
+    "installations.view",
+    "installations.approve",
+    "warehouse.view",
+    "notifications.view",
+  ],
+  manager: ["techspec.view", "techspec.edit", "notifications.view"],
+  shopChief: [
+    "production.view",
+    "production.assign",
+    "production.approve",
+    "installations.view",
+    "warehouse.view",
+    "notifications.view",
+  ],
+  installationChief: [
+    "installations.view",
+    "installations.assign",
+    "installations.edit",
+    "installations.approve",
+    "notifications.view",
+  ],
+  maker: ["production.view", "installations.view", "notifications.view"],
+};
+
+export function hasPermission(employee: ProductionEmployee | undefined, permission: ProductionPermission) {
+  return accessRolePermissions[accessRoleFor(employee)].includes(permission);
+}
+
+export function hasAnyPermission(employee: ProductionEmployee | undefined, permissions: ProductionPermission[]) {
+  return permissions.some((permission) => hasPermission(employee, permission));
+}
+
 export function canAccessCosting(employee?: ProductionEmployee) {
-  const role = accessRoleFor(employee);
-  return role === "leader" || role === "technologist";
+  return hasPermission(employee, "cost.view");
 }
 
 export function canAccessProduction(employee?: ProductionEmployee) {
-  const role = accessRoleFor(employee);
-  return role === "leader" || role === "shopChief" || role === "maker";
+  return hasPermission(employee, "production.view");
 }
 
 export function canAssignProduction(employee?: ProductionEmployee) {
-  const role = accessRoleFor(employee);
-  return role === "leader" || role === "shopChief";
+  return hasPermission(employee, "production.assign");
 }
 
 export function canManageEmployees(employee?: ProductionEmployee) {
-  const role = accessRoleFor(employee);
-  return role === "leader";
+  return hasPermission(employee, "employees.edit");
 }
 
 export function canCreateAccessRole(

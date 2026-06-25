@@ -93,6 +93,13 @@ export async function loadDeals() {
   return loadJson<AppData<Deal>>("/data/deals.json", fallbackDeals, { preferApi: true });
 }
 
+export async function loadFreshDeals() {
+  return loadJson<AppData<Deal>>("/data/deals.json", fallbackDeals, {
+    ignoreCache: true,
+    preferApi: true,
+  });
+}
+
 export async function loadCalculations() {
   return loadJson<StoredCalculations>("/data/calculations.json", fallbackCalculations, {
     preferApi: true,
@@ -149,7 +156,9 @@ export async function loadFreshInstallations() {
 
 export async function loadCatalogs() {
   return withCatalogFavoriteOverrides(
-    await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs),
+    await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs, {
+      preferApi: true,
+    }),
   );
 }
 
@@ -157,6 +166,7 @@ export async function loadFreshCatalogs() {
   return withCatalogFavoriteOverrides(
     await loadJson<AppData<CatalogItem>>("/data/catalogs.json", fallbackCatalogs, {
       ignoreCache: true,
+      preferApi: true,
     }),
   );
 }

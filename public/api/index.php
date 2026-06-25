@@ -31,9 +31,21 @@ try {
         json_response(['ok' => true, 'storage' => 'beget']);
     }
 
+    if ($method === 'GET' && $path === '/events') {
+        handle_realtime_events();
+    }
+
+    if ($method === 'GET' && $path === '/sync') {
+        handle_realtime_sync();
+    }
+
     if (($method === 'GET' || $method === 'POST') && $path === '/bitrix/sync') {
         require_bitrix_sync_token();
-        json_response(sync_bitrix_deals(true), 200);
+        $result = sync_bitrix_deals(true);
+        publish_realtime_event('deals.synced', 'deals', [
+            'count' => count(array_get(array_get($result, 'data', []), 'items', [])),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'GET' && preg_match('#^/data/([a-z0-9_-]+\.json)$#i', $path, $match)) {
@@ -73,6 +85,10 @@ try {
         $current = read_production();
         $next = normalize_production(merge_production($current, $incoming));
         write_data_file('production.json', $next);
+        publish_realtime_event('production.saved', 'production', [
+            'assignments' => count(array_get($next, 'assignments', [])),
+            'employees' => count(array_get($next, 'employees', [])),
+        ]);
         json_response(['ok' => true, 'data' => $next]);
     }
 
@@ -82,6 +98,9 @@ try {
         $current = read_installations();
         $next = normalize_installations(merge_installations($current, $incoming));
         write_data_file('installations.json', $next);
+        publish_realtime_event('installations.saved', 'installations', [
+            'installations' => count(array_get($next, 'installations', [])),
+        ]);
         json_response(['ok' => true, 'data' => $next]);
     }
 
@@ -92,12 +111,19 @@ try {
             $data['__production'] = normalize_production($data['__production']);
         }
         write_data_file('tech-specs.json', $data);
+        publish_realtime_event('techspecs.saved', 'techSpecs', [
+            'specs' => count(array_get($data, 'specs', [])),
+        ]);
         json_response(['ok' => true]);
     }
 
     if ($method === 'POST' && $path === '/save-calculations') {
         $body = request_json();
-        write_data_file('calculations.json', is_array(array_get($body, 'data', null)) ? $body['data'] : []);
+        $data = is_array(array_get($body, 'data', null)) ? $body['data'] : [];
+        write_data_file('calculations.json', $data);
+        publish_realtime_event('calculations.saved', 'calculations', [
+            'calculations' => count(array_get($data, 'calculations', [])),
+        ]);
         json_response(['ok' => true]);
     }
 
@@ -114,6 +140,9 @@ try {
             ], 409);
         }
         write_data_file('catalogs.json', $incoming);
+        publish_realtime_event('catalogs.saved', 'catalogs', [
+            'items' => count($incomingItems),
+        ]);
         json_response(['ok' => true]);
     }
 
@@ -121,74 +150,139 @@ try {
         $body = request_json();
         $data = normalize_warehouse(is_array(array_get($body, 'data', null)) ? $body['data'] : []);
         write_data_file('warehouse.json', $data);
+        publish_realtime_event('warehouse.saved', 'warehouse', [
+            'items' => count(array_get($data, 'items', [])),
+        ]);
         json_response(['ok' => true, 'data' => $data]);
     }
 
     if ($method === 'POST' && $path === '/warehouse/documents') {
-        json_response(handle_warehouse_document_upload(), 200);
+        $result = handle_warehouse_document_upload();
+        publish_realtime_event('warehouse.document_uploaded', 'warehouse', [
+            'documents' => count(array_get($result, 'documents', [])),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && preg_match('#^/deals/([^/]+)/photos$#', $path, $match)) {
         $dealId = sanitize_segment($match[1]);
-        json_response(handle_photo_upload($dealId), 200);
+        $result = handle_photo_upload($dealId);
+        publish_realtime_event('production.photo_added', 'production', [
+            'dealId' => $dealId,
+            'photos' => count(array_get($result, 'photos', [])),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && $path === '/installations') {
         $body = request_json();
-        json_response(create_or_update_installation('', $body), 200);
+        $result = create_or_update_installation('', $body);
+        publish_realtime_event('installation.saved', 'installations', [
+            'installationId' => array_get(array_get($result, 'installation', []), 'id', ''),
+            'dealId' => array_get(array_get($result, 'installation', []), 'dealId', ''),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && preg_match('#^/installations/([^/]+)$#', $path, $match)) {
         $installationId = sanitize_segment($match[1]);
         $body = request_json();
-        json_response(create_or_update_installation($installationId, $body), 200);
+        $result = create_or_update_installation($installationId, $body);
+        publish_realtime_event('installation.saved', 'installations', [
+            'installationId' => $installationId,
+            'dealId' => array_get(array_get($result, 'installation', []), 'dealId', ''),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && preg_match('#^/installations/([^/]+)/(start|arrive|complete|approve|return|cancel|no-installation)$#', $path, $match)) {
         $installationId = sanitize_segment($match[1]);
         $body = request_json();
-        json_response(update_installation_workflow($installationId, $body, $match[2]), 200);
+        $result = update_installation_workflow($installationId, $body, $match[2]);
+        publish_realtime_event('installation.' . $match[2], 'installations', [
+            'installationId' => $installationId,
+            'dealId' => array_get(array_get($result, 'installation', []), 'dealId', ''),
+            'status' => array_get(array_get($result, 'installation', []), 'status', ''),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && preg_match('#^/installations/([^/]+)/photos$#', $path, $match)) {
         $installationId = sanitize_segment($match[1]);
-        json_response(handle_installation_photo_upload($installationId), 200);
+        $result = handle_installation_photo_upload($installationId);
+        publish_realtime_event('installation.photo_added', 'installations', [
+            'installationId' => $installationId,
+            'photos' => count(array_get($result, 'photos', [])),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'DELETE' && preg_match('#^/deals/([^/]+)/photos/([^/]+)$#', $path, $match)) {
         $dealId = sanitize_segment($match[1]);
         $photoId = sanitize_segment($match[2]);
-        json_response(delete_photo($dealId, $photoId), 200);
+        $result = delete_photo($dealId, $photoId);
+        publish_realtime_event('production.photo_deleted', 'production', [
+            'dealId' => $dealId,
+            'photoId' => $photoId,
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'DELETE' && preg_match('#^/installations/([^/]+)/photos/([^/]+)$#', $path, $match)) {
         $installationId = sanitize_segment($match[1]);
         $photoId = sanitize_segment($match[2]);
-        json_response(delete_installation_photo($installationId, $photoId), 200);
+        $result = delete_installation_photo($installationId, $photoId);
+        publish_realtime_event('installation.photo_deleted', 'installations', [
+            'installationId' => $installationId,
+            'photoId' => $photoId,
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && preg_match('#^/deals/([^/]+)/start-work$#', $path, $match)) {
         $dealId = sanitize_segment($match[1]);
         $body = request_json();
-        json_response(update_assignment_workflow($dealId, $body, 'start'), 200);
+        $result = update_assignment_workflow($dealId, $body, 'start');
+        publish_realtime_event('production.started', 'production', [
+            'dealId' => $dealId,
+            'assignmentId' => array_get($body, 'assignmentId', ''),
+            'employeeId' => array_get($body, 'employeeId', ''),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && preg_match('#^/deals/([^/]+)/complete$#', $path, $match)) {
         $dealId = sanitize_segment($match[1]);
         $body = request_json();
-        json_response(update_assignment_workflow($dealId, $body, 'complete'), 200);
+        $result = update_assignment_workflow($dealId, $body, 'complete');
+        publish_realtime_event('production.completed', 'production', [
+            'dealId' => $dealId,
+            'assignmentId' => array_get($body, 'assignmentId', ''),
+            'employeeId' => array_get($body, 'employeeId', ''),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && preg_match('#^/notifications/([^/]+)/read$#', $path, $match)) {
         $notificationId = sanitize_segment($match[1]);
         $body = request_json();
-        json_response(mark_notification_read($notificationId, $body), 200);
+        $result = mark_notification_read($notificationId, $body);
+        publish_realtime_event('notification.read', 'notifications', [
+            'notificationId' => $notificationId,
+            'employeeId' => array_get($body, 'employeeId', ''),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && preg_match('#^/installation-notifications/([^/]+)/read$#', $path, $match)) {
         $notificationId = sanitize_segment($match[1]);
         $body = request_json();
-        json_response(mark_installation_notification_read($notificationId, $body), 200);
+        $result = mark_installation_notification_read($notificationId, $body);
+        publish_realtime_event('installation_notification.read', 'notifications', [
+            'notificationId' => $notificationId,
+            'employeeId' => array_get($body, 'employeeId', ''),
+        ]);
+        json_response($result, 200);
     }
 
     if ($method === 'POST' && $path === '/migrate-dataurl-photos') {
@@ -310,6 +404,168 @@ function json_response($payload, $status = 200)
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
+}
+
+function handle_realtime_events()
+{
+    $since = max(0, (int)array_get($_GET, 'since', 0));
+    $timeout = min(25, max(0, (int)array_get($_GET, 'timeout', 25)));
+    $userId = sanitize_realtime_id((string)array_get($_GET, 'userId', ''));
+    $role = sanitize_realtime_id((string)array_get($_GET, 'role', ''));
+    $deadline = microtime(true) + $timeout;
+
+    do {
+        $store = read_realtime_events_store();
+        $events = realtime_events_after($store, $since, $userId, $role);
+        if (count($events) || $timeout === 0 || microtime(true) >= $deadline) {
+            json_response([
+                'success' => true,
+                'events' => $events,
+                'lastEventId' => (int)array_get($store, 'lastEventId', 0),
+                'serverTime' => gmdate('c'),
+            ]);
+        }
+        usleep(250000);
+        clearstatcache();
+    } while (true);
+}
+
+function handle_realtime_sync()
+{
+    $since = max(0, (int)array_get($_GET, 'since', 0));
+    $userId = sanitize_realtime_id((string)array_get($_GET, 'userId', ''));
+    $role = sanitize_realtime_id((string)array_get($_GET, 'role', ''));
+    $eventsStore = read_realtime_events_store();
+
+    json_response([
+        'success' => true,
+        'data' => [
+            'deals' => read_data_file('deals.json'),
+            'calculations' => read_data_file('calculations.json'),
+            'catalogs' => read_data_file('catalogs.json'),
+            'techSpecs' => read_data_file('tech-specs.json'),
+            'production' => read_production(),
+            'installations' => read_installations(),
+            'warehouse' => read_warehouse(),
+        ],
+        'events' => realtime_events_after($eventsStore, $since, $userId, $role),
+        'lastEventId' => (int)array_get($eventsStore, 'lastEventId', 0),
+        'serverTime' => gmdate('c'),
+    ]);
+}
+
+function publish_realtime_event($type, $scope, $payload = [], $actorId = '', $targetEmployeeIds = [], $targetRoles = [])
+{
+    $path = data_path('events.json');
+    $tmp = $path . '.tmp';
+    $lockPath = $path . '.lock';
+    $lock = fopen($lockPath, 'c');
+    if (!$lock) return null;
+
+    try {
+        if (!flock($lock, LOCK_EX)) return null;
+        $store = is_file($path) ? json_decode(file_get_contents($path) ?: '', true) : [];
+        if (!is_array($store)) $store = [];
+        $store += default_data('events.json');
+
+        $lastId = (int)array_get($store, 'lastEventId', 0) + 1;
+        $event = [
+            'id' => $lastId,
+            'type' => sanitize_realtime_string((string)$type),
+            'scope' => sanitize_realtime_scope((string)$scope),
+            'actorId' => sanitize_realtime_id((string)$actorId),
+            'targetEmployeeIds' => sanitize_realtime_list($targetEmployeeIds),
+            'targetRoles' => sanitize_realtime_list($targetRoles),
+            'payload' => is_array($payload) ? $payload : [],
+            'createdAt' => gmdate('c'),
+        ];
+
+        $events = array_values(array_filter(
+            is_array(array_get($store, 'events', null)) ? $store['events'] : [],
+            'is_array'
+        ));
+        $events[] = $event;
+        if (count($events) > 1500) {
+            $events = array_slice($events, -1500);
+        }
+
+        $next = [
+            'generatedAt' => gmdate('c'),
+            'lastEventId' => $lastId,
+            'events' => $events,
+        ];
+        $json = json_encode($next, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n";
+        if (file_put_contents($tmp, $json, LOCK_EX) !== false) {
+            rename($tmp, $path);
+        }
+
+        return $event;
+    } finally {
+        flock($lock, LOCK_UN);
+        fclose($lock);
+    }
+}
+
+function read_realtime_events_store()
+{
+    $store = read_data_file_raw('events.json');
+    if (!is_array($store)) $store = [];
+    $store += default_data('events.json');
+    if (!isset($store['events']) || !is_array($store['events'])) $store['events'] = [];
+    $store['lastEventId'] = (int)array_get($store, 'lastEventId', 0);
+    return $store;
+}
+
+function realtime_events_after($store, $since, $userId, $role)
+{
+    $events = is_array(array_get($store, 'events', null)) ? $store['events'] : [];
+    $visible = [];
+    foreach ($events as $event) {
+        if (!is_array($event)) continue;
+        if ((int)array_get($event, 'id', 0) <= $since) continue;
+        if (!realtime_event_visible($event, $userId, $role)) continue;
+        $visible[] = $event;
+    }
+    return $visible;
+}
+
+function realtime_event_visible($event, $userId, $role)
+{
+    $targetEmployeeIds = is_array(array_get($event, 'targetEmployeeIds', null)) ? $event['targetEmployeeIds'] : [];
+    $targetRoles = is_array(array_get($event, 'targetRoles', null)) ? $event['targetRoles'] : [];
+    if (!count($targetEmployeeIds) && !count($targetRoles)) return true;
+    if ($userId !== '' && in_array($userId, $targetEmployeeIds, true)) return true;
+    return $role !== '' && in_array($role, $targetRoles, true);
+}
+
+function sanitize_realtime_scope($scope)
+{
+    $allowed = ['deals', 'calculations', 'techSpecs', 'production', 'installations', 'warehouse', 'catalogs', 'notifications', 'system'];
+    return in_array($scope, $allowed, true) ? $scope : 'system';
+}
+
+function sanitize_realtime_string($value)
+{
+    $value = preg_replace('/[^a-zA-Z0-9_.:-]/', '', $value);
+    return $value ?: 'system.event';
+}
+
+function sanitize_realtime_list($items)
+{
+    if (!is_array($items)) return [];
+    $normalized = [];
+    foreach ($items as $item) {
+        $value = sanitize_realtime_id((string)$item);
+        if ($value !== '') $normalized[] = $value;
+    }
+    return array_values(array_unique($normalized));
+}
+
+function sanitize_realtime_id($value)
+{
+    $safe = preg_replace('/[^a-zA-Z0-9_.-]+/', '-', trim($value));
+    $safe = trim((string)$safe, '.-');
+    return $safe !== '' ? substr($safe, 0, 96) : '';
 }
 
 function data_path($name)
@@ -479,6 +735,7 @@ function default_data($name)
         ];
     }
     if ($name === 'catalogs.json' || $name === 'deals.json') return ['generatedAt' => $now, 'items' => []];
+    if ($name === 'events.json') return ['generatedAt' => $now, 'lastEventId' => 0, 'events' => []];
     return [];
 }
 

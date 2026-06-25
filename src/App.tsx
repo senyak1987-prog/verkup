@@ -15,6 +15,7 @@ import {
   loadDeals,
   loadFreshCalculations,
   loadFreshCatalogs,
+  loadFreshDeals,
   loadFreshInstallations,
   loadFreshProduction,
   loadFreshTechSpecs,
@@ -50,6 +51,7 @@ import {
   canAccessCosting,
   canAccessProduction,
   canManageEmployees,
+  hasPermission,
   matchesEmployeeLogin,
   verifyEmployeePin,
 } from "./lib/access";
@@ -63,6 +65,7 @@ import {
   saveWarehouse,
   uploadTechSpecToBitrix,
 } from "./lib/saveApi";
+import { subscribeToRealtime } from "./lib/realtime";
 import { isUnresolvedResponsible } from "./lib/responsible";
 import { stageCodeForDeal, stageLabels } from "./lib/stages";
 import { createEmptyStoredWarehouse } from "./lib/warehouse";
@@ -77,6 +80,7 @@ import type {
   DealTechSpec,
   ProductionEmployee,
   ProductionRegistrationRequest,
+  RealtimeEvent,
   StoredCalculations,
   StoredInstallations,
   StoredProduction,
@@ -87,8 +91,8 @@ import type {
 import "./styles.css";
 
 const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
-const DEAL_REFRESH_INTERVAL_MS = 2000;
-const LIVE_DATA_REFRESH_INTERVAL_MS = 1200;
+const DEAL_REFRESH_INTERVAL_MS = 60_000;
+const LIVE_DATA_REFRESH_INTERVAL_MS = 60_000;
 const TECH_SPEC_SAVE_DELAY_MS = 180;
 const PRODUCTION_SAVE_DELAY_MS = 180;
 const INSTALLATIONS_SAVE_DELAY_MS = 180;
@@ -293,6 +297,8 @@ export default function App() {
   const productionSaveTimerRef = useRef<number>();
   const installationsSaveTimerRef = useRef<number>();
   const warehouseSaveTimerRef = useRef<number>();
+  const realtimeRefreshTimerRef = useRef<number>();
+  const realtimeRefreshInFlightRef = useRef(false);
   const productionSaveInFlightRef = useRef(false);
   const queuedProductionSaveRef = useRef<QueuedProductionSave>();
   const storedTechSpecsRef = useRef(storedTechSpecs);
@@ -512,7 +518,7 @@ export default function App() {
     let canceled = false;
 
     async function refreshDeals() {
-      const dealsData = await loadDeals();
+      const dealsData = await loadFreshDeals();
       if (!canceled) {
         const nextDeals = applyPendingStageMoves(dealsData.items);
         setDeals(nextDeals);
@@ -531,7 +537,7 @@ export default function App() {
       if (canceled) return;
 
       setStoredCalculations(calculationsData);
-      applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
+      applyLoadedProductionData(techSpecsData, productionData);
       applyLoadedInstallationsData(installationsData);
       setStoredWarehouse(warehouseData);
       storedWarehouseRef.current = warehouseData;
@@ -541,7 +547,7 @@ export default function App() {
 
     async function refreshAllData() {
       const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
-        loadDeals(),
+        loadFreshDeals(),
         loadFreshCalculations(),
         loadFreshCatalogs(),
         loadFreshTechSpecs(),
@@ -555,7 +561,7 @@ export default function App() {
       setDeals(nextDeals);
       setStoredCalculations(calculationsData);
       setCatalogItems(catalogsData.items);
-      applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
+      applyLoadedProductionData(techSpecsData, productionData);
       applyLoadedInstallationsData(installationsData);
       setStoredWarehouse(warehouseData);
       storedWarehouseRef.current = warehouseData;
@@ -578,6 +584,25 @@ export default function App() {
       window.removeEventListener("online", refreshAllData);
     };
   }, []);
+
+  useEffect(() => {
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+
+    const stopRealtime = subscribeToRealtime({
+      apiUrl,
+      onEvent: scheduleRealtimeRefresh,
+      role: accessRoleFor(currentEmployee),
+      userId: currentEmployeeId,
+    });
+
+    return () => {
+      stopRealtime();
+      if (realtimeRefreshTimerRef.current) {
+        window.clearTimeout(realtimeRefreshTimerRef.current);
+      }
+    };
+  }, [currentEmployeeId, currentEmployee?.accessRole]);
 
   useEffect(() => {
     localStorage.setItem("verkup-workspace-mode", workspaceMode);
@@ -794,29 +819,54 @@ export default function App() {
     saveProductionNow(mergedProduction);
   }
 
-  async function refreshAllDataNow() {
-    const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
-      loadDeals(),
-      loadCalculations(),
-      loadCatalogs(),
-      loadTechSpecs(),
-      loadFreshProduction(),
-      loadFreshInstallations(),
-      loadFreshWarehouse(),
-    ]);
+  function scheduleRealtimeRefresh(_event?: RealtimeEvent) {
+    if (realtimeRefreshTimerRef.current) {
+      window.clearTimeout(realtimeRefreshTimerRef.current);
+    }
 
-    const nextDeals = applyPendingStageMoves(dealsData.items);
-    setDeals(nextDeals);
-    setStoredCalculations(calculationsData);
-    setCatalogItems(catalogsData.items);
-    applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
-    applyLoadedInstallationsData(installationsData);
-    setStoredWarehouse(warehouseData);
-    storedWarehouseRef.current = warehouseData;
-    writeCachedDeals({ ...dealsData, items: nextDeals });
-    writeCachedCalculations(calculationsData);
-    writeCachedCatalogs(catalogsData);
-    writeCachedWarehouse(warehouseData);
+    realtimeRefreshTimerRef.current = window.setTimeout(() => {
+      void refreshAllDataNow();
+    }, 140);
+  }
+
+  async function refreshAllDataNow() {
+    if (realtimeRefreshInFlightRef.current) return;
+    realtimeRefreshInFlightRef.current = true;
+
+    try {
+      const [
+        dealsData,
+        calculationsData,
+        catalogsData,
+        techSpecsData,
+        productionData,
+        installationsData,
+        warehouseData,
+      ] = await Promise.all([
+        loadFreshDeals(),
+        loadFreshCalculations(),
+        loadFreshCatalogs(),
+        loadFreshTechSpecs(),
+        loadFreshProduction(),
+        loadFreshInstallations(),
+        loadFreshWarehouse(),
+      ]);
+
+      const nextDeals = applyPendingStageMoves(dealsData.items);
+      setDeals(nextDeals);
+      setStoredCalculations(calculationsData);
+      setCatalogItems(catalogsData.items);
+      applyLoadedProductionData(techSpecsData, productionData);
+      applyLoadedInstallationsData(installationsData);
+      setStoredWarehouse(warehouseData);
+      storedWarehouseRef.current = warehouseData;
+      writeCachedDeals({ ...dealsData, items: nextDeals });
+      writeCachedCalculations(calculationsData);
+      writeCachedCatalogs(catalogsData);
+      writeCachedWarehouse(warehouseData);
+    } finally {
+      realtimeRefreshInFlightRef.current = false;
+    }
   }
 
   async function handleEmployeeLogin(login: string, password: string) {
@@ -1918,19 +1968,11 @@ function uniqueSortedValues(values: string[]) {
 }
 
 function canAccessInstallations(employee?: ProductionEmployee) {
-  const role = accessRoleFor(employee);
-  return (
-    role === "leader" ||
-    role === "technologist" ||
-    role === "shopChief" ||
-    role === "installationChief" ||
-    (role === "maker" && employee?.role === "assembler")
-  );
+  return hasPermission(employee, "installations.view");
 }
 
 function canAccessWarehouse(employee?: ProductionEmployee) {
-  const role = accessRoleFor(employee);
-  return role === "leader" || role === "technologist" || role === "shopChief";
+  return hasPermission(employee, "warehouse.view");
 }
 
 function defaultWorkspaceMode(): WorkspaceMode {
