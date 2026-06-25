@@ -28,6 +28,7 @@ function sync_bitrix_deals($force = false)
             'reason' => 'fresh',
             'count' => count(array_get($current, 'items', [])),
             'generatedAt' => array_get($current, 'generatedAt', ''),
+            'data' => $current,
         ];
     }
 
@@ -44,6 +45,7 @@ function sync_bitrix_deals($force = false)
                 'skipped' => true,
                 'reason' => 'locked',
                 'count' => count(array_get($current, 'items', [])),
+                'data' => $current,
             ];
         }
 
@@ -55,6 +57,7 @@ function sync_bitrix_deals($force = false)
                 'reason' => 'fresh_after_lock',
                 'count' => count(array_get($current, 'items', [])),
                 'generatedAt' => array_get($current, 'generatedAt', ''),
+                'data' => $current,
             ];
         }
 
@@ -66,6 +69,7 @@ function sync_bitrix_deals($force = false)
             'skipped' => false,
             'count' => count(array_get($data, 'items', [])),
             'generatedAt' => array_get($data, 'generatedAt', ''),
+            'data' => $data,
         ];
     } finally {
         flock($lock, LOCK_UN);
@@ -107,16 +111,18 @@ function bitrix_deals_sync_is_due()
     if (!$generatedAt) return true;
 
     $interval = (int)bitrix_config('BITRIX_SYNC_INTERVAL_SECONDS', BITRIX_DEFAULT_SYNC_INTERVAL_SECONDS);
-    $interval = max(60, $interval);
+    $interval = max(10, $interval);
     return (time() - $generatedAt) >= $interval;
 }
 
 function fetch_bitrix_deals_payload()
 {
     $stageCodesById = [];
-    $targetStages = bitrix_target_stages();
-    foreach ($targetStages as $stageId => $code) {
-        if ($stageId !== '') $stageCodesById[(string)$stageId] = $code;
+    $targetStageItems = bitrix_target_stage_items();
+    foreach ($targetStageItems as $stage) {
+        $stageId = (string)array_get($stage, 'id', '');
+        $code = (string)array_get($stage, 'code', '');
+        if ($stageId !== '' && $code !== '') $stageCodesById[$stageId] = $code;
     }
 
     $dictionaries = [
@@ -126,7 +132,9 @@ function fetch_bitrix_deals_payload()
         'customFieldMaps' => load_bitrix_custom_field_maps(),
     ];
 
-    $deals = fetch_bitrix_deals(array_keys($targetStages));
+    $deals = fetch_bitrix_deals(array_map(function ($stage) {
+        return (string)array_get($stage, 'id', '');
+    }, $targetStageItems));
     $responsibleIds = [];
     foreach ($deals as $deal) {
         $id = trim((string)array_get($deal, 'ASSIGNED_BY_ID', ''));
@@ -141,11 +149,23 @@ function fetch_bitrix_deals_payload()
 
     return [
         'generatedAt' => gmdate('c'),
+        'stages' => $targetStageItems,
         'items' => $items,
     ];
 }
 
 function bitrix_target_stages()
+{
+    $stages = [];
+    foreach (bitrix_target_stage_items() as $stage) {
+        $id = (string)array_get($stage, 'id', '');
+        $code = (string)array_get($stage, 'code', '');
+        if ($id !== '' && $code !== '') $stages[$id] = $code;
+    }
+    return $stages;
+}
+
+function bitrix_legacy_target_stages()
 {
     $stages = [
         (string)bitrix_config('BITRIX_TZ_STAGE_ID', 'DETAILS') => 'tz',
@@ -158,6 +178,76 @@ function bitrix_target_stages()
     return array_filter($stages, function ($code, $stageId) {
         return $stageId !== '' && $code !== '';
     }, ARRAY_FILTER_USE_BOTH);
+}
+
+function bitrix_target_stage_items()
+{
+    $items = load_bitrix_stage_items();
+    if (!$items) {
+        $fallbackNames = [
+            'tz' => 'Подготовка ТЗ',
+            'tzApproval' => 'Согласование ТЗ',
+            'launch' => 'Готово к отгрузке',
+            'production' => 'На сборке',
+            'defect' => 'Косяк',
+        ];
+        $fallback = [];
+        $sort = 10;
+        foreach (bitrix_legacy_target_stages() as $id => $code) {
+            $fallback[] = [
+                'id' => (string)$id,
+                'name' => array_get($fallbackNames, $code, (string)$id),
+                'code' => $code,
+                'sort' => $sort,
+                'categoryId' => '',
+            ];
+            $sort += 10;
+        }
+        return $fallback;
+    }
+
+    $configuredCategoryId = trim((string)bitrix_config('BITRIX_CATEGORY_ID', ''));
+    if ($configuredCategoryId !== '') {
+        $items = array_values(array_filter($items, function ($stage) use ($configuredCategoryId) {
+            return (string)array_get($stage, 'categoryId', '') === $configuredCategoryId;
+        }));
+    }
+
+    $startId = trim((string)bitrix_config('BITRIX_TZ_STAGE_ID', 'DETAILS'));
+    $startName = normalize_bitrix_text((string)bitrix_config('BITRIX_TZ_STAGE_NAME', 'Подготовка ТЗ'));
+    $groups = [];
+    foreach ($items as $stage) {
+        $categoryId = (string)array_get($stage, 'categoryId', '');
+        if (!isset($groups[$categoryId])) $groups[$categoryId] = [];
+        $groups[$categoryId][] = $stage;
+    }
+
+    $target = [];
+    foreach ($groups as $group) {
+        usort($group, function ($a, $b) {
+            $left = (int)array_get($a, 'sort', 999999);
+            $right = (int)array_get($b, 'sort', 999999);
+            if ($left !== $right) return $left - $right;
+            return strcmp((string)array_get($a, 'name', ''), (string)array_get($b, 'name', ''));
+        });
+
+        $startSort = null;
+        foreach ($group as $stage) {
+            $id = (string)array_get($stage, 'id', '');
+            $name = normalize_bitrix_text((string)array_get($stage, 'name', ''));
+            if (($startId !== '' && $id === $startId) || ($startName !== '' && strpos($name, $startName) !== false)) {
+                $startSort = (int)array_get($stage, 'sort', 0);
+                break;
+            }
+        }
+
+        foreach ($group as $stage) {
+            if ($startSort !== null && (int)array_get($stage, 'sort', 0) < $startSort) continue;
+            $target[] = $stage;
+        }
+    }
+
+    return $target ?: $items;
 }
 
 function fetch_bitrix_deals($stageIds)
@@ -347,19 +437,37 @@ function normalize_bitrix_deal($deal, $users, $dictionaries, $stageCodesById)
 function load_bitrix_stage_map()
 {
     $stages = [];
-    add_bitrix_statuses($stages, 'DEAL_STAGE');
+    foreach (load_bitrix_stage_items() as $stage) {
+        $id = (string)array_get($stage, 'id', '');
+        if ($id !== '') $stages[$id] = (string)array_get($stage, 'name', $id);
+    }
+    return $stages;
+}
+
+function load_bitrix_stage_items()
+{
+    $items = [];
+    add_bitrix_stage_items($items, 'DEAL_STAGE', '');
 
     try {
         $categories = call_bitrix_rest('crm.dealcategory.list', []);
         foreach (array_get($categories, 'result', []) as $category) {
             $categoryId = (string)array_get($category, 'ID', '');
             if ($categoryId === '') continue;
-            add_bitrix_statuses($stages, 'DEAL_STAGE_' . $categoryId);
+            add_bitrix_stage_items($items, 'DEAL_STAGE_' . $categoryId, $categoryId);
             try {
                 $categoryStages = call_bitrix_rest('crm.dealcategory.stage.list', ['id' => $categoryId]);
                 foreach (array_get($categoryStages, 'result', []) as $stage) {
                     $id = (string)first_defined(array_get($stage, 'STATUS_ID', ''), array_get($stage, 'ID', ''));
-                    if ($id !== '') $stages[$id] = (string)first_defined(array_get($stage, 'NAME', ''), array_get($stage, 'TITLE', ''), $id);
+                    if ($id === '') continue;
+                    $name = (string)first_defined(array_get($stage, 'NAME', ''), array_get($stage, 'TITLE', ''), $id);
+                    $items[$id] = [
+                        'id' => $id,
+                        'name' => $name,
+                        'code' => infer_bitrix_stage_code($name),
+                        'sort' => (int)first_defined(array_get($stage, 'SORT', 0), array_get($stage, 'sort', 0), 0),
+                        'categoryId' => $categoryId,
+                    ];
                 }
             } catch (Exception $error) {
                 // Category stage methods are optional for incoming webhooks.
@@ -369,7 +477,28 @@ function load_bitrix_stage_map()
         // CRM category methods are optional for incoming webhooks.
     }
 
-    return $stages;
+    return array_values($items);
+}
+
+function add_bitrix_stage_items(&$items, $entityId, $categoryId = '')
+{
+    try {
+        $response = call_bitrix_rest('crm.status.list', ['filter' => ['ENTITY_ID' => $entityId]]);
+        foreach (array_get($response, 'result', []) as $status) {
+            $id = (string)array_get($status, 'STATUS_ID', '');
+            if ($id === '') continue;
+            $name = (string)array_get($status, 'NAME', $id);
+            $items[$id] = [
+                'id' => $id,
+                'name' => $name,
+                'code' => infer_bitrix_stage_code($name),
+                'sort' => (int)array_get($status, 'SORT', 0),
+                'categoryId' => (string)$categoryId,
+            ];
+        }
+    } catch (Exception $error) {
+        // Missing status methods should not break regular data loading.
+    }
 }
 
 function load_bitrix_status_map($entityId)
@@ -390,6 +519,61 @@ function add_bitrix_statuses(&$statuses, $entityId)
     } catch (Exception $error) {
         // Optional dictionaries should not stop deal loading.
     }
+}
+
+function bitrix_stage_id_for_target($targetStage, $explicitStageId = '')
+{
+    $candidate = trim((string)first_defined($explicitStageId, $targetStage));
+    if ($candidate === '') {
+        throw new RuntimeException('Bitrix stage is required');
+    }
+
+    $normalizedCandidate = normalize_bitrix_text($candidate);
+    $allStages = load_bitrix_stage_items();
+    $targetStages = bitrix_target_stage_items();
+    $legacyMap = bitrix_legacy_target_stages();
+
+    foreach ([$targetStages, $allStages] as $stageList) {
+        foreach ($stageList as $stage) {
+            $id = (string)array_get($stage, 'id', '');
+            $code = (string)array_get($stage, 'code', '');
+            $name = normalize_bitrix_text((string)array_get($stage, 'name', ''));
+            if ($id === $candidate || ($code !== '' && $code === $candidate) || ($name !== '' && $name === $normalizedCandidate)) {
+                return $id;
+            }
+        }
+    }
+
+    foreach ($legacyMap as $stageId => $code) {
+        if ((string)$stageId === $candidate || (string)$code === $candidate) {
+            return (string)$stageId;
+        }
+    }
+
+    throw new RuntimeException('Unknown Bitrix stage: ' . $candidate);
+}
+
+function move_bitrix_deal_stage($dealId, $targetStageId)
+{
+    $id = trim((string)$dealId);
+    $stageId = trim((string)$targetStageId);
+    if ($id === '') throw new RuntimeException('Deal id is required');
+    if ($stageId === '') throw new RuntimeException('Bitrix stage is required');
+
+    $response = call_bitrix_rest('crm.deal.update', [
+        'id' => $id,
+        'fields' => [
+            'STAGE_ID' => $stageId,
+        ],
+    ]);
+
+    $syncResult = sync_bitrix_deals(true);
+    return [
+        'success' => true,
+        'bitrix' => $response,
+        'data' => read_data_file_raw('deals.json'),
+        'sync' => $syncResult,
+    ];
 }
 
 function load_bitrix_custom_field_maps()

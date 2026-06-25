@@ -52,6 +52,14 @@ export type BitrixDealFile = {
 
 export type DealStageCode = "tz" | "tzApproval" | "launch" | "production" | "defect";
 
+export type BitrixStage = {
+  id: string;
+  name: string;
+  code?: DealStageCode | string;
+  sort?: number;
+  categoryId?: string;
+};
+
 export type CostSection =
   | "materials"
   | "lighting"
@@ -125,6 +133,7 @@ export type CatalogItem = {
 export type AppData<T> = {
   generatedAt: string;
   items: T[];
+  stages?: BitrixStage[];
 };
 
 export type StoredCalculations = {

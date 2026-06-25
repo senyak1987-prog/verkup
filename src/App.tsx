@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Calculator, CalendarDays, Factory, LogOut, PackageSearch, UsersRound } from "lucide-react";
+import { Calculator, CalendarDays, ChevronDown, CircleDollarSign, Factory, LogOut, PackageSearch, UsersRound } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
@@ -9,6 +9,7 @@ import { InstallationsApp } from "./components/InstallationsApp";
 import { ProductionMobileApp } from "./components/ProductionMobileApp";
 import { TechSpecBuilder } from "./components/TechSpecBuilder";
 import { WarehouseApp } from "./components/WarehouseApp";
+import { FinanceApp } from "./components/FinanceApp";
 import {
   loadCalculations,
   loadCatalogs,
@@ -57,6 +58,7 @@ import {
 } from "./lib/access";
 import {
   defaultSaveApiUrl,
+  moveDealToStage,
   saveCatalogs,
   saveCalculations,
   saveInstallations,
@@ -67,10 +69,18 @@ import {
 } from "./lib/saveApi";
 import { subscribeToRealtime } from "./lib/realtime";
 import { isUnresolvedResponsible } from "./lib/responsible";
-import { stageCodeForDeal, stageLabels } from "./lib/stages";
+import {
+  buildDealStageOptions,
+  type DealStageOption,
+  stageCodeForDeal,
+  stageCodeFromStageId,
+  stageIdForDeal,
+  stageLabels,
+} from "./lib/stages";
 import { createEmptyStoredWarehouse } from "./lib/warehouse";
 import type {
   CatalogItem,
+  BitrixStage,
   CostCalcMode,
   CostPosition,
   CostSection,
@@ -97,22 +107,21 @@ const TECH_SPEC_SAVE_DELAY_MS = 180;
 const PRODUCTION_SAVE_DELAY_MS = 180;
 const INSTALLATIONS_SAVE_DELAY_MS = 180;
 const WAREHOUSE_SAVE_DELAY_MS = 180;
-const DEAL_STAGE_TABS: DealStageCode[] = ["tz", "tzApproval", "launch", "production", "defect"];
 
 type PendingStageMove = {
-  stage: DealStageCode;
+  stageId: string;
+  stageName?: string;
   expiresAt: number;
 };
 
-type AppTab = DealStageCode;
-
-type WorkspaceMode = "costing" | "production" | "installations" | "warehouse" | "employees";
+type WorkspaceMode = "costing" | "production" | "installations" | "warehouse" | "finances" | "employees";
 
 const WORKSPACE_MODE_ROUTES: Record<WorkspaceMode, string> = {
   costing: "/cost",
   production: "/production",
   installations: "/installations",
   warehouse: "/warehouse",
+  finances: "/finances",
   employees: "/employees",
 };
 
@@ -135,6 +144,10 @@ const WORKSPACE_ROUTE_ALIASES: Record<string, WorkspaceMode> = {
   montage: "installations",
   warehouse: "warehouse",
   sklad: "warehouse",
+  finance: "finances",
+  finances: "finances",
+  finansy: "finances",
+  money: "finances",
   склад: "warehouse",
   монтажи: "installations",
   employees: "employees",
@@ -237,7 +250,7 @@ type DealWorkspaceProps = {
   onClose: () => void;
   onCreateCatalogItem: (item: CatalogItem, targetSection?: CostSection) => void;
   onOpenCatalog: () => void;
-  onStageMoved: (dealId: string, stage: DealStageCode) => void;
+  onStageMoved: (dealId: string, stage: DealStageCode | string, stageName?: string) => void;
   onTechSpecChange: (spec: DealTechSpec) => void;
   onTechSpecUpload: (
     dealId: string,
@@ -283,10 +296,11 @@ export default function App() {
   );
   const [selectedDealId, setSelectedDealId] = useState<string>();
   const [query, setQuery] = useState("");
+  const [bitrixStages, setBitrixStages] = useState<BitrixStage[]>(() => readCachedDeals()?.stages || []);
+  const [selectedStageIds, setSelectedStageIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(() => !hasCachedStartupData());
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [pendingCatalogInsert, setPendingCatalogInsert] = useState<PendingCatalogInsert>();
-  const [activeStage, setActiveStage] = useState<DealStageCode>("launch");
   const [dealWorkspaceTab, setDealWorkspaceTab] = useState<DealWorkspaceTab>();
   const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>(() => defaultWorkspaceMode());
   const [currentEmployeeId, setCurrentEmployeeId] = useState(
@@ -348,7 +362,8 @@ export default function App() {
   const canUseEmployees = canManageEmployees(currentEmployee);
   const canUseInstallations = canAccessInstallations(currentEmployee) && !isMakerWorker;
   const canUseWarehouse = canAccessWarehouse(currentEmployee);
-  const availableModeCount = [canUseCosting, canUseProduction, canUseInstallations, canUseWarehouse, canUseEmployees].filter(Boolean).length;
+  const canUseFinances = canUseCosting;
+  const availableModeCount = [canUseCosting, canUseProduction, canUseInstallations, canUseWarehouse, canUseFinances, canUseEmployees].filter(Boolean).length;
 
   useEffect(() => {
     storedTechSpecsRef.current = storedTechSpecs;
@@ -493,6 +508,7 @@ export default function App() {
 
         const nextDeals = applyPendingStageMoves(dealsData.items);
         setDeals(nextDeals);
+        setBitrixStages(dealsData.stages || []);
         setStoredCalculations(calculationsData);
         applyLoadedProductionData(techSpecsData, productionData, { syncBack: true });
         applyLoadedInstallationsData(installationsData);
@@ -526,6 +542,7 @@ export default function App() {
       if (!canceled) {
         const nextDeals = applyPendingStageMoves(dealsData.items);
         setDeals(nextDeals);
+        setBitrixStages(dealsData.stages || []);
         writeCachedDeals({ ...dealsData, items: nextDeals });
       }
     }
@@ -563,6 +580,7 @@ export default function App() {
 
       const nextDeals = applyPendingStageMoves(dealsData.items);
       setDeals(nextDeals);
+      setBitrixStages(dealsData.stages || []);
       setStoredCalculations(calculationsData);
       setCatalogItems(catalogsData.items);
       applyLoadedProductionData(techSpecsData, productionData);
@@ -653,19 +671,23 @@ export default function App() {
       ...(canUseProduction ? (["production"] as const) : []),
       ...(canUseInstallations ? (["installations"] as const) : []),
       ...(canUseWarehouse ? (["warehouse"] as const) : []),
+      ...(canUseFinances ? (["finances"] as const) : []),
       ...(canUseEmployees ? (["employees"] as const) : []),
     ];
     if (!availableModes.includes(workspaceMode) && availableModes[0]) {
       setWorkspaceMode(availableModes[0]);
       return;
     }
-    if (workspaceMode === "costing" && !canUseCosting && canUseProduction) {
-      setWorkspaceMode("production");
+    if (workspaceMode === "costing" && !canUseCosting && (canUseProduction || canUseFinances)) {
+      setWorkspaceMode(canUseProduction ? "production" : "finances");
     }
-    if (workspaceMode === "production" && !canUseProduction && canUseCosting) {
+    if (workspaceMode === "production" && !canUseProduction && (canUseCosting || canUseFinances)) {
+      setWorkspaceMode(canUseCosting ? "costing" : "finances");
+    }
+    if (workspaceMode === "finances" && !canUseFinances && canUseCosting) {
       setWorkspaceMode("costing");
     }
-  }, [canUseCosting, canUseEmployees, canUseInstallations, canUseProduction, canUseWarehouse, currentEmployee, workspaceMode]);
+  }, [canUseCosting, canUseEmployees, canUseFinances, canUseInstallations, canUseProduction, canUseWarehouse, currentEmployee, workspaceMode]);
 
   const calculationsMap = useMemo(() => {
     return new Map(storedCalculations.calculations.map((calculation) => [calculation.dealId, calculation]));
@@ -681,19 +703,18 @@ export default function App() {
   );
   const managerDealSpec = managerDeal ? techSpecsMap.get(managerDeal.id) : undefined;
 
-  const stageCounts = useMemo(() => {
-    return deals.reduce(
-      (counts, deal) => {
-        counts[stageCodeForDeal(deal)] += 1;
-        return counts;
-      },
-      createEmptyStageCounts(),
-    );
-  }, [deals]);
+  const stageOptions = useMemo(
+    () => buildDealStageOptions(deals, bitrixStages),
+    [bitrixStages, deals],
+  );
 
   const filteredDeals = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const stageDeals = deals.filter((deal) => stageCodeForDeal(deal) === activeStage);
+    const selectedStages = new Set(selectedStageIds);
+    const stageDeals =
+      selectedStages.size === 0
+        ? deals
+        : deals.filter((deal) => selectedStages.has(stageIdForDeal(deal)));
     if (!needle) return stageDeals;
     return stageDeals.filter((deal) =>
       [deal.number, deal.title, deal.source, deal.type, deal.classification, deal.responsible, deal.stageName]
@@ -701,7 +722,16 @@ export default function App() {
         .toLowerCase()
         .includes(needle),
     );
-  }, [activeStage, deals, query]);
+  }, [deals, query, selectedStageIds]);
+
+  useEffect(() => {
+    if (!selectedStageIds.length) return;
+    const knownStageIds = new Set(stageOptions.map((stage) => stage.id));
+    const nextStageIds = selectedStageIds.filter((stageId) => knownStageIds.has(stageId));
+    if (nextStageIds.length !== selectedStageIds.length) {
+      setSelectedStageIds(nextStageIds);
+    }
+  }, [selectedStageIds, stageOptions]);
 
   const unresolvedResponsibleIds = useMemo(
     () =>
@@ -858,6 +888,7 @@ export default function App() {
 
       const nextDeals = applyPendingStageMoves(dealsData.items);
       setDeals(nextDeals);
+      setBitrixStages(dealsData.stages || []);
       setStoredCalculations(calculationsData);
       setCatalogItems(catalogsData.items);
       applyLoadedProductionData(techSpecsData, productionData);
@@ -1170,23 +1201,46 @@ export default function App() {
     });
   }
 
-  function handleDealStageChanged(dealId: string, stage: DealStageCode) {
+  function handleDealStageChanged(dealId: string, stage: DealStageCode | string, stageName?: string) {
+    const stageId = String(stage || "").trim();
+    if (!stageId) return;
+    const stageCode = stageCodeFromStageId(stageId, bitrixStages) || (isDealStageCode(stageId) ? stageId : undefined);
+    const resolvedStageName =
+      stageName ||
+      bitrixStages.find((item) => item.id === stageId)?.name ||
+      (stageCode ? stageLabels[stageCode] : stageId);
+
     pendingStageMovesRef.current.set(dealId, {
-      stage,
+      stageId,
+      stageName: resolvedStageName,
       expiresAt: Date.now() + PENDING_STAGE_MOVE_TTL,
     });
 
     setDeals((current) => {
       const next = current.map((deal) =>
-        deal.id === dealId ? withStage(deal, stage) : deal,
+        deal.id === dealId ? withStage(deal, stageId, resolvedStageName, stageCode) : deal,
       );
       writeCachedDeals({
         generatedAt: new Date().toISOString(),
+        stages: bitrixStages,
         items: next,
       });
       return next;
     });
-    setActiveStage(stage);
+  }
+
+  async function handleDealStageSelect(deal: Deal, stageId: string, stageName?: string) {
+    if (!stageId || stageIdForDeal(deal) === stageId) return;
+    handleDealStageChanged(deal.id, stageId, stageName);
+
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+
+    try {
+      await moveDealToStage({ apiUrl }, deal.id, stageId, stageId);
+    } catch {
+      void refreshAllDataNow();
+    }
   }
 
   function openCatalog() {
@@ -1243,10 +1297,6 @@ export default function App() {
     setPendingCatalogInsert(undefined);
   }
 
-  function handleTabChange(tab: AppTab) {
-    setActiveStage(tab);
-  }
-
   function handleWorkspaceModeChange(mode: WorkspaceMode) {
     setWorkspaceMode(mode);
     updateWorkspaceUrl(mode);
@@ -1261,6 +1311,8 @@ export default function App() {
       handleWorkspaceModeChange("installations");
     } else if (canUseWarehouse) {
       handleWorkspaceModeChange("warehouse");
+    } else if (canUseFinances) {
+      handleWorkspaceModeChange("finances");
     } else if (canUseEmployees) {
       handleWorkspaceModeChange("employees");
     }
@@ -1298,14 +1350,16 @@ export default function App() {
     const deal = deals.find((item) => item.id === dealId);
     if (!deal) return;
 
-    setActiveStage(stageCodeForDeal(deal));
     setSelectedDealId(deal.id);
+    setSelectedStageIds([]);
     setDealWorkspaceTab(target === "techSpec" || !canUseCosting ? "techSpec" : "cost");
     setQuery("");
     if (canUseCosting) {
       handleWorkspaceModeChange("costing");
     } else if (canUseProduction) {
       handleWorkspaceModeChange("production");
+    } else if (canUseFinances) {
+      handleWorkspaceModeChange("finances");
     }
     scrollDealIntoView(deal.id);
   }
@@ -1361,6 +1415,18 @@ export default function App() {
             <span>Склад</span>
           </button>
         ) : null}
+        {canUseFinances ? (
+          <button
+            aria-selected={workspaceMode === "finances"}
+            className={workspaceMode === "finances" ? "active" : ""}
+            onClick={(event) => { handleWorkspaceModeChange("finances"); event.currentTarget.blur(); }}
+            role="tab"
+            type="button"
+          >
+            <CircleDollarSign size={18} />
+            <span>Финансы</span>
+          </button>
+        ) : null}
         {canUseEmployees ? (
           <button
             aria-selected={workspaceMode === "employees"}
@@ -1386,7 +1452,9 @@ export default function App() {
           ? "Монтажи"
           : workspaceMode === "warehouse"
             ? "Склад"
-            : "Сотрудники";
+            : workspaceMode === "finances"
+              ? "Финансы"
+              : "Сотрудники";
 
   function applyPendingStageMoves(items: Deal[]) {
     const now = Date.now();
@@ -1400,12 +1468,15 @@ export default function App() {
         return deal;
       }
 
-      if (stageCodeForDeal(deal) === pending.stage) {
+      if (stageIdForDeal(deal) === pending.stageId || deal.stageName === pending.stageName) {
         pendingStageMovesRef.current.delete(deal.id);
         return deal;
       }
 
-      return withStage(deal, pending.stage);
+      const pendingStageCode =
+        stageCodeFromStageId(pending.stageId, bitrixStages) ||
+        (isDealStageCode(pending.stageId) ? pending.stageId : undefined);
+      return withStage(deal, pending.stageId, pending.stageName, pendingStageCode);
     });
   }
 
@@ -1596,28 +1667,43 @@ export default function App() {
           onCatalogChange={handleCatalogChange}
           onChange={handleWarehouseChange}
         />
+      ) : workspaceMode === "finances" && canUseFinances ? (
+        <FinanceApp
+          agentRatio={storedCalculations.agentCostRatio}
+          calculations={calculationsMap}
+          deals={deals}
+          installations={storedInstallations}
+          production={storedProduction}
+        />
       ) : canUseCosting ? (
         <DealTable
           deals={filteredDeals}
           calculations={calculationsMap}
           agentRatio={storedCalculations.agentCostRatio}
           selectedDealId={selectedDealId}
-          topTabs={
-            <AppTopTabs
-              activeTab={activeStage}
-              stageCounts={stageCounts}
-              onChange={handleTabChange}
+          stageFilter={
+            <StageFilter
+              options={stageOptions}
+              selectedIds={selectedStageIds}
+              onChange={setSelectedStageIds}
             />
           }
+          filterLabel={
+            selectedStageIds.length
+              ? `${filteredDeals.length} сделок в выбранных стадиях`
+              : `${filteredDeals.length} сделок во всех стадиях`
+          }
           onSelect={handleDealToggle}
+          onStageChange={(deal, stageId, stageName) => void handleDealStageSelect(deal, stageId, stageName)}
           onOpenCatalog={openCatalog}
           catalogCount={catalogItems.length}
+          stageOptions={stageOptions}
           query={query}
           onQueryChange={setQuery}
           expandedRow={
             selectedDeal ? (
               <DealWorkspace
-                activeStage={activeStage}
+                activeStage={stageCodeForDeal(selectedDeal)}
                 catalogItems={catalogItems}
                 calculation={selectedCalculation}
                 costNote={costNoteForCalculation(selectedCalculation)}
@@ -1853,51 +1939,87 @@ function defaultQuantityForMode(mode: CostCalcMode) {
   return mode === "area" ? 0 : 1;
 }
 
-function AppTopTabs({
-  activeTab,
-  stageCounts,
+function StageFilter({
+  options,
+  selectedIds,
   onChange,
 }: {
-  activeTab: AppTab;
-  stageCounts: Record<DealStageCode, number>;
-  onChange: (tab: AppTab) => void;
+  options: DealStageOption[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const selected = new Set(selectedIds);
+  const total = options.reduce((sum, option) => sum + option.count, 0);
+  const selectedLabel =
+    selectedIds.length === 0
+      ? "Все стадии"
+      : selectedIds.length === 1
+        ? options.find((option) => option.id === selectedIds[0])?.name || "1 стадия"
+        : `${selectedIds.length} стадии`;
+
+  function toggleStage(stageId: string) {
+    const next = new Set(selectedIds);
+    if (next.has(stageId)) next.delete(stageId);
+    else next.add(stageId);
+    onChange([...next]);
+  }
+
   return (
-    <div className="stage-tabs" role="tablist" aria-label="Разделы">
-      {DEAL_STAGE_TABS.map((stage) => (
-        <motion.button
-          aria-selected={activeTab === stage}
-          className={activeTab === stage ? "active" : ""}
-          key={stage}
-          onClick={() => onChange(stage)}
-          role="tab"
-          type="button"
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          transition={{ duration: 0.14, ease: "easeOut" }}
-        >
-          {stageLabels[stage]}
-          <span>{stageCounts[stage]}</span>
-        </motion.button>
-      ))}
+    <div className="stage-filter">
+      <button
+        aria-expanded={open}
+        className="stage-filter-button"
+        onClick={() => setOpen((current) => !current)}
+        type="button"
+      >
+        <span>{selectedLabel}</span>
+        <b>{selectedIds.length === 0 ? total : selectedIds.length}</b>
+        <ChevronDown size={16} />
+      </button>
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            className="stage-filter-menu"
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+          >
+            <button className="stage-filter-clear" onClick={() => onChange([])} type="button">
+              Все стадии
+              <span>{total}</span>
+            </button>
+            {options.map((option) => (
+              <label className="stage-filter-option" key={option.id}>
+                <input
+                  checked={selected.has(option.id)}
+                  onChange={() => toggleStage(option.id)}
+                  type="checkbox"
+                />
+                <span>{option.name}</span>
+                <b>{option.count}</b>
+              </label>
+            ))}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
 
-function withStage(deal: Deal, stage: DealStageCode): Deal {
-  const stageNames: Record<DealStageCode, string> = {
-    tz: "Подготовка ТЗ",
-    tzApproval: "Согласование ТЗ",
-    launch: "Запустить в производство",
-    production: "В производстве",
-    defect: "КОСЯК в заказе",
-  };
-
+function withStage(deal: Deal, stageId: string, stageName?: string, stageCode?: DealStageCode): Deal {
+  const legacyStage = isDealStageCode(stageId) ? stageId : stageCode;
   return {
     ...deal,
-    stageCode: stage,
-    stageName: stageNames[stage],
+    stageId,
+    stageCode: legacyStage || deal.stageCode,
+    stageName: stageName || (legacyStage ? stageLabels[legacyStage] : stageId),
   };
+}
+
+function isDealStageCode(value?: string): value is DealStageCode {
+  return value === "tz" || value === "tzApproval" || value === "launch" || value === "production" || value === "defect";
 }
 
 function createEmptyStoredCalculations(): StoredCalculations {
@@ -1943,16 +2065,6 @@ function productionWithEmbeddedFallback(
   return embeddedProduction ? mergeServerStoredProduction(production, embeddedProduction) : production;
 }
 
-function createEmptyStageCounts(): Record<DealStageCode, number> {
-  return {
-    tz: 0,
-    tzApproval: 0,
-    launch: 0,
-    production: 0,
-    defect: 0,
-  };
-}
-
 function hasCachedStartupData() {
   return Boolean(
     readCachedDeals() ||
@@ -1991,6 +2103,7 @@ function defaultWorkspaceMode(): WorkspaceMode {
     saved === "production" ||
     saved === "installations" ||
     saved === "warehouse" ||
+    saved === "finances" ||
     saved === "employees"
   ) return saved;
 

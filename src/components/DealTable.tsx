@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { Deal, DealCalculation } from "../types";
+import type { DealStageOption } from "../lib/stages";
 import {
   cleanCost,
   finalCost,
@@ -14,6 +15,7 @@ import {
   saleAmountForDeal,
 } from "../lib/costing";
 import { displayResponsible, isUnresolvedResponsible } from "../lib/responsible";
+import { stageIdForDeal } from "../lib/stages";
 import { EmployeeCard } from "./EmployeeCard";
 
 const COLUMN_STORAGE_KEY = "verkupDealColumnWidths.v2";
@@ -23,6 +25,7 @@ const tableColumns = [
   { id: "source", label: "Источник", defaultWidth: 95, minWidth: 90 },
   { id: "type", label: "Тип", defaultWidth: 125, minWidth: 110 },
   { id: "responsible", label: "Ответственный", defaultWidth: 135, minWidth: 120 },
+  { id: "stage", label: "Стадия", defaultWidth: 150, minWidth: 130 },
   { id: "startDate", label: "Дата запуска", defaultWidth: 88, minWidth: 86 },
   { id: "finishDate", label: "Предп. закрытия", defaultWidth: 98, minWidth: 96 },
   { id: "sales", label: "Продажа / монтаж", defaultWidth: 120, minWidth: 110 },
@@ -62,7 +65,10 @@ type DealTableProps = {
   calculations: Map<string, DealCalculation>;
   agentRatio: number;
   selectedDealId?: string;
-  topTabs: ReactNode;
+  stageFilter?: ReactNode;
+  filterLabel?: string;
+  stageOptions?: DealStageOption[];
+  onStageChange?: (deal: Deal, stageId: string, stageName?: string) => void;
   onSelect: (deal: Deal) => void;
   onOpenCatalog: () => void;
   catalogCount: number;
@@ -76,7 +82,10 @@ export function DealTable({
   calculations,
   agentRatio,
   selectedDealId,
-  topTabs,
+  stageFilter,
+  filterLabel,
+  stageOptions = [],
+  onStageChange,
   onSelect,
   onOpenCatalog,
   catalogCount,
@@ -228,9 +237,9 @@ export function DealTable({
       </section>
 
       <div className="toolbar">
-        <div>
-          {topTabs}
-          <p>{visibleDeals.length} сделок в текущей вкладке</p>
+        <div className="toolbar-filter">
+          {stageFilter}
+          <p>{filterLabel || `${visibleDeals.length} сделок в текущем фильтре`}</p>
         </div>
         <div className="toolbar-actions">
           <label className="search">
@@ -335,6 +344,22 @@ export function DealTable({
                 </span>
                 <span className="mobile-deal-stage">{deal.stageName || deal.stageCode || "-"}</span>
               </button>
+              {stageOptions.length ? (
+                <select
+                  className="mobile-stage-select"
+                  value={stageIdForDeal(deal)}
+                  onChange={(event) => {
+                    const option = stageOptions.find((item) => item.id === event.target.value);
+                    onStageChange?.(deal, event.target.value, option?.name);
+                  }}
+                >
+                  {stageOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
 
               <div className="mobile-deal-meta">
                 <span>
@@ -467,6 +492,26 @@ export function DealTable({
                         fallbackName={deal.responsible}
                         fallbackPhone={deal.responsiblePhone}
                       />
+                    </td>
+                    <td className="stage-cell" onClick={(event) => event.stopPropagation()}>
+                      {stageOptions.length ? (
+                        <select
+                          className="stage-inline-select"
+                          value={stageIdForDeal(deal)}
+                          onChange={(event) => {
+                            const option = stageOptions.find((item) => item.id === event.target.value);
+                            onStageChange?.(deal, event.target.value, option?.name);
+                          }}
+                        >
+                          {stageOptions.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        deal.stageName || "-"
+                      )}
                     </td>
                     <td>{formatDate(deal.startDate) || "Не указана"}</td>
                     <td>{formatDate(deal.expectedFinishDate) || "Не указана"}</td>

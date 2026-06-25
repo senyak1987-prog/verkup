@@ -48,6 +48,32 @@ try {
         json_response($result, 200);
     }
 
+    if (($method === 'GET' || $method === 'POST') && $path === '/bitrix/event') {
+        require_bitrix_sync_token();
+        $result = sync_bitrix_deals(true);
+        publish_realtime_event('bitrix.event', 'deals', [
+            'count' => count(array_get(array_get($result, 'data', []), 'items', [])),
+        ]);
+        json_response($result, 200);
+    }
+
+    if ($method === 'GET' && $path === '/bitrix/stages') {
+        json_response(['success' => true, 'stages' => bitrix_target_stage_items()], 200);
+    }
+
+    if ($method === 'POST' && $path === '/move-stage') {
+        $body = request_json();
+        $dealId = sanitize_segment((string)array_get($body, 'dealId', ''));
+        $targetStage = trim((string)array_get($body, 'targetStage', ''));
+        $targetStageId = bitrix_stage_id_for_target($targetStage, (string)array_get($body, 'targetStageId', ''));
+        $result = move_bitrix_deal_stage($dealId, $targetStageId);
+        publish_realtime_event('deal.stage_changed', 'deals', [
+            'dealId' => $dealId,
+            'stageId' => $targetStageId,
+        ]);
+        json_response(['success' => true, 'stageId' => $targetStageId, 'data' => array_get($result, 'data', [])], 200);
+    }
+
     if ($method === 'GET' && preg_match('#^/data/([a-z0-9_-]+\.json)$#i', $path, $match)) {
         json_response(read_data_file($match[1]), 200);
     }
@@ -734,7 +760,8 @@ function default_data($name)
             'priceHistory' => [],
         ];
     }
-    if ($name === 'catalogs.json' || $name === 'deals.json') return ['generatedAt' => $now, 'items' => []];
+    if ($name === 'deals.json') return ['generatedAt' => $now, 'stages' => [], 'items' => []];
+    if ($name === 'catalogs.json') return ['generatedAt' => $now, 'items' => []];
     if ($name === 'events.json') return ['generatedAt' => $now, 'lastEventId' => 0, 'events' => []];
     return [];
 }

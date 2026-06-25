@@ -320,9 +320,14 @@ export async function sendProductionPush(
 export async function moveDealToStage(
   settings: SaveApiSettings,
   dealId: string,
-  targetStage: DealStageCode,
+  targetStage: DealStageCode | string,
+  targetStageId?: string,
 ) {
-  return postToSaveApi(settings, "/move-stage", { dealId, targetStage });
+  return postToSaveApi(settings, "/move-stage", {
+    dealId,
+    targetStage,
+    targetStageId: targetStageId || targetStage,
+  });
 }
 
 export async function uploadTechSpecToBitrix(

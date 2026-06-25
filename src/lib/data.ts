@@ -650,7 +650,9 @@ function isCacheTooOld(savedAt?: string) {
 
 function shouldKeepCachedData<T>(data: T, cachedData?: T): cachedData is T {
   return (
-    (isEmptyAppData(data) && isNonEmptyAppData(cachedData)) ||
+    (isEmptyAppData(data) &&
+      isNonEmptyAppData(cachedData) &&
+      shouldKeepNonEmptyCachedData(data, cachedData)) ||
     (isEmptyStoredTechSpecs(data) &&
       isNonEmptyStoredTechSpecs(cachedData) &&
       shouldKeepNonEmptyCachedData(data, cachedData)) ||
