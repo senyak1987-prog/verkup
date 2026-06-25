@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="verkupAppIconTitle">
   <title id="verkupAppIconTitle">Verkup app icon</title>
-  <rect width="512" height="512" rx="88" fill="#050505"/>
+  <rect width="512" height="512" rx="88" fill="#f5f3ef"/>
   <g transform="translate(35.8400 438.6943) scale(3.139700 -3.139700) translate(-0.0000 -0.0000)">
     <path fill="#ff7500" d="M 140.2427 89.3798 L 121.1108 89.3798 L 90.4986 0.0000 L 109.6305 0.0000 Z"/>
     <path fill="#ff7500" d="M 84.3738 70.1626 L 108.4039 0.0000 L 89.2721 0.0000 L 68.9315 59.3892 C 72.8082 61.8673 79.6830 66.7664 84.3738 70.1626"/>

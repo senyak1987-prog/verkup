@@ -1334,14 +1334,22 @@ function InstallationPlannerTimeline({
   const periodDays = viewMode === "week" ? dateKeysBetween(plannerRange("week", dateKey).start, plannerRange("week", dateKey).end) : [dateKey];
   const schedulerStyle =
     viewMode === "day"
-      ? ({
-          "--planner-hour-columns": plannerHourSlots.length,
-          "--planner-hour-min-width": `${Math.max(760, Math.round(plannerHourSlots.length * 54 * plannerZoom))}px`,
-        } as CSSProperties)
-      : ({
-          "--planner-day-columns": periodDays.length,
-          "--planner-day-min-width": `${Math.max(900, periodDays.length * 118)}px`,
-        } as CSSProperties);
+      ? (() => {
+          const hourWidth = Math.max(32, Math.round(54 * plannerZoom), Math.ceil(760 / plannerHourSlots.length));
+          return {
+            "--planner-hour-columns": plannerHourSlots.length,
+            "--planner-hour-width": `${hourWidth}px`,
+            "--planner-track-width": `${plannerHourSlots.length * hourWidth}px`,
+          } as CSSProperties;
+        })()
+      : (() => {
+          const dayWidth = Math.max(118, Math.ceil(900 / periodDays.length));
+          return {
+            "--planner-day-columns": periodDays.length,
+            "--planner-day-width": `${dayWidth}px`,
+            "--planner-track-width": `${periodDays.length * dayWidth}px`,
+          } as CSSProperties;
+        })();
 
   return (
     <div className="installation-planner-shell" ref={plannerShellRef}>

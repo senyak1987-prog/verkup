@@ -6128,10 +6128,11 @@ div.employee-profile-field .employee-profile-value {
 
 .production-pull-refresh-logo {
   display: block;
-  width: min(118px, 38vw);
+  width: min(132px, 40vw);
   height: auto;
-  max-height: 32px;
+  max-height: 30px;
   overflow: visible;
+  object-fit: contain;
   transform: translateY(var(--pull-logo-y, 4px)) scale(var(--pull-logo-scale, 0.9));
   transform-origin: center;
   transition: transform 160ms ease;
@@ -6357,6 +6358,15 @@ div.employee-profile-field .employee-profile-value {
   object-fit: contain;
 }
 
+.worker-mobile-logo {
+  display: block;
+  width: min(138px, 40vw);
+  height: auto;
+  max-height: 28px;
+  overflow: visible;
+  object-fit: contain;
+}
+
 .production-mobile.pull-refresh-active .worker-mobile-brand {
   opacity: 0;
   transform: translateY(-8px);
@@ -6500,7 +6510,7 @@ div.employee-profile-field .employee-profile-value {
   top: calc(100% + 8px);
   right: 0;
   left: auto;
-  z-index: 4;
+  z-index: 4000;
   display: grid;
   gap: 2px;
   width: min(240px, calc(100vw - 32px));
@@ -11728,6 +11738,19 @@ textarea {
     will-change: opacity, transform;
   }
 
+  .production-worker-view:has(.worker-profile-menu) {
+    isolation: isolate;
+  }
+
+  .production-worker-view:has(.worker-profile-menu)::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 1190;
+    background: transparent;
+    pointer-events: none;
+  }
+
   .worker-profile-menu button,
   .worker-profile-menu label,
   .production-mobile .worker-profile-menu button,
@@ -12671,16 +12694,19 @@ textarea {
 }
 
 .installation-scheduler {
+  --planner-lane-width: 156px;
+  --planner-track-width: 760px;
   --planner-row-height: 92px;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
   display: grid;
-  grid-template-columns: 156px minmax(680px, 1fr);
+  grid-template-columns: var(--planner-lane-width) var(--planner-track-width);
   max-width: 100%;
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   position: relative;
+  width: max-content;
 }
 
 .planner-corner,
@@ -12715,20 +12741,29 @@ textarea {
 }
 
 .planner-hour-scale {
-  grid-template-columns: repeat(var(--planner-hour-columns, 13), minmax(58px, 1fr));
-  min-width: var(--planner-hour-min-width, 680px);
+  grid-template-columns: repeat(var(--planner-hour-columns, 13), var(--planner-hour-width, 58px));
+  width: var(--planner-track-width, 680px);
 }
 
 .planner-day-scale {
-  grid-template-columns: repeat(var(--planner-day-columns, 7), minmax(110px, 1fr));
-  min-width: var(--planner-day-min-width, 840px);
+  grid-template-columns: repeat(var(--planner-day-columns, 7), var(--planner-day-width, 118px));
+  width: var(--planner-track-width, 840px);
 }
 
 .planner-scale span {
   align-items: center;
   border-left: 1px solid var(--border, #e5e7eb);
   display: flex;
+  min-width: 0;
   padding: 0 8px;
+}
+
+.planner-hour-scale span {
+  font-variant-numeric: tabular-nums;
+  justify-content: center;
+  padding: 0 2px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .planner-scale span.today {
@@ -12790,14 +12825,14 @@ textarea {
 }
 
 .planner-time-track {
-  min-width: var(--planner-hour-min-width, 680px);
+  width: var(--planner-track-width, 680px);
 }
 
 .planner-week-track {
   background: #f3f6fa;
   display: grid;
-  grid-template-columns: repeat(var(--planner-day-columns, 7), minmax(110px, 1fr));
-  min-width: var(--planner-day-min-width, 840px);
+  grid-template-columns: repeat(var(--planner-day-columns, 7), var(--planner-day-width, 118px));
+  width: var(--planner-track-width, 840px);
 }
 
 .planner-day-cell {
@@ -16756,6 +16791,12 @@ td,
   gap: 8px;
 }
 
+.worker-profile:has(.worker-profile-menu),
+.worker-profile-menu-wrap:has(.worker-profile-menu) {
+  position: relative;
+  z-index: 4000;
+}
+
 /* Matte liquid-glass surface language for the workspace shell. */
 :root {
   --liquid-glass-bg: rgba(255, 253, 248, 0.78);
@@ -16922,6 +16963,73 @@ td,
   .deal-list > .toolbar .toolbar-catalog {
     flex: 0 0 auto;
     width: auto;
+  }
+}
+
+/* Unified compact page headers. Keep all workspace sections at admin density. */
+.workspace-page-hero,
+.warehouse-hero,
+.installations-toolbar,
+.production-mobile .production-topbar {
+  gap: 8px;
+  margin: 0 0 12px;
+  min-height: 0;
+  padding: 14px 18px;
+  border: 1px solid var(--liquid-glass-border);
+  border-radius: 18px;
+}
+
+.production-mobile .production-topbar {
+  align-items: flex-start;
+  max-width: none;
+}
+
+.workspace-page-hero .eyebrow,
+.warehouse-hero .eyebrow,
+.installations-toolbar .eyebrow,
+.production-mobile .production-topbar .eyebrow {
+  margin: 0 0 3px;
+  color: color-mix(in srgb, var(--primary) 76%, #8b3a00);
+  font-size: 11.5px;
+  font-weight: 680;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.workspace-page-hero h1,
+.warehouse-hero h1,
+.installations-toolbar h1,
+.production-mobile .production-topbar h1 {
+  margin: 0;
+  color: #101828;
+  font-size: 24px;
+  font-weight: 640;
+  line-height: 1.12;
+  letter-spacing: 0;
+}
+
+.workspace-page-hero p,
+.warehouse-hero p,
+.installations-toolbar p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+@media (max-width: 1024px) {
+  .workspace-page-hero,
+  .warehouse-hero,
+  .installations-toolbar,
+  .production-mobile .production-topbar {
+    padding: 12px 14px;
+    border-radius: 16px;
+  }
+
+  .workspace-page-hero h1,
+  .warehouse-hero h1,
+  .installations-toolbar h1,
+  .production-mobile .production-topbar h1 {
+    font-size: 22px;
   }
 }
 
@@ -17170,4 +17278,678 @@ textarea:focus,
   .summary:hover {
     transform: none;
   }
+}
+
+/* Mobile brand polish: the static header and pull-refresh logo now share one SVG. */
+.production-worker-view .worker-mobile-brand {
+  min-height: 42px;
+}
+
+.production-worker-view .worker-mobile-logo,
+.production-pull-refresh-logo {
+  width: min(136px, 40vw);
+  max-height: 28px;
+  overflow: visible;
+  object-fit: contain;
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-brand {
+  opacity: 0;
+  transform: none;
+  pointer-events: none;
+}
+
+.production-pull-refresh.pulling .logo-wave-8 {
+  transform: translateY(var(--pull-wave-8, 0));
+}
+
+.production-pull-refresh.pulling .logo-wave-9 {
+  transform: translateY(var(--pull-wave-9, 0));
+}
+
+.production-pull-refresh.pulling .logo-wave-10 {
+  transform: translateY(var(--pull-wave-10, 0));
+}
+
+.production-pull-refresh.pulling .logo-wave-11 {
+  transform: translateY(var(--pull-wave-11, 0));
+}
+
+.production-pull-refresh.refreshing .production-pull-refresh-logo-part {
+  animation-name: verkupRefreshLetterWave;
+}
+
+.production-pull-refresh.refreshing .logo-wave-8 {
+  animation-delay: 490ms;
+}
+
+.production-pull-refresh.refreshing .logo-wave-9 {
+  animation-delay: 560ms;
+}
+
+.production-pull-refresh.refreshing .logo-wave-10 {
+  animation-delay: 630ms;
+}
+
+.production-pull-refresh.refreshing .logo-wave-11 {
+  animation-delay: 700ms;
+}
+
+/* Matte liquid glass pass for the mobile employee apps. */
+.production-mobile {
+  background:
+    radial-gradient(circle at 18% 8%, rgba(255, 255, 255, 0.86), transparent 30%),
+    radial-gradient(circle at 88% 4%, rgba(255, 117, 0, 0.1), transparent 28%),
+    linear-gradient(180deg, #f7f4ee 0%, #efebe3 100%);
+}
+
+.production-worker-view .worker-profile,
+.production-worker-view .worker-tabs,
+.production-worker-view .worker-empty,
+.production-worker-view .worker-notice,
+.production-worker-view .mobile-deal-card,
+.production-worker-view .worker-photo-gallery-card,
+.production-worker-view .worker-profile-menu,
+.production-worker-view .worker-password-panel,
+.production-worker-view .production-notification-center,
+.production-worker-view .production-photo-slot,
+.production-mobile .production-section-tabs,
+.production-mobile .production-batch-bar,
+.production-mobile .production-kpis,
+.production-mobile .production-kpi {
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.74), rgba(255, 248, 238, 0.54)),
+    rgba(255, 255, 255, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -18px 36px rgba(255, 255, 255, 0.28),
+    0 14px 32px rgba(44, 34, 22, 0.11);
+  -webkit-backdrop-filter: blur(24px) saturate(1.28);
+  backdrop-filter: blur(24px) saturate(1.28);
+}
+
+.production-worker-view .worker-profile::before,
+.production-worker-view .mobile-deal-card::before,
+.production-worker-view .worker-tabs::before {
+  background:
+    radial-gradient(circle at 22% 0%, rgba(255, 255, 255, 0.72), transparent 42%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.34), transparent 46%);
+}
+
+.production-worker-view .worker-tabs button {
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.production-worker-view .worker-tabs button.active {
+  background: transparent;
+  box-shadow: none;
+}
+
+.production-worker-view .worker-tabs {
+  isolation: isolate;
+}
+
+.production-worker-view .worker-tab-rail {
+  z-index: 2;
+}
+
+.production-worker-view .worker-tab-glider {
+  z-index: 1;
+  border-radius: 13px;
+  background:
+    linear-gradient(180deg, rgba(255, 127, 24, 0.98), rgba(239, 92, 5, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 10px 22px rgba(255, 95, 0, 0.24);
+}
+
+:where(
+  .app-mode-sidebar svg,
+  .mobile-app-shell svg,
+  .production-mobile svg,
+  .worker-profile-menu svg,
+  .worker-profile-menu-trigger svg,
+  .worker-notification-badge svg,
+  .icon-button svg,
+  .secondary svg,
+  .primary svg
+) {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+}
+
+@media (max-width: 720px) {
+  .production-mobile .worker-profile-menu {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 252px);
+    right: 14px;
+    left: 14px;
+    z-index: 5000;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 270px - env(safe-area-inset-bottom, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    border-radius: 22px;
+    padding: 8px;
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(255, 247, 236, 0.7)),
+      rgba(255, 255, 255, 0.72);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.92),
+      0 22px 60px rgba(25, 20, 14, 0.22);
+    -webkit-backdrop-filter: blur(30px) saturate(1.2);
+    backdrop-filter: blur(30px) saturate(1.2);
+    transform-origin: top right;
+  }
+
+  .production-mobile .worker-profile-menu,
+  .production-mobile .worker-profile-menu * {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .production-mobile .worker-profile-menu button,
+  .production-mobile .worker-profile-menu label {
+    min-height: 52px;
+    border-radius: 14px;
+  }
+}
+
+/* Brand/menu reliability patch: keep the exact logo proportions and lift the
+   profile menu above cards on mobile Safari. */
+.production-worker-view .worker-mobile-brand {
+  position: relative;
+  z-index: 30;
+  overflow: visible;
+}
+
+.production-worker-view .worker-mobile-brand span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.production-worker-view .worker-mobile-logo,
+.production-pull-refresh-logo {
+  display: block;
+  width: min(140px, 42vw);
+  height: auto;
+  max-height: none;
+  aspect-ratio: 546 / 120;
+  object-fit: contain;
+}
+
+.production-pull-refresh {
+  z-index: 7000;
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-brand {
+  visibility: hidden;
+  opacity: 0 !important;
+}
+
+.production-worker-view .worker-profile,
+.production-worker-view .worker-profile-main,
+.production-worker-view .worker-profile-title,
+.production-worker-view .worker-profile-actions,
+.production-worker-view .worker-profile-menu-wrap {
+  overflow: visible;
+}
+
+.production-worker-view .worker-profile {
+  position: relative;
+  z-index: 5000;
+  isolation: isolate;
+}
+
+.production-worker-view .worker-profile-menu-wrap {
+  position: relative;
+  z-index: 7000;
+}
+
+.production-worker-view .worker-profile-menu {
+  z-index: 7100 !important;
+}
+
+@media (max-width: 720px) {
+  .production-mobile .worker-profile-menu {
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 252px);
+    right: max(14px, env(safe-area-inset-right, 0px));
+    left: max(14px, env(safe-area-inset-left, 0px));
+    z-index: 7100 !important;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 270px - env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Pull-to-refresh continuity: animate the header logo itself, not a duplicate. */
+.production-worker-view .worker-mobile-brand {
+  padding-top: max(10px, env(safe-area-inset-top, 0px));
+  transform: translate3d(0, var(--pull-logo-y, 0px), 0) scale(var(--pull-logo-scale, 1));
+  transform-origin: center top;
+  transition:
+    filter 160ms ease,
+    transform 170ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform, filter;
+}
+
+.production-worker-view .worker-mobile-logo {
+  display: block;
+  width: min(140px, 42vw);
+  height: auto;
+  max-height: none;
+  aspect-ratio: 546 / 120;
+  overflow: visible;
+  filter: drop-shadow(0 7px 14px rgba(54, 34, 9, 0.08));
+}
+
+.production-worker-view .worker-mobile-logo .verkup-logo-piece {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-brand {
+  visibility: visible;
+  opacity: 1 !important;
+  pointer-events: auto;
+  filter: saturate(1.07);
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-1 {
+  transform: translateY(var(--pull-wave-1, 0px));
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-2 {
+  transform: translateY(var(--pull-wave-2, 0px));
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-3 {
+  transform: translateY(var(--pull-wave-3, 0px));
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-4 {
+  transform: translateY(var(--pull-wave-4, 0px));
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-5 {
+  transform: translateY(var(--pull-wave-5, 0px));
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-6 {
+  transform: translateY(var(--pull-wave-6, 0px));
+}
+
+.production-mobile.pull-refresh-active .worker-mobile-logo .logo-wave-7 {
+  transform: translateY(var(--pull-wave-7, 0px));
+}
+
+/* Corner rendering fix: keep glass buttons and scheduler scrollbars inside their own radius. */
+:where(
+  .primary,
+  .secondary,
+  .danger,
+  .icon-button,
+  .row-actions button,
+  .row-actions a,
+  .drawer-head button,
+  .catalog-modal-head button,
+  .position-row button,
+  .worker-profile-menu-trigger,
+  .worker-profile-menu button,
+  .worker-profile-menu label,
+  .stage-tabs button,
+  .deal-workspace-tabs button,
+  .access-tabs button,
+  .worker-tabs button,
+  .production-section-tabs button,
+  .production-view-switch button,
+  .catalog-group-tabs button,
+  .installation-view-switch button,
+  .planner-view-switch button
+) {
+  background-clip: padding-box;
+  isolation: isolate;
+  overflow: clip;
+}
+
+@supports not (overflow: clip) {
+  :where(
+    .primary,
+    .secondary,
+    .danger,
+    .icon-button,
+    .row-actions button,
+    .row-actions a,
+    .drawer-head button,
+    .catalog-modal-head button,
+    .position-row button,
+    .worker-profile-menu-trigger,
+    .worker-profile-menu button,
+    .worker-profile-menu label,
+    .stage-tabs button,
+    .deal-workspace-tabs button,
+    .access-tabs button,
+    .worker-tabs button,
+    .production-section-tabs button,
+    .production-view-switch button,
+    .catalog-group-tabs button,
+    .installation-view-switch button,
+    .planner-view-switch button
+  ) {
+    overflow: hidden;
+  }
+}
+
+@media (min-width: 721px) {
+  .app-mode-sidebar .workspace-user-card .secondary {
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    background-clip: padding-box;
+  }
+
+  .app-mode-sidebar:not(:hover) .workspace-user-card .secondary {
+    width: 48px;
+    min-width: 48px;
+    height: 48px;
+    min-height: 48px;
+    border-color: var(--border-soft);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 252, 247, 0.78)),
+      var(--surface);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      0 8px 18px rgba(44, 34, 22, 0.08);
+  }
+
+  .app-mode-sidebar:not(:hover) .workspace-user-card .secondary svg {
+    margin: 0;
+  }
+}
+
+.installation-scheduler {
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 250, 244, 0.46)),
+    var(--surface, #fff);
+  background-clip: padding-box;
+  scrollbar-color: rgba(105, 105, 105, 0.7) transparent;
+  scrollbar-width: thin;
+}
+
+.installation-scheduler::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.installation-scheduler::-webkit-scrollbar-track {
+  margin: 0 12px 2px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.installation-scheduler::-webkit-scrollbar-thumb {
+  min-width: 42px;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(112, 112, 112, 0.72);
+  background-clip: padding-box;
+}
+
+.installation-scheduler::-webkit-scrollbar-thumb:hover {
+  background: rgba(91, 91, 91, 0.8);
+  background-clip: padding-box;
+}
+
+.installation-scheduler::-webkit-scrollbar-button,
+.installation-scheduler::-webkit-scrollbar-corner {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+.production-mobile.pull-refreshing .worker-mobile-logo .verkup-logo-piece {
+  animation: verkupHeaderLogoWave 980ms cubic-bezier(0.34, 1.56, 0.64, 1) infinite;
+}
+
+.production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-1 {
+  animation-delay: 0ms;
+}
+
+.production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-2 {
+  animation-delay: 75ms;
+}
+
+.production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-3 {
+  animation-delay: 150ms;
+}
+
+.production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-4 {
+  animation-delay: 225ms;
+}
+
+.production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-5 {
+  animation-delay: 300ms;
+}
+
+.production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-6 {
+  animation-delay: 375ms;
+}
+
+.production-mobile.pull-refreshing .worker-mobile-logo .logo-wave-7 {
+  animation-delay: 450ms;
+}
+
+@keyframes verkupHeaderLogoWave {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  32% {
+    transform: translateY(5px);
+  }
+
+  62% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Compact radius system. Reduces the oversized liquid-glass rounding and keeps
+   native scrollbar arrows visible inside scheduler corners. */
+:root {
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-control: 9px;
+  --radius-chip: 8px;
+  --radius-card: 12px;
+  --radius-sheet: 14px;
+}
+
+:where(
+  .primary,
+  .secondary,
+  .danger,
+  .ghost,
+  .icon-button,
+  .row-actions button,
+  .row-actions a,
+  .drawer-head button,
+  .catalog-modal-head button,
+  .position-row button,
+  .worker-profile-menu-trigger,
+  .worker-profile-menu button,
+  .worker-profile-menu label,
+  .manager-deal-head a,
+  .tech-spec-export-popover button,
+  .warehouse-actions button,
+  .employee-access-actions button,
+  .employee-payout-controls button,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea
+) {
+  border-radius: var(--radius-control) !important;
+}
+
+:where(
+  .stage-tabs,
+  .deal-workspace-tabs,
+  .access-tabs,
+  .worker-tabs,
+  .production-section-tabs,
+  .production-view-switch,
+  .catalog-group-tabs,
+  .installation-view-switch,
+  .planner-view-switch,
+  .warehouse-tabs
+) {
+  border-radius: var(--radius-card) !important;
+  padding: 3px;
+}
+
+:where(
+  .stage-tabs button,
+  .deal-workspace-tabs button,
+  .access-tabs button,
+  .worker-tabs button,
+  .production-section-tabs button,
+  .production-view-switch button,
+  .catalog-group-tabs button,
+  .installation-view-switch button,
+  .planner-view-switch button,
+  .warehouse-tabs button,
+  .status-chip,
+  .cost-chip,
+  .mobile-deal-chip,
+  .production-chip,
+  .deal-chip,
+  .tag,
+  .chip,
+  .installation-status,
+  .warehouse-status,
+  .worker-status,
+  .employee-card-chip
+) {
+  border-radius: var(--radius-chip) !important;
+}
+
+:where(
+  .workspace-page-hero,
+  .warehouse-hero,
+  .installations-toolbar,
+  .production-topbar,
+  .toolbar,
+  .production-batch-bar,
+  .kpi,
+  .summary,
+  .production-kpi,
+  .warehouse-summary-card,
+  .installations-summary-card,
+  .employee-management-shell,
+  .employee-group-grid button,
+  .employee-admin-row,
+  .table-wrap,
+  .warehouse-panel,
+  .installations-board,
+  .installations-queue,
+  .installations-notifications,
+  .installation-map-panel,
+  .installation-panel,
+  .installation-map-card,
+  .installation-planner-card,
+  .installation-card,
+  .production-panel,
+  .production-deal-card,
+  .production-empty,
+  .production-notification,
+  .mobile-deal-card,
+  .mobile-deal-empty,
+  .worker-profile,
+  .worker-empty,
+  .worker-notice,
+  .worker-photo-gallery-card,
+  .worker-password-panel,
+  .production-notification-center,
+  .deal-workspace,
+  .catalog-sidebar,
+  .catalog-panel,
+  .catalog-form,
+  .catalog-item-card,
+  .calc-block,
+  .material-subblock,
+  .block-add-card,
+  .tech-spec-panel,
+  .tech-spec-item,
+  .tech-spec-hero
+) {
+  border-radius: var(--radius-card) !important;
+}
+
+:where(
+  .worker-profile-menu,
+  .catalog-modal-card,
+  .catalog-modal,
+  .installation-details,
+  .employee-popover-surface,
+  .worker-gallery-viewer,
+  .modal,
+  .bottom-sheet
+) {
+  border-radius: var(--radius-sheet) !important;
+}
+
+.production-worker-view .worker-tab-glider {
+  border-radius: var(--radius-control) !important;
+}
+
+.installation-scheduler {
+  border-radius: var(--radius-card) !important;
+  scrollbar-gutter: stable;
+}
+
+.installation-scheduler::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.installation-scheduler::-webkit-scrollbar-track {
+  margin: 0 4px 2px;
+  border-radius: 999px;
+}
+
+.installation-scheduler::-webkit-scrollbar-thumb {
+  border-width: 3px;
+}
+
+.installation-scheduler::-webkit-scrollbar-button {
+  width: 14px;
+  height: 12px;
+  border-radius: 0;
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 7px 7px;
+}
+
+.installation-scheduler::-webkit-scrollbar-button:horizontal:decrement {
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5.8 1.2 2.2 4l3.6 2.8z' fill='%23888'/%3E%3C/svg%3E");
+}
+
+.installation-scheduler::-webkit-scrollbar-button:horizontal:increment {
+  background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2.2 1.2 5.8 4 2.2 6.8z' fill='%23888'/%3E%3C/svg%3E");
+}
+
+.installation-scheduler::-webkit-scrollbar-corner {
+  background: transparent;
 }
