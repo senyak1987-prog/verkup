@@ -54,11 +54,19 @@ try {
         require_bitrix_sync_token();
         $dealId = bitrix_request_deal_id();
         $eventName = bitrix_request_event_name();
+        $installationSync = null;
         try {
             if ($dealId !== '') {
                 $result = stripos($eventName, 'DELETE') !== false
                     ? remove_bitrix_deal_from_cache($dealId)
                     : sync_bitrix_deal($dealId);
+                if (stripos($eventName, 'DELETE') === false) {
+                    $installationSync = maybe_create_installation_request_from_bitrix_data(
+                        $dealId,
+                        array_get($result, 'data', []),
+                        'bitrix_event'
+                    );
+                }
             } else {
                 $result = [
                     'success' => true,
@@ -76,10 +84,14 @@ try {
                 'dealId' => $dealId,
             ];
         }
+        if ($installationSync !== null) {
+            $result['installationSync'] = $installationSync;
+        }
         publish_realtime_event('bitrix.event', 'deals', [
             'dealId' => $dealId,
             'event' => $eventName,
             'action' => array_get($result, 'action', ''),
+            'installationAction' => is_array($installationSync) ? array_get($installationSync, 'action', '') : '',
         ]);
         json_response($result, 200);
     }
@@ -94,11 +106,18 @@ try {
         $targetStage = trim((string)array_get($body, 'targetStage', ''));
         $targetStageId = bitrix_stage_id_for_target($targetStage, (string)array_get($body, 'targetStageId', ''));
         $result = move_bitrix_deal_stage($dealId, $targetStageId);
+        $installationSync = maybe_create_installation_request_from_bitrix_data($dealId, array_get($result, 'data', []), 'stage_changed');
         publish_realtime_event('deal.stage_changed', 'deals', [
             'dealId' => $dealId,
             'stageId' => $targetStageId,
+            'installationAction' => is_array($installationSync) ? array_get($installationSync, 'action', '') : '',
         ]);
-        json_response(['success' => true, 'stageId' => $targetStageId, 'data' => array_get($result, 'data', [])], 200);
+        json_response([
+            'success' => true,
+            'stageId' => $targetStageId,
+            'data' => array_get($result, 'data', []),
+            'installationSync' => $installationSync,
+        ], 200);
     }
 
     if ($method === 'GET' && preg_match('#^/data/([a-z0-9_-]+\.json)$#i', $path, $match)) {
@@ -1472,6 +1491,173 @@ function installation_by_id($store, $installationId)
         if (is_array($installation) && (string)(array_get($installation, 'id', '')) === $installationId) return $installation;
     }
     return null;
+}
+
+function maybe_create_installation_request_from_bitrix_data($dealId, $dealsData, $source)
+{
+    try {
+        $deal = find_cached_bitrix_deal($dealId, $dealsData);
+        if (!$deal) {
+            return ['success' => true, 'skipped' => true, 'reason' => 'deal_not_found'];
+        }
+        if (!is_bitrix_deal_installation_stage($deal)) {
+            return ['success' => true, 'skipped' => true, 'reason' => 'stage_not_installation_trigger'];
+        }
+        if (!is_bitrix_deal_installation_candidate($deal)) {
+            return ['success' => true, 'skipped' => true, 'reason' => 'installation_not_required'];
+        }
+
+        $store = read_installations();
+        $existing = latest_installation_for_deal($store, $dealId);
+        if ($existing && in_array((string)array_get($existing, 'status', ''), ['no_installation', 'canceled'], true)) {
+            return [
+                'success' => true,
+                'skipped' => true,
+                'reason' => 'installation_disabled',
+                'installationId' => array_get($existing, 'id', ''),
+            ];
+        }
+
+        $body = installation_body_from_bitrix_deal($deal, $existing, $source);
+        $installationId = $existing ? (string)array_get($existing, 'id', '') : '';
+
+        if ($existing && !installation_body_has_changes($existing, $body)) {
+            return [
+                'success' => true,
+                'skipped' => true,
+                'reason' => 'already_actual',
+                'installationId' => $installationId,
+            ];
+        }
+
+        $result = create_or_update_installation($installationId, $body);
+        $saved = array_get($result, 'installation', []);
+        publish_realtime_event($installationId === '' ? 'installation.auto_created' : 'installation.auto_updated', 'installations', [
+            'installationId' => array_get($saved, 'id', ''),
+            'dealId' => array_get($saved, 'dealId', ''),
+            'source' => $source,
+        ]);
+
+        return [
+            'success' => true,
+            'skipped' => false,
+            'action' => $installationId === '' ? 'created' : 'updated',
+            'installationId' => array_get($saved, 'id', ''),
+            'dealId' => array_get($saved, 'dealId', ''),
+        ];
+    } catch (Exception $error) {
+        error_log('Auto installation request failed: ' . $error->getMessage());
+        return ['success' => false, 'skipped' => true, 'reason' => 'auto_installation_failed'];
+    }
+}
+
+function find_cached_bitrix_deal($dealId, $dealsData)
+{
+    $id = trim((string)$dealId);
+    if ($id === '') return null;
+    $items = array_get(is_array($dealsData) ? $dealsData : [], 'items', []);
+    if (!is_array($items)) return null;
+    foreach ($items as $deal) {
+        if (is_array($deal) && (string)array_get($deal, 'id', '') === $id) return $deal;
+    }
+    return null;
+}
+
+function is_bitrix_deal_installation_stage($deal)
+{
+    $code = (string)array_get($deal, 'stageCode', '');
+    if (in_array($code, ['launch', 'production'], true)) return true;
+    $stageName = normalize_bitrix_text((string)array_get($deal, 'stageName', ''));
+    foreach (['запуск', 'производ', 'отгруз'] as $needle) {
+        if ($stageName !== '' && strpos($stageName, $needle) !== false) return true;
+    }
+    return false;
+}
+
+function is_bitrix_deal_installation_candidate($deal)
+{
+    if (to_number(array_get($deal, 'installSaleAmount', 0)) > 0) return true;
+    if (trim((string)array_get($deal, 'installationAddress', '')) !== '') return true;
+    if (trim((string)array_get($deal, 'installationClientPhone', '')) !== '') return true;
+    $text = normalize_bitrix_text(implode(' ', [
+        (string)array_get($deal, 'type', ''),
+        (string)array_get($deal, 'classification', ''),
+        (string)array_get($deal, 'installationComment', ''),
+    ]));
+    return strpos($text, 'монтаж') !== false;
+}
+
+function latest_installation_for_deal($store, $dealId)
+{
+    $matches = [];
+    foreach (array_get($store, 'installations', []) as $installation) {
+        if (is_array($installation) && (string)array_get($installation, 'dealId', '') === (string)$dealId) {
+            $matches[] = $installation;
+        }
+    }
+    usort($matches, function ($first, $second) {
+        return strcmp((string)array_get($second, 'updatedAt', ''), (string)array_get($first, 'updatedAt', ''));
+    });
+    return $matches ? $matches[0] : null;
+}
+
+function installation_body_from_bitrix_deal($deal, $existing, $source)
+{
+    $keepManualAddress = is_array($existing)
+        && (bool)array_get($existing, 'addressEdited', false)
+        && trim((string)array_get($existing, 'address', '')) !== '';
+    $address = $keepManualAddress
+        ? (string)array_get($existing, 'address', '')
+        : (string)array_get($deal, 'installationAddress', '');
+
+    return [
+        'actor' => 'Bitrix',
+        'actorId' => 'bitrix',
+        'dealId' => (string)array_get($deal, 'id', ''),
+        'dealNumber' => (string)array_get($deal, 'number', array_get($deal, 'id', '')),
+        'dealTitle' => (string)array_get($deal, 'title', ''),
+        'date' => installation_date_from_bitrix_deal($deal, $existing),
+        'timeFrom' => is_array($existing) ? (string)array_get($existing, 'timeFrom', '') : '',
+        'timeTo' => is_array($existing) ? (string)array_get($existing, 'timeTo', '') : '',
+        'address' => $address,
+        'addressSource' => $keepManualAddress ? 'manual' : ($address !== '' ? 'bitrix' : ''),
+        'addressEdited' => $keepManualAddress,
+        'clientName' => non_empty_bitrix_installation_value($deal, $existing, 'installationClientName', 'clientName'),
+        'clientPhone' => non_empty_bitrix_installation_value($deal, $existing, 'installationClientPhone', 'clientPhone'),
+        'comment' => non_empty_bitrix_installation_value($deal, $existing, 'installationComment', 'comment'),
+        'sourceFiles' => is_array(array_get($deal, 'installationFiles', null)) && count(array_get($deal, 'installationFiles', []))
+            ? array_get($deal, 'installationFiles', [])
+            : (is_array($existing) && is_array(array_get($existing, 'sourceFiles', null)) ? array_get($existing, 'sourceFiles', []) : []),
+        'status' => is_array($existing) ? (string)array_get($existing, 'status', 'not_scheduled') : 'not_scheduled',
+        'note' => $source === 'stage_changed' ? 'Автозаявка при смене стадии' : 'Автозаявка из события Bitrix',
+    ];
+}
+
+function installation_date_from_bitrix_deal($deal, $existing)
+{
+    $candidate = trim((string)array_get($deal, 'expectedFinishDate', ''));
+    if ($candidate === '') $candidate = trim((string)array_get($deal, 'startDate', ''));
+    if ($candidate === '' && is_array($existing)) $candidate = trim((string)array_get($existing, 'date', ''));
+    if ($candidate === '') return '';
+    $timestamp = strtotime($candidate);
+    return $timestamp === false ? substr($candidate, 0, 10) : gmdate('Y-m-d', $timestamp);
+}
+
+function non_empty_bitrix_installation_value($deal, $existing, $dealKey, $existingKey)
+{
+    $value = trim((string)array_get($deal, $dealKey, ''));
+    if ($value !== '') return $value;
+    return is_array($existing) ? trim((string)array_get($existing, $existingKey, '')) : '';
+}
+
+function installation_body_has_changes($existing, $body)
+{
+    foreach (['dealNumber', 'dealTitle', 'date', 'timeFrom', 'timeTo', 'address', 'addressSource', 'clientName', 'clientPhone', 'comment', 'status'] as $key) {
+        if ((string)array_get($existing, $key, '') !== (string)array_get($body, $key, '')) return true;
+    }
+    $oldFiles = json_encode(array_get($existing, 'sourceFiles', []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $newFiles = json_encode(array_get($body, 'sourceFiles', []), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return $oldFiles !== $newFiles;
 }
 
 function merge_records($baseRecords, $incomingRecords, $preferIncoming)

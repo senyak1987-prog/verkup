@@ -18854,16 +18854,17 @@ textarea:focus,
 }
 
 .deal-filter-stage-list label {
-  display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
-  align-items: start;
-  gap: 8px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
   min-height: 42px;
   min-width: 0;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.68);
   padding: 8px 10px;
+  text-align: left;
   font-size: 13px;
   font-weight: 500;
 }
@@ -18880,13 +18881,17 @@ textarea:focus,
 }
 
 .deal-filter-stage-list input {
+  position: static !important;
+  flex: 0 0 18px;
   width: 15px;
   height: 15px;
+  min-width: 15px;
   margin-top: 2px;
   accent-color: var(--primary);
 }
 
 .deal-filter-stage-list label .deal-filter-stage-name {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: visible;
   text-overflow: clip;
@@ -18896,6 +18901,7 @@ textarea:focus,
 }
 
 .deal-filter-stage-list label b {
+  flex: 0 0 auto;
   margin-left: auto;
   display: inline-grid;
   place-items: center;
