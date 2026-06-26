@@ -835,6 +835,10 @@ function dadata_address_suggestions($query)
         [
             'count' => 8,
             'from_bound' => ['value' => 'region'],
+            'locations_boost' => [
+                ['kladr_id' => '77'],
+                ['kladr_id' => '50'],
+            ],
             'query' => $query,
         ],
         $apiKey
