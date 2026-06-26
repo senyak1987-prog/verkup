@@ -1,6 +1,8 @@
 <?php
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 const MAX_UPLOAD_FILES = 8;
+const ADDRESS_SUGGEST_CACHE_TTL = 86400;
+const ADDRESS_SUGGEST_CACHE_LIMIT = 600;
 
 $rootDir = dirname(__DIR__);
 $dataDir = $rootDir . DIRECTORY_SEPARATOR . 'data';
@@ -126,6 +128,7 @@ try {
     }
 
     if ($method === 'GET' && $path === '/address-suggest') {
+        header('Cache-Control: private, max-age=300, stale-while-revalidate=86400');
         json_response(suggest_address((string)array_get($_GET, 'query', '')), 200);
     }
 
@@ -763,16 +766,27 @@ function suggest_address($query)
     }
 
     $provider = address_suggest_provider();
+    $cacheKey = address_suggest_cache_key($provider, $normalized);
+    $cached = read_address_suggest_cache($cacheKey);
+    if (is_array($cached)) {
+        $cached['cache'] = 'hit';
+        return $cached;
+    }
+
     if ($provider === 'dadata' || $provider === 'auto') {
         $suggestions = dadata_address_suggestions($normalized);
         if (count($suggestions)) {
-            return ['success' => true, 'provider' => 'dadata', 'suggestions' => $suggestions];
+            $result = ['success' => true, 'provider' => 'dadata', 'suggestions' => $suggestions];
+            write_address_suggest_cache($cacheKey, $result);
+            return $result;
         }
     }
 
     $suggestions = yandex_address_suggestions($normalized);
     if (count($suggestions)) {
-        return ['success' => true, 'provider' => 'yandex', 'suggestions' => $suggestions];
+        $result = ['success' => true, 'provider' => 'yandex', 'suggestions' => $suggestions];
+        write_address_suggest_cache($cacheKey, $result);
+        return $result;
     }
 
     $seen = [];
@@ -803,7 +817,75 @@ function suggest_address($query)
         }
     }
 
-    return ['success' => true, 'suggestions' => $suggestions];
+    $result = ['success' => true, 'provider' => 'kladr', 'suggestions' => $suggestions];
+    if (count($suggestions)) {
+        write_address_suggest_cache($cacheKey, $result);
+    }
+    return $result;
+}
+
+function address_suggest_cache_key($provider, $query)
+{
+    $normalized = trim((string)$query);
+    $normalized = preg_replace('/\s+/u', ' ', $normalized);
+    $normalized = function_exists('mb_strtolower') ? mb_strtolower($normalized, 'UTF-8') : strtolower($normalized);
+    return sha1((string)$provider . '|' . $normalized);
+}
+
+function address_suggest_cache_path($cacheKey)
+{
+    global $dataDir;
+    $dir = $dataDir . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'address-suggest';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0755, true);
+    }
+    $htaccess = $dir . DIRECTORY_SEPARATOR . '.htaccess';
+    if (!is_file($htaccess)) {
+        @file_put_contents($htaccess, "Options -Indexes\nRequire all denied\n");
+    }
+    return $dir . DIRECTORY_SEPARATOR . preg_replace('/[^a-f0-9]/', '', (string)$cacheKey) . '.json';
+}
+
+function read_address_suggest_cache($cacheKey)
+{
+    $path = address_suggest_cache_path($cacheKey);
+    if (!is_file($path) || time() - filemtime($path) > ADDRESS_SUGGEST_CACHE_TTL) {
+        return null;
+    }
+    $payload = json_decode(file_get_contents($path) ?: '', true);
+    if (!is_array($payload) || !is_array(array_get($payload, 'suggestions', null))) {
+        return null;
+    }
+    return $payload;
+}
+
+function write_address_suggest_cache($cacheKey, $payload)
+{
+    if (!is_array($payload) || !count(array_get($payload, 'suggestions', []))) {
+        return;
+    }
+    $path = address_suggest_cache_path($cacheKey);
+    @file_put_contents($path, json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    prune_address_suggest_cache(dirname($path));
+}
+
+function prune_address_suggest_cache($dir)
+{
+    $files = glob($dir . DIRECTORY_SEPARATOR . '*.json') ?: [];
+    if (count($files) <= ADDRESS_SUGGEST_CACHE_LIMIT) {
+        return;
+    }
+    usort($files, function ($a, $b) {
+        $left = filemtime($a);
+        $right = filemtime($b);
+        if ($left === $right) {
+            return 0;
+        }
+        return $left < $right ? 1 : -1;
+    });
+    foreach (array_slice($files, ADDRESS_SUGGEST_CACHE_LIMIT) as $file) {
+        @unlink($file);
+    }
 }
 
 function address_suggest_provider()
@@ -888,7 +970,7 @@ function dadata_http_post($url, $payload, $apiKey)
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $json,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 8,
+            CURLOPT_TIMEOUT => 4,
         ]);
         $response = curl_exec($curl);
         curl_close($curl);
@@ -901,7 +983,7 @@ function dadata_http_post($url, $payload, $apiKey)
             'header' => implode("\r\n", $headers) . "\r\n",
             'ignore_errors' => true,
             'method' => 'POST',
-            'timeout' => 8,
+            'timeout' => 4,
         ],
         'ssl' => [
             'verify_peer' => true,

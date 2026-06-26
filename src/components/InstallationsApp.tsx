@@ -70,6 +70,17 @@ type AddressSuggestion = {
   value: string;
 };
 
+type AddressSuggestionCacheEntry = {
+  savedAt: number;
+  suggestions: AddressSuggestion[];
+};
+
+const ADDRESS_SUGGEST_DEBOUNCE_MS = 120;
+const ADDRESS_SUGGEST_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const ADDRESS_SUGGEST_CACHE_LIMIT = 80;
+const ADDRESS_SUGGEST_STORAGE_KEY = "verkup:address-suggest:v1";
+const addressSuggestionMemoryCache = new Map<string, AddressSuggestionCacheEntry>();
+
 type InstallationCommitOptions = {
   saveNow?: boolean;
 };
@@ -1915,6 +1926,13 @@ function InstallationEditor({
       return;
     }
 
+    const cachedSuggestions = getCachedAddressSuggestions(query);
+    if (cachedSuggestions) {
+      setAddressSuggestions(cachedSuggestions);
+      setAddressSuggestActiveIndex(-1);
+      return;
+    }
+
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => {
       void loadAddressSuggestions(saveApiUrl, query, controller.signal)
@@ -1926,7 +1944,7 @@ function InstallationEditor({
           setAddressSuggestions([]);
           setAddressSuggestActiveIndex(-1);
         });
-    }, 260);
+    }, ADDRESS_SUGGEST_DEBOUNCE_MS);
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -2626,13 +2644,79 @@ function mergeInstallationStateWithDeal(state: InstallationFormState, deal: Deal
 
 async function loadAddressSuggestions(apiUrl: string, query: string, signal?: AbortSignal): Promise<AddressSuggestion[]> {
   const normalizedApiUrl = apiUrl.trim().replace(/\/+$/, "");
-  if (!normalizedApiUrl || query.trim().length < 3) return [];
-  const response = await fetch(`${normalizedApiUrl}/address-suggest?query=${encodeURIComponent(query.trim())}`, {
+  const normalizedQuery = query.trim();
+  if (!normalizedApiUrl || normalizedQuery.length < 3) return [];
+
+  const cachedSuggestions = getCachedAddressSuggestions(normalizedQuery);
+  if (cachedSuggestions) return cachedSuggestions;
+
+  const response = await fetch(`${normalizedApiUrl}/address-suggest?query=${encodeURIComponent(normalizedQuery)}`, {
     signal,
   });
   if (!response.ok) return [];
-  const data = await response.json();
-  return Array.isArray(data?.suggestions) ? data.suggestions.filter((item: AddressSuggestion) => item?.value) : [];
+  const data = await response.json().catch(() => null);
+  const suggestions = Array.isArray(data?.suggestions) ? data.suggestions.filter((item: AddressSuggestion) => item?.value) : [];
+  setCachedAddressSuggestions(normalizedQuery, suggestions);
+  return suggestions;
+}
+
+function normalizeAddressSuggestCacheKey(query: string) {
+  return query.trim().replace(/\s+/g, " ").toLocaleLowerCase("ru-RU");
+}
+
+function getCachedAddressSuggestions(query: string): AddressSuggestion[] | null {
+  const key = normalizeAddressSuggestCacheKey(query);
+  if (!key || key.length < 3) return null;
+
+  const memoryEntry = addressSuggestionMemoryCache.get(key);
+  if (isFreshAddressSuggestionEntry(memoryEntry)) return memoryEntry.suggestions;
+
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(ADDRESS_SUGGEST_STORAGE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw) as Record<string, AddressSuggestionCacheEntry>;
+    const entry = cache[key];
+    if (!isFreshAddressSuggestionEntry(entry)) return null;
+    addressSuggestionMemoryCache.set(key, entry);
+    return entry.suggestions;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedAddressSuggestions(query: string, suggestions: AddressSuggestion[]) {
+  const key = normalizeAddressSuggestCacheKey(query);
+  if (!key || key.length < 3 || !suggestions.length) return;
+
+  const entry: AddressSuggestionCacheEntry = {
+    savedAt: Date.now(),
+    suggestions: suggestions.slice(0, 8),
+  };
+  addressSuggestionMemoryCache.set(key, entry);
+
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(ADDRESS_SUGGEST_STORAGE_KEY);
+    const cache = raw ? (JSON.parse(raw) as Record<string, AddressSuggestionCacheEntry>) : {};
+    cache[key] = entry;
+
+    const keys = Object.keys(cache).sort((a, b) => (cache[b]?.savedAt || 0) - (cache[a]?.savedAt || 0));
+    for (const staleKey of keys.slice(ADDRESS_SUGGEST_CACHE_LIMIT)) {
+      delete cache[staleKey];
+    }
+    window.localStorage.setItem(ADDRESS_SUGGEST_STORAGE_KEY, JSON.stringify(cache));
+  } catch {
+    // Address cache is a speed optimization only.
+  }
+}
+
+function isFreshAddressSuggestionEntry(entry?: AddressSuggestionCacheEntry): entry is AddressSuggestionCacheEntry {
+  return Boolean(
+    entry &&
+      Array.isArray(entry.suggestions) &&
+      Date.now() - entry.savedAt < ADDRESS_SUGGEST_CACHE_TTL_MS,
+  );
 }
 
 function upsertLocalInstallation(
