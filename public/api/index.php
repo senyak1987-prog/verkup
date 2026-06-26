@@ -164,15 +164,17 @@ try {
 
     if ($method === 'POST' && $path === '/save-tech-specs') {
         $body = request_json();
-        $data = is_array(array_get($body, 'data', null)) ? $body['data'] : [];
-        if (isset($data['__production']) && is_array($data['__production'])) {
-            $data['__production'] = normalize_production($data['__production']);
+        $incoming = is_array(array_get($body, 'data', null)) ? $body['data'] : [];
+        if (isset($incoming['__production']) && is_array($incoming['__production'])) {
+            $incoming['__production'] = normalize_production($incoming['__production']);
         }
+        $current = read_data_file('tech-specs.json');
+        $data = merge_tech_specs($current, $incoming);
         write_data_file('tech-specs.json', $data);
         publish_realtime_event('techspecs.saved', 'techSpecs', [
             'specs' => count(array_get($data, 'specs', [])),
         ]);
-        json_response(['ok' => true]);
+        json_response(['ok' => true, 'data' => $data]);
     }
 
     if ($method === 'POST' && $path === '/save-calculations') {
@@ -195,6 +197,14 @@ try {
             json_response([
                 'ok' => false,
                 'error' => 'Refusing to overwrite non-empty catalogs.json with an empty catalog',
+            ], 409);
+        }
+        if (count($currentItems) >= 100 && count($incomingItems) < max(10, floor(count($currentItems) * 0.5))) {
+            json_response([
+                'ok' => false,
+                'error' => 'Refusing to overwrite full catalogs.json with a much smaller catalog',
+                'currentItems' => count($currentItems),
+                'incomingItems' => count($incomingItems),
             ], 409);
         }
         write_data_file('catalogs.json', $incoming);
@@ -1192,6 +1202,45 @@ function merge_production($base, $incoming)
         'payouts' => merge_records(array_get($base, 'payouts', []), array_get($incoming, 'payouts', []), $preferIncoming),
         'notifications' => merge_records(array_get($base, 'notifications', []), array_get($incoming, 'notifications', []), $preferIncoming),
     ]);
+}
+
+function merge_tech_specs($base, $incoming)
+{
+    $base = is_array($base) ? $base : [];
+    $incoming = is_array($incoming) ? $incoming : [];
+    $baseSpecs = is_array(array_get($base, 'specs', null)) ? $base['specs'] : [];
+    $incomingSpecs = is_array(array_get($incoming, 'specs', null)) ? $incoming['specs'] : [];
+    $specsByDealId = [];
+
+    foreach ($baseSpecs as $spec) {
+        if (!is_array($spec)) continue;
+        $dealId = trim((string)array_get($spec, 'dealId', ''));
+        if ($dealId === '') continue;
+        $specsByDealId[$dealId] = $spec;
+    }
+
+    foreach ($incomingSpecs as $spec) {
+        if (!is_array($spec)) continue;
+        $dealId = trim((string)array_get($spec, 'dealId', ''));
+        if ($dealId === '') continue;
+        $specsByDealId[$dealId] = $spec;
+    }
+
+    $next = $base + default_data('tech-specs.json');
+    $next['generatedAt'] = array_get($incoming, 'generatedAt', gmdate('c')) ?: gmdate('c');
+    $next['specs'] = array_values($specsByDealId);
+
+    $baseProduction = is_array(array_get($base, '__production', null))
+        ? normalize_production($base['__production'])
+        : [];
+    $incomingProduction = is_array(array_get($incoming, '__production', null))
+        ? normalize_production($incoming['__production'])
+        : [];
+    if ($baseProduction || $incomingProduction) {
+        $next['__production'] = normalize_production(merge_production($baseProduction, $incomingProduction));
+    }
+
+    return $next;
 }
 
 function read_installations()

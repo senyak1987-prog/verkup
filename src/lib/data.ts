@@ -69,24 +69,7 @@ const fallbackWarehouse: StoredWarehouse = createEmptyStoredWarehouse();
 
 const fallbackCatalogs: AppData<CatalogItem> = {
   generatedAt: new Date().toISOString(),
-  items: [
-    {
-      id: "assembly-letter-leds",
-      section: "assembly",
-      title: "Установка диодов",
-      unit: "шт",
-      unitCost: 50,
-      source: "Прайс сборка",
-    },
-    {
-      id: "consumables-power-100",
-      section: "lighting",
-      title: "БП интерьер 100 Вт",
-      unit: "шт",
-      unitCost: 700,
-      source: "Светотехника",
-    },
-  ],
+  items: [],
 };
 
 export async function loadDeals() {
