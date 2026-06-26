@@ -1,4 +1,4 @@
-const CACHE_NAME = "verkup-offline-v20";
+const CACHE_NAME = "verkup-offline-v21";
 const APP_SHELL = [
   "./",
   "./manifest.webmanifest",

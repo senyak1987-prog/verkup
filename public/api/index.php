@@ -125,6 +125,10 @@ try {
         json_response(geocode_address((string)array_get($_GET, 'geocode', '')), 200);
     }
 
+    if ($method === 'GET' && $path === '/address-suggest') {
+        json_response(suggest_address((string)array_get($_GET, 'query', '')), 200);
+    }
+
     if ($method === 'GET' && $path === '/warehouse') {
         json_response(['success' => true, 'data' => read_warehouse()]);
     }
@@ -264,6 +268,17 @@ try {
         publish_realtime_event('installation.photo_added', 'installations', [
             'installationId' => $installationId,
             'photos' => count(array_get($result, 'photos', [])),
+        ]);
+        json_response($result, 200);
+    }
+
+    if ($method === 'DELETE' && preg_match('#^/installations/([^/]+)$#', $path, $match)) {
+        $installationId = sanitize_segment($match[1]);
+        $body = request_json();
+        $result = delete_installation($installationId, $body);
+        publish_realtime_event('installation.deleted', 'installations', [
+            'installationId' => $installationId,
+            'actorId' => array_get($body, 'actorId', ''),
         ]);
         json_response($result, 200);
     }
@@ -733,6 +748,98 @@ function yandex_geocoder_api_key()
         return trim((string)$match[1]);
     }
     return '';
+}
+
+function suggest_address($query)
+{
+    $normalized = trim((string)$query);
+    $length = function_exists('mb_strlen') ? mb_strlen($normalized, 'UTF-8') : strlen($normalized);
+    if ($length < 3) {
+        return ['success' => true, 'suggestions' => []];
+    }
+
+    $seen = [];
+    $suggestions = [];
+    foreach (['building', 'street', 'city'] as $contentType) {
+        $url = 'https://kladr-api.ru/api.php?' . http_build_query([
+            'contentType' => $contentType,
+            'limit' => 8,
+            'oneString' => 1,
+            'query' => $normalized,
+            'withParent' => 1,
+        ]);
+        $raw = external_http_get($url);
+        if (!$raw) continue;
+        $data = json_decode($raw, true);
+        $items = is_array(array_get($data, 'result', null)) ? $data['result'] : [];
+        foreach ($items as $item) {
+            if (!is_array($item)) continue;
+            $value = kladr_address_label($item);
+            if ($value === '' || isset($seen[$value])) continue;
+            $seen[$value] = true;
+            $suggestions[] = [
+                'kladrId' => (string)array_get($item, 'id', ''),
+                'source' => 'kladr',
+                'value' => $value,
+            ];
+            if (count($suggestions) >= 8) break 2;
+        }
+    }
+
+    return ['success' => true, 'suggestions' => $suggestions];
+}
+
+function kladr_address_label($item)
+{
+    $parts = [];
+    $parents = array_get($item, 'parents', []);
+    if (is_array($parents)) {
+        foreach ($parents as $parent) {
+            if (!is_array($parent)) continue;
+            $part = kladr_address_part($parent);
+            if ($part !== '') $parts[] = $part;
+        }
+    }
+    $self = kladr_address_part($item);
+    if ($self !== '') $parts[] = $self;
+    $parts = array_values(array_unique($parts));
+    return trim(implode(', ', $parts));
+}
+
+function kladr_address_part($item)
+{
+    $name = trim((string)array_get($item, 'name', ''));
+    if ($name === '') return '';
+    $type = trim((string)first_defined(array_get($item, 'typeShort', ''), array_get($item, 'type', '')));
+    return $type !== '' ? $type . ' ' . $name : $name;
+}
+
+function external_http_get($url)
+{
+    $context = stream_context_create([
+        'http' => [
+            'header' => "User-Agent: Verkup/1.0\r\n",
+            'ignore_errors' => true,
+            'timeout' => 6,
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $context);
+    if ($raw) return $raw;
+
+    if (!function_exists('curl_init')) return '';
+    $curl = curl_init($url);
+    curl_setopt_array($curl, [
+        CURLOPT_HTTPHEADER => ['User-Agent: Verkup/1.0'],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 6,
+    ]);
+    $response = curl_exec($curl);
+    curl_close($curl);
+    return is_string($response) ? $response : '';
 }
 
 function write_data_file($name, $data)
@@ -1617,6 +1724,17 @@ function photos_for_deal($production, $dealId)
     return $photos;
 }
 
+function delete_uploaded_asset_url($url)
+{
+    global $uploadsDir;
+    $relative = parse_url((string)$url, PHP_URL_PATH);
+    $marker = '/uploads/';
+    $pos = strpos((string)$relative, $marker);
+    if ($pos === false) return;
+    $path = $uploadsDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, substr((string)$relative, $pos + strlen($marker)));
+    if (is_file($path)) @unlink($path);
+}
+
 function delete_photo($dealId, $photoId)
 {
     global $uploadsDir;
@@ -1629,13 +1747,7 @@ function delete_photo($dealId, $photoId)
             if (!is_array($photo) || (string)(array_get($photo, 'id', '')) !== $photoId) continue;
             foreach (['url', 'thumbnailUrl'] as $key) {
                 if (!empty($photo[$key])) {
-                    $relative = parse_url((string)$photo[$key], PHP_URL_PATH);
-                    $marker = '/uploads/';
-                    $pos = strpos((string)$relative, $marker);
-                    if ($pos !== false) {
-                        $path = $uploadsDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, substr((string)$relative, $pos + strlen($marker)));
-                        if (is_file($path)) @unlink($path);
-                    }
+                    delete_uploaded_asset_url($photo[$key]);
                 }
             }
         }
@@ -1654,7 +1766,6 @@ function delete_photo($dealId, $photoId)
 
 function delete_installation_photo($installationId, $photoId)
 {
-    global $uploadsDir;
     $store = read_installations();
     $target = null;
     foreach ($store['installations'] as &$installation) {
@@ -1666,13 +1777,7 @@ function delete_installation_photo($installationId, $photoId)
             $target = $photo;
             foreach (['url', 'thumbnailUrl'] as $key) {
                 if (!empty($photo[$key])) {
-                    $relative = parse_url((string)$photo[$key], PHP_URL_PATH);
-                    $marker = '/uploads/';
-                    $pos = strpos((string)$relative, $marker);
-                    if ($pos !== false) {
-                        $path = $uploadsDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, substr((string)$relative, $pos + strlen($marker)));
-                        if (is_file($path)) @unlink($path);
-                    }
+                    delete_uploaded_asset_url($photo[$key]);
                 }
             }
         }
@@ -1691,6 +1796,45 @@ function delete_installation_photo($installationId, $photoId)
     write_data_file('installations.json', normalize_installations($store));
     $data = read_installations();
     return ['success' => true, 'installation' => installation_by_id($data, $installationId), 'data' => $data];
+}
+
+function delete_installation($installationId, $body)
+{
+    $store = read_installations();
+    $deleted = null;
+    foreach ($store['installations'] as $installation) {
+        if (is_array($installation) && (string)array_get($installation, 'id', '') === $installationId) {
+            $deleted = $installation;
+            break;
+        }
+    }
+    if (!$deleted) throw new RuntimeException('Installation not found');
+
+    $photos = array_get($deleted, 'photos', []);
+    if (is_array($photos)) {
+        foreach ($photos as $photo) {
+            if (!is_array($photo)) continue;
+            foreach (['url', 'thumbnailUrl'] as $key) {
+                if (!empty($photo[$key])) delete_uploaded_asset_url($photo[$key]);
+            }
+        }
+    }
+
+    $store['installations'] = array_values(array_filter(
+        array_get($store, 'installations', []),
+        function ($installation) use ($installationId) {
+            return !is_array($installation) || (string)array_get($installation, 'id', '') !== $installationId;
+        }
+    ));
+    $store['notifications'] = array_values(array_filter(
+        array_get($store, 'notifications', []),
+        function ($notification) use ($installationId) {
+            return !is_array($notification) || (string)array_get($notification, 'installationId', '') !== $installationId;
+        }
+    ));
+    $store['generatedAt'] = gmdate('c');
+    write_data_file('installations.json', normalize_installations($store));
+    return ['success' => true, 'deleted' => $deleted, 'data' => read_installations()];
 }
 
 function update_assignment_workflow($dealId, $body, $action)

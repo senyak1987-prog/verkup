@@ -124,6 +124,26 @@ export async function updateInstallation(
   }>;
 }
 
+export async function deleteInstallation(
+  settings: SaveApiSettings,
+  installationId: string,
+  payload: {
+    actor?: string;
+    actorId?: string;
+  } = {},
+) {
+  return requestSaveApi(settings, `/installations/${encodeURIComponent(installationId)}`, {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json",
+    },
+    method: "DELETE",
+  }) as Promise<{
+    data: StoredInstallations;
+    success: boolean;
+  }>;
+}
+
 export async function changeInstallationStatus(
   settings: SaveApiSettings,
   installationId: string,

@@ -50,6 +50,7 @@ import {
 import {
   changeInstallationStatus,
   createInstallation,
+  deleteInstallation,
   deleteInstallationPhoto,
   markInstallationNotificationRead,
   updateInstallation,
@@ -61,6 +62,12 @@ type InstallationMobileTab = "today" | "all" | "notifications" | "profile";
 type PlannerWheelContext = {
   container: HTMLDivElement;
   event: globalThis.WheelEvent;
+};
+
+type AddressSuggestion = {
+  kladrId?: string;
+  source?: string;
+  value: string;
 };
 
 type InstallationCommitOptions = {
@@ -526,6 +533,7 @@ export function InstallationsApp({
                     installation={installation}
                     key={installation.id}
                     onAction={handleStatusAction}
+                    onDelete={handleDeleteInstallation}
                     onEdit={() => setEditing(formStateFromInstallation(installation))}
                     onOpenDeal={onOpenDeal}
                     onPhotoDelete={handlePhotoDelete}
@@ -576,6 +584,7 @@ export function InstallationsApp({
           installation={selectedInstallation}
           onAction={handleStatusAction}
           onClose={() => setSelectedInstallationId(undefined)}
+          onDelete={handleDeleteInstallation}
           onEdit={() => setEditing(formStateFromInstallation(selectedInstallation))}
           onOpenDeal={onOpenDeal}
           onPhotoDelete={handlePhotoDelete}
@@ -584,8 +593,10 @@ export function InstallationsApp({
 
       {editing ? (
         <InstallationEditor
+          deals={deals}
           installers={installers}
           saving={saving}
+          saveApiUrl={saveApiUrl}
           state={editing}
           onCancel={() => setEditing(undefined)}
           onChange={setEditing}
@@ -676,34 +687,38 @@ export function InstallationsApp({
   async function handleSaveInstallation(state: InstallationFormState) {
     setSaving(true);
     try {
+      const resolvedState = resolveInstallationFormState(state, deals);
+      if (!resolvedState.dealId) {
+        throw new Error("Укажите номер сделки для монтажа.");
+      }
       const payload = {
         actor: currentUser.name,
         actorId: currentUser.id,
-        address: state.address,
-        addressEdited: state.addressSource === "manual",
-        addressSource: state.addressSource || (state.address ? "manual" : undefined),
-        clientName: state.clientName,
-        clientPhone: state.clientPhone,
-        comment: state.comment,
-        date: state.date,
-        dealId: state.dealId,
-        dealNumber: state.dealNumber,
-        dealTitle: state.dealTitle,
-        installerId: state.installerId,
-        installerName: installers.find((installer) => installer.id === state.installerId)?.name || "",
-        status: state.installerId ? "assigned" : "not_scheduled",
-        sourceFiles: state.sourceFiles || [],
-        timeFrom: state.timeFrom,
-        timeTo: state.timeTo,
+        address: resolvedState.address,
+        addressEdited: resolvedState.addressSource === "manual",
+        addressSource: resolvedState.addressSource || (resolvedState.address ? "manual" : undefined),
+        clientName: resolvedState.clientName,
+        clientPhone: resolvedState.clientPhone,
+        comment: resolvedState.comment,
+        date: resolvedState.date,
+        dealId: resolvedState.dealId,
+        dealNumber: resolvedState.dealNumber,
+        dealTitle: resolvedState.dealTitle,
+        installerId: resolvedState.installerId,
+        installerName: installers.find((installer) => installer.id === resolvedState.installerId)?.name || "",
+        status: resolvedState.installerId ? "assigned" : "not_scheduled",
+        sourceFiles: resolvedState.sourceFiles || [],
+        timeFrom: resolvedState.timeFrom,
+        timeTo: resolvedState.timeTo,
       } as const;
 
       if (saveApiUrl) {
-        const result = state.id
-          ? await updateInstallation({ apiUrl: saveApiUrl }, state.id, payload)
+        const result = resolvedState.id
+          ? await updateInstallation({ apiUrl: saveApiUrl }, resolvedState.id, payload)
           : await createInstallation({ apiUrl: saveApiUrl }, payload);
         onChange(result.data, { saveNow: true });
       } else {
-        onChange(upsertLocalInstallation(storedInstallations, state.id, payload), { saveNow: true });
+        onChange(upsertLocalInstallation(storedInstallations, resolvedState.id, payload), { saveNow: true });
       }
       setEditing(undefined);
       showToast("Монтаж сохранен");
@@ -788,6 +803,26 @@ export function InstallationsApp({
       showToast("Фото удалено");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Не удалось удалить фото");
+    }
+  }
+
+  async function handleDeleteInstallation(installation: Installation) {
+    const label = `#${installation.dealNumber || installation.dealId} ${installation.dealTitle || ""}`.trim();
+    if (!window.confirm(`Удалить монтаж ${label}? Фото и уведомления по этому монтажу тоже будут удалены.`)) return;
+    try {
+      if (saveApiUrl) {
+        const result = await deleteInstallation({ apiUrl: saveApiUrl }, installation.id, {
+          actor: currentUser.name,
+          actorId: currentUser.id,
+        });
+        onChange(result.data, { saveNow: true });
+      } else {
+        onChange(removeLocalInstallation(storedInstallations, installation.id), { saveNow: true });
+      }
+      setSelectedInstallationId((current) => (current === installation.id ? undefined : current));
+      showToast("Монтаж удален");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Не удалось удалить монтаж");
     }
   }
 
@@ -1595,6 +1630,7 @@ function InstallationPlannerCard({
   installation,
   selected,
   onAction,
+  onDelete,
   onEdit,
   onOpenDeal,
   onPhotoDelete,
@@ -1604,6 +1640,7 @@ function InstallationPlannerCard({
   installation: Installation;
   selected: boolean;
   onAction: (installation: Installation, action: "start" | "arrive" | "complete" | "approve" | "return" | "cancel" | "no-installation", note?: string) => void;
+  onDelete: (installation: Installation) => void;
   onEdit: () => void;
   onOpenDeal?: (dealId: string, target: "cost" | "techSpec") => void;
   onPhotoDelete: (installation: Installation, photo: InstallationPhoto) => void;
@@ -1616,6 +1653,12 @@ function InstallationPlannerCard({
         <button className="secondary compact" onClick={onEdit} type="button">Изменить</button>
         {onOpenDeal ? (
           <button className="secondary compact" onClick={() => onOpenDeal(installation.dealId, "techSpec")} type="button">Открыть ТЗ</button>
+        ) : null}
+        {canReview ? (
+          <button className="danger compact" onClick={() => onDelete(installation)} type="button">
+            <Trash2 size={14} />
+            Удалить
+          </button>
         ) : null}
         {canReview && installation.status === "review_pending" ? (
           <>
@@ -1770,6 +1813,7 @@ function InstallationDetails({
   installation,
   onAction,
   onClose,
+  onDelete,
   onEdit,
   onOpenDeal,
   onPhotoDelete,
@@ -1779,6 +1823,7 @@ function InstallationDetails({
   installation: Installation;
   onAction: (installation: Installation, action: "start" | "arrive" | "complete" | "approve" | "return" | "cancel" | "no-installation", note?: string) => void;
   onClose: () => void;
+  onDelete: (installation: Installation) => void;
   onEdit: () => void;
   onOpenDeal?: (dealId: string, target: "cost" | "techSpec") => void;
   onPhotoDelete: (installation: Installation, photo: InstallationPhoto) => void;
@@ -1820,6 +1865,12 @@ function InstallationDetails({
         {onOpenDeal ? (
           <button className="secondary compact" onClick={() => onOpenDeal(installation.dealId, "techSpec")} type="button">Открыть сделку</button>
         ) : null}
+        {canReview ? (
+          <button className="danger compact" onClick={() => onDelete(installation)} type="button">
+            <Trash2 size={14} />
+            Удалить
+          </button>
+        ) : null}
         {canReview && installation.status === "review_pending" ? (
           <>
             <button className="primary compact" onClick={() => onAction(installation, "approve")} type="button">Подтвердить</button>
@@ -1833,20 +1884,48 @@ function InstallationDetails({
 }
 
 function InstallationEditor({
+  deals,
   installers,
   saving,
+  saveApiUrl,
   state,
   onCancel,
   onChange,
   onSave,
 }: {
+  deals: Deal[];
   installers: ProductionEmployee[];
   saving: boolean;
+  saveApiUrl: string;
   state: InstallationFormState;
   onCancel: () => void;
   onChange: (state: InstallationFormState) => void;
   onSave: (state: InstallationFormState) => void;
 }) {
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressSuggestOpen, setAddressSuggestOpen] = useState(false);
+  const linkedDeal = findDealByNumber(deals, state.dealNumber || state.dealId);
+
+  useEffect(() => {
+    const query = state.address.trim();
+    if (!saveApiUrl || query.length < 3) {
+      setAddressSuggestions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      void loadAddressSuggestions(saveApiUrl, query, controller.signal)
+        .then((suggestions) => setAddressSuggestions(suggestions))
+        .catch(() => setAddressSuggestions([]));
+    }, 260);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [saveApiUrl, state.address]);
+
   return (
     <div className="installation-editor-backdrop" role="presentation" onMouseDown={onCancel}>
       <form className="installation-editor" onMouseDown={(event) => event.stopPropagation()} onSubmit={(event) => {
@@ -1863,27 +1942,24 @@ function InstallationEditor({
           </button>
         </header>
         <div className="installation-editor-grid">
-          {state.dealId ? (
-            <label>
-              Сделка
-              <input value={`#${state.dealNumber || state.dealId} ${state.dealTitle}`} disabled />
-            </label>
-          ) : (
-            <>
-              <label>
-                ID сделки
-                <input value={state.dealId} onChange={(event) => onChange({ ...state, dealId: event.target.value })} placeholder="17044" />
-              </label>
-              <label>
-                Номер
-                <input value={state.dealNumber} onChange={(event) => onChange({ ...state, dealNumber: event.target.value })} placeholder="17044" />
-              </label>
-              <label>
-                Название
-                <input value={state.dealTitle} onChange={(event) => onChange({ ...state, dealTitle: event.target.value })} placeholder="Название сделки" />
-              </label>
-            </>
-          )}
+          <label>
+            Номер сделки
+            <input
+              inputMode="numeric"
+              value={state.dealNumber || state.dealId}
+              onChange={(event) => onChange(updateStateWithDealNumber(state, event.target.value, deals))}
+              placeholder="17044"
+            />
+          </label>
+          <label className="installation-editor-deal-title">
+            Сделка
+            <input
+              value={linkedDeal ? `#${linkedDeal.number || linkedDeal.id} ${linkedDeal.title}` : state.dealTitle}
+              onChange={(event) => onChange({ ...state, dealTitle: event.target.value })}
+              disabled={Boolean(linkedDeal)}
+              placeholder="Название сделки"
+            />
+          </label>
           <label>
             Монтажник
             <select value={state.installerId} onChange={(event) => onChange({ ...state, installerId: event.target.value })}>
@@ -1909,13 +1985,36 @@ function InstallationEditor({
             Телефон клиента
             <input value={state.clientPhone} onChange={(event) => onChange({ ...state, clientPhone: event.target.value })} />
           </label>
-          <label className="full">
+          <label className="full installation-address-field">
             Адрес
             <input
+              autoComplete="off"
               value={state.address}
-              onChange={(event) => onChange({ ...state, address: event.target.value, addressSource: "manual" })}
-              placeholder="Адрес монтажа"
+              onBlur={() => window.setTimeout(() => setAddressSuggestOpen(false), 120)}
+              onChange={(event) => {
+                onChange({ ...state, address: event.target.value, addressSource: "manual" });
+                setAddressSuggestOpen(true);
+              }}
+              onFocus={() => setAddressSuggestOpen(true)}
+              placeholder="Адрес монтажа или объект"
             />
+            {addressSuggestOpen && addressSuggestions.length ? (
+              <div className="installation-address-suggestions">
+                {addressSuggestions.map((suggestion) => (
+                  <button
+                    key={`${suggestion.kladrId || suggestion.value}_${suggestion.value}`}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      onChange({ ...state, address: suggestion.value, addressSource: "manual" });
+                      setAddressSuggestOpen(false);
+                    }}
+                    type="button"
+                  >
+                    {suggestion.value}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </label>
           {state.sourceFiles?.length ? (
             <div className="installation-editor-files">
@@ -2405,6 +2504,68 @@ function formStateFromInstallation(installation: Installation): InstallationForm
   };
 }
 
+function normalizeDealNumberInput(value: string) {
+  const trimmed = value.trim().replace(/^#/, "");
+  const numeric = trimmed.match(/\d+/)?.[0];
+  return numeric || trimmed;
+}
+
+function findDealByNumber(deals: Deal[], value: string) {
+  const normalized = normalizeDealNumberInput(value);
+  if (!normalized) return undefined;
+  return deals.find((deal) => deal.number === normalized || deal.id === normalized);
+}
+
+function updateStateWithDealNumber(state: InstallationFormState, value: string, deals: Deal[]): InstallationFormState {
+  const next: InstallationFormState = { ...state, dealNumber: value };
+  const deal = findDealByNumber(deals, value);
+  if (deal) return mergeInstallationStateWithDeal(next, deal);
+  return {
+    ...next,
+    dealId: "",
+    dealTitle: state.dealId && normalizeDealNumberInput(value) !== normalizeDealNumberInput(state.dealNumber || state.dealId) ? "" : state.dealTitle,
+    sourceFiles: [],
+  };
+}
+
+function resolveInstallationFormState(state: InstallationFormState, deals: Deal[]): InstallationFormState {
+  const deal = findDealByNumber(deals, state.dealNumber || state.dealId);
+  if (deal) return mergeInstallationStateWithDeal(state, deal);
+  const manualNumber = normalizeDealNumberInput(state.dealNumber || state.dealId);
+  return {
+    ...state,
+    dealId: state.dealId || manualNumber,
+    dealNumber: state.dealNumber || manualNumber,
+  };
+}
+
+function mergeInstallationStateWithDeal(state: InstallationFormState, deal: Deal): InstallationFormState {
+  const keepManualAddress = state.addressSource === "manual" && state.address.trim() !== "";
+  return {
+    ...state,
+    address: keepManualAddress ? state.address : deal.installationAddress || state.address,
+    addressSource: keepManualAddress ? "manual" : deal.installationAddress ? "bitrix" : state.addressSource,
+    clientName: state.clientName || deal.installationClientName || "",
+    clientPhone: state.clientPhone || deal.installationClientPhone || deal.responsiblePhone || "",
+    comment: state.comment || deal.installationComment || "",
+    dealId: deal.id,
+    dealNumber: deal.number,
+    dealTitle: deal.title,
+    sourceFiles: deal.installationFiles || state.sourceFiles || [],
+  };
+}
+
+async function loadAddressSuggestions(apiUrl: string, query: string, signal?: AbortSignal): Promise<AddressSuggestion[]> {
+  const normalizedApiUrl = apiUrl.trim().replace(/\/+$/, "");
+  if (!normalizedApiUrl || query.trim().length < 3) return [];
+  const response = await fetch(`${normalizedApiUrl}/address-suggest?query=${encodeURIComponent(query.trim())}`, {
+    signal,
+  });
+  if (!response.ok) return [];
+  const data = await response.json();
+  return Array.isArray(data?.suggestions) ? data.suggestions.filter((item: AddressSuggestion) => item?.value) : [];
+}
+
 function upsertLocalInstallation(
   store: StoredInstallations,
   id: string | undefined,
@@ -2508,6 +2669,15 @@ function removeLocalInstallationPhoto(store: StoredInstallations, installationId
         ? { ...installation, photos: installation.photos.filter((photo) => photo.id !== photoId) }
         : installation,
     ),
+  };
+}
+
+function removeLocalInstallation(store: StoredInstallations, installationId: string): StoredInstallations {
+  return {
+    ...store,
+    generatedAt: new Date().toISOString(),
+    installations: store.installations.filter((installation) => installation.id !== installationId),
+    notifications: (store.notifications || []).filter((notification) => notification.installationId !== installationId),
   };
 }
 
