@@ -758,6 +758,11 @@ function suggest_address($query)
         return ['success' => true, 'suggestions' => []];
     }
 
+    $suggestions = yandex_address_suggestions($normalized);
+    if (count($suggestions)) {
+        return ['success' => true, 'provider' => 'yandex', 'suggestions' => $suggestions];
+    }
+
     $seen = [];
     $suggestions = [];
     foreach (['building', 'street', 'city'] as $contentType) {
@@ -787,6 +792,75 @@ function suggest_address($query)
     }
 
     return ['success' => true, 'suggestions' => $suggestions];
+}
+
+function yandex_address_suggestions($query)
+{
+    $apiKey = yandex_geocoder_api_key();
+    if ($apiKey === '') return [];
+
+    $normalized = trim((string)$query);
+    $spaced = preg_replace('/([A-Za-zА-Яа-яЁё])(\d)/u', '$1 $2', $normalized);
+    $hasRegionHint = preg_match('/[,]|москва|область|край|республика|санкт|г\./iu', $normalized);
+    $candidates = $hasRegionHint
+        ? [$normalized, $spaced]
+        : ['Москва, ' . $spaced, 'Московская область, ' . $spaced, $normalized, $spaced];
+    $candidates = array_values(array_unique(array_filter($candidates)));
+
+    $seen = [];
+    $suggestions = [];
+    foreach ($candidates as $candidate) {
+        $url = 'https://geocode-maps.yandex.ru/1.x/?' . http_build_query([
+            'apikey' => $apiKey,
+            'format' => 'json',
+            'geocode' => $candidate,
+            'results' => 8,
+        ]);
+        $raw = geocoder_http_get($url);
+        if (!$raw) continue;
+        $data = json_decode($raw, true);
+        $items = array_deep_get($data, ['response', 'GeoObjectCollection', 'featureMember'], []);
+        if (!is_array($items)) continue;
+        foreach ($items as $item) {
+            if (!is_array($item)) continue;
+            $geoObject = array_get($item, 'GeoObject', []);
+            if (!is_array($geoObject)) continue;
+            $value = yandex_geoobject_address_label($geoObject);
+            if ($value === '' || isset($seen[$value])) continue;
+            $seen[$value] = true;
+            $pos = trim((string)array_deep_get($geoObject, ['Point', 'pos'], ''));
+            $suggestions[] = [
+                'kladrId' => '',
+                'source' => 'yandex',
+                'value' => $value,
+                'coordinates' => yandex_pos_to_coordinates($pos),
+            ];
+            if (count($suggestions) >= 8) return $suggestions;
+        }
+    }
+
+    return $suggestions;
+}
+
+function yandex_geoobject_address_label($geoObject)
+{
+    $address = trim((string)array_deep_get($geoObject, ['metaDataProperty', 'GeocoderMetaData', 'Address', 'formatted'], ''));
+    if ($address !== '') return $address;
+    $description = trim((string)array_get($geoObject, 'description', ''));
+    $name = trim((string)array_get($geoObject, 'name', ''));
+    if ($description !== '' && $name !== '') return $description . ', ' . $name;
+    return $name !== '' ? $name : $description;
+}
+
+function yandex_pos_to_coordinates($pos)
+{
+    if ($pos === '') return null;
+    $parts = preg_split('/\s+/', $pos);
+    if (count($parts) < 2) return null;
+    $lon = (float)$parts[0];
+    $lat = (float)$parts[1];
+    if ($lat < -90 || $lat > 90 || $lon < -180 || $lon > 180) return null;
+    return [$lat, $lon];
 }
 
 function kladr_address_label($item)
