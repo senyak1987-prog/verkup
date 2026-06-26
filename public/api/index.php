@@ -741,6 +741,10 @@ function yandex_geocoder_api_key()
 {
     $env = trim((string)getenv('YANDEX_GEOCODER_API_KEY'));
     if ($env !== '') return $env;
+    if (function_exists('bitrix_config')) {
+        $configured = trim((string)bitrix_config('YANDEX_GEOCODER_API_KEY', ''));
+        if ($configured !== '') return $configured;
+    }
     $configPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'config.js';
     if (!is_file($configPath)) return '';
     $raw = file_get_contents($configPath) ?: '';
@@ -756,6 +760,14 @@ function suggest_address($query)
     $length = function_exists('mb_strlen') ? mb_strlen($normalized, 'UTF-8') : strlen($normalized);
     if ($length < 3) {
         return ['success' => true, 'suggestions' => []];
+    }
+
+    $provider = address_suggest_provider();
+    if ($provider === 'dadata' || $provider === 'auto') {
+        $suggestions = dadata_address_suggestions($normalized);
+        if (count($suggestions)) {
+            return ['success' => true, 'provider' => 'dadata', 'suggestions' => $suggestions];
+        }
     }
 
     $suggestions = yandex_address_suggestions($normalized);
@@ -792,6 +804,108 @@ function suggest_address($query)
     }
 
     return ['success' => true, 'suggestions' => $suggestions];
+}
+
+function address_suggest_provider()
+{
+    $env = trim((string)getenv('ADDRESS_PROVIDER'));
+    $value = $env !== '' ? $env : (function_exists('bitrix_config') ? (string)bitrix_config('ADDRESS_PROVIDER', 'auto') : 'auto');
+    $value = strtolower(trim($value));
+    return in_array($value, ['auto', 'dadata', 'yandex'], true) ? $value : 'auto';
+}
+
+function dadata_api_key()
+{
+    $env = trim((string)getenv('DADATA_API_KEY'));
+    if ($env !== '') return $env;
+    if (function_exists('bitrix_config')) {
+        $configured = trim((string)bitrix_config('DADATA_API_KEY', ''));
+        if ($configured !== '') return $configured;
+    }
+    return '';
+}
+
+function dadata_address_suggestions($query)
+{
+    $apiKey = dadata_api_key();
+    if ($apiKey === '') return [];
+
+    $raw = dadata_http_post(
+        'https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address',
+        [
+            'count' => 8,
+            'from_bound' => ['value' => 'region'],
+            'query' => $query,
+        ],
+        $apiKey
+    );
+    if (!$raw) return [];
+    $data = json_decode($raw, true);
+    $items = is_array(array_get($data, 'suggestions', null)) ? $data['suggestions'] : [];
+
+    $seen = [];
+    $suggestions = [];
+    foreach ($items as $item) {
+        if (!is_array($item)) continue;
+        $value = trim((string)array_get($item, 'value', ''));
+        if ($value === '' || isset($seen[$value])) continue;
+        $seen[$value] = true;
+        $payload = is_array(array_get($item, 'data', null)) ? $item['data'] : [];
+        $lat = array_get($payload, 'geo_lat', null);
+        $lon = array_get($payload, 'geo_lon', null);
+        $coordinates = is_numeric($lat) && is_numeric($lon) ? [(float)$lat, (float)$lon] : null;
+        $suggestions[] = [
+            'fiasId' => (string)array_get($payload, 'fias_id', ''),
+            'kladrId' => (string)array_get($payload, 'kladr_id', ''),
+            'source' => 'dadata',
+            'value' => $value,
+            'coordinates' => $coordinates,
+        ];
+    }
+
+    return $suggestions;
+}
+
+function dadata_http_post($url, $payload, $apiKey)
+{
+    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (!is_string($json)) return '';
+    $headers = [
+        'Accept: application/json',
+        'Authorization: Token ' . $apiKey,
+        'Content-Type: application/json',
+        'User-Agent: Verkup/1.0',
+    ];
+
+    if (function_exists('curl_init')) {
+        $curl = curl_init($url);
+        curl_setopt_array($curl, [
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $json,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 8,
+        ]);
+        $response = curl_exec($curl);
+        curl_close($curl);
+        return is_string($response) ? $response : '';
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'content' => $json,
+            'header' => implode("\r\n", $headers) . "\r\n",
+            'ignore_errors' => true,
+            'method' => 'POST',
+            'timeout' => 8,
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $context);
+    return is_string($raw) ? $raw : '';
 }
 
 function yandex_address_suggestions($query)

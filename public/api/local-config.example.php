@@ -27,4 +27,10 @@ return [
     'BITRIX_FIELD_INSTALL_FILES' => '',
     'BITRIX_FIELD_START_DATE' => '',
     'BITRIX_FIELD_EXPECTED_FINISH_DATE' => '',
+
+    // Address suggestions. Keep real keys only in server local-config.php.
+    // ADDRESS_PROVIDER: auto | dadata | yandex
+    'ADDRESS_PROVIDER' => 'auto',
+    'DADATA_API_KEY' => '',
+    'YANDEX_GEOCODER_API_KEY' => '',
 ];
