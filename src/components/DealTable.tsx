@@ -847,13 +847,13 @@ function DealSmartSearch({
                 <span>Стадии Bitrix</span>
                 <div>
                   {stageOptions.map((option) => (
-                    <label key={option.id}>
+                    <label key={option.id} title={`${option.name} (${option.count})`}>
                       <input
                         checked={selectedStages.has(option.id)}
                         onChange={() => toggleStage(option.id)}
                         type="checkbox"
                       />
-                      <span>{option.name}</span>
+                      <span className="deal-filter-stage-name">{option.name}</span>
                       <b>{option.count}</b>
                     </label>
                   ))}

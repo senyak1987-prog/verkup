@@ -18846,44 +18846,67 @@ textarea:focus,
 
 .deal-filter-stage-list > div {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 7px;
-  max-height: 190px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  max-height: 280px;
   overflow: auto;
-  padding-right: 2px;
+  padding: 1px 4px 1px 1px;
 }
 
 .deal-filter-stage-list label {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: start;
   gap: 8px;
-  min-height: 34px;
+  min-height: 42px;
   min-width: 0;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.68);
-  padding: 6px 9px;
+  padding: 8px 10px;
   font-size: 13px;
   font-weight: 500;
+}
+
+.deal-filter-stage-list label:hover {
+  border-color: color-mix(in srgb, var(--primary) 26%, var(--border) 74%);
+  background: rgba(255, 249, 242, 0.92);
+}
+
+.deal-filter-stage-list label:has(input:checked) {
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--border) 56%);
+  background: color-mix(in srgb, var(--primary) 10%, white 90%);
+  color: var(--primary-hover);
 }
 
 .deal-filter-stage-list input {
   width: 15px;
   height: 15px;
+  margin-top: 2px;
   accent-color: var(--primary);
 }
 
-.deal-filter-stage-list label span {
+.deal-filter-stage-list label .deal-filter-stage-name {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
 .deal-filter-stage-list label b {
   margin-left: auto;
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(22, 18, 14, 0.07);
   color: var(--text-muted);
   font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .deal-filter-footer {
@@ -18946,5 +18969,10 @@ textarea:focus,
   .deal-filter-fields {
     grid-template-columns: 1fr;
     padding: 14px;
+  }
+
+  .deal-filter-stage-list > div {
+    grid-template-columns: 1fr;
+    max-height: 260px;
   }
 }
