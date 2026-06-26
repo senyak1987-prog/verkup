@@ -13591,7 +13591,8 @@ textarea {
 }
 
 .installation-address-suggestions button:hover,
-.installation-address-suggestions button:focus-visible {
+.installation-address-suggestions button:focus-visible,
+.installation-address-suggestions button.is-active {
   background: rgba(255, 121, 0, 0.09);
   outline: none;
 }

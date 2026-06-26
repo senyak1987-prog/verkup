@@ -1904,20 +1904,28 @@ function InstallationEditor({
 }) {
   const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
   const [addressSuggestOpen, setAddressSuggestOpen] = useState(false);
+  const [addressSuggestActiveIndex, setAddressSuggestActiveIndex] = useState(-1);
   const linkedDeal = findDealByNumber(deals, state.dealNumber || state.dealId);
 
   useEffect(() => {
     const query = state.address.trim();
     if (!saveApiUrl || query.length < 3) {
       setAddressSuggestions([]);
+      setAddressSuggestActiveIndex(-1);
       return;
     }
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => {
       void loadAddressSuggestions(saveApiUrl, query, controller.signal)
-        .then((suggestions) => setAddressSuggestions(suggestions))
-        .catch(() => setAddressSuggestions([]));
+        .then((suggestions) => {
+          setAddressSuggestions(suggestions);
+          setAddressSuggestActiveIndex(-1);
+        })
+        .catch(() => {
+          setAddressSuggestions([]);
+          setAddressSuggestActiveIndex(-1);
+        });
     }, 260);
 
     return () => {
@@ -1925,6 +1933,22 @@ function InstallationEditor({
       controller.abort();
     };
   }, [saveApiUrl, state.address]);
+
+  const applyAddressSuggestion = (suggestion?: AddressSuggestion) => {
+    if (!suggestion?.value) return;
+
+    onChange({ ...state, address: suggestion.value, addressSource: "manual" });
+    setAddressSuggestOpen(false);
+    setAddressSuggestActiveIndex(-1);
+  };
+
+  const selectActiveAddressSuggestion = () => {
+    const suggestion = addressSuggestions[addressSuggestActiveIndex >= 0 ? addressSuggestActiveIndex : 0];
+    applyAddressSuggestion(suggestion);
+  };
+
+  const addressOptionsId = "installation-address-options";
+  const activeAddressOptionId = addressSuggestActiveIndex >= 0 ? `installation-address-option-${addressSuggestActiveIndex}` : undefined;
 
   return (
     <div className="installation-editor-backdrop" role="presentation" onMouseDown={onCancel}>
@@ -1988,26 +2012,71 @@ function InstallationEditor({
           <label className="full installation-address-field">
             Адрес
             <input
+              aria-activedescendant={activeAddressOptionId}
+              aria-autocomplete="list"
+              aria-controls={addressOptionsId}
+              aria-expanded={addressSuggestOpen && addressSuggestions.length > 0}
               autoComplete="off"
+              role="combobox"
               value={state.address}
-              onBlur={() => window.setTimeout(() => setAddressSuggestOpen(false), 120)}
+              onBlur={() => window.setTimeout(() => {
+                setAddressSuggestOpen(false);
+                setAddressSuggestActiveIndex(-1);
+              }, 120)}
               onChange={(event) => {
                 onChange({ ...state, address: event.target.value, addressSource: "manual" });
                 setAddressSuggestOpen(true);
+                setAddressSuggestActiveIndex(-1);
+              }}
+              onKeyDown={(event) => {
+                if (!addressSuggestions.length) return;
+
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setAddressSuggestOpen(true);
+                  setAddressSuggestActiveIndex((current) => (current < 0 ? 0 : (current + 1) % addressSuggestions.length));
+                  return;
+                }
+
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setAddressSuggestOpen(true);
+                  setAddressSuggestActiveIndex((current) => (current < 0 ? addressSuggestions.length - 1 : (current - 1 + addressSuggestions.length) % addressSuggestions.length));
+                  return;
+                }
+
+                if (addressSuggestOpen && (event.key === "Enter" || event.key === " " || event.code === "Space")) {
+                  event.preventDefault();
+                  selectActiveAddressSuggestion();
+                  return;
+                }
+
+                if (addressSuggestOpen && event.key === "Tab") {
+                  selectActiveAddressSuggestion();
+                  return;
+                }
+
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setAddressSuggestOpen(false);
+                  setAddressSuggestActiveIndex(-1);
+                }
               }}
               onFocus={() => setAddressSuggestOpen(true)}
               placeholder="Адрес монтажа или объект"
             />
             {addressSuggestOpen && addressSuggestions.length ? (
-              <div className="installation-address-suggestions">
-                {addressSuggestions.map((suggestion) => (
+              <div className="installation-address-suggestions" id={addressOptionsId} role="listbox">
+                {addressSuggestions.map((suggestion, index) => (
                   <button
+                    aria-selected={addressSuggestActiveIndex === index}
+                    className={addressSuggestActiveIndex === index ? "is-active" : undefined}
+                    id={`installation-address-option-${index}`}
                     key={`${suggestion.kladrId || suggestion.value}_${suggestion.value}`}
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => {
-                      onChange({ ...state, address: suggestion.value, addressSource: "manual" });
-                      setAddressSuggestOpen(false);
-                    }}
+                    onMouseEnter={() => setAddressSuggestActiveIndex(index)}
+                    onClick={() => applyAddressSuggestion(suggestion)}
+                    role="option"
                     type="button"
                   >
                     {suggestion.value}
