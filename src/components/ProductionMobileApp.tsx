@@ -3134,49 +3134,58 @@ function WorkerProfile({
               </button>
               {menuOpen ? (
                 <div className="worker-profile-menu">
-                <label>
-                  <Camera size={16} />
-                  <span>Фото</span>
-                  <ChevronRight className="worker-menu-chevron" size={16} />
-                  <input
-                    accept="image/*"
-                    onChange={(event) => {
-                      onAvatarChange(event.target.files?.[0]);
-                      event.target.value = "";
-                    }}
-                    type="file"
-                  />
-                </label>
-                <button onClick={onPasswordClick} type="button">
-                  <KeyRound size={16} />
-                  <span>Пароль</span>
-                  <ChevronRight className="worker-menu-chevron" size={16} />
-                </button>
-                <button onClick={onGalleryClick} type="button">
-                  <Images size={16} />
-                  <span>Галерея работ</span>
-                  {galleryCount ? <em>{galleryCount}</em> : null}
-                  <ChevronRight className="worker-menu-chevron" size={16} />
-                </button>
-                <button onClick={onMoneyClick} type="button">
-                  <Wallet size={16} />
-                  <span>Выплаты</span>
-                  <ChevronRight className="worker-menu-chevron" size={16} />
-                </button>
-                <button disabled={notificationDisabled} onClick={onEnableNotifications} type="button">
-                  <Bell size={16} />
-                  <span>{notificationLabel}</span>
-                </button>
-                <button onClick={onToggleTheme} type="button">
-                  {theme === "night" ? <Sun size={16} /> : <Moon size={16} />}
-                  <span>{theme === "night" ? "Светлая тема" : "Тёмная тема"}</span>
-                </button>
-                {onLogout ? (
-                  <button className="worker-menu-danger" onClick={onLogout} type="button">
-                    <LogOut size={16} />
-                    <span>Выйти</span>
-                  </button>
-                ) : null}
+                  <div className="worker-profile-menu-section">
+                    <span className="worker-profile-menu-title">Профиль</span>
+                    <label>
+                      <Camera size={16} />
+                      <span>Фото профиля</span>
+                      <ChevronRight className="worker-menu-chevron" size={16} />
+                      <input
+                        accept="image/*"
+                        onChange={(event) => {
+                          onAvatarChange(event.target.files?.[0]);
+                          event.target.value = "";
+                        }}
+                        type="file"
+                      />
+                    </label>
+                    <button onClick={onPasswordClick} type="button">
+                      <KeyRound size={16} />
+                      <span>Логин и пароль</span>
+                      <ChevronRight className="worker-menu-chevron" size={16} />
+                    </button>
+                  </div>
+                  <div className="worker-profile-menu-section">
+                    <span className="worker-profile-menu-title">Работа</span>
+                    <button onClick={onGalleryClick} type="button">
+                      <Images size={16} />
+                      <span>Галерея работ</span>
+                      {galleryCount ? <em>{galleryCount}</em> : null}
+                      <ChevronRight className="worker-menu-chevron" size={16} />
+                    </button>
+                    <button onClick={onMoneyClick} type="button">
+                      <Wallet size={16} />
+                      <span>Выплаты</span>
+                      <ChevronRight className="worker-menu-chevron" size={16} />
+                    </button>
+                    <button disabled={notificationDisabled} onClick={onEnableNotifications} type="button">
+                      <Bell size={16} />
+                      <span>{notificationLabel}</span>
+                    </button>
+                  </div>
+                  <div className="worker-profile-menu-section">
+                    <span className="worker-profile-menu-title">Система</span>
+                    <button onClick={onToggleTheme} type="button">
+                      {theme === "night" ? <Sun size={16} /> : <Moon size={16} />}
+                      <span>{theme === "night" ? "Светлая тема" : "Тёмная тема"}</span>
+                    </button>
+                    {onLogout ? (
+                      <button className="worker-menu-danger" onClick={onLogout} type="button">
+                        <LogOut size={16} />
+                        <span>Выйти</span>
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
             </div>

@@ -18982,3 +18982,258 @@ textarea:focus,
     max-height: 260px;
   }
 }
+
+/* Mobile usability pass: readable actions and compact app-like submenus. */
+.worker-profile-menu-section {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.worker-profile-menu-section + .worker-profile-menu-section {
+  border-top: 1px solid var(--border-soft);
+  padding-top: 6px;
+  margin-top: 3px;
+}
+
+.worker-profile-menu-title {
+  padding: 5px 9px 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 560;
+  letter-spacing: 0;
+}
+
+@media (max-width: 720px) {
+  .production-mobile,
+  .workspace-app {
+    -webkit-text-size-adjust: 100%;
+    touch-action: pan-y;
+  }
+
+  .production-mobile button,
+  .production-mobile .primary,
+  .production-mobile .secondary,
+  .worker-profile-menu button,
+  .worker-profile-menu label,
+  .worker-profile-menu-trigger,
+  .production-card-actions button,
+  .production-worker-head button,
+  .production-view-switch button,
+  .production-section-tabs button,
+  .worker-tabs button,
+  .employee-access-actions button,
+  .employee-payout-controls button,
+  .installation-mobile-actions button,
+  .warehouse-actions button,
+  .finance-actions button {
+    min-height: 44px;
+    font-size: 14px;
+    line-height: 1.16;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    touch-action: manipulation;
+  }
+
+  .production-mobile .primary,
+  .production-mobile .secondary,
+  .production-card-actions button,
+  .production-worker-head button,
+  .installation-mobile-actions button,
+  .warehouse-actions button,
+  .finance-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 12px;
+    font-weight: 560;
+  }
+
+  .production-card-actions,
+  .worker-profile-actions,
+  .installation-mobile-actions,
+  .warehouse-actions,
+  .finance-actions {
+    min-width: 0;
+  }
+
+  .production-card-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .production-card-actions button:only-child {
+    grid-column: 1 / -1;
+  }
+
+  .worker-profile {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    gap: 12px;
+    padding: 13px;
+  }
+
+  .worker-avatar {
+    width: 64px;
+    height: 64px;
+  }
+
+  .worker-profile-main h2 {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.12;
+  }
+
+  .worker-profile-title span {
+    font-size: 14px;
+    font-weight: 450;
+    line-height: 1.2;
+  }
+
+  .worker-profile-actions {
+    align-self: center;
+  }
+
+  .worker-profile-menu-trigger {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+
+  .production-worker-view .worker-profile-menu,
+  .workspace-worker-shell .production-mobile .worker-profile-menu {
+    right: 0;
+    left: auto;
+    width: min(330px, calc(100vw - 28px));
+    max-height: min(68dvh, 540px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: 18px;
+    padding: 8px;
+  }
+
+  .worker-profile-menu button,
+  .worker-profile-menu label {
+    min-height: 48px;
+    justify-content: flex-start;
+    gap: 10px;
+    border-radius: 12px;
+    padding: 0 11px;
+    font-size: 15px;
+    font-weight: 450;
+    text-align: left;
+  }
+
+  .worker-profile-menu button span,
+  .worker-profile-menu label span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .worker-menu-chevron {
+    margin-left: auto;
+    flex: 0 0 auto;
+    opacity: 0.48;
+  }
+
+  .worker-tabs {
+    padding: 4px;
+  }
+
+  .worker-tab-rail {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .worker-tabs button {
+    width: auto;
+    min-width: 0;
+    min-height: 44px;
+    padding: 7px 6px;
+    font-size: 14px;
+    font-weight: 520;
+  }
+
+  .worker-tabs button strong,
+  .worker-tabs button > :not(span) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .worker-tabs button span {
+    min-width: 20px;
+    padding: 2px 5px;
+    font-size: 11px;
+  }
+
+  .workspace-bottom-nav {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  .workspace-bottom-nav button {
+    flex-basis: clamp(62px, 20vw, 88px);
+    min-height: 52px;
+    border-radius: 12px;
+    font-size: 10px;
+    line-height: 1.1;
+  }
+
+  .workspace-bottom-nav button span {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .deal-filter-panel {
+    left: 0;
+    right: 0;
+    max-height: min(72dvh, 620px);
+  }
+
+  .deal-filter-stage-list label {
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    align-items: center;
+    min-height: 44px;
+    gap: 9px;
+    padding: 8px 10px;
+  }
+
+  .deal-filter-stage-list input {
+    justify-self: center;
+    margin: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .production-card-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .worker-profile {
+    grid-template-columns: 58px minmax(0, 1fr) 46px;
+    padding: 12px;
+  }
+
+  .worker-avatar {
+    width: 58px;
+    height: 58px;
+  }
+
+  .worker-profile-main h2 {
+    font-size: 21px;
+  }
+
+  .production-worker-view .worker-profile-menu,
+  .workspace-worker-shell .production-mobile .worker-profile-menu {
+    width: calc(100vw - 24px);
+  }
+}
