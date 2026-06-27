@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Calculator, CalendarDays, CircleDollarSign, Factory, LogOut, PackageSearch, UsersRound } from "lucide-react";
+import { BriefcaseBusiness, Calculator, CalendarDays, CircleDollarSign, Factory, LogOut, PackageSearch, UsersRound } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
 import { CatalogManager } from "./components/CatalogManager";
 import { CostDrawer } from "./components/CostDrawer";
+import { DealsApp } from "./components/DealsApp";
 import { DealTable } from "./components/DealTable";
 import { InstallationsApp } from "./components/InstallationsApp";
 import { ProductionMobileApp } from "./components/ProductionMobileApp";
@@ -113,9 +114,10 @@ type PendingStageMove = {
   expiresAt: number;
 };
 
-type WorkspaceMode = "costing" | "production" | "installations" | "warehouse" | "finances" | "employees";
+type WorkspaceMode = "deals" | "costing" | "production" | "installations" | "warehouse" | "finances" | "employees";
 
 const WORKSPACE_MODE_ROUTES: Record<WorkspaceMode, string> = {
+  deals: "/deals",
   costing: "/cost",
   production: "/production",
   installations: "/installations",
@@ -128,6 +130,11 @@ const RAW_APP_BASE_PATH = (import.meta.env.BASE_URL || "/").replace(/\/+$/, "");
 const APP_BASE_PATH = RAW_APP_BASE_PATH === "/" ? "" : RAW_APP_BASE_PATH;
 
 const WORKSPACE_ROUTE_ALIASES: Record<string, WorkspaceMode> = {
+  deals: "deals",
+  deal: "deals",
+  sdelki: "deals",
+  сделки: "deals",
+  journal: "deals",
   cost: "costing",
   costing: "costing",
   sebestoimost: "costing",
@@ -355,6 +362,7 @@ export default function App() {
   const isInstallerWorker = currentAccessRole === "maker" && currentEmployee?.role === "assembler";
 
   const canUseCosting = canAccessCosting(currentEmployee);
+  const canUseDeals = canUseCosting;
   const canUseProduction =
     canAccessProduction(currentEmployee) &&
     !isInstallerWorker;
@@ -362,7 +370,7 @@ export default function App() {
   const canUseInstallations = canAccessInstallations(currentEmployee) && !isMakerWorker;
   const canUseWarehouse = canAccessWarehouse(currentEmployee);
   const canUseFinances = canUseCosting;
-  const availableModeCount = [canUseCosting, canUseProduction, canUseInstallations, canUseWarehouse, canUseFinances, canUseEmployees].filter(Boolean).length;
+  const availableModeCount = [canUseDeals, canUseCosting, canUseProduction, canUseInstallations, canUseWarehouse, canUseFinances, canUseEmployees].filter(Boolean).length;
 
   useEffect(() => {
     storedTechSpecsRef.current = storedTechSpecs;
@@ -666,6 +674,7 @@ export default function App() {
       return;
     }
     const availableModes: WorkspaceMode[] = [
+      ...(canUseDeals ? (["deals"] as const) : []),
       ...(canUseCosting ? (["costing"] as const) : []),
       ...(canUseProduction ? (["production"] as const) : []),
       ...(canUseInstallations ? (["installations"] as const) : []),
@@ -686,7 +695,7 @@ export default function App() {
     if (workspaceMode === "finances" && !canUseFinances && canUseCosting) {
       setWorkspaceMode("costing");
     }
-  }, [canUseCosting, canUseEmployees, canUseFinances, canUseInstallations, canUseProduction, canUseWarehouse, currentEmployee, workspaceMode]);
+  }, [canUseCosting, canUseDeals, canUseEmployees, canUseFinances, canUseInstallations, canUseProduction, canUseWarehouse, currentEmployee, workspaceMode]);
 
   const calculationsMap = useMemo(() => {
     return new Map(storedCalculations.calculations.map((calculation) => [calculation.dealId, calculation]));
@@ -1302,7 +1311,9 @@ export default function App() {
   }
 
   function handleWorkspaceLogoClick() {
-    if (canUseCosting) {
+    if (canUseDeals) {
+      handleWorkspaceModeChange("deals");
+    } else if (canUseCosting) {
       handleWorkspaceModeChange("costing");
     } else if (canUseProduction) {
       handleWorkspaceModeChange("production");
@@ -1366,6 +1377,18 @@ export default function App() {
   function renderWorkspaceModeButtons() {
     return (
       <>
+        {canUseDeals ? (
+          <button
+            aria-selected={workspaceMode === "deals"}
+            className={workspaceMode === "deals" ? "active" : ""}
+            onClick={(event) => { handleWorkspaceModeChange("deals"); event.currentTarget.blur(); }}
+            role="tab"
+            type="button"
+          >
+            <BriefcaseBusiness size={18} />
+            <span>Сделки</span>
+          </button>
+        ) : null}
         {canUseCosting ? (
           <button
             aria-selected={workspaceMode === "costing"}
@@ -1443,17 +1466,19 @@ export default function App() {
   }
 
   const workspaceTitle =
-    workspaceMode === "costing"
-      ? "Себестоимость"
-      : workspaceMode === "production"
-        ? "Производство"
-        : workspaceMode === "installations"
-          ? "Монтажи"
-          : workspaceMode === "warehouse"
-            ? "Склад"
-            : workspaceMode === "finances"
-              ? "Финансы"
-              : "Сотрудники";
+    workspaceMode === "deals"
+      ? "Сделки"
+      : workspaceMode === "costing"
+        ? "Себестоимость"
+        : workspaceMode === "production"
+          ? "Производство"
+          : workspaceMode === "installations"
+            ? "Монтажи"
+            : workspaceMode === "warehouse"
+              ? "Склад"
+              : workspaceMode === "finances"
+                ? "Финансы"
+                : "Сотрудники";
 
   function applyPendingStageMoves(items: Deal[]) {
     const now = Date.now();
@@ -1605,7 +1630,19 @@ export default function App() {
               <strong>{workspaceTitle}</strong>
             </header>
           ) : null}
-      {workspaceMode === "employees" && canUseEmployees ? (
+      {workspaceMode === "deals" && canUseDeals ? (
+        <DealsApp
+          agentRatio={storedCalculations.agentCostRatio}
+          calculations={calculationsMap}
+          deals={deals}
+          installations={storedInstallations}
+          production={storedProduction}
+          stageOptions={stageOptions}
+          techSpecs={techSpecsMap}
+          onOpenDeal={handleProductionDealOpen}
+          onStageChange={(deal, stageId, stageName) => void handleDealStageSelect(deal, stageId, stageName)}
+        />
+      ) : workspaceMode === "employees" && canUseEmployees ? (
         <ProductionMobileApp
           calculations={calculationsMap}
           catalogItems={catalogItems}
