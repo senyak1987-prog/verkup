@@ -78,6 +78,7 @@ import {
   stageLabels,
 } from "./lib/stages";
 import { createEmptyStoredWarehouse } from "./lib/warehouse";
+import { buildSearchIndex, rankBySearchIndex } from "./lib/searchIndex";
 import type {
   CatalogItem,
   BitrixStage,
@@ -115,6 +116,27 @@ type PendingStageMove = {
 };
 
 type WorkspaceMode = "deals" | "costing" | "production" | "installations" | "warehouse" | "finances" | "employees";
+
+function dealSearchIndex(deal: Deal) {
+  return buildSearchIndex([
+    deal.number,
+    deal.title,
+    deal.source,
+    deal.type,
+    deal.classification,
+    deal.responsible,
+    deal.stageName,
+    deal.stageCode,
+    deal.startDate,
+    deal.expectedFinishDate,
+    deal.installationAddress,
+    deal.installationClientName,
+    deal.installationClientPhone,
+    deal.responsibleCard?.name,
+    deal.responsibleCard?.email,
+    deal.responsibleCard?.phone,
+  ]);
+}
 
 const WORKSPACE_MODE_ROUTES: Record<WorkspaceMode, string> = {
   deals: "/deals",
@@ -717,19 +739,12 @@ export default function App() {
   );
 
   const filteredDeals = useMemo(() => {
-    const needle = query.trim().toLowerCase();
     const selectedStages = new Set(selectedStageIds);
     const stageDeals =
       selectedStages.size === 0
         ? deals
         : deals.filter((deal) => selectedStages.has(stageIdForDeal(deal)));
-    if (!needle) return stageDeals;
-    return stageDeals.filter((deal) =>
-      [deal.number, deal.title, deal.source, deal.type, deal.classification, deal.responsible, deal.stageName]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle),
-    );
+    return rankBySearchIndex(stageDeals, query, dealSearchIndex);
   }, [deals, query, selectedStageIds]);
 
   useEffect(() => {

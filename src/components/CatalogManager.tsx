@@ -84,6 +84,10 @@ export function CatalogManager({
       .filter((item) => !activeSecondarySubgroup || catalogSecondarySubgroupValue(item) === activeSecondarySubgroup);
   }, [activePrimarySubgroup, activeSecondarySubgroup, pageItems]);
   const filteredItems = useMemo(() => filterCatalogItems(groupItems, query, 300), [groupItems, query]);
+  const searchSuggestions = useMemo(
+    () => (query.trim() ? filteredItems.slice(0, 6) : []),
+    [filteredItems, query],
+  );
 
   useEffect(() => {
     document.body.classList.add("modal-open");
@@ -288,6 +292,18 @@ export function CatalogManager({
                 placeholder="Название, раздел, источник..."
               />
             </div>
+            {searchSuggestions.length ? (
+              <div className="catalog-search-suggestions" role="listbox">
+                {searchSuggestions.map((item) => (
+                  <button key={item.id} type="button" onClick={() => selectItem(item)}>
+                    <span>{item.title}</span>
+                    <small>
+                      {sectionLabels[item.section]} · {formatMoney(item.unitCost)} / {item.unit}
+                    </small>
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="catalog-toolbar">
               <button className="secondary" onClick={startNewItem}>
                 <CirclePlus size={16} /> Новая позиция

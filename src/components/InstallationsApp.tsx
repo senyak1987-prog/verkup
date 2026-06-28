@@ -56,6 +56,7 @@ import {
   updateInstallation,
   uploadInstallationPhoto,
 } from "../lib/saveApi";
+import { buildSearchIndex, rankBySearchIndex } from "../lib/searchIndex";
 
 type InstallationViewMode = "day" | "week" | "month" | "year" | "list";
 type InstallationMobileTab = "today" | "all" | "notifications" | "profile";
@@ -97,6 +98,20 @@ type InstallationsAppProps = {
   onRefresh?: () => Promise<void> | void;
   onLogout?: () => void;
 };
+
+function installationSearchIndex(installation: Installation) {
+  return buildSearchIndex([
+    installation.dealNumber,
+    installation.dealTitle,
+    installation.address,
+    installation.installerName,
+    installation.clientName,
+    installation.clientPhone,
+    installation.comment,
+    installation.resultComment,
+    installation.status,
+  ]);
+}
 
 type InstallationFormState = {
   address: string;
@@ -234,28 +249,17 @@ export function InstallationsApp({
     .sort((first, second) => Date.parse(second.createdAt) - Date.parse(first.createdAt));
 
   const filteredInstallations = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return installations
+    const byFilters = installations
       .filter((installation) => {
         if (isMobileInstaller && installation.installerId !== currentUser.id) return false;
         if (installerFilter !== "all" && installation.installerId !== installerFilter) return false;
         if (statusFilter !== "all" && statusFilter !== "queue" && installation.status !== statusFilter) return false;
         if (!isMobileInstaller && !isInstallationVisibleInPlanner(installation, viewMode, dateKey)) return false;
-        if (!needle) return true;
-        return [
-          installation.dealNumber,
-          installation.dealTitle,
-          installation.address,
-          installation.installerName,
-          installation.clientName,
-          installation.clientPhone,
-          installation.comment,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(needle);
+        return true;
       })
       .sort(compareInstallations);
+
+    return rankBySearchIndex(byFilters, query, installationSearchIndex);
   }, [currentUser.id, dateKey, installerFilter, installations, isMobileInstaller, query, statusFilter, viewMode]);
 
   const selectedInstallation = selectedInstallationId

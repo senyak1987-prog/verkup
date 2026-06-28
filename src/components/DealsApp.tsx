@@ -12,6 +12,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { finalCost, formatMoney, profit, saleAmountForDeal } from "../lib/costing";
+import { buildSearchIndex, rankBySearchIndex } from "../lib/searchIndex";
 import { stageIdForDeal, stageNameForDeal, type DealStageOption } from "../lib/stages";
 import type {
   Deal,
@@ -48,6 +49,27 @@ const focusFilters: Array<{ id: DealFocusFilter; label: string }> = [
   { id: "installation", label: "Монтаж" },
   { id: "attention", label: "Контроль" },
 ];
+
+function dealOverviewSearchIndex(deal: Deal) {
+  return buildSearchIndex([
+    deal.number,
+    deal.title,
+    deal.source,
+    deal.type,
+    deal.classification,
+    deal.responsible,
+    deal.stageName,
+    deal.stageCode,
+    deal.startDate,
+    deal.expectedFinishDate,
+    deal.installationAddress,
+    deal.installationClientName,
+    deal.installationClientPhone,
+    deal.responsibleCard?.name,
+    deal.responsibleCard?.email,
+    deal.responsibleCard?.phone,
+  ]);
+}
 
 export function DealsApp({
   deals,
@@ -94,10 +116,9 @@ export function DealsApp({
   }, [calculations, deals, installationsByDeal, productionByDeal, techSpecs]);
 
   const filteredDeals = useMemo(() => {
-    const needle = query.trim().toLowerCase();
     const selectedStages = new Set(selectedStageIds);
 
-    return deals.filter((deal) => {
+    const byFilters = deals.filter((deal) => {
       const calculation = calculations.get(deal.id);
       const assignments = productionByDeal.get(deal.id) || [];
       const dealInstallations = installationsByDeal.get(deal.id) || [];
@@ -110,24 +131,10 @@ export function DealsApp({
       if (focusFilter === "installation" && dealInstallations.length === 0 && !isInstallationDeal(deal)) return false;
       if (focusFilter === "attention" && !needsAttention(deal, assignments, dealInstallations)) return false;
 
-      if (!needle) return true;
-      return [
-        deal.number,
-        deal.title,
-        deal.source,
-        deal.type,
-        deal.classification,
-        deal.responsible,
-        deal.stageName,
-        deal.installationAddress,
-        deal.installationClientName,
-        deal.installationClientPhone,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
+      return true;
     });
+
+    return rankBySearchIndex(byFilters, query, dealOverviewSearchIndex);
   }, [calculations, deals, focusFilter, installationsByDeal, productionByDeal, query, selectedStageIds, techSpecs]);
 
   function toggleStage(stageId: string) {

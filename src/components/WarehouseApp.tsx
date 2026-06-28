@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import * as XLSX from "xlsx";
 import { formatMoney } from "../lib/costing";
+import { buildSearchIndex, rankBySearchIndex } from "../lib/searchIndex";
 import {
   addMaterialAlias,
   approvePriceProposal,
@@ -93,12 +94,8 @@ export function WarehouseApp({
     [catalogItems, warehouse],
   );
   const filteredStockRows = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return stockRows;
-    return stockRows.filter((item) =>
-      [item.materialName, item.category, item.supplier]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(needle)),
+    return rankBySearchIndex(stockRows, query, (item) =>
+      buildSearchIndex([item.materialName, item.category, item.supplier, item.unit]),
     );
   }, [query, stockRows]);
 

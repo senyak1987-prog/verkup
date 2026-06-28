@@ -2820,6 +2820,53 @@ div.employee-profile-field .employee-profile-value {
   background: #fff;
 }
 
+.catalog-search-suggestions {
+  display: grid;
+  gap: 6px;
+  margin-top: -4px;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border) 82%);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-sm);
+}
+
+.catalog-search-suggestions button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.catalog-search-suggestions button:hover,
+.catalog-search-suggestions button:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--primary) 9%, white 91%);
+}
+
+.catalog-search-suggestions span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.catalog-search-suggestions small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .catalog-toolbar {
   display: flex;
   align-items: center;
@@ -18846,7 +18893,7 @@ textarea:focus,
 
 .deal-filter-stage-list > div {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 8px;
   max-height: 280px;
   overflow: auto;
@@ -18854,11 +18901,11 @@ textarea:focus,
 }
 
 .deal-filter-stage-list label {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
   gap: 10px;
-  min-height: 42px;
+  min-height: 44px;
   min-width: 0;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
@@ -18882,27 +18929,24 @@ textarea:focus,
 
 .deal-filter-stage-list input {
   position: static !important;
-  flex: 0 0 18px;
-  width: 15px;
-  height: 15px;
-  min-width: 15px;
-  margin-top: 2px;
+  width: 17px;
+  height: 17px;
+  min-width: 17px;
+  margin: 0;
+  justify-self: center;
+  align-self: center;
   accent-color: var(--primary);
 }
 
 .deal-filter-stage-list label .deal-filter-stage-name {
-  flex: 1 1 auto;
   min-width: 0;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   line-height: 1.25;
 }
 
 .deal-filter-stage-list label b {
-  flex: 0 0 auto;
-  margin-left: auto;
   display: inline-grid;
   place-items: center;
   min-width: 24px;
@@ -19210,6 +19254,11 @@ textarea:focus,
   .deal-filter-stage-list input {
     justify-self: center;
     margin: 0;
+  }
+
+  .deal-filter-stage-list label .deal-filter-stage-name {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 

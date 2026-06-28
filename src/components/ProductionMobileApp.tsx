@@ -29,6 +29,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject, TouchEvent } from "react";
 import { formatMoney, positionTotal } from "../lib/costing";
+import { buildSearchIndex, matchesSearchIndex } from "../lib/searchIndex";
 import {
   completeProductionWork,
   deleteProductionPhoto,
@@ -400,20 +401,18 @@ export function ProductionMobileApp({
   }, [currentAccessRole, deals, storedProduction.assignments]);
 
   const visibleSupervisorDeals = useMemo(() => {
-    const needle = query.trim().toLowerCase();
     const byTab = productionDeals.filter((deal) => {
       const done = hasSupervisorDoneAssignments(deal.id, techSpecs.get(deal.id), storedProduction.assignments);
       if (supervisorTab === "done") return done;
       return hasSupervisorActiveAssignments(deal.id, techSpecs.get(deal.id), storedProduction.assignments) || !done;
     });
-    if (!needle) return byTab;
 
     return byTab.filter((deal) => {
       const dealAssignments = assignmentsForDeal(storedProduction.assignments, deal.id);
       const employeeNames = dealAssignments
         .map((assignment) => employeesById.get(assignment.employeeId)?.name)
         .filter(Boolean);
-      return [
+      return matchesSearchIndex(buildSearchIndex([
         deal.number,
         deal.title,
         deal.classification,
@@ -421,10 +420,7 @@ export function ProductionMobileApp({
         deal.responsible,
         stageLabels[stageCodeForDeal(deal)],
         employeeNames.join(" "),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
+      ]), query);
     });
   }, [employeesById, productionDeals, query, storedProduction.assignments, supervisorTab, techSpecs]);
 
@@ -3204,7 +3200,6 @@ function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[
     title: string;
   } | null>(null);
   const dealGroups = useMemo(() => {
-    const query = galleryQuery.trim().toLowerCase();
     const groups = new Map<
       string,
       {
@@ -3231,8 +3226,7 @@ function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[
 
     return [...groups.values()]
       .filter((group) => {
-        if (!query) return true;
-        return `${group.dealNumber} ${group.dealTitle}`.toLowerCase().includes(query);
+        return matchesSearchIndex(buildSearchIndex([group.dealNumber, group.dealTitle]), galleryQuery);
       })
       .sort((first, second) => {
         const firstNumber = Number(first.dealNumber);
