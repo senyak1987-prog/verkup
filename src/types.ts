@@ -58,6 +58,7 @@ export type BitrixStage = {
   code?: DealStageCode | string;
   sort?: number;
   categoryId?: string;
+  entityId?: string;
 };
 
 export type CostSection =

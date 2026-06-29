@@ -358,6 +358,7 @@ function bitrix_target_stage_items()
                 'code' => $code,
                 'sort' => $sort,
                 'categoryId' => '',
+                'entityId' => 'DEAL_STAGE',
             ];
             $sort += 10;
         }
@@ -625,6 +626,7 @@ function load_bitrix_stage_items()
                         'code' => infer_bitrix_stage_code($name),
                         'sort' => (int)first_defined(array_get($stage, 'SORT', 0), array_get($stage, 'sort', 0), 0),
                         'categoryId' => $categoryId,
+                        'entityId' => 'DEAL_STAGE_' . $categoryId,
                     ];
                 }
             } catch (Exception $error) {
@@ -635,11 +637,23 @@ function load_bitrix_stage_items()
         // CRM category methods are optional for incoming webhooks.
     }
 
+    $items = array_filter($items, function ($stage) {
+        return is_bitrix_deal_stage_entity((string)array_get($stage, 'entityId', 'DEAL_STAGE'));
+    });
+
     return array_values($items);
+}
+
+function is_bitrix_deal_stage_entity($entityId)
+{
+    $value = (string)$entityId;
+    return $value === 'DEAL_STAGE' || preg_match('/^DEAL_STAGE_\d+$/', $value) === 1;
 }
 
 function add_bitrix_stage_items(&$items, $entityId, $categoryId = '')
 {
+    if (!is_bitrix_deal_stage_entity($entityId)) return;
+
     try {
         $response = call_bitrix_rest('crm.status.list', ['filter' => ['ENTITY_ID' => $entityId]]);
         foreach (array_get($response, 'result', []) as $status) {
@@ -652,6 +666,7 @@ function add_bitrix_stage_items(&$items, $entityId, $categoryId = '')
                 'code' => infer_bitrix_stage_code($name),
                 'sort' => (int)array_get($status, 'SORT', 0),
                 'categoryId' => (string)$categoryId,
+                'entityId' => (string)$entityId,
             ];
         }
     } catch (Exception $error) {

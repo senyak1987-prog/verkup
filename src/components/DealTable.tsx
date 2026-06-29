@@ -19,6 +19,7 @@ import { stageIdForDeal } from "../lib/stages";
 import { EmployeeCard } from "./EmployeeCard";
 
 const COLUMN_STORAGE_KEY = "verkupDealColumnWidths.v2";
+const MULTIPLE_STAGE_FILTER_VALUE = "__multiple_stages__";
 
 const tableColumns = [
   { id: "deal", label: "Сделка", defaultWidth: 185, minWidth: 160 },
@@ -177,6 +178,13 @@ export function DealTable({
 
   const hasColumnFilters = Object.values(columnFilters).some(Boolean);
   const hasSmartFilters = hasColumnFilters || selectedStageIds.length > 0 || query.trim().length > 0;
+  const hasTableFilters = hasColumnFilters || selectedStageIds.length > 0;
+  const stageFilterValue =
+    selectedStageIds.length === 0
+      ? ""
+      : selectedStageIds.length === 1
+        ? selectedStageIds[0]
+        : MULTIPLE_STAGE_FILTER_VALUE;
   const animatedExpandedRowsByDeal = useMemo(
     () => new Map(animatedExpandedRows.map((row) => [row.dealId, row])),
     [animatedExpandedRows],
@@ -231,6 +239,7 @@ export function DealTable({
 
   function resetColumnFilters() {
     setColumnFilters(emptyColumnFilters);
+    onStageFilterChange?.([]);
   }
 
   function resetSmartFilters() {
@@ -246,6 +255,11 @@ export function DealTable({
       }
       return { column, direction: current.direction === "asc" ? "desc" : "asc" };
     });
+  }
+
+  function applySingleStageFilter(value: string) {
+    if (value === MULTIPLE_STAGE_FILTER_VALUE) return;
+    onStageFilterChange?.(value ? [value] : []);
   }
 
   return (
@@ -344,7 +358,26 @@ export function DealTable({
             ))}
           </select>
         </label>
-        <button className="secondary" disabled={!hasColumnFilters} onClick={resetColumnFilters} type="button">
+        {stageOptions.length ? (
+          <label>
+            <span>Стадия</span>
+            <select
+              value={stageFilterValue}
+              onChange={(event) => applySingleStageFilter(event.target.value)}
+            >
+              <option value="">Все</option>
+              {stageFilterValue === MULTIPLE_STAGE_FILTER_VALUE ? (
+                <option value={MULTIPLE_STAGE_FILTER_VALUE}>Несколько стадий</option>
+              ) : null}
+              {stageOptions.map((stage) => (
+                <option key={stage.id} value={stage.id}>
+                  {stage.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+        <button className="secondary" disabled={!hasTableFilters} onClick={resetColumnFilters} type="button">
           <FilterX size={16} />
           Сбросить
         </button>
@@ -467,7 +500,10 @@ export function DealTable({
                     filters={columnFilters}
                     sort={dateSort}
                     options={filterOptions}
+                    stageOptions={stageOptions}
+                    stageFilterValue={stageFilterValue}
                     onChange={patchColumnFilters}
+                    onStageFilterChange={applySingleStageFilter}
                     onSort={toggleDateSort}
                   />
                   <span
@@ -884,14 +920,20 @@ function ColumnHeader({
   filters,
   sort,
   options,
+  stageOptions,
+  stageFilterValue,
   onChange,
+  onStageFilterChange,
   onSort,
 }: {
   column: TableColumn;
   filters: ColumnFilters;
   sort: DateSort;
-  options: { sources: string[]; responsibles: string[] };
+  options: DealFilterOptions;
+  stageOptions: DealStageOption[];
+  stageFilterValue: string;
   onChange: (patch: Partial<ColumnFilters>) => void;
+  onStageFilterChange: (stageId: string) => void;
   onSort: (column: SortColumnId) => void;
 }) {
   const isDateColumn = column.id === "startDate" || column.id === "finishDate";
@@ -927,6 +969,21 @@ function ColumnHeader({
           ))}
         </select>
       )}
+      {column.id === "type" && (
+        <select
+          className="column-filter"
+          value={filters.type}
+          onChange={(event) => onChange({ type: event.target.value })}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <option value="">Все</option>
+          {options.types.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+      )}
       {column.id === "responsible" && (
         <select
           className="column-filter"
@@ -938,6 +995,24 @@ function ColumnHeader({
           {options.responsibles.map((responsible) => (
             <option key={responsible} value={responsible}>
               {displayResponsible(responsible)}
+            </option>
+          ))}
+        </select>
+      )}
+      {column.id === "stage" && stageOptions.length > 0 && (
+        <select
+          className="column-filter"
+          value={stageFilterValue}
+          onChange={(event) => onStageFilterChange(event.target.value)}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <option value="">Все</option>
+          {stageFilterValue === MULTIPLE_STAGE_FILTER_VALUE ? (
+            <option value={MULTIPLE_STAGE_FILTER_VALUE}>Несколько стадий</option>
+          ) : null}
+          {stageOptions.map((stage) => (
+            <option key={stage.id} value={stage.id}>
+              {stage.name}
             </option>
           ))}
         </select>
