@@ -687,13 +687,17 @@ function DealSmartSearch({
     onColumnFiltersChange({ [key]: "" } as Partial<ColumnFilters>);
   }
 
+  function handleTopQueryChange(value: string) {
+    onQueryChange(value);
+    setOpen(false);
+  }
+
   return (
     <div className="deal-smart-search" ref={rootRef}>
       <div className={open ? "deal-smart-search-box open" : "deal-smart-search-box"}>
         <Search className="deal-smart-search-icon" size={20} />
         <button
           className={selectedStageIds.length ? "deal-filter-chip active" : "deal-filter-chip"}
-          onClick={() => setOpen((current) => !current)}
           title="Фильтр по стадиям Bitrix"
           type="button"
         >
@@ -734,8 +738,8 @@ function DealSmartSearch({
         <input
           aria-label="Фильтр и поиск сделок"
           value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          onFocus={() => setOpen(true)}
+          onChange={(event) => handleTopQueryChange(event.target.value)}
+          onFocus={() => setOpen(false)}
           placeholder={hasFilters ? "Добавить поиск" : "Фильтр + поиск"}
         />
 

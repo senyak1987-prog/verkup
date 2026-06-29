@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   BriefcaseBusiness,
   CalendarDays,
@@ -8,8 +8,10 @@ import {
   Factory,
   Image as ImageIcon,
   Search,
+  SlidersHorizontal,
   UserRound,
   Wrench,
+  X,
 } from "lucide-react";
 import { finalCost, formatMoney, profit, saleAmountForDeal } from "../lib/costing";
 import { buildSearchIndex, rankBySearchIndex } from "../lib/searchIndex";
@@ -85,6 +87,8 @@ export function DealsApp({
   const [query, setQuery] = useState("");
   const [selectedStageIds, setSelectedStageIds] = useState<string[]>([]);
   const [focusFilter, setFocusFilter] = useState<DealFocusFilter>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersRef = useRef<HTMLDivElement | null>(null);
 
   const employeeById = useMemo(
     () => new Map(production.employees.map((employee) => [employee.id, employee])),
@@ -137,6 +141,43 @@ export function DealsApp({
     return rankBySearchIndex(byFilters, query, dealOverviewSearchIndex);
   }, [calculations, deals, focusFilter, installationsByDeal, productionByDeal, query, selectedStageIds, techSpecs]);
 
+  const stageTotal = stageOptions.reduce((sum, option) => sum + option.count, 0);
+  const selectedStageNames = selectedStageIds
+    .map((stageId) => stageOptions.find((stage) => stage.id === stageId)?.name)
+    .filter(Boolean);
+  const stageFilterLabel =
+    selectedStageIds.length === 0
+      ? "Все стадии"
+      : selectedStageIds.length === 1
+        ? selectedStageNames[0] || "1 стадия"
+        : `${selectedStageIds.length} стадии`;
+  const hasActiveFilters = Boolean(query.trim() || selectedStageIds.length || focusFilter !== "all");
+
+  useEffect(() => {
+    if (!filtersOpen) return;
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!filtersRef.current?.contains(event.target as Node)) {
+        setFiltersOpen(false);
+      }
+    }
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    return () => window.removeEventListener("pointerdown", handlePointerDown);
+  }, [filtersOpen]);
+
+  function handleQueryChange(value: string) {
+    setQuery(value);
+    setFiltersOpen(false);
+  }
+
+  function resetFilters() {
+    setQuery("");
+    setSelectedStageIds([]);
+    setFocusFilter("all");
+    setFiltersOpen(false);
+  }
+
   function toggleStage(stageId: string) {
     setSelectedStageIds((current) =>
       current.includes(stageId) ? current.filter((item) => item !== stageId) : [...current, stageId],
@@ -162,65 +203,100 @@ export function DealsApp({
         <DealsKpi label="Фотоотчеты" value={totals.photoReports} />
       </section>
 
-      <section className="deals-overview-toolbar" aria-label="Фильтр сделок">
-        <label className="deals-overview-search">
+      <section className="deals-overview-toolbar" aria-label="Фильтр сделок" ref={filtersRef}>
+        <div className={filtersOpen ? "deals-overview-search open" : "deals-overview-search"}>
           <Search size={20} />
+          <span className={selectedStageIds.length ? "deal-filter-chip active" : "deal-filter-chip"}>
+            <span>{stageFilterLabel}</span>
+            <b>{selectedStageIds.length === 0 ? stageTotal || deals.length : selectedStageIds.length}</b>
+            {selectedStageIds.length ? (
+              <button aria-label="Сбросить стадии" onClick={() => setSelectedStageIds([])} type="button">
+                <X size={13} />
+              </button>
+            ) : null}
+          </span>
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => handleQueryChange(event.target.value)}
+            onFocus={() => setFiltersOpen(false)}
             placeholder="Поиск по номеру, названию, менеджеру, адресу"
           />
-        </label>
-
-        <div className="deals-overview-focus" role="tablist" aria-label="Быстрые фильтры">
-          {focusFilters.map((filter) => (
-            <button
-              key={filter.id}
-              className={focusFilter === filter.id ? "active" : ""}
-              onClick={() => setFocusFilter(filter.id)}
-              type="button"
-              role="tab"
-              aria-selected={focusFilter === filter.id}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="deals-overview-stages" aria-label="Стадии Bitrix">
+          <span className="deal-search-count">{filteredDeals.length}</span>
           <button
-            className={selectedStageIds.length === 0 ? "active" : ""}
-            onClick={() => setSelectedStageIds([])}
+            aria-expanded={filtersOpen}
+            aria-label="Открыть фильтры сделок"
+            className="deal-filter-open deals-overview-filter-button"
+            onClick={() => setFiltersOpen((current) => !current)}
             type="button"
           >
-            Все стадии <b>{deals.length}</b>
+            <SlidersHorizontal size={18} />
           </button>
-          {stageOptions.map((stage) => (
-            <button
-              key={stage.id}
-              className={selectedStageIds.includes(stage.id) ? "active" : ""}
-              onClick={() => toggleStage(stage.id)}
-              type="button"
-              title={stage.name}
-            >
-              <span>{stage.name}</span>
-              <b>{stage.count}</b>
-            </button>
-          ))}
         </div>
+
+        {filtersOpen ? (
+          <div className="deal-filter-panel deals-overview-filter-panel">
+            <aside className="deal-filter-presets deals-overview-filter-presets">
+              {focusFilters.map((filter) => (
+                <button
+                  key={filter.id}
+                  className={focusFilter === filter.id ? "active" : ""}
+                  onClick={() => setFocusFilter(filter.id)}
+                  type="button"
+                >
+                  <span>{filter.label}</span>
+                </button>
+              ))}
+            </aside>
+
+            <div className="deal-filter-fields deals-overview-filter-fields">
+              <label className="deal-filter-field wide">
+                <span>Название, номер, менеджер</span>
+                <input value={query} onChange={(event) => setQuery(event.target.value)} />
+              </label>
+
+              <div className="deal-filter-stage-list">
+                <span>Стадии Bitrix</span>
+                <div>
+                  <label title={`Все стадии (${stageTotal || deals.length})`}>
+                    <input
+                      checked={selectedStageIds.length === 0}
+                      onChange={() => setSelectedStageIds([])}
+                      type="checkbox"
+                    />
+                    <span className="deal-filter-stage-name">Все стадии</span>
+                    <b>{stageTotal || deals.length}</b>
+                  </label>
+                  {stageOptions.map((stage) => (
+                    <label key={stage.id} title={`${stage.name} (${stage.count})`}>
+                      <input
+                        checked={selectedStageIds.includes(stage.id)}
+                        onChange={() => toggleStage(stage.id)}
+                        type="checkbox"
+                      />
+                      <span className="deal-filter-stage-name">{stage.name}</span>
+                      <b>{stage.count}</b>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="deal-filter-footer">
+                <button className="primary" onClick={() => setFiltersOpen(false)} type="button">
+                  Найти
+                </button>
+                <button className="ghost" disabled={!hasActiveFilters} onClick={resetFilters} type="button">
+                  Сбросить
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="deals-overview-resultbar">
         <span>{filteredDeals.length} сделок в выборке</span>
-        {selectedStageIds.length > 0 || query || focusFilter !== "all" ? (
-          <button
-            type="button"
-            onClick={() => {
-              setQuery("");
-              setSelectedStageIds([]);
-              setFocusFilter("all");
-            }}
-          >
+        {hasActiveFilters ? (
+          <button type="button" onClick={resetFilters}>
             Сбросить фильтр
           </button>
         ) : null}
