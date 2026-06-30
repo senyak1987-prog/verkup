@@ -1,16 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { BriefcaseBusiness, Calculator, CalendarDays, CircleDollarSign, Factory, LogOut, PackageSearch, UsersRound } from "lucide-react";
 import { AccessGate } from "./components/AccessGate";
-import { CatalogManager } from "./components/CatalogManager";
-import { CostDrawer } from "./components/CostDrawer";
-import { DealsApp } from "./components/DealsApp";
-import { DealTable } from "./components/DealTable";
-import { InstallationsApp } from "./components/InstallationsApp";
-import { ProductionMobileApp } from "./components/ProductionMobileApp";
-import { TechSpecBuilder } from "./components/TechSpecBuilder";
-import { WarehouseApp } from "./components/WarehouseApp";
-import { FinanceApp } from "./components/FinanceApp";
 import {
   loadCalculations,
   loadCatalogs,
@@ -100,6 +91,34 @@ import type {
   TechSpecDraft,
 } from "./types";
 import "./styles.css";
+
+const CatalogManager = lazy(() =>
+  import("./components/CatalogManager").then((module) => ({ default: module.CatalogManager })),
+);
+const CostDrawer = lazy(() =>
+  import("./components/CostDrawer").then((module) => ({ default: module.CostDrawer })),
+);
+const DealsApp = lazy(() =>
+  import("./components/DealsApp").then((module) => ({ default: module.DealsApp })),
+);
+const DealTable = lazy(() =>
+  import("./components/DealTable").then((module) => ({ default: module.DealTable })),
+);
+const FinanceApp = lazy(() =>
+  import("./components/FinanceApp").then((module) => ({ default: module.FinanceApp })),
+);
+const InstallationsApp = lazy(() =>
+  import("./components/InstallationsApp").then((module) => ({ default: module.InstallationsApp })),
+);
+const ProductionMobileApp = lazy(() =>
+  import("./components/ProductionMobileApp").then((module) => ({ default: module.ProductionMobileApp })),
+);
+const TechSpecBuilder = lazy(() =>
+  import("./components/TechSpecBuilder").then((module) => ({ default: module.TechSpecBuilder })),
+);
+const WarehouseApp = lazy(() =>
+  import("./components/WarehouseApp").then((module) => ({ default: module.WarehouseApp })),
+);
 
 const PENDING_STAGE_MOVE_TTL = 5 * 60 * 1000;
 const DEAL_REFRESH_INTERVAL_MS = 60_000;
@@ -1666,6 +1685,7 @@ export default function App() {
               <strong>{workspaceTitle}</strong>
             </header>
           ) : null}
+          <Suspense fallback={<WorkspaceSectionFallback title={workspaceTitle} />}>
       {workspaceMode === "deals" && canUseDeals ? (
         <DealsApp
           agentRatio={storedCalculations.agentCostRatio}
@@ -1795,6 +1815,7 @@ export default function App() {
             : "Для этой роли нет доступных разделов."}
         </main>
       )}
+          </Suspense>
         </motion.section>
         {availableModeCount > 1 ? (
           <nav className="workspace-bottom-nav app-mode-switch" role="tablist" aria-label="Режим приложения">
@@ -1811,17 +1832,28 @@ export default function App() {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
           >
-            <CatalogManager
-              items={catalogItems}
-              initialDraft={pendingCatalogInsert?.item}
-              onApplyAndReturn={pendingCatalogInsert ? handleCatalogInsertApplied : undefined}
-              onChange={handleCatalogChange}
-              onClose={handleCatalogClose}
-            />
+            <Suspense fallback={<WorkspaceSectionFallback compact title="Справочник" />}>
+              <CatalogManager
+                items={catalogItems}
+                initialDraft={pendingCatalogInsert?.item}
+                onApplyAndReturn={pendingCatalogInsert ? handleCatalogInsertApplied : undefined}
+                onChange={handleCatalogChange}
+                onClose={handleCatalogClose}
+              />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+function WorkspaceSectionFallback({ compact = false, title }: { compact?: boolean; title?: string }) {
+  return (
+    <div className={compact ? "workspace-section-loading compact" : "workspace-section-loading"} role="status">
+      <span className="workspace-section-loading__dot" aria-hidden="true" />
+      <span>{title ? `Загружаем ${title.toLowerCase()}...` : "Загружаем раздел..."}</span>
+    </div>
   );
 }
 
@@ -1867,15 +1899,17 @@ function ManagerDealPortal({
           Открыть в Bitrix
         </a>
       </header>
-      <TechSpecBuilder
-        deal={deal}
-        embedded
-        storedSpec={storedSpec}
-        onDraftChange={onTechSpecChange}
-        onUploadToBitrix={(draft, fileName, fileBase64) =>
-          onTechSpecUpload(deal.id, draft, fileName, fileBase64)
-        }
-      />
+      <Suspense fallback={<WorkspaceSectionFallback compact title="ТЗ" />}>
+        <TechSpecBuilder
+          deal={deal}
+          embedded
+          storedSpec={storedSpec}
+          onDraftChange={onTechSpecChange}
+          onUploadToBitrix={(draft, fileName, fileBase64) =>
+            onTechSpecUpload(deal.id, draft, fileName, fileBase64)
+          }
+        />
+      </Suspense>
     </main>
   );
 }
@@ -1930,32 +1964,34 @@ function DealWorkspace({
       </div>
 
       <div className="deal-workspace-body">
-        {activeTab === "techSpec" ? (
-          <TechSpecBuilder
-            deal={deal}
-            embedded
-            costNote={costNote}
-            costPositions={calculation?.positions ?? []}
-            storedSpec={storedSpec}
-            onDraftChange={onTechSpecChange}
-            onUploadToBitrix={(draft, fileName, fileBase64) =>
-              onTechSpecUpload(deal.id, draft, fileName, fileBase64)
-            }
-          />
-        ) : (
-          <CostDrawer
-            deal={deal}
-            calculation={calculation}
-            catalogItems={catalogItems}
-            storedCalculations={storedCalculations}
-            onOpenCatalog={onOpenCatalog}
-            onCreateCatalogItem={onCreateCatalogItem}
-            onChange={onChange}
-            onCatalogChange={onCatalogChange}
-            onClose={onClose}
-            onStageMoved={onStageMoved}
-          />
-        )}
+        <Suspense fallback={<WorkspaceSectionFallback compact title={activeTab === "techSpec" ? "ТЗ" : "Себестоимость"} />}>
+          {activeTab === "techSpec" ? (
+            <TechSpecBuilder
+              deal={deal}
+              embedded
+              costNote={costNote}
+              costPositions={calculation?.positions ?? []}
+              storedSpec={storedSpec}
+              onDraftChange={onTechSpecChange}
+              onUploadToBitrix={(draft, fileName, fileBase64) =>
+                onTechSpecUpload(deal.id, draft, fileName, fileBase64)
+              }
+            />
+          ) : (
+            <CostDrawer
+              deal={deal}
+              calculation={calculation}
+              catalogItems={catalogItems}
+              storedCalculations={storedCalculations}
+              onOpenCatalog={onOpenCatalog}
+              onCreateCatalogItem={onCreateCatalogItem}
+              onChange={onChange}
+              onCatalogChange={onCatalogChange}
+              onClose={onClose}
+              onStageMoved={onStageMoved}
+            />
+          )}
+        </Suspense>
       </div>
     </section>
   );

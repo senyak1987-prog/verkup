@@ -182,6 +182,54 @@ a {
   box-shadow: 0 10px 30px rgba(26, 39, 63, 0.12);
 }
 
+.workspace-section-loading {
+  display: flex;
+  min-height: 220px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+
+.workspace-section-loading.compact {
+  min-height: 120px;
+  margin: 0;
+}
+
+.workspace-section-loading__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--primary);
+  animation: workspace-section-loading-pulse 1s ease-in-out infinite;
+}
+
+@keyframes workspace-section-loading-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-section-loading__dot {
+    animation: none;
+  }
+}
+
 .deal-list {
   max-width: 100%;
   padding: 16px;
