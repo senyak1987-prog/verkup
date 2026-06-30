@@ -20145,3 +20145,78 @@ textarea:focus,
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Mobile worker menu reliability: keep the hamburger menu readable on iOS
+   and center numeric notification badges regardless of font metrics. */
+@media (max-width: 720px) {
+  .production-mobile .worker-profile {
+    overflow: visible !important;
+    isolation: isolate;
+  }
+
+  .production-mobile .worker-profile-actions,
+  .production-mobile .worker-profile-menu-wrap {
+    overflow: visible !important;
+    position: relative;
+    z-index: 9200;
+  }
+
+  .production-mobile .worker-profile-menu,
+  .workspace-worker-shell .production-mobile .worker-profile-menu {
+    position: fixed !important;
+    inset-inline: max(12px, env(safe-area-inset-left, 0px)) max(12px, env(safe-area-inset-right, 0px)) !important;
+    top: auto !important;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+    z-index: 12000 !important;
+    display: grid !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: min(58dvh, 430px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px !important;
+    border-radius: 16px !important;
+    transform: none !important;
+  }
+
+  .production-mobile .worker-profile-menu button,
+  .production-mobile .worker-profile-menu label {
+    min-height: 48px !important;
+    line-height: 1.15 !important;
+  }
+
+  .production-mobile .worker-profile-menu-title {
+    line-height: 1.15;
+  }
+}
+
+.worker-notification-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+}
+
+.worker-notification-badge > span {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box;
+  min-width: 18px !important;
+  height: 18px !important;
+  padding: 0 5px !important;
+  line-height: 1 !important;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .worker-notification-badge > span {
+    top: -4px !important;
+    right: -4px !important;
+    min-width: 19px !important;
+    height: 19px !important;
+    padding: 0 5px !important;
+  }
+}
