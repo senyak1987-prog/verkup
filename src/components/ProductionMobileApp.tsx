@@ -3263,7 +3263,7 @@ function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[
                     onClick={() => setViewer({ index: 0, photos: visiblePhotos, title })}
                     type="button"
                   >
-                    <img alt={title} src={thumbnail} />
+                    <img alt={title} decoding="async" loading="lazy" src={thumbnail} />
                   </button>
                 ) : (
                   <Images size={18} />
@@ -3352,7 +3352,7 @@ function WorkerGalleryViewer({
               <ChevronRight size={26} />
             </button>
           ) : null}
-          <img alt={title} src={src} />
+          <img alt={title} decoding="async" src={src} />
           {canNavigate ? (
             <button
               aria-label="Следующее фото"
@@ -3508,7 +3508,11 @@ function TechSpecThumbnail({ itemId, spec }: { itemId?: string; spec?: DealTechS
 
   return (
     <span className={image ? "production-thumb" : "production-thumb empty"}>
-      {image ? <img alt={image.name || "Миниатюра ТЗ"} src={image.dataUrl} /> : <ClipboardList size={20} />}
+      {image ? (
+        <img alt={image.name || "Миниатюра ТЗ"} decoding="async" loading="lazy" src={image.dataUrl} />
+      ) : (
+        <ClipboardList size={20} />
+      )}
     </span>
   );
 }
@@ -3867,7 +3871,7 @@ function SpecAttachmentGrid({ item }: { item: TechSpecItem }) {
       {item.attachments.map((attachment) => (
         <figure key={attachment.id}>
           {attachment.dataUrl.startsWith("data:image") ? (
-            <img alt={attachment.name} src={attachment.dataUrl} />
+            <img alt={attachment.name} decoding="async" loading="lazy" src={attachment.dataUrl} />
           ) : (
             <div className="production-spec-file">
               <ClipboardList size={18} />
@@ -3916,7 +3920,7 @@ function PhotoInput({
               target="_blank"
               title="Открыть фото"
             >
-              <img alt={slot.title} src={photoSrc} />
+              <img alt={slot.title} decoding="async" loading="lazy" src={photoSrc} />
             </a>
             <button aria-label="Удалить фото" onClick={onRemove} type="button">
               <X size={15} />
@@ -3981,7 +3985,7 @@ function PhotoStrip({
         return (
           <figure key={slot.kind}>
             <a aria-label="Открыть фото" href={photoFullSrc} rel="noreferrer" target="_blank" title="Открыть фото">
-              <img alt={slot.title} src={photoSrc} />
+              <img alt={slot.title} decoding="async" loading="lazy" src={photoSrc} />
             </a>
             {canDelete && onDeletePhoto ? (
               <button

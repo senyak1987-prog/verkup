@@ -17,6 +17,10 @@ type RealtimeSubscriptionOptions = {
 
 const LAST_EVENT_ID_KEY = "verkup:realtime:last-event-id";
 const configuredWsUrl = (import.meta.env.VITE_REALTIME_WS_URL || "").trim();
+const ACTIVE_POLL_DELAY_MS = 1_500;
+const EMPTY_POLL_DELAY_MS = 2_500;
+const HIDDEN_TAB_POLL_DELAY_MS = 12_000;
+const ERROR_POLL_DELAY_MS = 5_000;
 
 export function subscribeToRealtime(options: RealtimeSubscriptionOptions) {
   const apiUrl = normalizeUrl(options.apiUrl);
@@ -58,21 +62,29 @@ export function subscribeToRealtime(options: RealtimeSubscriptionOptions) {
           cache: "no-store",
           signal: pollController.signal,
         });
+        let receivedEvents = 0;
         if (response.ok) {
           const payload = (await response.json()) as {
             events?: RealtimeEvent[];
             lastEventId?: number;
           };
-          handleEvents(Array.isArray(payload.events) ? payload.events : []);
+          const events = Array.isArray(payload.events) ? payload.events : [];
+          receivedEvents = events.length;
+          handleEvents(events);
           if (typeof payload.lastEventId === "number" && payload.lastEventId > lastEventId) {
             lastEventId = payload.lastEventId;
             writeLastEventId(lastEventId);
           }
         }
+        const delay = document.hidden
+          ? HIDDEN_TAB_POLL_DELAY_MS
+          : receivedEvents
+            ? ACTIVE_POLL_DELAY_MS
+            : EMPTY_POLL_DELAY_MS;
+        if (!closed) pollTimeoutId = window.setTimeout(poll, delay);
       } catch {
         if (!closed) emitState("error");
-      } finally {
-        if (!closed) pollTimeoutId = window.setTimeout(poll, 500);
+        if (!closed) pollTimeoutId = window.setTimeout(poll, ERROR_POLL_DELAY_MS);
       }
     };
 

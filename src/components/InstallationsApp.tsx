@@ -1808,7 +1808,12 @@ function InstallationPhotoGrid({
             rel="noreferrer"
             target="_blank"
           >
-            <img alt={photo.originalName || "Фото монтажа"} src={photo.thumbnailUrl || photo.url} />
+            <img
+              alt={photo.originalName || "Фото монтажа"}
+              decoding="async"
+              loading="lazy"
+              src={photo.thumbnailUrl || photo.url}
+            />
           </a>
           <figcaption>{photo.type === "issue" ? "Проблема" : "Фото"}</figcaption>
           {canDelete ? (

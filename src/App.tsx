@@ -565,61 +565,82 @@ export default function App() {
 
   useEffect(() => {
     let canceled = false;
+    let dealsRefreshInFlight = false;
+    let productionRefreshInFlight = false;
+    let allRefreshInFlight = false;
 
     async function refreshDeals() {
-      const dealsData = await loadFreshDeals();
-      if (!canceled) {
-        const nextDeals = applyPendingStageMoves(dealsData.items);
-        setDeals(nextDeals);
-        setBitrixStages(dealsData.stages || []);
-        writeCachedDeals({ ...dealsData, items: nextDeals });
+      if (document.hidden || dealsRefreshInFlight) return;
+      dealsRefreshInFlight = true;
+      try {
+        const dealsData = await loadFreshDeals();
+        if (!canceled) {
+          const nextDeals = applyPendingStageMoves(dealsData.items);
+          setDeals(nextDeals);
+          setBitrixStages(dealsData.stages || []);
+          writeCachedDeals({ ...dealsData, items: nextDeals });
+        }
+      } finally {
+        dealsRefreshInFlight = false;
       }
     }
 
     async function refreshProductionData() {
-      const [calculationsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
-        loadFreshCalculations(),
-        loadFreshTechSpecs(),
-        loadFreshProduction(),
-        loadFreshInstallations(),
-        loadFreshWarehouse(),
-      ]);
-      if (canceled) return;
+      if (document.hidden || productionRefreshInFlight) return;
+      productionRefreshInFlight = true;
+      try {
+        const [calculationsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
+          loadFreshCalculations(),
+          loadFreshTechSpecs(),
+          loadFreshProduction(),
+          loadFreshInstallations(),
+          loadFreshWarehouse(),
+        ]);
+        if (canceled) return;
 
-      setStoredCalculations(calculationsData);
-      applyLoadedProductionData(techSpecsData, productionData);
-      applyLoadedInstallationsData(installationsData);
-      setStoredWarehouse(warehouseData);
-      storedWarehouseRef.current = warehouseData;
-      writeCachedCalculations(calculationsData);
-      writeCachedWarehouse(warehouseData);
+        setStoredCalculations(calculationsData);
+        applyLoadedProductionData(techSpecsData, productionData);
+        applyLoadedInstallationsData(installationsData);
+        setStoredWarehouse(warehouseData);
+        storedWarehouseRef.current = warehouseData;
+        writeCachedCalculations(calculationsData);
+        writeCachedWarehouse(warehouseData);
+      } finally {
+        productionRefreshInFlight = false;
+      }
     }
 
     async function refreshAllData() {
-      const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
-        loadFreshDeals(),
-        loadFreshCalculations(),
-        loadFreshCatalogs(),
-        loadFreshTechSpecs(),
-        loadFreshProduction(),
-        loadFreshInstallations(),
-        loadFreshWarehouse(),
-      ]);
-      if (canceled) return;
+      if (allRefreshInFlight) return;
+      allRefreshInFlight = true;
+      try {
+        const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
+          loadFreshDeals(),
+          loadFreshCalculations(),
+          loadFreshCatalogs(),
+          loadFreshTechSpecs(),
+          loadFreshProduction(),
+          loadFreshInstallations(),
+          loadFreshWarehouse(),
+        ]);
+        if (canceled) return;
 
-      const nextDeals = applyPendingStageMoves(dealsData.items);
-      setDeals(nextDeals);
-      setBitrixStages(dealsData.stages || []);
-      setStoredCalculations(calculationsData);
-      setCatalogItems(catalogsData.items);
-      applyLoadedProductionData(techSpecsData, productionData);
-      applyLoadedInstallationsData(installationsData);
-      setStoredWarehouse(warehouseData);
-      storedWarehouseRef.current = warehouseData;
-      writeCachedDeals({ ...dealsData, items: nextDeals });
-      writeCachedCalculations(calculationsData);
-      writeCachedCatalogs(catalogsData);
-      writeCachedWarehouse(warehouseData);
+        const nextDeals = applyPendingStageMoves(dealsData.items);
+        setDeals(nextDeals);
+        setBitrixStages(dealsData.stages || []);
+        setStoredCalculations(calculationsData);
+        setCatalogItems(catalogsData.items);
+        applyLoadedProductionData(techSpecsData, productionData);
+        applyLoadedInstallationsData(installationsData);
+        setStoredWarehouse(warehouseData);
+        storedWarehouseRef.current = warehouseData;
+        writeCachedDeals({ ...dealsData, items: nextDeals });
+        writeCachedCalculations(calculationsData);
+        writeCachedCatalogs(catalogsData);
+        writeCachedWarehouse(warehouseData);
+      } finally {
+        allRefreshInFlight = false;
+      }
     }
 
     const intervalId = window.setInterval(refreshDeals, DEAL_REFRESH_INTERVAL_MS);
