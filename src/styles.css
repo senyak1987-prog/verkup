@@ -20220,3 +20220,75 @@ textarea:focus,
     padding: 0 5px !important;
   }
 }
+
+.worker-profile-menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 96px 24px 24px;
+  pointer-events: none;
+}
+
+.worker-profile-menu-layer .worker-profile-menu {
+  pointer-events: auto;
+}
+
+@media (max-width: 720px) {
+  .worker-profile-menu-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 50000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 max(14px, env(safe-area-inset-left, 0px)) calc(14px + env(safe-area-inset-bottom, 0px));
+    background: rgba(24, 18, 12, 0.08);
+    pointer-events: auto;
+  }
+
+  .worker-profile-menu-layer .worker-profile-menu,
+  .production-mobile .worker-profile-menu-layer .worker-profile-menu,
+  .workspace-worker-shell .production-mobile .worker-profile-menu-layer .worker-profile-menu {
+    position: relative !important;
+    inset: auto !important;
+    display: grid !important;
+    width: min(100%, 520px) !important;
+    max-width: 520px !important;
+    max-height: min(70dvh, 560px) !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+    padding: 10px !important;
+    border-radius: 18px !important;
+    transform: translateZ(0) !important;
+    z-index: 50001 !important;
+  }
+
+  .worker-profile-menu-layer .worker-profile-menu::before {
+    content: "";
+    justify-self: center;
+    width: 36px;
+    height: 4px;
+    margin: 2px 0 4px;
+    border-radius: 999px;
+    background: rgba(100, 116, 139, 0.3);
+  }
+
+  .worker-profile-menu-layer .worker-profile-menu button,
+  .worker-profile-menu-layer .worker-profile-menu label {
+    min-height: 50px !important;
+    border-radius: 12px !important;
+  }
+
+  .worker-profile-menu-layer-night .worker-profile-menu {
+    border-color: rgba(255, 255, 255, 0.14);
+    background:
+      linear-gradient(145deg, rgba(33, 35, 39, 0.96), rgba(20, 22, 26, 0.88)),
+      rgba(22, 24, 28, 0.86);
+    color: #f8fafc;
+  }
+}

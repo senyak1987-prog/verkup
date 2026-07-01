@@ -26,6 +26,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject, TouchEvent } from "react";
 import { formatMoney, positionTotal } from "../lib/costing";
@@ -3128,8 +3129,18 @@ function WorkerProfile({
               >
                 <Menu size={20} />
               </button>
-              {menuOpen ? (
-                <div className="worker-profile-menu">
+              {menuOpen && typeof document !== "undefined" ? createPortal(
+                <div
+                  className={`worker-profile-menu-layer worker-profile-menu-layer-${theme}`}
+                  onClick={onMenuToggle}
+                  role="presentation"
+                >
+                  <div
+                    className="worker-profile-menu"
+                    onClick={(event) => event.stopPropagation()}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    role="menu"
+                  >
                   <div className="worker-profile-menu-section">
                     <span className="worker-profile-menu-title">Профиль</span>
                     <label>
@@ -3182,7 +3193,9 @@ function WorkerProfile({
                       </button>
                     ) : null}
                   </div>
-                </div>
+                  </div>
+                </div>,
+                document.body,
               ) : null}
             </div>
           </div>
