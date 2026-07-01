@@ -12935,6 +12935,7 @@ textarea {
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(0, 1fr) minmax(190px, 230px);
+  align-items: start;
   min-width: 0;
 }
 
@@ -12942,6 +12943,7 @@ textarea {
   --planner-lane-width: 156px;
   --planner-track-width: 760px;
   --planner-row-height: 92px;
+  align-content: start;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
   display: grid;
@@ -13168,20 +13170,31 @@ textarea {
 
 .planner-unplanned-panel {
   align-content: start;
+  align-self: start;
   background: #f8fafc;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
   display: grid;
   gap: 8px;
+  max-height: min(660px, calc(100dvh - 230px));
   min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 10px;
+  scrollbar-gutter: stable;
 }
 
 .planner-unplanned-panel > div:first-child {
   align-items: center;
+  background: #f8fafc;
   display: flex;
   gap: 8px;
   justify-content: space-between;
+  margin: -2px -2px 0;
+  padding: 2px;
+  position: sticky;
+  top: -10px;
+  z-index: 1;
 }
 
 .planner-unplanned-panel > div:first-child strong {
@@ -16747,11 +16760,12 @@ td,
 }
 
 .installation-planner-shell {
-  align-items: stretch;
+  align-items: start;
   overscroll-behavior: contain;
 }
 
 .installation-scheduler {
+  align-content: start;
   scrollbar-gutter: stable both-edges;
   overscroll-behavior: contain;
   touch-action: pan-x;
@@ -18245,6 +18259,79 @@ textarea:focus,
 
 .installation-scheduler::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Installation planner: keep the timeline stable while the backlog scrolls independently. */
+.installation-planner-shell {
+  align-items: start !important;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+}
+
+.installation-scheduler {
+  align-content: start !important;
+  align-self: start;
+  height: max-content;
+}
+
+.planner-unplanned-panel {
+  align-self: start !important;
+  max-height: min(660px, calc(100dvh - 230px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  position: sticky;
+  top: 12px;
+  scrollbar-color: rgba(105, 105, 105, 0.55) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.planner-unplanned-panel > div:first-child {
+  backdrop-filter: blur(12px);
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(248, 250, 252, 0.86)),
+    #f8fafc;
+  margin: -10px -10px 0;
+  padding: 10px;
+  position: sticky;
+  top: -10px;
+  z-index: 2;
+}
+
+.planner-unplanned-panel .planner-job-chip {
+  min-height: 58px;
+  padding: 7px 8px;
+}
+
+.planner-unplanned-panel .planner-job-chip span,
+.planner-unplanned-panel .planner-job-chip small {
+  font-size: 10.5px;
+}
+
+.planner-unplanned-panel .planner-job-chip strong,
+.planner-unplanned-panel .planner-job-chip em {
+  font-size: 11.5px;
+}
+
+.planner-unplanned-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.planner-unplanned-panel::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(112, 112, 112, 0.56);
+  background-clip: padding-box;
+}
+
+@media (max-width: 860px) {
+  .installation-planner-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-unplanned-panel {
+    max-height: 280px;
+    position: static;
+  }
 }
 
 .finance-app {
