@@ -18269,8 +18269,27 @@ textarea:focus,
 
 .installation-scheduler {
   align-content: start !important;
+  align-items: stretch;
   align-self: start;
+  grid-auto-rows: var(--planner-row-height, 92px);
+  grid-template-rows: 34px;
   height: max-content;
+  min-height: 0;
+}
+
+.installation-scheduler > .planner-corner,
+.installation-scheduler > .planner-scale {
+  height: 34px !important;
+  max-height: 34px !important;
+  min-height: 34px !important;
+}
+
+.installation-scheduler .planner-lane-head,
+.installation-scheduler .planner-row-track {
+  align-self: stretch;
+  height: var(--planner-row-height, 92px) !important;
+  max-height: var(--planner-row-height, 92px) !important;
+  min-height: var(--planner-row-height, 92px) !important;
 }
 
 .planner-unplanned-panel {
