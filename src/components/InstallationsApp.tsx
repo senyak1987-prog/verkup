@@ -185,7 +185,7 @@ const minPlannerHour = 0;
 const maxPlannerHour = 24;
 const fullPlannerHourRange = { start: minPlannerHour, end: maxPlannerHour };
 const defaultPlannerZoom = 1;
-const minPlannerZoom = 0.65;
+const minPlannerZoom = 1;
 const maxPlannerZoom = 5.5;
 
 export function InstallationsApp({
@@ -635,6 +635,12 @@ export function InstallationsApp({
 
   function handlePlannerWheel({ container, event }: PlannerWheelContext) {
     if (Math.abs(event.deltaY) < 1) return;
+    const target = event.target instanceof Element
+      ? event.target
+      : event.target instanceof Node
+        ? event.target.parentElement
+        : null;
+    if (target?.closest(".planner-unplanned-panel")) return;
     event.preventDefault();
     event.stopPropagation();
     const zoomOut = event.deltaY > 0;
@@ -1542,7 +1548,12 @@ function PlannerUnplannedPanel({
   onSelect: (installation: Installation) => void;
 }) {
   return (
-    <aside className="planner-unplanned-panel">
+    <aside
+      aria-label="Незапланированные монтажи"
+      className="planner-unplanned-panel"
+      onWheel={(event) => event.stopPropagation()}
+      tabIndex={0}
+    >
       <div>
         <strong>Не запланированные</strong>
         <span>{installations.length}</span>
@@ -2397,6 +2408,7 @@ function buildPlannerHourSlots(range: PlannerHourRange) {
 }
 
 function adjustPlannerZoom(current: number, deltaY: number) {
+  if (deltaY > 0 && current <= minPlannerZoom) return minPlannerZoom;
   const factor = deltaY > 0 ? 0.84 : 1.2;
   return clampNumber(Number((current * factor).toFixed(3)), minPlannerZoom, maxPlannerZoom);
 }

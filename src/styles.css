@@ -18295,6 +18295,8 @@ textarea:focus,
 .planner-unplanned-panel {
   align-self: start !important;
   max-height: min(660px, calc(100dvh - 230px));
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   position: sticky;
@@ -18302,6 +18304,8 @@ textarea:focus,
   scrollbar-color: rgba(105, 105, 105, 0.55) transparent;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
+  touch-action: pan-y;
+  will-change: scroll-position;
 }
 
 .planner-unplanned-panel > div:first-child {
