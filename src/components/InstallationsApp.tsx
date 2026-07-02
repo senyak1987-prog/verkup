@@ -476,12 +476,12 @@ export function InstallationsApp({
           <div className="installations-board-top">
             <div className="installations-section-head">
               <h2>{plannerTitle(viewMode, dateKey)}</h2>
-              <button className="primary compact" onClick={() => setEditing(emptyForm(dateKey))} type="button">
+            </div>
+            <div className="installation-planner-toolbar" aria-label="Управление планом монтажей">
+              <button className="primary compact installation-create-inline" onClick={() => setEditing(emptyForm(dateKey))} type="button">
                 <Plus size={16} />
                 Создать монтаж
               </button>
-            </div>
-            <div className="installation-planner-toolbar" aria-label="Управление планом монтажей">
               <div className="installation-date-control">
                 <button onClick={() => shiftDate(-1)} type="button">←</button>
                 <input type="date" value={dateKey} onChange={(event) => setDateKey(event.target.value)} />
@@ -1391,7 +1391,7 @@ function InstallationPlannerTimeline({
   const schedulerStyle =
     viewMode === "day"
       ? (() => {
-          const hourWidth = Math.max(32, Math.round(54 * plannerZoom), Math.ceil(760 / plannerHourSlots.length));
+          const hourWidth = Math.max(40, Math.round(66 * plannerZoom), Math.ceil(980 / plannerHourSlots.length));
           return {
             "--planner-hour-columns": plannerHourSlots.length,
             "--planner-hour-width": `${hourWidth}px`,

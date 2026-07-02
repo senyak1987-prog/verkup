@@ -16729,6 +16729,17 @@ td,
   min-height: 42px;
 }
 
+.installation-create-inline {
+  align-items: center;
+  box-sizing: border-box;
+  display: inline-flex;
+  gap: 8px;
+  height: 42px;
+  justify-content: center;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+
 .installation-view-switch button,
 .installation-list-mode-button,
 .installation-date-control button,
