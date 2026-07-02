@@ -1,4 +1,4 @@
-const CACHE_NAME = "verkup-offline-v21";
+const CACHE_NAME = "verkup-offline-v22";
 const APP_SHELL = [
   "./",
   "./manifest.webmanifest",
@@ -53,8 +53,13 @@ self.addEventListener("fetch", (event) => {
     fetch(request)
       .then((response) => {
         if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          const isAssetRequest = url.pathname.includes("/assets/");
+          const contentType = response.headers.get("content-type") || "";
+
+          if (!isAssetRequest || !contentType.includes("text/html")) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
         }
         return response;
       })
