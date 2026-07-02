@@ -1400,12 +1400,16 @@ function InstallationPlannerTimeline({
             "--planner-track-width": `${periodDays.length * dayWidth}px`,
           } as CSSProperties;
         })();
+  const schedulerGridStyle = {
+    ...schedulerStyle,
+    gridTemplateRows: `34px repeat(${Math.max(lanes.length, 1)}, var(--planner-row-height, 92px))`,
+  } as CSSProperties;
 
   return (
     <div className="installation-planner-shell" ref={plannerShellRef}>
       <div
         className={`installation-scheduler installation-scheduler-${viewMode}`}
-        style={schedulerStyle}
+        style={schedulerGridStyle}
       >
         <div className="planner-corner">Монтажник</div>
         {viewMode === "day" ? (
