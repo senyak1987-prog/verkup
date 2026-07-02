@@ -18275,7 +18275,10 @@ textarea:focus,
 /* Installation planner: keep the timeline stable while the backlog scrolls independently. */
 .installation-planner-shell {
   align-items: start !important;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+  grid-template-columns: minmax(0, auto) minmax(220px, 260px);
+  justify-content: start;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .installation-scheduler {
@@ -18286,6 +18289,7 @@ textarea:focus,
   grid-template-rows: 34px;
   height: max-content;
   min-height: 0;
+  width: min(calc(var(--planner-lane-width, 156px) + var(--planner-track-width, 760px)), 100%);
 }
 
 .installation-scheduler > .planner-corner,
