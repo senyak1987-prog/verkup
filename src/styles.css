@@ -18424,18 +18424,41 @@ textarea:focus,
 }
 
 .planner-unplanned-panel .planner-job-chip {
-  min-height: 58px;
-  padding: 7px 8px;
+  align-content: start;
+  gap: 2px;
+  grid-auto-rows: min-content;
+  height: auto;
+  min-height: 76px;
+  padding: 8px 10px;
 }
 
 .planner-unplanned-panel .planner-job-chip span,
 .planner-unplanned-panel .planner-job-chip small {
   font-size: 10.5px;
+  line-height: 1.25;
 }
 
 .planner-unplanned-panel .planner-job-chip strong,
 .planner-unplanned-panel .planner-job-chip em {
   font-size: 11.5px;
+  line-height: 1.25;
+}
+
+.planner-unplanned-panel .planner-job-chip span,
+.planner-unplanned-panel .planner-job-chip strong,
+.planner-unplanned-panel .planner-job-chip small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planner-unplanned-panel .planner-job-chip em {
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .planner-unplanned-panel::-webkit-scrollbar {
