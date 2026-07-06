@@ -17251,6 +17251,19 @@ td,
   -webkit-backdrop-filter: blur(18px) saturate(1.06);
 }
 
+@media (min-width: 721px) {
+  .app-mode-sidebar {
+    z-index: 700;
+  }
+
+  .app-mode-sidebar:hover,
+  .app-mode-sidebar:focus-within {
+    background: var(--surface);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .workspace-page-hero,
   .warehouse-hero,
