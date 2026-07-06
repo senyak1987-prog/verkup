@@ -5,14 +5,17 @@
     <title>Verkup</title>
     <script>
       (function () {
-        var base = "/verkup/";
+        var githubBase = "/verkup/";
         var path = window.location.pathname;
         var query = window.location.search ? window.location.search.slice(1) : "";
         var hash = window.location.hash || "";
+        var base = path.indexOf(githubBase) === 0 ? githubBase : "/";
         var route = "";
 
-        if (path.indexOf(base) === 0) {
+        if (path.indexOf(githubBase) === 0) {
           route = path.slice(base.length).replace(/^\/+|\/+$/g, "");
+        } else if (path !== "/") {
+          route = path.replace(/^\/+|\/+$/g, "");
         }
 
         var target = base;
