@@ -368,7 +368,11 @@ function bitrix_target_stage_items()
     $configuredCategoryId = trim((string)bitrix_config('BITRIX_CATEGORY_ID', ''));
     if ($configuredCategoryId !== '') {
         $items = array_values(array_filter($items, function ($stage) use ($configuredCategoryId) {
-            return (string)array_get($stage, 'categoryId', '') === $configuredCategoryId;
+            return bitrix_stage_matches_category($stage, $configuredCategoryId);
+        }));
+    } else {
+        $items = array_values(array_filter($items, function ($stage) {
+            return bitrix_stage_matches_category($stage, '');
         }));
     }
 
@@ -407,6 +411,19 @@ function bitrix_target_stage_items()
     }
 
     return $target ?: $items;
+}
+
+function bitrix_stage_matches_category($stage, $categoryId)
+{
+    $expected = trim((string)$categoryId);
+    $actual = trim((string)array_get($stage, 'categoryId', ''));
+    $entityId = (string)array_get($stage, 'entityId', '');
+
+    if ($expected === '' || $expected === '0') {
+        return ($actual === '' || $actual === '0') && $entityId === 'DEAL_STAGE';
+    }
+
+    return $actual === $expected;
 }
 
 function fetch_bitrix_deals($stageIds)

@@ -37,8 +37,9 @@ export function buildDealStageOptions(deals: Deal[], stages: BitrixStage[] = [])
     counts.set(id, (counts.get(id) || 0) + 1);
   }
 
+  const relevantStages = selectRelevantDealStages(deals, stages);
   const options = new Map<string, DealStageOption>();
-  for (const stage of stages) {
+  for (const stage of relevantStages) {
     const id = String(stage.id || "").trim();
     if (!id) continue;
     options.set(id, {
@@ -76,6 +77,49 @@ export function stageCodeFromStageId(stageId: string, stages: BitrixStage[] = []
 
 function isDealStageCode(value?: string): value is DealStageCode {
   return value === "tz" || value === "tzApproval" || value === "launch" || value === "production" || value === "defect";
+}
+
+function selectRelevantDealStages(deals: Deal[], stages: BitrixStage[]) {
+  const normalizedStages = stages.filter((stage) => String(stage.id || "").trim());
+  if (normalizedStages.length <= 1) return normalizedStages;
+
+  const groups = new Map<string, BitrixStage[]>();
+  for (const stage of normalizedStages) {
+    const key = bitrixStageGroupKey(stage);
+    const group = groups.get(key) || [];
+    group.push(stage);
+    groups.set(key, group);
+  }
+
+  if (groups.size <= 1) return normalizedStages;
+
+  const dealStageIds = new Set(deals.map(stageIdForDeal).filter(Boolean));
+  const scoredGroups = [...groups.entries()].map(([key, group]) => ({
+    key,
+    group,
+    isDefaultDealStage: group.some(isDefaultDealStage),
+    matchCount: group.reduce((sum, stage) => sum + (dealStageIds.has(String(stage.id || "").trim()) ? 1 : 0), 0),
+  }));
+
+  scoredGroups.sort((first, second) => {
+    if (first.matchCount !== second.matchCount) return second.matchCount - first.matchCount;
+    if (first.isDefaultDealStage !== second.isDefaultDealStage) return first.isDefaultDealStage ? -1 : 1;
+    return first.key.localeCompare(second.key);
+  });
+
+  return scoredGroups[0]?.group || normalizedStages;
+}
+
+function bitrixStageGroupKey(stage: BitrixStage) {
+  const entityId = String(stage.entityId || "").trim();
+  if (entityId) return entityId;
+  return `category:${String(stage.categoryId || "").trim()}`;
+}
+
+function isDefaultDealStage(stage: BitrixStage) {
+  const entityId = String(stage.entityId || "").trim();
+  const categoryId = String(stage.categoryId || "").trim();
+  return entityId === "DEAL_STAGE" || (!entityId && (categoryId === "" || categoryId === "0"));
 }
 
 function normalize(value: string) {
