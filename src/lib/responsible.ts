@@ -70,8 +70,8 @@ export function hydrateResponsibleCard(card?: ResponsibleCard | null, fallbackNa
     supervisor: card?.supervisor || knownCard?.supervisor || "",
     department: card?.department || knownCard?.department || "",
     bitrixUrl: card?.bitrixUrl || knownCard?.bitrixUrl || bitrixProfileUrlFromId(cardId),
-    chatUrl: card?.chatUrl || knownCard?.chatUrl || "",
-    videoUrl: card?.videoUrl || knownCard?.videoUrl || "",
+    chatUrl: card?.chatUrl || knownCard?.chatUrl || bitrixChatUrlFromId(cardId),
+    videoUrl: card?.videoUrl || knownCard?.videoUrl || bitrixChatUrlFromId(cardId),
     lastSeenAt: card?.lastSeenAt || knownCard?.lastSeenAt || "",
     lastSeenText: card?.lastSeenText || knownCard?.lastSeenText || "",
   };
@@ -115,6 +115,11 @@ function cleanPhoneText(value?: string | null) {
 function bitrixProfileUrlFromId(value?: string | null) {
   const id = String(value || "").trim();
   return numericResponsiblePattern.test(id) ? `${bitrixUserBaseUrl}${id}/` : "";
+}
+
+function bitrixChatUrlFromId(value?: string | null) {
+  const id = String(value || "").trim();
+  return numericResponsiblePattern.test(id) ? `https://verkup.bitrix24.ru/online/?IM_DIALOG=U${id}` : "";
 }
 
 function normalizeResponsibleKey(value?: string | null) {

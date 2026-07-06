@@ -83,6 +83,7 @@ import type {
   ProductionEmployee,
   ProductionRegistrationRequest,
   RealtimeEvent,
+  RealtimeEventScope,
   StoredCalculations,
   StoredInstallations,
   StoredProduction,
@@ -359,6 +360,7 @@ export default function App() {
   const installationsSaveTimerRef = useRef<number>();
   const warehouseSaveTimerRef = useRef<number>();
   const realtimeRefreshTimerRef = useRef<number>();
+  const pendingRealtimeScopesRef = useRef<Set<RealtimeEventScope>>(new Set());
   const realtimeRefreshInFlightRef = useRef(false);
   const productionSaveInFlightRef = useRef(false);
   const queuedProductionSaveRef = useRef<QueuedProductionSave>();
@@ -467,6 +469,33 @@ export default function App() {
     return nextProduction;
   }
 
+  function applyLoadedTechSpecsData(techSpecsData: StoredTechSpecs) {
+    setStoredTechSpecs(techSpecsData);
+    storedTechSpecsRef.current = techSpecsData;
+    writeCachedTechSpecs(withEmbeddedProduction(techSpecsData, storedProductionRef.current));
+    return techSpecsData;
+  }
+
+  function applyLoadedProductionOnly(productionData: StoredProduction) {
+    const nextProduction = mergeServerStoredProduction(
+      productionData,
+      storedProductionRef.current,
+    );
+
+    setStoredProduction(nextProduction);
+    storedProductionRef.current = nextProduction;
+    writeCachedProduction(nextProduction);
+
+    return nextProduction;
+  }
+
+  function applyLoadedWarehouseData(warehouseData: StoredWarehouse) {
+    setStoredWarehouse(warehouseData);
+    storedWarehouseRef.current = warehouseData;
+    writeCachedWarehouse(warehouseData);
+    return warehouseData;
+  }
+
   function applyLoadedInstallationsData(installationsData: StoredInstallations) {
     const nextInstallations = mergeServerStoredInstallations(
       installationsData,
@@ -479,65 +508,6 @@ export default function App() {
 
     return nextInstallations;
   }
-
-  useEffect(() => {
-    if (!currentEmployeeId || !defaultSaveApiUrl()) return;
-
-    let canceled = false;
-    let inFlight = false;
-
-    async function refreshProductionDataFromServer() {
-      if (inFlight) return;
-      inFlight = true;
-
-      try {
-        const [freshProduction, freshInstallations, freshWarehouse] = await Promise.all([
-          loadFreshProduction(),
-          loadFreshInstallations(),
-          loadFreshWarehouse(),
-        ]);
-        if (canceled) return;
-
-        const currentProduction = storedProductionRef.current;
-        const nextProduction = mergeServerStoredProduction(freshProduction, currentProduction);
-        applyLoadedInstallationsData(freshInstallations);
-        setStoredWarehouse(freshWarehouse);
-        storedWarehouseRef.current = freshWarehouse;
-        writeCachedWarehouse(freshWarehouse);
-        if (JSON.stringify(nextProduction) === JSON.stringify(currentProduction)) return;
-
-        storedProductionRef.current = nextProduction;
-        setStoredProduction(nextProduction);
-        writeCachedProduction(nextProduction);
-        writeCachedTechSpecs(withEmbeddedProduction(storedTechSpecsRef.current, nextProduction));
-      } catch {
-        // Тихо пропускаем сетевой сбой: пользователь все еще может обновить данные вручную.
-      } finally {
-        inFlight = false;
-      }
-    }
-
-    const handleFocus = () => {
-      void refreshProductionDataFromServer();
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") void refreshProductionDataFromServer();
-    };
-
-    const intervalId = window.setInterval(
-      () => void refreshProductionDataFromServer(),
-      LIVE_DATA_REFRESH_INTERVAL_MS,
-    );
-    window.addEventListener("focus", handleFocus);
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      canceled = true;
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", handleFocus);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [currentEmployeeId]);
 
   useEffect(() => {
     let canceled = false;
@@ -608,22 +578,16 @@ export default function App() {
       if (document.hidden || productionRefreshInFlight) return;
       productionRefreshInFlight = true;
       try {
-        const [calculationsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
-          loadFreshCalculations(),
-          loadFreshTechSpecs(),
+        const [productionData, installationsData, warehouseData] = await Promise.all([
           loadFreshProduction(),
           loadFreshInstallations(),
           loadFreshWarehouse(),
         ]);
         if (canceled) return;
 
-        setStoredCalculations(calculationsData);
-        applyLoadedProductionData(techSpecsData, productionData);
+        applyLoadedProductionOnly(productionData);
         applyLoadedInstallationsData(installationsData);
-        setStoredWarehouse(warehouseData);
-        storedWarehouseRef.current = warehouseData;
-        writeCachedCalculations(calculationsData);
-        writeCachedWarehouse(warehouseData);
+        applyLoadedWarehouseData(warehouseData);
       } finally {
         productionRefreshInFlight = false;
       }
@@ -633,10 +597,9 @@ export default function App() {
       if (allRefreshInFlight) return;
       allRefreshInFlight = true;
       try {
-        const [dealsData, calculationsData, catalogsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
+        const [dealsData, calculationsData, techSpecsData, productionData, installationsData, warehouseData] = await Promise.all([
           loadFreshDeals(),
           loadFreshCalculations(),
-          loadFreshCatalogs(),
           loadFreshTechSpecs(),
           loadFreshProduction(),
           loadFreshInstallations(),
@@ -648,14 +611,12 @@ export default function App() {
         setDeals(nextDeals);
         setBitrixStages(dealsData.stages || []);
         setStoredCalculations(calculationsData);
-        setCatalogItems(catalogsData.items);
         applyLoadedProductionData(techSpecsData, productionData);
         applyLoadedInstallationsData(installationsData);
         setStoredWarehouse(warehouseData);
         storedWarehouseRef.current = warehouseData;
         writeCachedDeals({ ...dealsData, items: nextDeals });
         writeCachedCalculations(calculationsData);
-        writeCachedCatalogs(catalogsData);
         writeCachedWarehouse(warehouseData);
       } finally {
         allRefreshInFlight = false;
@@ -692,6 +653,7 @@ export default function App() {
       if (realtimeRefreshTimerRef.current) {
         window.clearTimeout(realtimeRefreshTimerRef.current);
       }
+      pendingRealtimeScopesRef.current.clear();
     };
   }, [currentEmployeeId, currentEmployee?.accessRole]);
 
@@ -916,14 +878,129 @@ export default function App() {
     saveProductionNow(mergedProduction);
   }
 
-  function scheduleRealtimeRefresh(_event?: RealtimeEvent) {
+  function scheduleRealtimeRefresh(event?: RealtimeEvent) {
+    for (const scope of realtimeScopesForEvent(event)) {
+      pendingRealtimeScopesRef.current.add(scope);
+    }
+
     if (realtimeRefreshTimerRef.current) {
       window.clearTimeout(realtimeRefreshTimerRef.current);
     }
 
     realtimeRefreshTimerRef.current = window.setTimeout(() => {
-      void refreshAllDataNow();
-    }, 140);
+      void refreshRealtimeScopesNow();
+    }, 500);
+  }
+
+  function realtimeScopesForEvent(event?: RealtimeEvent): RealtimeEventScope[] {
+    if (!event) return ["system"];
+
+    const scopes = new Set<RealtimeEventScope>([event.scope || "system"]);
+    const installationAction = String(event.payload?.installationAction || "");
+
+    if (event.scope === "notifications") {
+      scopes.add("production");
+      scopes.add("installations");
+    }
+    if (event.scope === "deals" && installationAction) {
+      scopes.add("installations");
+    }
+    if (event.type.startsWith("installation.")) {
+      scopes.add("installations");
+    }
+
+    return Array.from(scopes);
+  }
+
+  async function refreshRealtimeScopesNow() {
+    if (realtimeRefreshInFlightRef.current) {
+      realtimeRefreshTimerRef.current = window.setTimeout(() => {
+        void refreshRealtimeScopesNow();
+      }, 500);
+      return;
+    }
+    const scopes = new Set(pendingRealtimeScopesRef.current);
+    pendingRealtimeScopesRef.current.clear();
+    if (!scopes.size) return;
+
+    realtimeRefreshInFlightRef.current = true;
+
+    try {
+      await refreshDataScopesNow(scopes);
+    } finally {
+      realtimeRefreshInFlightRef.current = false;
+      if (pendingRealtimeScopesRef.current.size) {
+        if (realtimeRefreshTimerRef.current) {
+          window.clearTimeout(realtimeRefreshTimerRef.current);
+        }
+        realtimeRefreshTimerRef.current = window.setTimeout(() => {
+          void refreshRealtimeScopesNow();
+        }, 500);
+      }
+    }
+  }
+
+  async function refreshDataScopesNow(scopes: Set<RealtimeEventScope>) {
+    const refreshBaseData = scopes.has("system");
+    const shouldLoadDeals = refreshBaseData || scopes.has("deals");
+    const shouldLoadCalculations = refreshBaseData || scopes.has("calculations");
+    const shouldLoadCatalogs = scopes.has("catalogs");
+    const shouldLoadTechSpecs = refreshBaseData || scopes.has("techSpecs");
+    const shouldLoadProduction =
+      refreshBaseData ||
+      scopes.has("production") ||
+      scopes.has("notifications");
+    const shouldLoadInstallations =
+      refreshBaseData ||
+      scopes.has("installations") ||
+      scopes.has("notifications");
+    const shouldLoadWarehouse = refreshBaseData || scopes.has("warehouse");
+
+    const [
+      dealsData,
+      calculationsData,
+      catalogsData,
+      techSpecsData,
+      productionData,
+      installationsData,
+      warehouseData,
+    ] = await Promise.all([
+      shouldLoadDeals ? loadFreshDeals() : undefined,
+      shouldLoadCalculations ? loadFreshCalculations() : undefined,
+      shouldLoadCatalogs ? loadFreshCatalogs() : undefined,
+      shouldLoadTechSpecs ? loadFreshTechSpecs() : undefined,
+      shouldLoadProduction ? loadFreshProduction() : undefined,
+      shouldLoadInstallations ? loadFreshInstallations() : undefined,
+      shouldLoadWarehouse ? loadFreshWarehouse() : undefined,
+    ]);
+
+    if (dealsData) {
+      const nextDeals = applyPendingStageMoves(dealsData.items);
+      setDeals(nextDeals);
+      setBitrixStages(dealsData.stages || []);
+      writeCachedDeals({ ...dealsData, items: nextDeals });
+    }
+    if (calculationsData) {
+      setStoredCalculations(calculationsData);
+      writeCachedCalculations(calculationsData);
+    }
+    if (catalogsData) {
+      setCatalogItems(catalogsData.items);
+      writeCachedCatalogs(catalogsData);
+    }
+    if (techSpecsData && productionData) {
+      applyLoadedProductionData(techSpecsData, productionData);
+    } else if (techSpecsData) {
+      applyLoadedTechSpecsData(techSpecsData);
+    } else if (productionData) {
+      applyLoadedProductionOnly(productionData);
+    }
+    if (installationsData) {
+      applyLoadedInstallationsData(installationsData);
+    }
+    if (warehouseData) {
+      applyLoadedWarehouseData(warehouseData);
+    }
   }
 
   async function refreshAllDataNow() {

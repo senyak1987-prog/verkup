@@ -23,6 +23,15 @@ export default {
         return json({ ok: true }, 200, cors);
       }
 
+      if (request.method === "GET" && url.pathname === "/events") {
+        return json({
+          success: true,
+          events: [],
+          lastEventId: Math.max(0, Number(url.searchParams.get("since")) || 0),
+          serverTime: new Date().toISOString(),
+        }, 200, noStoreHeaders(cors));
+      }
+
       if (request.method === "GET" && url.pathname === "/data/deals.json") {
         if (env.BITRIX_WEBHOOK_URL) {
           return json(await loadLiveDeals(env), 200, noStoreHeaders(cors));
@@ -45,6 +54,16 @@ export default {
       if (request.method === "GET" && url.pathname === "/data/production.json") {
         requireEnv(env, "GITHUB_TOKEN");
         return await loadJsonFromGitHub(env, "public/data/production.json", cors);
+      }
+
+      if (request.method === "GET" && url.pathname === "/data/installations.json") {
+        requireEnv(env, "GITHUB_TOKEN");
+        return await loadJsonFromGitHub(env, "public/data/installations.json", cors);
+      }
+
+      if (request.method === "GET" && url.pathname === "/data/warehouse.json") {
+        requireEnv(env, "GITHUB_TOKEN");
+        return await loadJsonFromGitHub(env, "public/data/warehouse.json", cors);
       }
 
       if (request.method === "GET" && url.pathname === "/data/catalogs.json") {
@@ -98,6 +117,28 @@ export default {
       if (url.pathname === "/save-production") {
         const body = await request.json();
         return await saveProductionToGitHub(env, body.data, cors);
+      }
+
+      if (url.pathname === "/save-installations") {
+        const body = await request.json();
+        return await saveJsonToGitHub(
+          env,
+          "public/data/installations.json",
+          `Update Verkup installations ${new Date().toISOString()}`,
+          body.data,
+          cors,
+        );
+      }
+
+      if (url.pathname === "/save-warehouse") {
+        const body = await request.json();
+        return await saveJsonToGitHub(
+          env,
+          "public/data/warehouse.json",
+          `Update Verkup warehouse ${new Date().toISOString()}`,
+          body.data,
+          cors,
+        );
       }
 
       if (url.pathname === "/upload-tech-spec") {

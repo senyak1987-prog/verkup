@@ -523,7 +523,7 @@ function handle_realtime_events()
                 'serverTime' => gmdate('c'),
             ]);
         }
-        usleep(250000);
+        usleep(500000);
         clearstatcache();
     } while (true);
 }

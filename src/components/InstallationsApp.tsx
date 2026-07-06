@@ -1388,22 +1388,28 @@ function InstallationPlannerTimeline({
     ...installers.map((installer) => ({ id: installer.id, name: installer.name })),
   ];
   const periodDays = viewMode === "week" ? dateKeysBetween(plannerRange("week", dateKey).start, plannerRange("week", dateKey).end) : [dateKey];
-  const schedulerStyle =
+    const schedulerStyle =
     viewMode === "day"
       ? (() => {
           const hourWidth = Math.max(40, Math.round(66 * plannerZoom), Math.ceil(980 / plannerHourSlots.length));
+          const trackMinWidth = plannerHourSlots.length * hourWidth;
           return {
             "--planner-hour-columns": plannerHourSlots.length,
             "--planner-hour-width": `${hourWidth}px`,
-            "--planner-track-width": `${plannerHourSlots.length * hourWidth}px`,
+            "--planner-track-columns": `repeat(${plannerHourSlots.length}, minmax(${hourWidth}px, 1fr))`,
+            "--planner-track-width": "100%",
+            "--planner-track-min-width": `${trackMinWidth}px`,
           } as CSSProperties;
         })()
-      : (() => {
-          const dayWidth = Math.max(118, Math.ceil(900 / periodDays.length));
+    : (() => {
+        const dayWidth = Math.max(118, Math.ceil(900 / periodDays.length));
+          const trackMinWidth = periodDays.length * dayWidth;
           return {
             "--planner-day-columns": periodDays.length,
             "--planner-day-width": `${dayWidth}px`,
-            "--planner-track-width": `${periodDays.length * dayWidth}px`,
+            "--planner-track-columns": `repeat(${periodDays.length}, minmax(${dayWidth}px, 1fr))`,
+            "--planner-track-width": "100%",
+            "--planner-track-min-width": `${trackMinWidth}px`,
           } as CSSProperties;
         })();
   const schedulerGridStyle = {

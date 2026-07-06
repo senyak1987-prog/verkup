@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, MessageCircle, Video } from "lucide-react";
 import type { ResponsibleCard } from "../types";
 import {
   displayResponsible,
@@ -41,7 +41,9 @@ export function EmployeeCard({
   const visiblePhone = phone || internalPhone;
   const isUnresolved = isUnresolvedResponsible(profileCard?.name || fallbackName);
   const profileUrl = profileCard?.bitrixUrl;
-  const hasDetails = Boolean(visiblePhone || profileCard?.email || profileUrl);
+  const chatUrl = profileCard?.chatUrl;
+  const videoUrl = profileCard?.videoUrl && profileCard.videoUrl !== chatUrl ? profileCard.videoUrl : "";
+  const hasDetails = Boolean(visiblePhone || profileCard?.email || profileUrl || chatUrl || videoUrl);
   const classes = [
     "employee-card",
     compact ? "compact" : "",
@@ -181,6 +183,22 @@ export function EmployeeCard({
                 <div className="employee-popover-divider" />
 
                 <div className="employee-profile-fields">
+                  {chatUrl || videoUrl ? (
+                    <div className="employee-contact-actions" aria-label="Быстрые действия">
+                      {chatUrl ? (
+                        <a className="employee-contact-action primary" href={chatUrl} rel="noreferrer" target="_blank">
+                          <MessageCircle size={16} />
+                          <span>Чат</span>
+                        </a>
+                      ) : null}
+                      {videoUrl ? (
+                        <a className="employee-contact-action" href={videoUrl} rel="noreferrer" target="_blank">
+                          <Video size={16} />
+                          <span>Видео</span>
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <ProfileField
                     href={visiblePhone ? `tel:${visiblePhone.replace(/[^\d+]/g, "")}` : undefined}
                     label="Телефон"

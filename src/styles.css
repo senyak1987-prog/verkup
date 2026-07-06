@@ -2807,6 +2807,44 @@ td small {
   gap: 8px;
 }
 
+.employee-contact-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+}
+
+.employee-contact-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  border: 1px solid #d9e3f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #263548;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.employee-contact-action.primary {
+  border-color: #0d7bd8;
+  background: #0d7bd8;
+  color: #fff;
+}
+
+.employee-contact-action:hover {
+  border-color: #0b68bd;
+  color: #0b68bd;
+}
+
+.employee-contact-action.primary:hover {
+  border-color: #075da8;
+  background: #075da8;
+  color: #fff;
+}
+
 .employee-profile-field {
   display: grid;
   gap: 3px;
@@ -12941,19 +12979,20 @@ textarea {
 
 .installation-scheduler {
   --planner-lane-width: 156px;
-  --planner-track-width: 760px;
+  --planner-track-width: 100%;
+  --planner-track-min-width: 760px;
   --planner-row-height: 92px;
   align-content: start;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
   display: grid;
-  grid-template-columns: var(--planner-lane-width) var(--planner-track-width);
+  grid-template-columns: var(--planner-lane-width) minmax(var(--planner-track-min-width, 760px), 1fr);
   max-width: 100%;
-  min-width: 0;
+  min-width: calc(var(--planner-lane-width, 156px) + var(--planner-track-min-width, 760px));
   overflow-x: auto;
   overflow-y: hidden;
   position: relative;
-  width: max-content;
+  width: 100%;
 }
 
 .planner-corner,
@@ -12988,13 +13027,15 @@ textarea {
 }
 
 .planner-hour-scale {
-  grid-template-columns: repeat(var(--planner-hour-columns, 13), var(--planner-hour-width, 58px));
-  width: var(--planner-track-width, 680px);
+  grid-template-columns: var(--planner-track-columns, repeat(var(--planner-hour-columns, 13), minmax(var(--planner-hour-width, 58px), 1fr)));
+  min-width: var(--planner-track-min-width, 680px);
+  width: var(--planner-track-width, 100%);
 }
 
 .planner-day-scale {
-  grid-template-columns: repeat(var(--planner-day-columns, 7), var(--planner-day-width, 118px));
-  width: var(--planner-track-width, 840px);
+  grid-template-columns: var(--planner-track-columns, repeat(var(--planner-day-columns, 7), minmax(var(--planner-day-width, 118px), 1fr)));
+  min-width: var(--planner-track-min-width, 840px);
+  width: var(--planner-track-width, 100%);
 }
 
 .planner-scale span {
@@ -13072,14 +13113,20 @@ textarea {
 }
 
 .planner-time-track {
-  width: var(--planner-track-width, 680px);
+  display: grid;
+  grid-template-columns: var(--planner-track-columns, repeat(var(--planner-hour-columns, 13), minmax(var(--planner-hour-width, 58px), 1fr)));
+  min-width: var(--planner-track-min-width, 680px);
+  width: var(--planner-track-width, 100%);
+  box-sizing: border-box;
 }
 
 .planner-week-track {
   background: #f3f6fa;
   display: grid;
-  grid-template-columns: repeat(var(--planner-day-columns, 7), var(--planner-day-width, 118px));
-  width: var(--planner-track-width, 840px);
+  grid-template-columns: var(--planner-track-columns, repeat(var(--planner-day-columns, 7), minmax(var(--planner-day-width, 118px), 1fr)));
+  min-width: var(--planner-track-min-width, 840px);
+  width: var(--planner-track-width, 100%);
+  box-sizing: border-box;
 }
 
 .planner-day-cell {
@@ -18273,12 +18320,41 @@ textarea:focus,
 }
 
 /* Installation planner: keep the timeline stable while the backlog scrolls independently. */
+.installations-app {
+  max-width: 100%;
+  overflow-x: clip;
+  scrollbar-gutter: stable;
+}
+
+.installations-layout {
+  grid-template-columns: minmax(280px, 300px) minmax(0, 1fr);
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  width: 100%;
+}
+
+.installations-queue,
+.installations-notifications,
+.installations-board,
+.installations-board-top {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.installations-board {
+  overflow-x: clip;
+}
+
 .installation-planner-shell {
   align-items: start !important;
-  grid-template-columns: minmax(0, auto) minmax(220px, 260px);
-  justify-content: start;
-  width: fit-content;
+  --planner-unplanned-width: 260px;
+  grid-template-columns: minmax(0, 1fr) var(--planner-unplanned-width);
+  justify-content: stretch;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .installation-scheduler {
@@ -18289,7 +18365,14 @@ textarea:focus,
   grid-template-rows: 34px;
   height: max-content;
   min-height: 0;
-  width: min(calc(var(--planner-lane-width, 156px) + var(--planner-track-width, 760px)), 100%);
+  min-width: 0 !important;
+  max-width: 100%;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: none;
+  scrollbar-gutter: stable both-edges;
 }
 
 .installation-scheduler > .planner-corner,
@@ -18309,15 +18392,20 @@ textarea:focus,
 
 .planner-unplanned-panel {
   align-self: start !important;
-  max-height: min(660px, calc(100dvh - 230px));
+  box-sizing: border-box;
+  height: clamp(280px, calc(100dvh - 230px), 660px);
+  max-height: clamp(280px, calc(100dvh - 230px), 660px);
   min-height: 0;
+  width: var(--planner-unplanned-width);
+  min-width: var(--planner-unplanned-width);
+  max-width: var(--planner-unplanned-width);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  position: sticky;
-  top: 12px;
+  position: relative;
+  top: auto;
   scrollbar-color: rgba(105, 105, 105, 0.55) transparent;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
   scrollbar-width: thin;
   touch-action: pan-y;
   will-change: scroll-position;
@@ -18361,12 +18449,29 @@ textarea:focus,
   background-clip: padding-box;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1180px) {
+  .installations-layout {
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  }
+
   .installation-planner-shell {
+    --planner-unplanned-width: 240px;
+  }
+}
+
+@media (max-width: 860px) {
+  .installations-layout,
+  .installation-planner-shell {
+    --planner-unplanned-width: 100%;
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .planner-unplanned-panel {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
     max-height: 280px;
     position: static;
   }

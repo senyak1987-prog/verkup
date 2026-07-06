@@ -17,10 +17,10 @@ type RealtimeSubscriptionOptions = {
 
 const LAST_EVENT_ID_KEY = "verkup:realtime:last-event-id";
 const configuredWsUrl = (import.meta.env.VITE_REALTIME_WS_URL || "").trim();
-const ACTIVE_POLL_DELAY_MS = 1_500;
-const EMPTY_POLL_DELAY_MS = 2_500;
-const HIDDEN_TAB_POLL_DELAY_MS = 12_000;
-const ERROR_POLL_DELAY_MS = 5_000;
+const ACTIVE_POLL_DELAY_MS = 1_200;
+const EMPTY_POLL_DELAY_MS = 5_000;
+const HIDDEN_TAB_POLL_DELAY_MS = 30_000;
+const ERROR_POLL_DELAY_MS = 10_000;
 
 export function subscribeToRealtime(options: RealtimeSubscriptionOptions) {
   const apiUrl = normalizeUrl(options.apiUrl);
@@ -54,7 +54,7 @@ export function subscribeToRealtime(options: RealtimeSubscriptionOptions) {
       try {
         const url = new URL(`${apiUrl}/events`, window.location.origin);
         url.searchParams.set("since", String(lastEventId));
-        url.searchParams.set("timeout", "25");
+        url.searchParams.set("timeout", "0");
         if (options.userId) url.searchParams.set("userId", options.userId);
         if (options.role) url.searchParams.set("role", options.role);
 
