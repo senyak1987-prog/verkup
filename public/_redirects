@@ -1,1 +1,15 @@
-/* /index.html 200
+/deals /?route=/deals 302
+/deals/* /?route=/deals 302
+/costing /?route=/costing 302
+/costing/* /?route=/costing 302
+/production /?route=/production 302
+/production/* /?route=/production 302
+/installations /?route=/installations 302
+/installations/* /?route=/installations 302
+/warehouse /?route=/warehouse 302
+/warehouse/* /?route=/warehouse 302
+/finances /?route=/finances 302
+/finances/* /?route=/finances 302
+/employees /?route=/employees 302
+/employees/* /?route=/employees 302
+/verkup/* /?route=/:splat 302
