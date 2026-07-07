@@ -160,6 +160,42 @@ function sync_bitrix_deal($dealId)
     ];
 }
 
+function fetch_bitrix_deal_tech_spec_files($dealId)
+{
+    $id = trim((string)$dealId);
+    if ($id === '') throw new RuntimeException('Deal id is required');
+    if (!bitrix_config('BITRIX_WEBHOOK_URL', '')) throw new RuntimeException('BITRIX_WEBHOOK_URL is not configured');
+
+    $response = call_bitrix_rest('crm.deal.get', ['id' => $id]);
+    $deal = array_get($response, 'result', []);
+    if (!is_array($deal) || count($deal) === 0) {
+        return [
+            'success' => true,
+            'dealId' => $id,
+            'techSpecFiles' => [],
+            'installationFiles' => [],
+        ];
+    }
+
+    $fields = bitrix_live_field_names();
+    $labels = load_bitrix_custom_field_labels();
+    $bitrixDomain = bitrix_domain();
+    $techSpecFileFields = $fields['techSpecFiles']
+        ? bitrix_field_list($fields['techSpecFiles'])
+        : infer_deal_tech_spec_file_fields($deal, $labels);
+    $techSpecFiles = count($techSpecFileFields) > 0
+        ? bitrix_deal_files_from_fields($deal, $techSpecFileFields, $labels, $bitrixDomain)
+        : tag_bitrix_deal_files(extract_bitrix_deal_files(infer_deal_file_field($deal), $bitrixDomain), 'techSpec', '');
+    $installationSource = $fields['installFiles'] ? array_get($deal, $fields['installFiles'], null) : infer_deal_file_field($deal);
+
+    return [
+        'success' => true,
+        'dealId' => $id,
+        'techSpecFiles' => $techSpecFiles,
+        'installationFiles' => tag_bitrix_deal_files(extract_bitrix_deal_files($installationSource, $bitrixDomain), 'installation', $fields['installFiles']),
+    ];
+}
+
 function remove_bitrix_deal_from_cache($dealId)
 {
     $id = trim((string)$dealId);

@@ -35,7 +35,9 @@ import { formatMoney, positionTotal } from "../lib/costing";
 import { buildSearchIndex, matchesSearchIndex } from "../lib/searchIndex";
 import {
   completeProductionWork,
+  defaultSaveApiUrl,
   deleteProductionPhoto,
+  loadBitrixDealFiles,
   markProductionNotificationRead,
   moveDealToStage,
   sendProductionPush,
@@ -4158,8 +4160,38 @@ function TechSpecInline({
   spec?: DealTechSpec;
   expanded?: boolean;
 }) {
+  const cachedBitrixFiles = deal.techSpecFiles?.length ? deal.techSpecFiles : deal.installationFiles || [];
+  const [loadedBitrixFiles, setLoadedBitrixFiles] = useState(cachedBitrixFiles);
+  const [bitrixFilesState, setBitrixFilesState] = useState<"idle" | "loading" | "done" | "error">("idle");
+
+  useEffect(() => {
+    setLoadedBitrixFiles(cachedBitrixFiles);
+    setBitrixFilesState("idle");
+  }, [deal.id, cachedBitrixFiles.length]);
+
+  useEffect(() => {
+    if (spec || cachedBitrixFiles.length || !deal.id || bitrixFilesState !== "idle") return;
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+    let canceled = false;
+    setBitrixFilesState("loading");
+    void loadBitrixDealFiles({ apiUrl }, deal.id)
+      .then((result) => {
+        if (canceled) return;
+        const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];
+        setLoadedBitrixFiles(files);
+        setBitrixFilesState("done");
+      })
+      .catch(() => {
+        if (!canceled) setBitrixFilesState("error");
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [bitrixFilesState, cachedBitrixFiles.length, deal.id, spec]);
+
   if (!spec) {
-    const bitrixFiles = deal.techSpecFiles?.length ? deal.techSpecFiles : deal.installationFiles || [];
+    const bitrixFiles = loadedBitrixFiles;
     const preview = bitrixFiles.find((file) => file.type === "image") || bitrixFiles[0];
 
     return (
@@ -4175,7 +4207,13 @@ function TechSpecInline({
           <ClipboardList size={16} />
         )}
         <div className="production-tech-spec-missing-body">
-          <span>{preview ? "ТЗ из Bitrix" : "ТЗ еще не прикреплено к сделке."}</span>
+          <span>
+            {preview
+              ? "ТЗ из Bitrix"
+              : bitrixFilesState === "loading"
+                ? "Проверяю ТЗ в Bitrix..."
+                : "ТЗ еще не прикреплено к сделке."}
+          </span>
           {preview ? (
             <>
               <small>{[preview.label, preview.name || "Файл ТЗ из Bitrix"].filter(Boolean).join(": ")}</small>
@@ -4191,6 +4229,7 @@ function TechSpecInline({
               </div>
             </>
           ) : null}
+          {!preview && bitrixFilesState === "error" ? <small>Не удалось подтянуть файлы ТЗ из Bitrix.</small> : null}
         </div>
       </section>
     );

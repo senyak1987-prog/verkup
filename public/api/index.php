@@ -100,6 +100,11 @@ try {
         json_response(['success' => true, 'stages' => bitrix_target_stage_items()], 200);
     }
 
+    if ($method === 'GET' && preg_match('#^/bitrix/deal-files/([^/]+)$#', $path, $match)) {
+        $dealId = sanitize_segment($match[1]);
+        json_response(fetch_bitrix_deal_tech_spec_files($dealId), 200);
+    }
+
     if ($method === 'POST' && $path === '/move-stage') {
         $body = request_json();
         $dealId = sanitize_segment((string)array_get($body, 'dealId', ''));

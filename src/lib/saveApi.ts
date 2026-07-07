@@ -1,5 +1,6 @@
 import type {
   AppData,
+  BitrixDealFile,
   CatalogItem,
   DealStageCode,
   Installation,
@@ -363,6 +364,17 @@ export async function uploadTechSpecToBitrix(
   return postToSaveApi(settings, "/upload-tech-spec", payload) as Promise<{
     ok: boolean;
     field: string;
+  }>;
+}
+
+export async function loadBitrixDealFiles(settings: SaveApiSettings, dealId: string) {
+  return requestSaveApi(settings, `/bitrix/deal-files/${encodeURIComponent(dealId)}`, {
+    method: "GET",
+  }) as Promise<{
+    dealId: string;
+    installationFiles: BitrixDealFile[];
+    success: boolean;
+    techSpecFiles: BitrixDealFile[];
   }>;
 }
 
