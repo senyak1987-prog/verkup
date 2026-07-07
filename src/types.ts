@@ -40,6 +40,7 @@ export type Deal = {
   installationClientPhone?: string;
   installationComment?: string;
   installationFiles?: BitrixDealFile[];
+  techSpecFiles?: BitrixDealFile[];
 };
 
 export type BitrixDealFile = {
@@ -47,6 +48,8 @@ export type BitrixDealFile = {
   name: string;
   url: string;
   downloadUrl?: string;
+  field?: string;
+  source?: "techSpec" | "installation" | "deal";
   type?: "image" | "file";
 };
 

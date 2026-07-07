@@ -467,7 +467,13 @@ function DealOverviewCard({
       <footer className="deal-overview-footer">
         <div className="deal-overview-tz">
           <CheckCircle2 size={16} />
-          <span>{spec ? `ТЗ: ${spec.draft.items.length} изделий` : "ТЗ еще не заполнено"}</span>
+          <span>
+            {spec
+              ? `ТЗ: ${spec.draft.items.length} изделий`
+              : deal.techSpecFiles?.length
+                ? `ТЗ из Bitrix: ${deal.techSpecFiles.length}`
+                : "ТЗ еще не заполнено"}
+          </span>
         </div>
         <div className="deal-overview-photos">
           <Camera size={16} />

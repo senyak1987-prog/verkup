@@ -8,6 +8,7 @@ import {
   Clock3,
   Copy,
   Download,
+  ExternalLink,
   KeyRound,
   Link2,
   Images,
@@ -4158,10 +4159,39 @@ function TechSpecInline({
   expanded?: boolean;
 }) {
   if (!spec) {
+    const bitrixFiles = deal.techSpecFiles?.length ? deal.techSpecFiles : [];
+    const preview = bitrixFiles.find((file) => file.type === "image") || bitrixFiles[0];
+
     return (
-      <section className="production-tech-spec missing">
-        <ClipboardList size={16} />
-        <span>ТЗ еще не прикреплено к сделке.</span>
+      <section className={`production-tech-spec missing${preview ? " has-bitrix-source" : ""}`}>
+        {preview?.type === "image" ? (
+          <img
+            alt={preview.name || "ТЗ из Bitrix"}
+            className="production-tech-spec-bitrix-preview"
+            loading="lazy"
+            src={preview.url}
+          />
+        ) : (
+          <ClipboardList size={16} />
+        )}
+        <div className="production-tech-spec-missing-body">
+          <span>{preview ? "ТЗ найдено в Bitrix." : "ТЗ еще не прикреплено к сделке."}</span>
+          {preview ? (
+            <>
+              <small>{preview.name || "Файл ТЗ из Bitrix"}</small>
+              <div className="production-tech-spec-bitrix-actions">
+                <a href={preview.url} rel="noreferrer" target="_blank">
+                  <ExternalLink size={14} />
+                  <span>Открыть</span>
+                </a>
+                <a download={preview.name || "tech-spec"} href={preview.downloadUrl || preview.url}>
+                  <Download size={14} />
+                  <span>Сохранить</span>
+                </a>
+              </div>
+            </>
+          ) : null}
+        </div>
       </section>
     );
   }

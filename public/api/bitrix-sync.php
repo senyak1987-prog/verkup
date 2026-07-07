@@ -116,6 +116,7 @@ function sync_bitrix_deal($dealId)
         'sourceMap' => load_bitrix_status_map('SOURCE'),
         'typeMap' => load_bitrix_status_map('DEAL_TYPE'),
         'customFieldMaps' => load_bitrix_custom_field_maps(),
+        'customFieldLabels' => load_bitrix_custom_field_labels(),
     ];
 
     $responsibleId = trim((string)array_get($deal, 'ASSIGNED_BY_ID', ''));
@@ -288,6 +289,7 @@ function fetch_bitrix_deals_payload()
         'sourceMap' => load_bitrix_status_map('SOURCE'),
         'typeMap' => load_bitrix_status_map('DEAL_TYPE'),
         'customFieldMaps' => load_bitrix_custom_field_maps(),
+        'customFieldLabels' => load_bitrix_custom_field_labels(),
     ];
 
     $deals = fetch_bitrix_deals(array_map(function ($stage) {
@@ -581,6 +583,10 @@ function normalize_bitrix_deal($deal, $users, $dictionaries, $stageCodesById)
         'COMMENT',
     ]);
     $fileSource = $fields['installFiles'] ? array_get($deal, $fields['installFiles'], null) : infer_deal_file_field($deal);
+    $techSpecFileField = $fields['techSpecFiles'] ?: infer_deal_tech_spec_file_field($deal, array_get($dictionaries, 'customFieldLabels', []));
+    $techSpecFileSource = $techSpecFileField !== '' ? array_get($deal, $techSpecFileField, null) : infer_deal_file_field($deal);
+    $installationFiles = tag_bitrix_deal_files(extract_bitrix_deal_files($fileSource, $bitrixDomain), 'installation', $fields['installFiles']);
+    $techSpecFiles = tag_bitrix_deal_files(extract_bitrix_deal_files($techSpecFileSource, $bitrixDomain), 'techSpec', $techSpecFileField);
 
     return [
         'id' => $id,
@@ -606,7 +612,8 @@ function normalize_bitrix_deal($deal, $users, $dictionaries, $stageCodesById)
         'installationClientName' => (string)$installationClientName,
         'installationClientPhone' => (string)$installationClientPhone,
         'installationComment' => (string)$installationComment,
-        'installationFiles' => extract_bitrix_deal_files($fileSource, $bitrixDomain),
+        'installationFiles' => $installationFiles,
+        'techSpecFiles' => $techSpecFiles,
     ];
 }
 
@@ -788,6 +795,28 @@ function load_bitrix_custom_field_maps()
     return $maps;
 }
 
+function load_bitrix_custom_field_labels()
+{
+    $labels = [];
+    try {
+        $response = call_bitrix_rest('crm.deal.userfield.list', []);
+        foreach (array_get($response, 'result', []) as $field) {
+            $fieldName = (string)array_get($field, 'FIELD_NAME', '');
+            if ($fieldName === '') continue;
+            $label = first_text(
+                array_get($field, 'EDIT_FORM_LABEL', ''),
+                array_get($field, 'LIST_COLUMN_LABEL', ''),
+                array_get($field, 'LIST_FILTER_LABEL', ''),
+                array_get($field, 'USER_TYPE_ID', '')
+            );
+            if ($label !== '') $labels[$fieldName] = $label;
+        }
+    } catch (Exception $error) {
+        // Field labels only improve automatic file discovery.
+    }
+    return $labels;
+}
+
 function call_bitrix_rest($method, $params)
 {
     $webhookUrl = rtrim((string)bitrix_config('BITRIX_WEBHOOK_URL', ''), '/') . '/';
@@ -856,6 +885,7 @@ function bitrix_live_field_names()
         'installClientPhone' => (string)bitrix_config('BITRIX_FIELD_INSTALL_CLIENT_PHONE', ''),
         'installComment' => (string)bitrix_config('BITRIX_FIELD_INSTALL_COMMENT', ''),
         'installFiles' => (string)bitrix_config('BITRIX_FIELD_INSTALL_FILES', ''),
+        'techSpecFiles' => (string)bitrix_config('BITRIX_FIELD_TECH_SPEC_FILES', bitrix_config('BITRIX_FIELD_TZ_FILES', '')),
         'startDate' => (string)bitrix_config('BITRIX_FIELD_START_DATE', ''),
         'expectedFinishDate' => (string)bitrix_config('BITRIX_FIELD_EXPECTED_FINISH_DATE', ''),
     ];
@@ -921,11 +951,51 @@ function infer_deal_file_field($deal)
     return null;
 }
 
+function infer_deal_tech_spec_file_field($deal, $labels = [])
+{
+    $keywords = [
+        'TZ',
+        'TECHSPEC',
+        'TECH_SPEC',
+        'SPEC',
+        'ТЗ',
+        'ТЕХЗАДАН',
+        'ТЕХНИЧЕСК',
+        'ЗАДАН',
+        'МАКЕТ',
+    ];
+
+    foreach ($deal as $field => $value) {
+        if (count(extract_bitrix_deal_files($value, bitrix_domain())) <= 0) continue;
+
+        $haystack = normalize_bitrix_text((string)$field . ' ' . (string)array_get($labels, (string)$field, ''));
+        foreach ($keywords as $keyword) {
+            if ($keyword !== '' && strpos($haystack, normalize_bitrix_text($keyword)) !== false) {
+                return (string)$field;
+            }
+        }
+    }
+
+    return '';
+}
+
 function extract_bitrix_deal_files($value, $bitrixDomain)
 {
     $files = [];
     collect_bitrix_deal_files($value, $files, $bitrixDomain);
     return $files;
+}
+
+function tag_bitrix_deal_files($files, $source, $field = '')
+{
+    $tagged = [];
+    foreach ($files as $file) {
+        if (!is_array($file)) continue;
+        $file['source'] = $source;
+        if ($field !== '') $file['field'] = (string)$field;
+        $tagged[] = $file;
+    }
+    return $tagged;
 }
 
 function collect_bitrix_deal_files($value, &$files, $bitrixDomain)
