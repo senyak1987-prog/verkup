@@ -20487,6 +20487,29 @@ textarea:focus,
   }
 }
 
+.worker-tabs button > span {
+  display: inline-grid !important;
+  place-items: center !important;
+  align-self: center;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  line-height: 1 !important;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .production-mobile .worker-tabs button > span,
+  .production-worker-view .worker-tabs button > span {
+    min-width: 20px !important;
+    height: 20px !important;
+    padding: 0 6px !important;
+  }
+}
+
 .worker-profile-menu-layer {
   position: fixed;
   inset: 0;
@@ -20988,5 +21011,317 @@ textarea:focus,
 
   .access-shell .access-card-head {
     align-items: flex-start;
+  }
+}
+
+/* Production mobile completion refresh: multi-material rows, readable photos, and a full-height viewer. */
+.production-mobile {
+  overflow-x: clip;
+}
+
+.production-worker-view .worker-profile {
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+}
+
+.production-worker-view .worker-profile-title {
+  justify-content: flex-start;
+}
+
+.production-worker-view .worker-profile-actions {
+  align-self: start;
+  justify-self: end;
+  margin-left: 0;
+}
+
+.production-completion-section,
+.production-photo-section {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.production-completion-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.production-completion-section-head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.production-completion-section-head strong {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.production-completion-section-head span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.production-completion-section-head .secondary.compact,
+.production-add-photo-button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  white-space: nowrap;
+}
+
+.production-lighting-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.production-lighting-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(82px, 0.45fr) 44px;
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+}
+
+.production-lighting-line label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.production-lighting-line select,
+.production-lighting-line input {
+  width: 100%;
+}
+
+.production-lighting-remove {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+}
+
+.production-photo-guidance {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-soft) 34%, var(--surface));
+  padding: 10px 12px;
+}
+
+.production-photo-guidance strong {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.production-photo-guidance ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.production-add-photo-button input {
+  display: none;
+}
+
+.production-add-photo-button.disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.production-completion-form .production-photo-grid {
+  grid-template-columns: 1fr !important;
+  gap: 10px;
+}
+
+.production-completion-form .production-photo-slot {
+  grid-template-columns: minmax(94px, 112px) minmax(0, 1fr);
+  gap: 7px 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 14px;
+}
+
+.production-completion-form .production-photo-preview {
+  grid-row: 1 / span 4;
+  grid-column: 1;
+  min-height: 104px;
+  border-radius: 12px;
+}
+
+.production-completion-form .production-photo-slot strong,
+.production-completion-form .production-photo-slot small,
+.production-completion-form .production-photo-upload-state,
+.production-completion-form .production-photo-slot label {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.production-completion-form .production-photo-slot strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.18;
+}
+
+.production-completion-form .production-photo-slot small,
+.production-completion-form .production-photo-upload-state {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.production-completion-form .production-photo-slot label.secondary.compact {
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 40px;
+  white-space: normal;
+}
+
+.production-completion-form .production-photo-preview img {
+  object-fit: contain !important;
+}
+
+.worker-gallery-viewer-backdrop {
+  align-items: center;
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+}
+
+.worker-gallery-viewer {
+  width: min(960px, calc(100vw - 24px));
+  height: min(820px, calc(100dvh - 24px));
+  max-height: calc(100dvh - 24px);
+}
+
+.worker-gallery-viewer-stage {
+  min-height: 0;
+  touch-action: none;
+}
+
+.worker-gallery-viewer-image,
+.worker-gallery-viewer-stage img.worker-gallery-viewer-image {
+  width: auto !important;
+  height: auto !important;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain !important;
+  transform-origin: center;
+  transition: transform 160ms ease;
+  user-select: none;
+  pointer-events: none;
+}
+
+.worker-gallery-viewer-stage.is-zoomed .worker-gallery-viewer-image {
+  transition: none;
+}
+
+.worker-gallery-viewer-reset {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2;
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
+}
+
+@media (max-width: 720px) {
+  .workspace-worker-shell .production-mobile,
+  .production-mobile:has(.production-worker-view) {
+    padding-top: calc(8px + env(safe-area-inset-top, 0px)) !important;
+  }
+
+  .production-worker-view .worker-mobile-brand {
+    min-height: 28px;
+    margin-top: -6px;
+    margin-bottom: 4px;
+  }
+
+  .production-worker-view .worker-mobile-logo {
+    width: min(128px, 37vw);
+  }
+
+  .production-worker-view .worker-profile {
+    grid-template-columns: 64px minmax(0, 1fr) auto !important;
+    align-items: start;
+  }
+
+  .production-worker-view .worker-profile-actions {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: start;
+    justify-self: end;
+  }
+
+  .production-worker-view .worker-profile-main {
+    align-self: center;
+  }
+
+  .worker-gallery-viewer-backdrop {
+    padding: 0;
+  }
+
+  .worker-gallery-viewer,
+  .worker-gallery-viewer-backdrop .worker-gallery-viewer {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .production-lighting-line {
+    grid-template-columns: minmax(0, 1fr) 82px 44px;
+  }
+
+  .production-completion-form .production-photo-slot {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .production-completion-form .production-photo-preview {
+    min-height: 96px;
+  }
+}
+
+@media (max-width: 360px) {
+  .production-lighting-line {
+    grid-template-columns: minmax(0, 1fr) 72px 44px;
+  }
+
+  .production-completion-form .production-photo-slot {
+    grid-template-columns: 1fr;
+  }
+
+  .production-completion-form .production-photo-preview,
+  .production-completion-form .production-photo-slot strong,
+  .production-completion-form .production-photo-slot small,
+  .production-completion-form .production-photo-upload-state,
+  .production-completion-form .production-photo-slot label {
+    grid-column: 1;
+  }
+
+  .production-completion-form .production-photo-preview {
+    grid-row: auto;
   }
 }

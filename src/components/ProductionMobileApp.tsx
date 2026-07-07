@@ -17,6 +17,7 @@ import {
   PackageCheck,
   Play,
   Plus,
+  RotateCcw,
   Search,
   ShieldOff,
   Sun,
@@ -51,6 +52,7 @@ import type {
   ProductionAssignmentEventType,
   ProductionAssignmentStatus,
   ProductionCompletion,
+  ProductionCompletionCatalogItem,
   ProductionAccessRole,
   ProductionEmployee,
   ProductionEmployeeRole,
@@ -120,6 +122,20 @@ type PhotoUploadState = {
   status: "idle" | "selected" | "uploading" | "success" | "error";
 };
 
+type PhotoSlotConfig = {
+  kind: ProductionPhotoKind;
+  title: string;
+  hint: string;
+  required?: boolean;
+};
+
+type ViewerOffset = {
+  x: number;
+  y: number;
+};
+
+type TouchListLike = TouchEvent<HTMLElement>["touches"];
+
 type EmployeeAccessChoice = ProductionAccessRole | "installer";
 
 type ProductionMobileAppProps = {
@@ -158,10 +174,15 @@ const DEFAULT_PUSH_PUBLIC_KEY =
 const PUSH_PUBLIC_KEY = (import.meta.env.VITE_PUSH_PUBLIC_KEY || DEFAULT_PUSH_PUBLIC_KEY).trim();
 const PULL_REFRESH_TRIGGER_PX = 64;
 const PULL_REFRESH_MAX_PX = 92;
+const PULL_REFRESH_MIN_SPIN_MS = 920;
 const HORIZONTAL_SWIPE_TRIGGER_PX = 58;
 const HORIZONTAL_SWIPE_MIN_FLICK_PX = 24;
 const HORIZONTAL_SWIPE_SLOPE = 1.25;
 const HORIZONTAL_SWIPE_VELOCITY_PX_MS = 0.38;
+const MAX_COMPLETION_PHOTOS = 20;
+const EXTRA_PHOTO_KIND_PREFIX = "extra-photo-";
+const VIEWER_SWIPE_TRIGGER_PX = 52;
+const VIEWER_MAX_ZOOM = 4;
 const WORKER_DEAL_TABS: WorkerDealTab[] = ["assigned", "inProgress", "ready"];
 
 const employeeRoleLabels: Record<ProductionEmployeeRole, string> = {
@@ -187,35 +208,44 @@ const employeeGroupConfigs: Array<Omit<EmployeeGroup, "employees">> = [
   { id: "noAccess", label: "Без доступа", description: "Зарегистрированы, но не допущены" },
 ];
 
-const photoSlots: Array<{
-  kind: ProductionPhotoKind;
-  title: string;
-  hint: string;
-}> = [
+const photoSlots: PhotoSlotConfig[] = [
   {
     kind: "lit",
     title: "Включено",
     hint: "Фото готового изделия во включенном состоянии на фоне брендированного баннера.",
+    required: true,
   },
   {
     kind: "unlit",
     title: "Выключено",
     hint: "Фото готового изделия в выключенном состоянии на фоне брендированного баннера.",
+    required: true,
   },
   {
     kind: "packed",
     title: "Упаковка",
     hint: "Фото упакованной вывески с ID сделки и примотанным блоком, если он нужен.",
+    required: true,
   },
+];
+
+const requiredPhotoKinds = new Set<ProductionPhotoKind>(photoSlots.map((slot) => slot.kind));
+const photoGuidanceItems = [
+  "Вывеска во включенном состоянии.",
+  "Вывеска в выключенном состоянии.",
+  "Готовое изделие на фоне брендированного баннера.",
+  "Упакованное изделие с подписью или ID сделки.",
 ];
 
 const emptyCompletion: ProductionCompletion = {
   diodeCount: 0,
   diodeCatalogId: "",
   diodeCatalogTitle: "",
+  diodes: [],
   powerSupply: "",
   powerSupplyCatalogId: "",
   powerSupplyCatalogTitle: "",
+  powerSupplies: [],
   noPowerSupply: false,
   note: "",
   photos: [],
@@ -1292,8 +1322,7 @@ export function ProductionMobileApp({
     patchAssignment(assignmentId, (assignment) => ({
       ...assignment,
       completion: {
-        ...emptyCompletion,
-        ...assignment.completion,
+        ...completionFor(assignment),
         ...patch,
       },
     }), options);
@@ -1305,6 +1334,14 @@ export function ProductionMobileApp({
     file?: File,
   ) {
     if (!file) return;
+    const completion = completionFor(assignment);
+    const isReplacing = completion.photos.some((photo) => photo.kind === kind);
+    if (!isReplacing && completion.photos.length >= MAX_COMPLETION_PHOTOS) {
+      setNotice(`Можно добавить не больше ${MAX_COMPLETION_PHOTOS} фото на сделку.`);
+      window.setTimeout(() => setNotice(""), 2600);
+      return;
+    }
+
     const deal = dealsById.get(assignment.dealId);
     setPhotoUploadState(assignment.id, kind, {
       message: "Загружаю фото...",
@@ -1359,16 +1396,14 @@ export function ProductionMobileApp({
         nextPhoto.dataUrl = dataUrl;
       }
 
-      const completion = completionFor(assignment);
       patchAssignment(assignment.id, (current) => ({
         ...current,
         workerStatus: "photosAdded",
         photosAddedAt: new Date().toISOString(),
         completion: {
-          ...emptyCompletion,
-          ...current.completion,
+          ...completionFor(current),
           photos: [
-            ...completion.photos.filter((photo) => photo.kind !== kind),
+            ...completionFor(current).photos.filter((photo) => photo.kind !== kind),
             nextPhoto,
           ],
         },
@@ -1893,6 +1928,7 @@ export function ProductionMobileApp({
   }
 
   async function refreshMobileData() {
+    const startedAt = performance.now();
     setPullRefreshing(true);
     setPullDistance(PULL_REFRESH_TRIGGER_PX);
 
@@ -1903,7 +1939,9 @@ export function ProductionMobileApp({
       setNotice("Не удалось обновить данные.");
       window.setTimeout(() => setNotice(""), 2400);
     } finally {
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 260));
+      const elapsedMs = performance.now() - startedAt;
+      const settleMs = Math.max(180, PULL_REFRESH_MIN_SPIN_MS - elapsedMs);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, settleMs));
       setPullRefreshing(false);
       setPullDistance(0);
     }
@@ -1923,10 +1961,7 @@ export function ProductionMobileApp({
               diodeCatalogItems={diodeCatalogItems}
               expanded={expandedAssignmentIds.has(assignment.id)}
               key={assignment.id}
-              photoUploadStates={photoSlots.reduce((states, slot) => ({
-                ...states,
-                [slot.kind]: photoUploadStates[photoUploadStateKey(assignment.id, slot.kind)],
-              }), {} as Partial<Record<ProductionPhotoKind, PhotoUploadState>>)}
+              photoUploadStates={photoUploadStatesForAssignment(photoUploadStates, assignment.id)}
               powerSupplyCatalogItems={powerSupplyCatalogItems}
               techSpec={techSpecs.get(deal.id)}
               onAddPhoto={(kind, file) => void addPhoto(assignment, kind, file)}
@@ -2973,6 +3008,8 @@ function EmployeeAssignmentCard({
   const completion = completionFor(assignment);
   const photos = photosWithAssignmentLink(assignment, deal);
   const title = deal ? `#${deal.number} ${deal.title}` : `Сделка ${assignment.dealId}`;
+  const diodeSummary = completionDiodeSummary(completion);
+  const powerSupplySummary = completionPowerSupplySummary(completion);
 
   return (
     <article className={`production-deal-card compact ${assignment.status}`}>
@@ -3005,12 +3042,13 @@ function EmployeeAssignmentCard({
       <div className="production-result-grid">
         <span>
           Диоды
-          <strong>{completion.diodeCatalogTitle || completion.diodeCatalogId || "-"}</strong>
-          <em>{completion.diodeCount ? `${completion.diodeCount} шт` : "не указано"}</em>
+          <strong>{diodeSummary.title}</strong>
+          <em>{diodeSummary.detail}</em>
         </span>
         <span>
           Блок
-          <strong>{completion.noPowerSupply ? "Не нужен" : completion.powerSupplyCatalogTitle || completion.powerSupply || "-"}</strong>
+          <strong>{powerSupplySummary.title}</strong>
+          <em>{powerSupplySummary.detail}</em>
         </span>
       </div>
       <PhotoStrip
@@ -3107,98 +3145,98 @@ function WorkerProfile({
             <h2>{employee.name}</h2>
             <span>{employeeAccessChoiceLabel(employeeAccessChoiceFor(employee))}</span>
           </div>
-          <div className="worker-profile-actions">
-            {notificationCount ? (
-              <button
-                aria-label={`Новых назначений: ${notificationCount}`}
-                className="worker-notification-badge"
-                onClick={onNotificationClick}
-                type="button"
+        </div>
+      </div>
+      <div className="worker-profile-actions">
+        {notificationCount ? (
+          <button
+            aria-label={`Новых назначений: ${notificationCount}`}
+            className="worker-notification-badge"
+            onClick={onNotificationClick}
+            type="button"
+          >
+            <Bell size={18} />
+            <span>{notificationCount}</span>
+          </button>
+        ) : null}
+        <div className="worker-profile-menu-wrap" ref={menuRef}>
+          <button
+            aria-expanded={menuOpen}
+            aria-label="Настройки профиля"
+            className="worker-profile-menu-trigger"
+            onClick={onMenuToggle}
+            type="button"
+          >
+            <Menu size={20} />
+          </button>
+          {menuOpen && typeof document !== "undefined" ? createPortal(
+            <div
+              className={`worker-profile-menu-layer worker-profile-menu-layer-${theme}`}
+              onClick={onMenuToggle}
+              role="presentation"
+            >
+              <div
+                className="worker-profile-menu"
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+                role="menu"
               >
-                <Bell size={18} />
-                <span>{notificationCount}</span>
-              </button>
-            ) : null}
-            <div className="worker-profile-menu-wrap" ref={menuRef}>
-              <button
-                aria-expanded={menuOpen}
-                aria-label="Настройки профиля"
-                className="worker-profile-menu-trigger"
-                onClick={onMenuToggle}
-                type="button"
-              >
-                <Menu size={20} />
-              </button>
-              {menuOpen && typeof document !== "undefined" ? createPortal(
-                <div
-                  className={`worker-profile-menu-layer worker-profile-menu-layer-${theme}`}
-                  onClick={onMenuToggle}
-                  role="presentation"
-                >
-                  <div
-                    className="worker-profile-menu"
-                    onClick={(event) => event.stopPropagation()}
-                    onPointerDown={(event) => event.stopPropagation()}
-                    role="menu"
-                  >
-                  <div className="worker-profile-menu-section">
-                    <span className="worker-profile-menu-title">Профиль</span>
-                    <label>
-                      <Camera size={16} />
-                      <span>Фото профиля</span>
-                      <ChevronRight className="worker-menu-chevron" size={16} />
-                      <input
-                        accept="image/*"
-                        onChange={(event) => {
-                          onAvatarChange(event.target.files?.[0]);
-                          event.target.value = "";
-                        }}
-                        type="file"
-                      />
-                    </label>
-                    <button onClick={onPasswordClick} type="button">
-                      <KeyRound size={16} />
-                      <span>Логин и пароль</span>
-                      <ChevronRight className="worker-menu-chevron" size={16} />
+                <div className="worker-profile-menu-section">
+                  <span className="worker-profile-menu-title">Профиль</span>
+                  <label>
+                    <Camera size={16} />
+                    <span>Фото профиля</span>
+                    <ChevronRight className="worker-menu-chevron" size={16} />
+                    <input
+                      accept="image/*"
+                      onChange={(event) => {
+                        onAvatarChange(event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
+                      type="file"
+                    />
+                  </label>
+                  <button onClick={onPasswordClick} type="button">
+                    <KeyRound size={16} />
+                    <span>Логин и пароль</span>
+                    <ChevronRight className="worker-menu-chevron" size={16} />
+                  </button>
+                </div>
+                <div className="worker-profile-menu-section">
+                  <span className="worker-profile-menu-title">Работа</span>
+                  <button onClick={onGalleryClick} type="button">
+                    <Images size={16} />
+                    <span>Галерея работ</span>
+                    {galleryCount ? <em>{galleryCount}</em> : null}
+                    <ChevronRight className="worker-menu-chevron" size={16} />
+                  </button>
+                  <button onClick={onMoneyClick} type="button">
+                    <Wallet size={16} />
+                    <span>Выплаты</span>
+                    <ChevronRight className="worker-menu-chevron" size={16} />
+                  </button>
+                  <button disabled={notificationDisabled} onClick={onEnableNotifications} type="button">
+                    <Bell size={16} />
+                    <span>{notificationLabel}</span>
+                  </button>
+                </div>
+                <div className="worker-profile-menu-section">
+                  <span className="worker-profile-menu-title">Система</span>
+                  <button onClick={onToggleTheme} type="button">
+                    {theme === "night" ? <Sun size={16} /> : <Moon size={16} />}
+                    <span>{theme === "night" ? "Светлая тема" : "Тёмная тема"}</span>
+                  </button>
+                  {onLogout ? (
+                    <button className="worker-menu-danger" onClick={onLogout} type="button">
+                      <LogOut size={16} />
+                      <span>Выйти</span>
                     </button>
-                  </div>
-                  <div className="worker-profile-menu-section">
-                    <span className="worker-profile-menu-title">Работа</span>
-                    <button onClick={onGalleryClick} type="button">
-                      <Images size={16} />
-                      <span>Галерея работ</span>
-                      {galleryCount ? <em>{galleryCount}</em> : null}
-                      <ChevronRight className="worker-menu-chevron" size={16} />
-                    </button>
-                    <button onClick={onMoneyClick} type="button">
-                      <Wallet size={16} />
-                      <span>Выплаты</span>
-                      <ChevronRight className="worker-menu-chevron" size={16} />
-                    </button>
-                    <button disabled={notificationDisabled} onClick={onEnableNotifications} type="button">
-                      <Bell size={16} />
-                      <span>{notificationLabel}</span>
-                    </button>
-                  </div>
-                  <div className="worker-profile-menu-section">
-                    <span className="worker-profile-menu-title">Система</span>
-                    <button onClick={onToggleTheme} type="button">
-                      {theme === "night" ? <Sun size={16} /> : <Moon size={16} />}
-                      <span>{theme === "night" ? "Светлая тема" : "Тёмная тема"}</span>
-                    </button>
-                    {onLogout ? (
-                      <button className="worker-menu-danger" onClick={onLogout} type="button">
-                        <LogOut size={16} />
-                        <span>Выйти</span>
-                      </button>
-                    ) : null}
-                  </div>
-                  </div>
-                </div>,
-                document.body,
-              ) : null}
-            </div>
-          </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          ) : null}
         </div>
       </div>
     </section>
@@ -3322,17 +3360,171 @@ function WorkerGalleryViewer({
   const photo = photos[safeIndex];
   const src = productionPhotoFullSrc(photo) || productionPhotoSrc(photo);
   const canNavigate = photos.length > 1;
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const gestureRef = useRef<{
+    lastX: number;
+    lastY: number;
+    mode: "pan" | "pinch" | "swipe";
+    moved: boolean;
+    startCenter: ViewerOffset;
+    startDistance: number;
+    startOffset: ViewerOffset;
+    startX: number;
+    startY: number;
+    startZoom: number;
+  } | null>(null);
+  const lastTapAtRef = useRef(0);
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState<ViewerOffset>({ x: 0, y: 0 });
+  const isZoomed = zoom > 1.01;
+  const imageStyle = {
+    transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${zoom})`,
+  } as CSSProperties;
+
+  const resetViewerTransform = () => {
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+  };
+
+  const navigateToPhoto = (nextIndex: number) => {
+    resetViewerTransform();
+    onIndexChange(nextIndex);
+  };
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
-      if (event.key === "ArrowLeft" && canNavigate) onIndexChange((safeIndex - 1 + photos.length) % photos.length);
-      if (event.key === "ArrowRight" && canNavigate) onIndexChange((safeIndex + 1) % photos.length);
+      if (event.key === "ArrowLeft" && canNavigate) navigateToPhoto((safeIndex - 1 + photos.length) % photos.length);
+      if (event.key === "ArrowRight" && canNavigate) navigateToPhoto((safeIndex + 1) % photos.length);
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canNavigate, onClose, onIndexChange, photos.length, safeIndex]);
+  }, [canNavigate, onClose, photos.length, safeIndex]);
+
+  useEffect(() => {
+    resetViewerTransform();
+  }, [src]);
+
+  function handleStageTouchStart(event: TouchEvent<HTMLDivElement>) {
+    event.stopPropagation();
+
+    if (event.touches.length >= 2) {
+      const center = touchCenter(event.touches);
+      gestureRef.current = {
+        lastX: center.x,
+        lastY: center.y,
+        mode: "pinch",
+        moved: false,
+        startCenter: center,
+        startDistance: touchDistance(event.touches),
+        startOffset: offset,
+        startX: center.x,
+        startY: center.y,
+        startZoom: zoom,
+      };
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch) return;
+    gestureRef.current = {
+      lastX: touch.clientX,
+      lastY: touch.clientY,
+      mode: isZoomed ? "pan" : "swipe",
+      moved: false,
+      startCenter: { x: touch.clientX, y: touch.clientY },
+      startDistance: 0,
+      startOffset: offset,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      startZoom: zoom,
+    };
+  }
+
+  function handleStageTouchMove(event: TouchEvent<HTMLDivElement>) {
+    const gesture = gestureRef.current;
+    if (!gesture) return;
+
+    if (gesture.mode === "pinch" && event.touches.length >= 2) {
+      const distance = touchDistance(event.touches);
+      const center = touchCenter(event.touches);
+      const nextZoom = clamp(gesture.startZoom * (distance / Math.max(1, gesture.startDistance)), 1, VIEWER_MAX_ZOOM);
+      const nextOffset = constrainViewerOffset({
+        x: gesture.startOffset.x + center.x - gesture.startCenter.x,
+        y: gesture.startOffset.y + center.y - gesture.startCenter.y,
+      }, nextZoom, stageRef.current);
+
+      gesture.moved = true;
+      setZoom(nextZoom);
+      setOffset(nextZoom <= 1.01 ? { x: 0, y: 0 } : nextOffset);
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch) return;
+    gesture.lastX = touch.clientX;
+    gesture.lastY = touch.clientY;
+    const deltaX = touch.clientX - gesture.startX;
+    const deltaY = touch.clientY - gesture.startY;
+    gesture.moved ||= Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5;
+
+    if (gesture.mode === "pan") {
+      setOffset(constrainViewerOffset({
+        x: gesture.startOffset.x + deltaX,
+        y: gesture.startOffset.y + deltaY,
+      }, zoom, stageRef.current));
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
+
+    if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY) && event.cancelable) {
+      event.preventDefault();
+    }
+  }
+
+  function handleStageTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    const gesture = gestureRef.current;
+    gestureRef.current = null;
+    if (!gesture) return;
+
+    if (gesture.mode === "pinch") {
+      if (zoom <= 1.03) resetViewerTransform();
+      return;
+    }
+
+    const deltaX = gesture.lastX - gesture.startX;
+    const deltaY = gesture.lastY - gesture.startY;
+    const isHorizontalSwipe =
+      Math.abs(deltaX) >= VIEWER_SWIPE_TRIGGER_PX &&
+      Math.abs(deltaX) > Math.abs(deltaY) * 1.18;
+
+    if (gesture.mode === "swipe" && canNavigate && isHorizontalSwipe) {
+      navigateToPhoto(deltaX > 0
+        ? (safeIndex - 1 + photos.length) % photos.length
+        : (safeIndex + 1) % photos.length);
+      return;
+    }
+
+    if (!gesture.moved) {
+      const now = performance.now();
+      if (now - lastTapAtRef.current < 280) {
+        if (isZoomed) resetViewerTransform();
+        else {
+          setZoom(2);
+          setOffset({ x: 0, y: 0 });
+        }
+        lastTapAtRef.current = 0;
+        return;
+      }
+      lastTapAtRef.current = now;
+    }
+
+    if (zoom <= 1.01) setOffset({ x: 0, y: 0 });
+  }
 
   if (!src) return null;
 
@@ -3354,26 +3546,53 @@ function WorkerGalleryViewer({
             <X size={22} />
           </button>
         </div>
-        <div className="worker-gallery-viewer-stage">
+        <div
+          className={`worker-gallery-viewer-stage${isZoomed ? " is-zoomed" : ""}`}
+          onDoubleClick={() => {
+            if (isZoomed) resetViewerTransform();
+            else setZoom(2);
+          }}
+          onTouchEnd={handleStageTouchEnd}
+          onTouchMove={handleStageTouchMove}
+          onTouchStart={handleStageTouchStart}
+          ref={stageRef}
+        >
           {canNavigate ? (
             <button
               aria-label="Предыдущее фото"
               className="worker-gallery-viewer-nav previous"
-              onClick={() => onIndexChange((safeIndex - 1 + photos.length) % photos.length)}
+              onClick={() => navigateToPhoto((safeIndex - 1 + photos.length) % photos.length)}
               type="button"
             >
               <ChevronRight size={26} />
             </button>
           ) : null}
-          <img alt={title} decoding="async" src={src} />
+          <img
+            alt={title}
+            className="worker-gallery-viewer-image"
+            decoding="async"
+            draggable={false}
+            src={src}
+            style={imageStyle}
+          />
           {canNavigate ? (
             <button
               aria-label="Следующее фото"
               className="worker-gallery-viewer-nav next"
-              onClick={() => onIndexChange((safeIndex + 1) % photos.length)}
+              onClick={() => navigateToPhoto((safeIndex + 1) % photos.length)}
               type="button"
             >
               <ChevronRight size={26} />
+            </button>
+          ) : null}
+          {isZoomed ? (
+            <button
+              aria-label="Сбросить масштаб"
+              className="worker-gallery-viewer-reset"
+              onClick={resetViewerTransform}
+              type="button"
+            >
+              <RotateCcw size={20} />
             </button>
           ) : null}
         </div>
@@ -3549,7 +3768,7 @@ function WorkerDealCard({
   deal: Deal;
   diodeCatalogItems: CatalogItem[];
   expanded: boolean;
-  photoUploadStates: Partial<Record<ProductionPhotoKind, PhotoUploadState>>;
+  photoUploadStates: Partial<Record<string, PhotoUploadState>>;
   powerSupplyCatalogItems: CatalogItem[];
   techSpec?: DealTechSpec;
   onAddPhoto: (kind: ProductionPhotoKind, file?: File) => void;
@@ -3560,6 +3779,17 @@ function WorkerDealCard({
   onUpdateCompletion: (patch: Partial<ProductionCompletion>) => void;
 }) {
   const completion = completionFor(assignment);
+  const diodeLines = completionDiodeItems(completion);
+  const powerSupplyLines = completionPowerSupplyItems(completion);
+  const extraPhotos = completion.photos.filter((photo) => !isRequiredPhotoKind(photo.kind));
+  const photoCount = completion.photos.length;
+  const completionLayoutKey = JSON.stringify({
+    diodes: diodeLines,
+    note: completion.note,
+    noPowerSupply: completion.noPowerSupply,
+    photos: completion.photos.map((photo) => photo.kind),
+    powerSupplies: powerSupplyLines,
+  });
   const canSubmit = canSubmitCompletion(completion);
   const itemLabel = assignment.techSpecItemId
     ? techSpecItemLabel(techSpec, assignment.techSpecItemId)
@@ -3584,16 +3814,33 @@ function WorkerDealCard({
     return () => observer.disconnect();
   }, [
     assignment.status,
-    completion.diodeCatalogId,
-    completion.diodeCount,
-    completion.noPowerSupply,
-    completion.note,
-    completion.photos.length,
-    completion.powerSupplyCatalogId,
+    completionLayoutKey,
     expanded,
     itemLabel,
     techSpec,
   ]);
+
+  const updateDiodeLine = (lineId: string, patch: Partial<ProductionCompletionCatalogItem>) => {
+    onUpdateCompletion(completionPatchForDiodes(updateCompletionCatalogLine(diodeLines, lineId, patch)));
+  };
+
+  const updatePowerSupplyLine = (lineId: string, patch: Partial<ProductionCompletionCatalogItem>) => {
+    onUpdateCompletion(completionPatchForPowerSupplies(
+      updateCompletionCatalogLine(powerSupplyLines, lineId, patch),
+      completion.noPowerSupply,
+    ));
+  };
+
+  const removeDiodeLine = (lineId: string) => {
+    onUpdateCompletion(completionPatchForDiodes(removeCompletionCatalogLine(diodeLines, lineId)));
+  };
+
+  const removePowerSupplyLine = (lineId: string) => {
+    onUpdateCompletion(completionPatchForPowerSupplies(
+      removeCompletionCatalogLine(powerSupplyLines, lineId),
+      completion.noPowerSupply,
+    ));
+  };
 
   return (
     <article className={`production-deal-card compact worker ${assignment.status}`}>
@@ -3641,94 +3888,143 @@ function WorkerDealCard({
 
           {assignment.status === "inProgress" ? (
             <section className="production-completion-form">
-              <div className="production-form-grid">
-                <label>
-                  <span>Диоды / модули*</span>
-                  <select
-                    onChange={(event) => {
-                      const item = diodeCatalogItems.find((option) => option.id === event.target.value);
-                      onUpdateCompletion({
-                        diodeCatalogId: item?.id || "",
-                        diodeCatalogTitle: item?.title || "",
-                      });
-                    }}
-                    value={completion.diodeCatalogId || ""}
+              <section className="production-completion-section">
+                <div className="production-completion-section-head">
+                  <strong>Диоды / модули*</strong>
+                  <button
+                    className="secondary compact"
+                    onClick={() => onUpdateCompletion(completionPatchForDiodes([
+                      ...diodeLines,
+                      createCompletionCatalogLine(0),
+                    ]))}
+                    type="button"
                   >
-                    <option value="">Выберите из справочника</option>
-                    {diodeCatalogItems.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.title} - {formatMoney(item.unitCost)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Количество диодов*</span>
-                  <input
-                    min={0}
-                    onChange={(event) =>
-                      onUpdateCompletion({ diodeCount: Number(event.target.value) || 0 })
-                    }
-                    placeholder="Например 126"
-                    type="number"
-                    value={completion.diodeCount || ""}
-                  />
-                </label>
-                <label>
-                  <span>Блок питания*</span>
-                  <select
+                    <Plus size={15} />
+                    Добавить
+                  </button>
+                </div>
+                <div className="production-lighting-list">
+                  {diodeLines.map((line, index) => (
+                    <CompletionCatalogLineEditor
+                      catalogItems={diodeCatalogItems}
+                      canRemove={diodeLines.length > 1 || completionCatalogLineHasValue(line)}
+                      key={line.id}
+                      line={line}
+                      lineNumber={index + 1}
+                      quantityLabel="Количество"
+                      selectLabel="Вид"
+                      onChange={(patch) => updateDiodeLine(line.id, patch)}
+                      onRemove={() => removeDiodeLine(line.id)}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              <section className="production-completion-section">
+                <div className="production-completion-section-head">
+                  <strong>Блоки питания*</strong>
+                  <button
+                    className="secondary compact"
                     disabled={completion.noPowerSupply}
-                    onChange={(event) => {
-                      const item = powerSupplyCatalogItems.find((option) => option.id === event.target.value);
-                      onUpdateCompletion({
-                        powerSupply: item?.title || "",
-                        powerSupplyCatalogId: item?.id || "",
-                        powerSupplyCatalogTitle: item?.title || "",
-                      });
-                    }}
-                    value={completion.powerSupplyCatalogId || ""}
+                    onClick={() => onUpdateCompletion(completionPatchForPowerSupplies([
+                      ...powerSupplyLines,
+                      createCompletionCatalogLine(1),
+                    ], completion.noPowerSupply))}
+                    type="button"
                   >
-                    <option value="">Выберите из справочника</option>
-                    {powerSupplyCatalogItems.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.title} - {formatMoney(item.unitCost)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
+                    <Plus size={15} />
+                    Добавить
+                  </button>
+                </div>
+                <div className="production-lighting-list">
+                  {powerSupplyLines.map((line, index) => (
+                    <CompletionCatalogLineEditor
+                      catalogItems={powerSupplyCatalogItems}
+                      canRemove={powerSupplyLines.length > 1 || completionCatalogLineHasValue(line)}
+                      disabled={completion.noPowerSupply}
+                      key={line.id}
+                      line={line}
+                      lineNumber={index + 1}
+                      quantityLabel="Кол-во"
+                      selectLabel="Блок"
+                      onChange={(patch) => updatePowerSupplyLine(line.id, patch)}
+                      onRemove={() => removePowerSupplyLine(line.id)}
+                    />
+                  ))}
+                </div>
+              </section>
 
               <label className="production-checkbox-line">
                 <input
                   checked={completion.noPowerSupply}
                   onChange={(event) =>
-                    onUpdateCompletion({
-                      noPowerSupply: event.target.checked,
-                      powerSupply: event.target.checked ? "" : completion.powerSupply,
-                      powerSupplyCatalogId: event.target.checked ? "" : completion.powerSupplyCatalogId,
-                      powerSupplyCatalogTitle: event.target.checked ? "" : completion.powerSupplyCatalogTitle,
-                    })
+                    onUpdateCompletion(completionPatchForPowerSupplies(
+                      event.target.checked ? [] : powerSupplyLines,
+                      event.target.checked,
+                    ))
                   }
                   type="checkbox"
                 />
                 Блок питания не нужен
               </label>
 
-              <div className="production-photo-grid">
-                {photoSlots.map((slot) => {
-                  const photo = completion.photos.find((item) => item.kind === slot.kind);
-                  return (
-                    <PhotoInput
-                      key={slot.kind}
-                      photo={photo}
-                      state={photoUploadStates[slot.kind]}
-                      slot={slot}
-                      onChange={(file) => onAddPhoto(slot.kind, file)}
-                      onRemove={() => onRemovePhoto(slot.kind)}
+              <section className="production-photo-section">
+                <div className="production-completion-section-head">
+                  <div>
+                    <strong>Фотоотчет*</strong>
+                    <span>{photoCount} из {MAX_COMPLETION_PHOTOS}</span>
+                  </div>
+                  <label
+                    aria-disabled={photoCount >= MAX_COMPLETION_PHOTOS}
+                    className={`secondary compact production-add-photo-button${photoCount >= MAX_COMPLETION_PHOTOS ? " disabled" : ""}`}
+                  >
+                    <Plus size={15} />
+                    Добавить фото
+                    <input
+                      accept="image/jpeg,image/png,image/webp,image/*"
+                      disabled={photoCount >= MAX_COMPLETION_PHOTOS}
+                      onChange={(event) => {
+                        onAddPhoto(createExtraPhotoKind(), event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
+                      type="file"
                     />
-                  );
-                })}
-              </div>
+                  </label>
+                </div>
+                <div className="production-photo-guidance">
+                  <strong>Рекомендация для макетчика</strong>
+                  <ul>
+                    {photoGuidanceItems.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="production-photo-grid">
+                  {photoSlots.map((slot) => {
+                    const photo = completion.photos.find((item) => item.kind === slot.kind);
+                    return (
+                      <PhotoInput
+                        key={slot.kind}
+                        photo={photo}
+                        state={photoUploadStates[slot.kind]}
+                        slot={slot}
+                        onChange={(file) => onAddPhoto(slot.kind, file)}
+                        onRemove={() => onRemovePhoto(slot.kind)}
+                      />
+                    );
+                  })}
+                  {extraPhotos.map((photo, index) => (
+                    <PhotoInput
+                      key={photo.kind}
+                      photo={photo}
+                      state={photoUploadStates[photo.kind]}
+                      slot={extraPhotoSlot(photo, index)}
+                      onChange={(file) => onAddPhoto(photo.kind, file)}
+                      onRemove={() => onRemovePhoto(photo.kind)}
+                    />
+                  ))}
+                </div>
+              </section>
 
               <label className="production-note-field">
                 <span>Комментарий</span>
@@ -3762,6 +4058,74 @@ function WorkerDealCard({
         </div>
       </div>
     </article>
+  );
+}
+
+function CompletionCatalogLineEditor({
+  catalogItems,
+  canRemove,
+  disabled = false,
+  line,
+  lineNumber,
+  quantityLabel,
+  selectLabel,
+  onChange,
+  onRemove,
+}: {
+  catalogItems: CatalogItem[];
+  canRemove: boolean;
+  disabled?: boolean;
+  line: ProductionCompletionCatalogItem;
+  lineNumber: number;
+  quantityLabel: string;
+  selectLabel: string;
+  onChange: (patch: Partial<ProductionCompletionCatalogItem>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="production-lighting-line">
+      <label>
+        <span>{selectLabel} {lineNumber}</span>
+        <select
+          disabled={disabled}
+          onChange={(event) => {
+            const item = catalogItems.find((option) => option.id === event.target.value);
+            onChange({
+              catalogId: item?.id || "",
+              catalogTitle: item?.title || "",
+            });
+          }}
+          value={line.catalogId || ""}
+        >
+          <option value="">Выберите из справочника</option>
+          {catalogItems.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.title} - {formatMoney(item.unitCost)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>{quantityLabel}</span>
+        <input
+          disabled={disabled}
+          min={0}
+          onChange={(event) => onChange({ quantity: Number(event.target.value) || 0 })}
+          placeholder="0"
+          type="number"
+          value={line.quantity || ""}
+        />
+      </label>
+      <button
+        aria-label="Удалить строку"
+        className="secondary compact production-lighting-remove"
+        disabled={disabled || !canRemove}
+        onClick={onRemove}
+        type="button"
+      >
+        <Trash2 size={15} />
+      </button>
+    </div>
   );
 }
 
@@ -3910,7 +4274,7 @@ function PhotoInput({
 }: {
   photo?: ProductionPhoto;
   state?: PhotoUploadState;
-  slot: (typeof photoSlots)[number];
+  slot: PhotoSlotConfig;
   onChange: (file?: File) => void;
   onRemove: () => void;
 }) {
@@ -3943,7 +4307,7 @@ function PhotoInput({
           <Camera size={24} />
         )}
       </div>
-      <strong>{slot.title}*</strong>
+      <strong>{slot.title}{slot.required === false ? "" : "*"}</strong>
       <small>{slot.hint}</small>
       {state?.message || isSuccess ? (
         <span
@@ -3988,15 +4352,14 @@ function PhotoStrip({
 
   return (
     <div className="production-photo-strip">
-      {photoSlots.map((slot) => {
-        const photo = photos.find((item) => item.kind === slot.kind);
-        if (!photo) return null;
+      {photos.map((photo, index) => {
+        const slot = photoSlotForKind(photo.kind) || extraPhotoSlot(photo, index);
         const caption = photo.dealNumber ? `#${photo.dealNumber} · ${slot.title}` : slot.title;
         const photoSrc = productionPhotoSrc(photo);
         const photoFullSrc = productionPhotoFullSrc(photo) || photoSrc;
         if (!photoSrc) return null;
         return (
-          <figure key={slot.kind}>
+          <figure key={photo.id || `${photo.kind}-${index}`}>
             <a aria-label="Открыть фото" href={photoFullSrc} rel="noreferrer" target="_blank" title="Открыть фото">
               <img alt={slot.title} decoding="async" loading="lazy" src={photoSrc} />
             </a>
@@ -4267,7 +4630,7 @@ function galleryPhotosForWorker(assignments: ProductionAssignment[], dealsById: 
   return assignments
     .filter((assignment) => assignment.status === "readyForShipment")
     .flatMap((assignment) => photosWithAssignmentLink(assignment, dealsById.get(assignment.dealId)))
-    .filter((photo) => photo.kind === "lit" || photo.kind === "unlit");
+    .filter((photo) => Boolean(productionPhotoSrc(photo)));
 }
 
 function emptyMoneySummary(): WorkerMoneySummary {
@@ -4419,21 +4782,208 @@ function summarizeProduction(assignments: ProductionAssignment[]) {
   );
 }
 
+function completionDiodeItems(completion: ProductionCompletion): ProductionCompletionCatalogItem[] {
+  const fromItems = normalizeCompletionCatalogLines(completion.diodes, "diode-main", 0);
+  if (fromItems.length) return fromItems;
+  if (completion.diodeCatalogId || completion.diodeCatalogTitle || completion.diodeCount > 0) {
+    return [{
+      id: "legacy-diode",
+      catalogId: completion.diodeCatalogId || "",
+      catalogTitle: completion.diodeCatalogTitle || "",
+      quantity: Number(completion.diodeCount) || 0,
+    }];
+  }
+  return [defaultCompletionCatalogLine("diode-main", 0)];
+}
+
+function completionPowerSupplyItems(completion: ProductionCompletion): ProductionCompletionCatalogItem[] {
+  if (completion.noPowerSupply) return [];
+  const fromItems = normalizeCompletionCatalogLines(completion.powerSupplies, "power-supply-main", 1);
+  if (fromItems.length) return fromItems;
+  if (completion.powerSupplyCatalogId || completion.powerSupplyCatalogTitle || completion.powerSupply) {
+    return [{
+      id: "legacy-power-supply",
+      catalogId: completion.powerSupplyCatalogId || "",
+      catalogTitle: completion.powerSupplyCatalogTitle || completion.powerSupply || "",
+      quantity: 1,
+    }];
+  }
+  return [defaultCompletionCatalogLine("power-supply-main", 1)];
+}
+
+function normalizeCompletionCatalogLines(
+  items: ProductionCompletionCatalogItem[] | undefined,
+  fallbackId: string,
+  fallbackQuantity: number,
+) {
+  if (!Array.isArray(items)) return [];
+  return items.map((item, index) => ({
+    id: item.id || (index === 0 ? fallbackId : createId()),
+    catalogId: item.catalogId || "",
+    catalogTitle: item.catalogTitle || "",
+    quantity: Number.isFinite(Number(item.quantity))
+      ? Math.max(0, Number(item.quantity))
+      : fallbackQuantity,
+  }));
+}
+
+function defaultCompletionCatalogLine(id: string, quantity: number): ProductionCompletionCatalogItem {
+  return {
+    id,
+    catalogId: "",
+    catalogTitle: "",
+    quantity,
+  };
+}
+
+function createCompletionCatalogLine(quantity: number): ProductionCompletionCatalogItem {
+  return {
+    id: createId(),
+    catalogId: "",
+    catalogTitle: "",
+    quantity,
+  };
+}
+
+function updateCompletionCatalogLine(
+  lines: ProductionCompletionCatalogItem[],
+  lineId: string,
+  patch: Partial<ProductionCompletionCatalogItem>,
+) {
+  return lines.map((line) => (
+    line.id === lineId
+      ? {
+          ...line,
+          ...patch,
+          quantity: patch.quantity === undefined ? line.quantity : Math.max(0, Number(patch.quantity) || 0),
+        }
+      : line
+  ));
+}
+
+function removeCompletionCatalogLine(lines: ProductionCompletionCatalogItem[], lineId: string) {
+  return lines.filter((line) => line.id !== lineId);
+}
+
+function completionPatchForDiodes(lines: ProductionCompletionCatalogItem[]): Partial<ProductionCompletion> {
+  const nextLines = normalizeCompletionCatalogLines(lines, "diode-main", 0);
+  const firstLine = firstCompletionCatalogLine(nextLines);
+  return {
+    diodeCatalogId: firstLine?.catalogId || "",
+    diodeCatalogTitle: firstLine?.catalogTitle || "",
+    diodeCount: firstLine?.quantity || 0,
+    diodes: nextLines,
+  };
+}
+
+function completionPatchForPowerSupplies(
+  lines: ProductionCompletionCatalogItem[],
+  noPowerSupply: boolean,
+): Partial<ProductionCompletion> {
+  if (noPowerSupply) {
+    return {
+      noPowerSupply: true,
+      powerSupply: "",
+      powerSupplyCatalogId: "",
+      powerSupplyCatalogTitle: "",
+      powerSupplies: [],
+    };
+  }
+
+  const nextLines = normalizeCompletionCatalogLines(lines, "power-supply-main", 1);
+  const firstLine = firstCompletionCatalogLine(nextLines);
+  return {
+    noPowerSupply: false,
+    powerSupply: firstLine?.catalogTitle || "",
+    powerSupplyCatalogId: firstLine?.catalogId || "",
+    powerSupplyCatalogTitle: firstLine?.catalogTitle || "",
+    powerSupplies: nextLines,
+  };
+}
+
+function firstCompletionCatalogLine(lines: ProductionCompletionCatalogItem[]) {
+  return lines.find(completionCatalogLineHasValue) || lines[0];
+}
+
+function completionCatalogLineHasValue(line: ProductionCompletionCatalogItem) {
+  return Boolean(line.catalogId || line.catalogTitle || line.quantity > 0);
+}
+
+function validCompletionCatalogLines(lines: ProductionCompletionCatalogItem[]) {
+  return lines.filter((line) => Boolean(line.catalogId) && line.quantity > 0);
+}
+
+function completionDiodeSummary(completion: ProductionCompletion) {
+  const validLines = validCompletionCatalogLines(completionDiodeItems(completion));
+  if (!validLines.length) return { title: "-", detail: "не указано" };
+  if (validLines.length === 1) {
+    const line = validLines[0];
+    return {
+      title: line.catalogTitle || line.catalogId || "-",
+      detail: `${line.quantity} шт`,
+    };
+  }
+
+  const total = validLines.reduce((sum, line) => sum + line.quantity, 0);
+  return {
+    title: `${validLines.length} позиции`,
+    detail: `${total} шт всего`,
+  };
+}
+
+function completionPowerSupplySummary(completion: ProductionCompletion) {
+  if (completion.noPowerSupply) return { title: "Не нужен", detail: "" };
+  const validLines = validCompletionCatalogLines(completionPowerSupplyItems(completion));
+  if (!validLines.length) return { title: "-", detail: "не указано" };
+  if (validLines.length === 1) {
+    const line = validLines[0];
+    return {
+      title: line.catalogTitle || line.catalogId || "-",
+      detail: line.quantity > 1 ? `${line.quantity} шт` : "1 шт",
+    };
+  }
+
+  const total = validLines.reduce((sum, line) => sum + line.quantity, 0);
+  return {
+    title: `${validLines.length} позиции`,
+    detail: `${total} шт всего`,
+  };
+}
+
 function canSubmitCompletion(completion: ProductionCompletion) {
   const photoKinds = new Set(completion.photos.map((photo) => photo.kind));
+  const hasDiodes = validCompletionCatalogLines(completionDiodeItems(completion)).length > 0;
+  const hasPowerSupplies =
+    completion.noPowerSupply ||
+    validCompletionCatalogLines(completionPowerSupplyItems(completion)).length > 0;
   return (
-    completion.diodeCount > 0 &&
-    Boolean(completion.diodeCatalogId) &&
-    (completion.noPowerSupply || Boolean(completion.powerSupplyCatalogId)) &&
+    hasDiodes &&
+    hasPowerSupplies &&
     photoSlots.every((slot) => photoKinds.has(slot.kind))
   );
 }
 
 function completionFor(assignment: ProductionAssignment): ProductionCompletion {
-  return {
+  const completion = {
     ...emptyCompletion,
     ...assignment.completion,
     photos: assignment.completion?.photos || [],
+  };
+  const diodes = completionDiodeItems(completion);
+  const powerSupplies = completionPowerSupplyItems(completion);
+  const firstDiode = firstCompletionCatalogLine(diodes);
+  const firstPowerSupply = firstCompletionCatalogLine(powerSupplies);
+
+  return {
+    ...completion,
+    diodeCatalogId: firstDiode?.catalogId || "",
+    diodeCatalogTitle: firstDiode?.catalogTitle || "",
+    diodeCount: firstDiode?.quantity || 0,
+    diodes,
+    powerSupply: completion.noPowerSupply ? "" : firstPowerSupply?.catalogTitle || completion.powerSupply || "",
+    powerSupplyCatalogId: completion.noPowerSupply ? "" : firstPowerSupply?.catalogId || "",
+    powerSupplyCatalogTitle: completion.noPowerSupply ? "" : firstPowerSupply?.catalogTitle || "",
+    powerSupplies: completion.noPowerSupply ? [] : powerSupplies,
   };
 }
 
@@ -4442,16 +4992,35 @@ function completionWithCatalogItems(
   diodeCatalogItems: CatalogItem[],
   powerSupplyCatalogItems: CatalogItem[],
 ): ProductionCompletion {
-  const diode = diodeCatalogItems.find((item) => item.id === completion.diodeCatalogId);
-  const powerSupply = powerSupplyCatalogItems.find((item) => item.id === completion.powerSupplyCatalogId);
+  const diodes = completionDiodeItems(completion).map((line) => {
+    const item = diodeCatalogItems.find((option) => option.id === line.catalogId);
+    return {
+      ...line,
+      catalogTitle: item?.title || line.catalogTitle || "",
+    };
+  });
+  const powerSupplies = completion.noPowerSupply
+    ? []
+    : completionPowerSupplyItems(completion).map((line) => {
+        const item = powerSupplyCatalogItems.find((option) => option.id === line.catalogId);
+        return {
+          ...line,
+          catalogTitle: item?.title || line.catalogTitle || "",
+        };
+      });
+  const firstDiode = firstCompletionCatalogLine(diodes);
+  const firstPowerSupply = firstCompletionCatalogLine(powerSupplies);
 
   return {
     ...completion,
-    diodeCatalogTitle: diode?.title || completion.diodeCatalogTitle || "",
-    powerSupply: completion.noPowerSupply ? "" : powerSupply?.title || completion.powerSupply || "",
-    powerSupplyCatalogTitle: completion.noPowerSupply
-      ? ""
-      : powerSupply?.title || completion.powerSupplyCatalogTitle || "",
+    diodeCatalogId: firstDiode?.catalogId || "",
+    diodeCatalogTitle: firstDiode?.catalogTitle || "",
+    diodeCount: firstDiode?.quantity || 0,
+    diodes,
+    powerSupply: completion.noPowerSupply ? "" : firstPowerSupply?.catalogTitle || completion.powerSupply || "",
+    powerSupplyCatalogId: completion.noPowerSupply ? "" : firstPowerSupply?.catalogId || "",
+    powerSupplyCatalogTitle: completion.noPowerSupply ? "" : firstPowerSupply?.catalogTitle || "",
+    powerSupplies,
   };
 }
 
@@ -4467,29 +5036,42 @@ function calculationWithProductionLighting(
     positions: [],
     updatedAt: new Date().toISOString(),
   };
-  const autoIds = productionLightingPositionIds(assignment.id);
-  const nextPositions = currentCalculation.positions.filter((position) => !autoIds.has(position.id));
-  const diode = diodeCatalogItems.find((item) => item.id === completion.diodeCatalogId);
-  const powerSupply = powerSupplyCatalogItems.find((item) => item.id === completion.powerSupplyCatalogId);
+  const nextPositions = currentCalculation.positions.filter(
+    (position) => !isProductionLightingPositionId(position.id, assignment.id),
+  );
+  const autoPositions: CostPosition[] = [];
 
-  if (diode && completion.diodeCount > 0) {
-    nextPositions.unshift(catalogPositionForCompletion(assignment.id, "diodes", diode, completion.diodeCount));
-  }
+  validCompletionCatalogLines(completionDiodeItems(completion)).forEach((line) => {
+    const diode = diodeCatalogItems.find((item) => item.id === line.catalogId);
+    if (diode) {
+      autoPositions.push(catalogPositionForCompletion(assignment.id, `diode-${line.id}`, diode, line.quantity));
+    }
+  });
 
-  if (powerSupply && !completion.noPowerSupply) {
-    nextPositions.unshift(catalogPositionForCompletion(assignment.id, "power-supply", powerSupply, 1));
+  if (!completion.noPowerSupply) {
+    validCompletionCatalogLines(completionPowerSupplyItems(completion)).forEach((line) => {
+      const powerSupply = powerSupplyCatalogItems.find((item) => item.id === line.catalogId);
+      if (powerSupply) {
+        autoPositions.push(catalogPositionForCompletion(
+          assignment.id,
+          `power-supply-${line.id}`,
+          powerSupply,
+          line.quantity,
+        ));
+      }
+    });
   }
 
   return {
     ...currentCalculation,
     updatedAt: new Date().toISOString(),
-    positions: nextPositions,
+    positions: [...autoPositions, ...nextPositions],
   };
 }
 
 function catalogPositionForCompletion(
   assignmentId: string,
-  kind: "diodes" | "power-supply",
+  kind: string,
   item: CatalogItem,
   qty: number,
 ): CostPosition {
@@ -4506,11 +5088,13 @@ function catalogPositionForCompletion(
   };
 }
 
-function productionLightingPositionIds(assignmentId: string) {
-  return new Set([
-    `production-${assignmentId}-diodes`,
-    `production-${assignmentId}-power-supply`,
-  ]);
+function isProductionLightingPositionId(positionId: string, assignmentId: string) {
+  return (
+    positionId === `production-${assignmentId}-diodes` ||
+    positionId === `production-${assignmentId}-power-supply` ||
+    positionId.startsWith(`production-${assignmentId}-diode-`) ||
+    positionId.startsWith(`production-${assignmentId}-power-supply-`)
+  );
 }
 
 function createEvent(type: ProductionAssignmentEventType, actor: string, note?: string) {
@@ -4633,8 +5217,38 @@ function removeRecordValue<T>(record: Record<string, T>, key: string) {
   return nextRecord;
 }
 
+function photoUploadStatesForAssignment(states: Record<string, PhotoUploadState>, assignmentId: string) {
+  const prefix = `${assignmentId}:`;
+  return Object.fromEntries(
+    Object.entries(states)
+      .filter(([key]) => key.startsWith(prefix))
+      .map(([key, value]) => [key.slice(prefix.length), value]),
+  );
+}
+
 function photoUploadStateKey(assignmentId: string, kind: ProductionPhotoKind) {
   return `${assignmentId}:${kind}`;
+}
+
+function isRequiredPhotoKind(kind: ProductionPhotoKind) {
+  return requiredPhotoKinds.has(kind);
+}
+
+function photoSlotForKind(kind: ProductionPhotoKind) {
+  return photoSlots.find((slot) => slot.kind === kind);
+}
+
+function extraPhotoSlot(photo: ProductionPhoto, index: number): PhotoSlotConfig {
+  return {
+    kind: photo.kind,
+    title: `Фото ${index + 1}`,
+    hint: photo.originalName || photo.name || "Дополнительное фото сделки.",
+    required: false,
+  };
+}
+
+function createExtraPhotoKind(): ProductionPhotoKind {
+  return `${EXTRA_PHOTO_KIND_PREFIX}${createId()}`;
 }
 
 function productionPhotoSrc(photo?: ProductionPhoto) {
@@ -4653,6 +5267,37 @@ function normalizeProductionAssetUrl(value: string) {
   if (base && value.startsWith(`${base}/`)) return value;
   if (value.startsWith("/")) return value;
   return `${import.meta.env.BASE_URL}${value.replace(/^\/+/, "")}`;
+}
+
+function touchDistance(touches: TouchListLike) {
+  const first = touches[0];
+  const second = touches[1];
+  if (!first || !second) return 1;
+  return Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY);
+}
+
+function touchCenter(touches: TouchListLike): ViewerOffset {
+  const first = touches[0];
+  const second = touches[1];
+  if (!first || !second) return { x: 0, y: 0 };
+  return {
+    x: (first.clientX + second.clientX) / 2,
+    y: (first.clientY + second.clientY) / 2,
+  };
+}
+
+function constrainViewerOffset(offset: ViewerOffset, zoom: number, node: HTMLElement | null): ViewerOffset {
+  if (zoom <= 1.01 || !node) return { x: 0, y: 0 };
+  const maxX = Math.round((node.clientWidth * (zoom - 1)) / 2);
+  const maxY = Math.round((node.clientHeight * (zoom - 1)) / 2);
+  return {
+    x: clamp(offset.x, -maxX, maxX),
+    y: clamp(offset.y, -maxY, maxY),
+  };
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function dataUrlToFile(dataUrl: string, fileName: string) {

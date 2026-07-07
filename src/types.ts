@@ -296,7 +296,14 @@ export type ProductionWorkerStatus =
   | "checked"
   | "needsRevision";
 
-export type ProductionPhotoKind = "lit" | "unlit" | "packed";
+export type ProductionPhotoKind = "lit" | "unlit" | "packed" | (string & {});
+
+export type ProductionCompletionCatalogItem = {
+  id: string;
+  catalogId?: string;
+  catalogTitle?: string;
+  quantity: number;
+};
 
 export type ProductionPhoto = {
   id?: string;
@@ -322,9 +329,11 @@ export type ProductionCompletion = {
   diodeCount: number;
   diodeCatalogId?: string;
   diodeCatalogTitle?: string;
+  diodes?: ProductionCompletionCatalogItem[];
   powerSupply: string;
   powerSupplyCatalogId?: string;
   powerSupplyCatalogTitle?: string;
+  powerSupplies?: ProductionCompletionCatalogItem[];
   noPowerSupply: boolean;
   note: string;
   photos: ProductionPhoto[];
