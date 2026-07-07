@@ -11,6 +11,7 @@ return [
     // Automatic stale /data/deals.json sync does not need this token.
     'BITRIX_SYNC_TOKEN' => '',
     'BITRIX_SYNC_INTERVAL_SECONDS' => 300,
+    'BITRIX_AUTO_SYNC_ON_READ' => '0',
 
     'BITRIX_TZ_STAGE_ID' => 'DETAILS',
     'BITRIX_TZ_APPROVAL_STAGE_ID' => '13',

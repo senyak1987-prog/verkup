@@ -370,6 +370,7 @@ function DealOverviewCard({
   const cost = calculation ? finalCost(calculation) : 0;
   const dealProfit = profit(deal, calculation, agentRatio);
   const previewPhotos = previewInstallationPhotos(installations);
+  const bitrixTechSpecFiles = deal.techSpecFiles?.length ? deal.techSpecFiles : deal.installationFiles || [];
 
   return (
     <article className="deal-overview-card" data-deal-id={deal.id}>
@@ -470,8 +471,8 @@ function DealOverviewCard({
           <span>
             {spec
               ? `ТЗ: ${spec.draft.items.length} изделий`
-              : deal.techSpecFiles?.length
-                ? `ТЗ из Bitrix: ${deal.techSpecFiles.length}`
+              : bitrixTechSpecFiles.length
+                ? `ТЗ из Bitrix: ${bitrixTechSpecFiles.length}`
                 : "ТЗ еще не заполнено"}
           </span>
         </div>

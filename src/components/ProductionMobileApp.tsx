@@ -4159,7 +4159,7 @@ function TechSpecInline({
   expanded?: boolean;
 }) {
   if (!spec) {
-    const bitrixFiles = deal.techSpecFiles?.length ? deal.techSpecFiles : [];
+    const bitrixFiles = deal.techSpecFiles?.length ? deal.techSpecFiles : deal.installationFiles || [];
     const preview = bitrixFiles.find((file) => file.type === "image") || bitrixFiles[0];
 
     return (

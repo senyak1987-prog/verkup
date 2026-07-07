@@ -6,6 +6,7 @@ const BITRIX_SYNC_LOCK_SECONDS = 60;
 function maybe_sync_bitrix_deals()
 {
     if (!bitrix_config('BITRIX_WEBHOOK_URL', '')) return;
+    if (!bitrix_auto_sync_on_read()) return;
 
     try {
         sync_bitrix_deals(false);
@@ -75,6 +76,12 @@ function sync_bitrix_deals($force = false)
         flock($lock, LOCK_UN);
         fclose($lock);
     }
+}
+
+function bitrix_auto_sync_on_read()
+{
+    $value = strtolower(trim((string)bitrix_config('BITRIX_AUTO_SYNC_ON_READ', '0')));
+    return in_array($value, ['1', 'true', 'yes', 'on'], true);
 }
 
 function sync_bitrix_deal($dealId)
