@@ -320,6 +320,209 @@ function import_bitrix_deal_tech_spec_file_sets($dealId, $techSpecFiles, $instal
     ];
 }
 
+function handle_bitrix_tech_spec_file_push()
+{
+    $body = request_json_if_possible();
+    $dealId = bitrix_extract_deal_id($body);
+    if ($dealId === '') $dealId = bitrix_extract_deal_id($_POST);
+    if ($dealId === '') {
+        $dealId = trim((string)first_defined(
+            array_get($_GET, 'dealId', ''),
+            array_get($_GET, 'deal_id', ''),
+            array_get($_GET, 'ID', '')
+        ));
+    }
+    $dealId = sanitize_segment($dealId);
+    if ($dealId === '') throw new RuntimeException('Deal id is required');
+
+    $incomingFiles = bitrix_pushed_files_from_request($body);
+    if (!count($incomingFiles)) throw new RuntimeException('No file payload received');
+
+    $summary = [
+        'downloaded' => 0,
+        'failed' => 0,
+        'kept' => 0,
+        'total' => 0,
+    ];
+    $storedFiles = import_bitrix_deal_file_list($dealId, $incomingFiles, true, $summary);
+    $storedFiles = array_values(array_filter($storedFiles, function ($file) {
+        return is_array($file) && array_get($file, 'localUrl', '') !== '';
+    }));
+
+    $entry = bitrix_tech_spec_index_entry($dealId);
+    $techSpecFiles = bitrix_merge_file_arrays(
+        is_array($entry) ? array_get($entry, 'techSpecFiles', []) : [],
+        $storedFiles
+    );
+    $installationFiles = is_array($entry) ? bitrix_file_array(array_get($entry, 'installationFiles', [])) : [];
+    $entry = upsert_bitrix_tech_spec_index_from_files($dealId, $techSpecFiles, $installationFiles, 'push');
+    update_bitrix_deal_tech_spec_files_in_cache($dealId, $entry);
+
+    return [
+        'success' => true,
+        'dealId' => $dealId,
+        'stored' => count($storedFiles),
+        'summary' => $summary,
+        'techSpecFiles' => bitrix_file_array($techSpecFiles),
+        'checkedAt' => array_get($entry, 'checkedAt', gmdate('c')),
+    ];
+}
+
+function bitrix_pushed_files_from_request($body)
+{
+    $files = [];
+    if (is_array($body)) {
+        $bodyFiles = array_get($body, 'files', null);
+        if (is_array($bodyFiles)) {
+            foreach ($bodyFiles as $index => $file) {
+                if (is_array($file)) $files[] = bitrix_normalize_pushed_file($file, $index);
+            }
+        } elseif (bitrix_request_has_inline_file_payload($body)) {
+            $files[] = bitrix_normalize_pushed_file($body, 0);
+        }
+    }
+
+    foreach (bitrix_uploaded_files_from_request() as $file) {
+        $files[] = $file;
+    }
+
+    return array_values(array_filter($files, 'is_array'));
+}
+
+function bitrix_request_has_inline_file_payload($value)
+{
+    if (!is_array($value)) return false;
+    foreach (['fileData', 'FILE_DATA', 'fileBase64', 'base64', 'contentBase64', 'CONTENT_BASE64', 'dataUrl', 'url', 'downloadUrl', 'fileUrl'] as $key) {
+        if (array_get($value, $key, null) !== null && array_get($value, $key, '') !== '') return true;
+    }
+    return false;
+}
+
+function bitrix_normalize_pushed_file($file, $index)
+{
+    $id = first_text(array_get($file, 'id', ''), array_get($file, 'ID', ''));
+    if ($id === '') $id = 'push_' . substr(sha1(json_encode($file) . '|' . $index . '|' . microtime(true)), 0, 16);
+    $name = first_text(
+        array_get($file, 'name', ''),
+        array_get($file, 'fileName', ''),
+        array_get($file, 'filename', ''),
+        array_get($file, 'TITLE', ''),
+        array_get($file, 'NAME', ''),
+        is_array(array_get($file, 'fileData', null)) ? array_get(array_get($file, 'fileData', []), 0, '') : ''
+    );
+    if ($name === '') $name = 'Bitrix tech spec ' . ($index + 1);
+    $url = first_text(array_get($file, 'url', ''), array_get($file, 'downloadUrl', ''), array_get($file, 'fileUrl', ''));
+    return [
+        'id' => (string)$id,
+        'name' => $name,
+        'url' => $url,
+        'downloadUrl' => first_text(array_get($file, 'downloadUrl', ''), $url),
+        'bitrixUrl' => first_text(array_get($file, 'bitrixUrl', ''), $url),
+        'bitrixDownloadUrl' => first_text(array_get($file, 'bitrixDownloadUrl', ''), array_get($file, 'downloadUrl', ''), $url),
+        'field' => sanitize_bitrix_field_name((string)first_text(array_get($file, 'field', ''), array_get($file, 'fieldName', ''), 'BITRIX_PUSH')),
+        'label' => first_text(array_get($file, 'label', ''), 'ТЗ из Bitrix'),
+        'mimeType' => first_text(array_get($file, 'mimeType', ''), array_get($file, 'type', '')),
+        'source' => 'techSpec',
+        'type' => preg_match('/\.(png|jpe?g|webp|gif)$/i', $name) || preg_match('/image/i', (string)array_get($file, 'mimeType', '')) ? 'image' : 'file',
+        'fileData' => first_defined(
+            array_get($file, 'fileData', null),
+            array_get($file, 'FILE_DATA', null),
+            array_get($file, 'fileBase64', null),
+            array_get($file, 'base64', null),
+            array_get($file, 'contentBase64', null),
+            array_get($file, 'CONTENT_BASE64', null),
+            array_get($file, 'dataUrl', null)
+        ),
+    ];
+}
+
+function bitrix_uploaded_files_from_request()
+{
+    if (!isset($_FILES) || !is_array($_FILES) || !count($_FILES)) return [];
+    $result = [];
+    foreach ($_FILES as $field => $entry) {
+        foreach (bitrix_normalize_uploaded_file_entry($field, $entry) as $file) {
+            $result[] = $file;
+        }
+    }
+    return $result;
+}
+
+function bitrix_normalize_uploaded_file_entry($field, $entry)
+{
+    if (!is_array($entry)) return [];
+    $names = array_get($entry, 'name', []);
+    if (is_array($names)) {
+        $items = [];
+        foreach ($names as $index => $name) {
+            $items[] = bitrix_uploaded_file_payload(
+                $field,
+                $name,
+                array_get(array_get($entry, 'tmp_name', []), $index, ''),
+                array_get(array_get($entry, 'type', []), $index, ''),
+                array_get(array_get($entry, 'error', []), $index, UPLOAD_ERR_NO_FILE),
+                $index
+            );
+        }
+        return array_values(array_filter($items));
+    }
+
+    $single = bitrix_uploaded_file_payload(
+        $field,
+        array_get($entry, 'name', ''),
+        array_get($entry, 'tmp_name', ''),
+        array_get($entry, 'type', ''),
+        array_get($entry, 'error', UPLOAD_ERR_NO_FILE),
+        0
+    );
+    return $single ? [$single] : [];
+}
+
+function bitrix_uploaded_file_payload($field, $name, $tmpName, $mime, $error, $index)
+{
+    if ((int)$error !== UPLOAD_ERR_OK || !is_uploaded_file((string)$tmpName)) return null;
+    $bytes = file_get_contents((string)$tmpName);
+    if ($bytes === false || $bytes === '') return null;
+    if (strlen($bytes) > BITRIX_TECH_SPEC_MAX_DOWNLOAD_BYTES) {
+        throw new RuntimeException('file is too large');
+    }
+    $safeName = sanitize_original_name((string)$name);
+    $id = 'push_' . substr(sha1($field . '|' . $safeName . '|' . $bytes), 0, 16);
+    $detectedMime = bitrix_detect_mime_bytes($bytes, (string)$mime, $safeName);
+    return [
+        'id' => $id,
+        'name' => $safeName !== '' ? $safeName : ('Bitrix tech spec ' . ($index + 1)),
+        'field' => sanitize_bitrix_field_name((string)$field) ?: 'BITRIX_PUSH',
+        'label' => 'ТЗ из Bitrix',
+        'mimeType' => $detectedMime,
+        'source' => 'techSpec',
+        'type' => strpos($detectedMime, 'image/') === 0 ? 'image' : 'file',
+        'rawBytes' => $bytes,
+    ];
+}
+
+function bitrix_merge_file_arrays()
+{
+    $result = [];
+    $seen = [];
+    foreach (func_get_args() as $list) {
+        foreach (bitrix_file_array($list) as $file) {
+            if (!is_array($file)) continue;
+            $key = implode('|', array_filter([
+                (string)array_get($file, 'field', ''),
+                (string)array_get($file, 'id', ''),
+                (string)array_get($file, 'localUrl', ''),
+                (string)array_get($file, 'url', ''),
+                (string)array_get($file, 'name', ''),
+            ]));
+            if ($key === '' || isset($seen[$key])) continue;
+            $seen[$key] = true;
+            $result[] = $file;
+        }
+    }
+    return $result;
+}
+
 function import_bitrix_deal_file_list($dealId, $files, $force, &$summary)
 {
     $files = is_array($files) ? array_values($files) : [];
@@ -355,7 +558,10 @@ function import_bitrix_deal_file($dealId, $file, $force = false)
     }
 
     try {
-        $downloaded = bitrix_download_deal_file_bytes($dealId, $file);
+        $downloaded = bitrix_inline_file_bytes($file);
+        if (!$downloaded) {
+            $downloaded = bitrix_download_deal_file_bytes($dealId, $file);
+        }
         $stored = store_bitrix_tech_spec_file_bytes(
             $dealId,
             $file,
@@ -369,6 +575,7 @@ function import_bitrix_deal_file($dealId, $file, $force = false)
         $file['size'] = array_get($stored, 'size', strlen((string)array_get($downloaded, 'bytes', '')));
         $file['downloadedAt'] = gmdate('c');
         $file['type'] = bitrix_file_type_from_mime((string)array_get($file, 'mimeType', ''), (string)array_get($file, 'name', ''));
+        $file = clean_bitrix_file_for_storage($file);
         unset($file['downloadError']);
         return ['file' => $file, 'status' => 'downloaded'];
     } catch (Exception $error) {
@@ -399,6 +606,80 @@ function normalize_bitrix_file_for_import($dealId, $file)
         $file['downloadUrl'] = $bitrixDownloadUrl ?: array_get($file, 'url', '');
     }
     return $file;
+}
+
+function bitrix_inline_file_bytes($file)
+{
+    if (array_key_exists('rawBytes', $file)) {
+        $bytes = (string)array_get($file, 'rawBytes', '');
+        if ($bytes !== '') {
+            if (strlen($bytes) > BITRIX_TECH_SPEC_MAX_DOWNLOAD_BYTES) {
+                throw new RuntimeException('file is too large');
+            }
+            return [
+                'bytes' => $bytes,
+                'mimeType' => bitrix_detect_mime_bytes(
+                    $bytes,
+                    (string)array_get($file, 'mimeType', ''),
+                    (string)array_get($file, 'name', '')
+                ),
+            ];
+        }
+    }
+
+    $payloads = [
+        array_get($file, 'fileData', null),
+        array_get($file, 'FILE_DATA', null),
+        array_get($file, 'fileBase64', null),
+        array_get($file, 'base64', null),
+        array_get($file, 'contentBase64', null),
+        array_get($file, 'CONTENT_BASE64', null),
+        array_get($file, 'dataUrl', null),
+    ];
+
+    foreach ($payloads as $payload) {
+        $decoded = bitrix_decode_inline_file_payload($payload, (string)array_get($file, 'name', ''));
+        if ($decoded) return $decoded;
+    }
+
+    return null;
+}
+
+function bitrix_decode_inline_file_payload($payload, $name = '')
+{
+    if (is_array($payload)) {
+        $candidateName = first_text(array_get($payload, 0, ''), array_get($payload, 'name', ''), $name);
+        $candidateData = first_text(
+            array_get($payload, 1, ''),
+            array_get($payload, 'base64', ''),
+            array_get($payload, 'fileBase64', ''),
+            array_get($payload, 'contentBase64', ''),
+            array_get($payload, 'data', '')
+        );
+        return bitrix_decode_inline_file_payload($candidateData, $candidateName);
+    }
+
+    $text = trim((string)$payload);
+    if ($text === '') return null;
+
+    $mime = '';
+    if (preg_match('#^data:([^;,]+);base64,(.+)$#is', $text, $match)) {
+        $mime = trim((string)$match[1]);
+        $text = trim((string)$match[2]);
+    }
+
+    $text = preg_replace('/\s+/', '', $text);
+    $bytes = base64_decode($text, true);
+    if ($bytes === false || $bytes === '') return null;
+    if (strlen($bytes) > BITRIX_TECH_SPEC_MAX_DOWNLOAD_BYTES) {
+        throw new RuntimeException('file is too large');
+    }
+
+    if ($mime === '') $mime = bitrix_detect_mime_bytes($bytes, '', $name);
+    return [
+        'bytes' => $bytes,
+        'mimeType' => $mime,
+    ];
 }
 
 function bitrix_download_deal_file_bytes($dealId, $file)
@@ -760,8 +1041,8 @@ function bitrix_tech_spec_status_payload($techSpecFiles, $installationFiles, $ch
 function bitrix_tech_spec_index_entry_from_files($dealId, $techSpecFiles, $installationFiles, $source = 'sync')
 {
     $id = trim((string)$dealId);
-    $techSpecFiles = is_array($techSpecFiles) ? array_values($techSpecFiles) : [];
-    $installationFiles = is_array($installationFiles) ? array_values($installationFiles) : [];
+    $techSpecFiles = bitrix_file_array($techSpecFiles);
+    $installationFiles = bitrix_file_array($installationFiles);
     $status = bitrix_tech_spec_status_payload($techSpecFiles, $installationFiles);
 
     return [
@@ -911,7 +1192,27 @@ function update_bitrix_deal_tech_spec_files_in_cache($dealId, $entry)
 
 function bitrix_file_array($value)
 {
-    return is_array($value) ? array_values($value) : [];
+    if (!is_array($value)) return [];
+    return array_values(array_map('clean_bitrix_file_for_storage', $value));
+}
+
+function clean_bitrix_file_for_storage($file)
+{
+    if (!is_array($file)) return $file;
+    foreach ([
+        'base64',
+        'contentBase64',
+        'CONTENT_BASE64',
+        'dataUrl',
+        'fileBase64',
+        'fileData',
+        'FILE_DATA',
+        'rawBytes',
+        'bytes',
+    ] as $key) {
+        unset($file[$key]);
+    }
+    return $file;
 }
 
 function sanitize_bitrix_field_name($value)
@@ -2103,6 +2404,12 @@ function collect_bitrix_deal_files($value, &$files, $bitrixDomain)
     }
 
     if (is_array($value)) {
+        $inlineFile = bitrix_inline_file_from_value($value, $bitrixDomain, count($files) + 1);
+        if ($inlineFile) {
+            $files[] = $inlineFile;
+            return;
+        }
+
         $url = first_text(
             array_get($value, 'URL', ''),
             array_get($value, 'SRC', ''),
@@ -2181,6 +2488,47 @@ function collect_bitrix_deal_files($value, &$files, $bitrixDomain)
             'type' => preg_match('/\.(png|jpe?g|webp|gif)$/i', $name) ? 'image' : 'file',
         ];
     }
+}
+
+function bitrix_inline_file_from_value($value, $bitrixDomain, $index)
+{
+    if (!is_array($value)) return null;
+    $inlinePayload = first_defined(
+        array_get($value, 'fileData', null),
+        array_get($value, 'FILE_DATA', null),
+        array_get($value, 'fileBase64', null),
+        array_get($value, 'base64', null),
+        array_get($value, 'contentBase64', null),
+        array_get($value, 'CONTENT_BASE64', null),
+        array_get($value, 'dataUrl', null)
+    );
+    if ($inlinePayload === null || $inlinePayload === '') return null;
+
+    $id = first_text(array_get($value, 'ID', ''), array_get($value, 'id', ''), array_get($value, 'FILE_ID', ''), array_get($value, 'fileId', ''));
+    if ($id === '') $id = substr(sha1(json_encode($value) . '|' . $index), 0, 16);
+    $name = first_text(
+        array_get($value, 'ORIGINAL_NAME', ''),
+        array_get($value, 'FILE_NAME', ''),
+        array_get($value, 'NAME', ''),
+        array_get($value, 'TITLE', ''),
+        array_get($value, 'name', ''),
+        is_array($inlinePayload) ? array_get($inlinePayload, 0, '') : ''
+    );
+    if ($name === '') $name = 'Bitrix file ' . $id;
+    $mime = first_text(array_get($value, 'CONTENT_TYPE', ''), array_get($value, 'mimeType', ''), array_get($value, 'type', ''));
+    $url = absolute_bitrix_file_url('/bitrix/tools/crm_show_file.php?fileId=' . rawurlencode((string)$id), $bitrixDomain);
+
+    return [
+        'id' => (string)$id,
+        'name' => $name,
+        'url' => $url,
+        'downloadUrl' => $url,
+        'bitrixUrl' => $url,
+        'bitrixDownloadUrl' => $url,
+        'mimeType' => $mime,
+        'type' => preg_match('/\.(png|jpe?g|webp|gif)$/i', $name) || preg_match('/image/i', $mime) ? 'image' : 'file',
+        'fileData' => $inlinePayload,
+    ];
 }
 
 function clean_bitrix_responsible_card($user)

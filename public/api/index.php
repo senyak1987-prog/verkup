@@ -104,6 +104,11 @@ try {
         json_response(read_bitrix_tech_spec_index(), 200);
     }
 
+    if ($method === 'POST' && $path === '/bitrix/push-tech-spec-file') {
+        require_bitrix_sync_token();
+        json_response(handle_bitrix_tech_spec_file_push(), 200);
+    }
+
     if ($method === 'GET' && preg_match('#^/bitrix/file/([^/]+)/([^/]+)$#', $path, $match)) {
         $dealId = sanitize_segment($match[1]);
         $fileId = sanitize_segment($match[2]);
