@@ -2067,7 +2067,7 @@ export function TechSpecBuilder({
       return;
     }
     setBitrixFilesState("loading");
-    void loadBitrixDealFiles({ apiUrl }, deal.id, { importFiles: true, refresh: true })
+    void loadBitrixDealFiles({ apiUrl }, deal.id, { refresh: true })
       .then((result) => {
         const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];
         setLoadedBitrixFiles(files);
@@ -2085,7 +2085,7 @@ export function TechSpecBuilder({
 
     let canceled = false;
     setBitrixFilesState("loading");
-    void loadBitrixDealFiles({ apiUrl }, deal.id, { importFiles: true })
+    void loadBitrixDealFiles({ apiUrl }, deal.id)
       .then((result) => {
         if (canceled) return;
         const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];

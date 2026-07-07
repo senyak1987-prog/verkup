@@ -8057,7 +8057,7 @@ tr.selected td,
 
 .production-section-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   border: 1px solid #dce4ee;
   border-radius: 8px;

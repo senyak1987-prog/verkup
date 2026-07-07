@@ -39,7 +39,6 @@ import {
   deleteProductionPhoto,
   loadBitrixDealFiles,
   markProductionNotificationRead,
-  moveDealToStage,
   sendProductionPush,
   startProductionWork,
   uploadProductionPhoto,
@@ -88,7 +87,7 @@ import {
 } from "./TechSpecBuilder";
 
 type ProductionView = "supervisor" | "worker";
-type SupervisorTab = "active" | "done";
+type SupervisorTab = "queue" | "assembly" | "review";
 type WorkerTab = "assigned" | "inProgress" | "ready" | "money" | "gallery";
 type WorkerDealTab = Extract<WorkerTab, "assigned" | "inProgress" | "ready">;
 type ProductionTheme = "day" | "night";
@@ -266,7 +265,6 @@ export function ProductionMobileApp({
   installAvailable = false,
   onChange,
   onCalculationChange,
-  onDealStageChange,
   onInstallApp,
   onLogout,
   onOpenDeal,
@@ -288,7 +286,7 @@ export function ProductionMobileApp({
   const swipeStartTimeRef = useRef<number | undefined>(undefined);
   const swipeLastTimeRef = useRef<number | undefined>(undefined);
   const horizontalSwipeIntentRef = useRef(false);
-  const [supervisorTab, setSupervisorTab] = useState<SupervisorTab>("active");
+  const [supervisorTab, setSupervisorTab] = useState<SupervisorTab>("queue");
   const [workerTab, setWorkerTab] = useState<WorkerTab>("assigned");
   const [lastWorkerDealTab, setLastWorkerDealTab] = useState<WorkerDealTab>("assigned");
   const [workerSwipeOffset, setWorkerSwipeOffset] = useState(0);
@@ -423,22 +421,19 @@ export function ProductionMobileApp({
   );
 
   const productionDeals = useMemo(() => {
-    const assignedDealIds = new Set(storedProduction.assignments.map((assignment) => assignment.dealId));
     return deals
-      .filter((deal) => {
-        const stage = stageCodeForDeal(deal);
-        if (assignedDealIds.has(deal.id)) return true;
-        if (stage === "production") return true;
-        return currentAccessRole === "leader" && stage === "launch";
-      })
+      .filter((deal) => stageCodeForDeal(deal) === "production")
       .sort(compareDealsByDeadline);
-  }, [currentAccessRole, deals, storedProduction.assignments]);
+  }, [deals]);
+
+  const supervisorDealCounts = useMemo(
+    () => summarizeSupervisorDeals(productionDeals, techSpecs, storedProduction.assignments),
+    [productionDeals, storedProduction.assignments, techSpecs],
+  );
 
   const visibleSupervisorDeals = useMemo(() => {
     const byTab = productionDeals.filter((deal) => {
-      const done = hasSupervisorDoneAssignments(deal.id, techSpecs.get(deal.id), storedProduction.assignments);
-      if (supervisorTab === "done") return done;
-      return hasSupervisorActiveAssignments(deal.id, techSpecs.get(deal.id), storedProduction.assignments) || !done;
+      return supervisorTabForDeal(deal.id, techSpecs.get(deal.id), storedProduction.assignments) === supervisorTab;
     });
 
     return byTab.filter((deal) => {
@@ -452,7 +447,6 @@ export function ProductionMobileApp({
         deal.classification,
         deal.type,
         deal.responsible,
-        stageLabels[stageCodeForDeal(deal)],
         employeeNames.join(" "),
       ]), query);
     });
@@ -473,11 +467,6 @@ export function ProductionMobileApp({
       .filter((assignment) => assignment.employeeId === staffDetailEmployeeId)
       .sort((first, second) => compareAssignmentsByDealDeadline(first, second, dealsById));
   }, [dealsById, staffDetailEmployeeId, storedProduction.assignments]);
-
-  const productionStats = useMemo(
-    () => summarizeProduction(storedProduction.assignments),
-    [storedProduction.assignments],
-  );
 
   const selectedDeals = visibleSupervisorDeals.filter((deal) => selectedDealIds.has(deal.id));
   const selectedEmployee =
@@ -1134,22 +1123,6 @@ export function ProductionMobileApp({
     }
   }
 
-  async function changeDealStage(deal: Deal, stage: DealStageCode) {
-    const currentStage = stageCodeForDeal(deal);
-    if (currentStage === stage) return;
-
-    try {
-      if (saveApiUrl) {
-        await moveDealToStage({ apiUrl: saveApiUrl }, deal.id, stage);
-      }
-      onDealStageChange?.(deal.id, stage);
-      setNotice(`Стадия сделки #${deal.number}: ${stageLabels[stage]}`);
-    } catch {
-      setNotice("Стадию сделки не удалось изменить. Проверьте подключение к серверу.");
-    }
-    window.setTimeout(() => setNotice(""), 2600);
-  }
-
   function openStaffAssignmentDeal(assignment: ProductionAssignment) {
     const deal = dealsById.get(assignment.dealId);
     if (!deal) return;
@@ -1163,8 +1136,7 @@ export function ProductionMobileApp({
   }
 
   function openDealTechSpecInProduction(deal: Deal) {
-    const done = hasSupervisorDoneAssignments(deal.id, techSpecs.get(deal.id), storedProduction.assignments);
-    setSupervisorTab(done ? "done" : "active");
+    setSupervisorTab(supervisorTabForDeal(deal.id, techSpecs.get(deal.id), storedProduction.assignments));
     setExpandedDealIds((current) => {
       const next = new Set(current);
       next.add(deal.id);
@@ -2430,25 +2402,33 @@ export function ProductionMobileApp({
               <p>Назначение макетчиков, контроль готовности и проверка выполненных сделок.</p>
             </section>
             <section className="production-kpis" aria-label="Сводка производства">
-              <ProductionKpi label="К запуску" value={productionDeals.length} />
-              <ProductionKpi label="На сборке" value={productionStats.inProgress} />
-              <ProductionKpi label="На проверке" value={productionStats.submitted} />
-              <ProductionKpi label="Готово к отгрузке" value={productionStats.readyForShipment} />
+              <ProductionKpi label="На сборку" value={supervisorDealCounts.queue} />
+              <ProductionKpi label="На сборке" value={supervisorDealCounts.assembly} />
+              <ProductionKpi label="На проверке" value={supervisorDealCounts.review} />
+              <ProductionKpi label="Готово к отгрузке" value={supervisorDealCounts.readyForShipment} />
             </section>
 
             <div className="production-section-tabs" role="tablist" aria-label="Сделки">
               <button
-                aria-selected={supervisorTab === "active"}
-                className={supervisorTab === "active" ? "active" : ""}
-                onClick={() => setSupervisorTab("active")}
+                aria-selected={supervisorTab === "queue"}
+                className={supervisorTab === "queue" ? "active" : ""}
+                onClick={() => setSupervisorTab("queue")}
                 type="button"
               >
-                Сделки в работе
+                Сделки на сборку
               </button>
               <button
-                aria-selected={supervisorTab === "done"}
-                className={supervisorTab === "done" ? "active" : ""}
-                onClick={() => setSupervisorTab("done")}
+                aria-selected={supervisorTab === "assembly"}
+                className={supervisorTab === "assembly" ? "active" : ""}
+                onClick={() => setSupervisorTab("assembly")}
+                type="button"
+              >
+                На сборке
+              </button>
+              <button
+                aria-selected={supervisorTab === "review"}
+                className={supervisorTab === "review" ? "active" : ""}
+                onClick={() => setSupervisorTab("review")}
                 type="button"
               >
                 На проверке
@@ -2487,11 +2467,15 @@ export function ProductionMobileApp({
                     productionWorkers={productionWorkers}
                     onAssignDeal={(employeeId) => assignDeals([deal.id], employeeId)}
                     onAssignPart={(itemId, employeeId) => assignDealPart(deal.id, itemId, employeeId)}
-                    onStageChange={(stage) => void changeDealStage(deal, stage)}
                     onToggle={() => toggleDealExpanded(deal.id)}
                     onDeletePhoto={(reviewAssignment, photo) => void deleteAssignmentPhoto(reviewAssignment, photo)}
                     onMarkReady={(reviewAssignment) => markReadyForShipment(reviewAssignment)}
-                    onOpenDeal={
+                    onOpenCost={
+                      canAccessCosting(currentUser) && onOpenDeal
+                        ? () => onOpenDeal(deal.id, "cost")
+                        : undefined
+                    }
+                    onOpenTechSpec={
                       canAccessCosting(currentUser) && onOpenDeal
                         ? () => onOpenDeal(deal.id, "techSpec")
                         : undefined
@@ -2684,10 +2668,10 @@ function SupervisorDealCard({
   onAssignDeal,
   onAssignPart,
   onDeletePhoto,
-  onStageChange,
   onToggle,
   onMarkReady,
-  onOpenDeal,
+  onOpenCost,
+  onOpenTechSpec,
 }: {
   assignment?: ProductionAssignment;
   assignmentsByPart: Map<string, ProductionAssignment>;
@@ -2701,12 +2685,11 @@ function SupervisorDealCard({
   onAssignDeal: (employeeId: string) => void;
   onAssignPart: (itemId: string, employeeId: string) => void;
   onDeletePhoto: (assignment: ProductionAssignment, photo: ProductionPhoto) => void;
-  onStageChange: (stage: DealStageCode) => void;
   onToggle: () => void;
   onMarkReady: (assignment: ProductionAssignment) => void;
-  onOpenDeal?: () => void;
+  onOpenCost?: () => void;
+  onOpenTechSpec?: () => void;
 }) {
-  const currentStage = stageCodeForDeal(deal);
   const assignedWorkerId =
     assignment && productionWorkers.some((worker) => worker.id === assignment.employeeId)
       ? assignment.employeeId
@@ -2758,9 +2741,14 @@ function SupervisorDealCard({
               <span>Не назначена</span>
             </div>
           )}
-          {onOpenDeal ? (
-            <button className="secondary production-toggle-tech-spec" onClick={onOpenDeal} type="button">
+          {onOpenTechSpec ? (
+            <button className="secondary production-toggle-tech-spec" onClick={onOpenTechSpec} type="button">
               Перейти в ТЗ
+            </button>
+          ) : null}
+          {onOpenCost ? (
+            <button className="secondary production-toggle-tech-spec" onClick={onOpenCost} type="button">
+              Себес
             </button>
           ) : null}
           <label className="production-worker-assign">
@@ -2781,17 +2769,6 @@ function SupervisorDealCard({
               ))}
             </select>
           </label>
-          <select
-            aria-label="Изменить стадию сделки"
-            onChange={(event) => onStageChange(event.target.value as DealStageCode)}
-            value={currentStage}
-          >
-            {(["tz", "tzApproval", "launch", "production", "defect"] as DealStageCode[]).map((stage) => (
-              <option key={stage} value={stage}>
-                {stageLabels[stage]}
-              </option>
-            ))}
-          </select>
         </div>
       </div>
 
@@ -4361,7 +4338,7 @@ function TechSpecInline({
     }
 
     setBitrixFilesState("loading");
-    void loadBitrixDealFiles({ apiUrl }, deal.id, { importFiles: true, refresh: true })
+    void loadBitrixDealFiles({ apiUrl }, deal.id, { refresh: true })
       .then((result) => {
         const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];
         setLoadedBitrixFiles(files);
@@ -4862,25 +4839,54 @@ function isDealReadyForShipment(
   return currentAssignments.length > 0 && currentAssignments.every((assignment) => assignment.status === "readyForShipment");
 }
 
-function hasSupervisorDoneAssignments(
+function supervisorTabForDeal(
   dealId: string,
   spec: DealTechSpec | undefined,
   assignments: ProductionAssignment[],
-) {
+): SupervisorTab {
   const currentAssignments = currentAssignmentsForDeal(assignments, dealId, spec);
-  return currentAssignments.some(
-    (assignment) => assignment.status === "submitted" || assignment.status === "readyForShipment",
-  );
+  if (
+    currentAssignments.some(
+      (assignment) => assignment.status === "submitted" || assignment.status === "readyForShipment",
+    )
+  ) {
+    return "review";
+  }
+  if (
+    currentAssignments.some(
+      (assignment) => assignment.status === "assigned" || assignment.status === "inProgress",
+    )
+  ) {
+    return "assembly";
+  }
+  return "queue";
 }
 
-function hasSupervisorActiveAssignments(
-  dealId: string,
-  spec: DealTechSpec | undefined,
+function summarizeSupervisorDeals(
+  deals: Deal[],
+  techSpecs: Map<string, DealTechSpec>,
   assignments: ProductionAssignment[],
 ) {
-  const currentAssignments = currentAssignmentsForDeal(assignments, dealId, spec);
-  return currentAssignments.some(
-    (assignment) => assignment.status === "assigned" || assignment.status === "inProgress",
+  return deals.reduce(
+    (summary, deal) => {
+      const currentAssignments = currentAssignmentsForDeal(assignments, deal.id, techSpecs.get(deal.id));
+      const tab = supervisorTabForDeal(deal.id, techSpecs.get(deal.id), assignments);
+      summary[tab] += 1;
+      if (
+        currentAssignments.some(
+          (assignment) => assignment.status === "readyForShipment",
+        )
+      ) {
+        summary.readyForShipment += 1;
+      }
+      return summary;
+    },
+    {
+      assembly: 0,
+      queue: 0,
+      readyForShipment: 0,
+      review: 0,
+    } as Record<SupervisorTab, number> & { readyForShipment: number },
   );
 }
 
@@ -5058,21 +5064,6 @@ function parseDeadlineDate(value?: string) {
 
 function startOfLocalDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function summarizeProduction(assignments: ProductionAssignment[]) {
-  return assignments.reduce(
-    (acc, assignment) => {
-      acc[assignment.status] += 1;
-      return acc;
-    },
-    {
-      assigned: 0,
-      inProgress: 0,
-      submitted: 0,
-      readyForShipment: 0,
-    } as Record<ProductionAssignmentStatus, number>,
-  );
 }
 
 function completionDiodeItems(completion: ProductionCompletion): ProductionCompletionCatalogItem[] {
