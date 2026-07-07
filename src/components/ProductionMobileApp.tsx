@@ -3334,13 +3334,26 @@ function WorkerGalleryPanel({ galleryPhotos }: { galleryPhotos: ProductionPhoto[
         {!dealGroups.length ? <span>Галерея готовых работ пока пустая</span> : null}
       </div>
       {viewer ? (
-        <WorkerGalleryViewer
-          index={viewer.index}
-          onClose={() => setViewer(null)}
-          onIndexChange={(index) => setViewer((current) => current ? { ...current, index } : current)}
-          photos={viewer.photos}
-          title={viewer.title}
-        />
+        typeof document !== "undefined"
+          ? createPortal(
+            <WorkerGalleryViewer
+              index={viewer.index}
+              onClose={() => setViewer(null)}
+              onIndexChange={(index) => setViewer((current) => current ? { ...current, index } : current)}
+              photos={viewer.photos}
+              title={viewer.title}
+            />,
+            document.body,
+          )
+          : (
+            <WorkerGalleryViewer
+              index={viewer.index}
+              onClose={() => setViewer(null)}
+              onIndexChange={(index) => setViewer((current) => current ? { ...current, index } : current)}
+              photos={viewer.photos}
+              title={viewer.title}
+            />
+          )
       ) : null}
     </section>
   );
@@ -3361,9 +3374,16 @@ function WorkerGalleryViewer({
 }) {
   const safeIndex = Math.min(Math.max(index, 0), Math.max(photos.length - 1, 0));
   const photo = photos[safeIndex];
-  const src = productionPhotoFullSrc(photo) || productionPhotoSrc(photo);
+  const photoSrcAt = (item: ProductionPhoto | undefined) =>
+    item ? productionPhotoFullSrc(item) || productionPhotoSrc(item) : "";
+  const src = photoSrcAt(photo);
   const canNavigate = photos.length > 1;
+  const previousIndex = canNavigate ? (safeIndex - 1 + photos.length) % photos.length : safeIndex;
+  const nextIndex = canNavigate ? (safeIndex + 1) % photos.length : safeIndex;
+  const previousSrc = photoSrcAt(photos[previousIndex]);
+  const nextSrc = photoSrcAt(photos[nextIndex]);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const swipeTimerRef = useRef<number | null>(null);
   const gestureRef = useRef<{
     lastX: number;
     lastY: number;
@@ -3379,9 +3399,20 @@ function WorkerGalleryViewer({
   const lastTapAtRef = useRef(0);
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState<ViewerOffset>({ x: 0, y: 0 });
+  const [swipeDeltaX, setSwipeDeltaX] = useState(0);
+  const [swipePhase, setSwipePhase] = useState<"idle" | "dragging" | "settling">("idle");
+  const [swipeTarget, setSwipeTarget] = useState<"previous" | "next" | null>(null);
   const isZoomed = zoom > 1.01;
+  const swipeActive = swipePhase !== "idle" || Boolean(swipeTarget);
   const imageStyle = {
     transform: `translate3d(${offset.x}px, ${offset.y}px, 0) scale(${zoom})`,
+  } as CSSProperties;
+  const trackStyle = {
+    transform: swipeTarget === "previous"
+      ? "translate3d(0, 0, 0)"
+      : swipeTarget === "next"
+        ? "translate3d(-200%, 0, 0)"
+        : `translate3d(calc(-100% + ${swipeDeltaX}px), 0, 0)`,
   } as CSSProperties;
 
   const resetViewerTransform = () => {
@@ -3389,9 +3420,59 @@ function WorkerGalleryViewer({
     setOffset({ x: 0, y: 0 });
   };
 
+  const clearSwipeTimer = () => {
+    if (swipeTimerRef.current === null || typeof window === "undefined") return;
+    window.clearTimeout(swipeTimerRef.current);
+    swipeTimerRef.current = null;
+  };
+
+  const finishSwipeReturn = () => {
+    clearSwipeTimer();
+    setSwipePhase("settling");
+    setSwipeTarget(null);
+    setSwipeDeltaX(0);
+    if (typeof window === "undefined") {
+      setSwipePhase("idle");
+      return;
+    }
+    swipeTimerRef.current = window.setTimeout(() => {
+      setSwipePhase("idle");
+      swipeTimerRef.current = null;
+    }, 190);
+  };
+
   const navigateToPhoto = (nextIndex: number) => {
+    clearSwipeTimer();
+    setSwipePhase("idle");
+    setSwipeTarget(null);
+    setSwipeDeltaX(0);
     resetViewerTransform();
     onIndexChange(nextIndex);
+  };
+
+  const settleSwipeToPhoto = (direction: "previous" | "next") => {
+    const nextPhotoIndex = direction === "previous" ? previousIndex : nextIndex;
+    const reduceMotion =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    clearSwipeTimer();
+    resetViewerTransform();
+
+    if (reduceMotion) {
+      navigateToPhoto(nextPhotoIndex);
+      return;
+    }
+
+    setSwipePhase("settling");
+    setSwipeTarget(direction);
+    setSwipeDeltaX(0);
+    swipeTimerRef.current = window.setTimeout(() => {
+      onIndexChange(nextPhotoIndex);
+      setSwipeTarget(null);
+      setSwipeDeltaX(0);
+      setSwipePhase("idle");
+      swipeTimerRef.current = null;
+    }, 190);
   };
 
   useEffect(() => {
@@ -3406,11 +3487,25 @@ function WorkerGalleryViewer({
   }, [canNavigate, onClose, photos.length, safeIndex]);
 
   useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    document.body.classList.add("worker-gallery-viewer-open");
+    return () => {
+      document.body.classList.remove("worker-gallery-viewer-open");
+      clearSwipeTimer();
+    };
+  }, []);
+
+  useEffect(() => {
+    clearSwipeTimer();
     resetViewerTransform();
+    setSwipeDeltaX(0);
+    setSwipePhase("idle");
+    setSwipeTarget(null);
   }, [src]);
 
   function handleStageTouchStart(event: TouchEvent<HTMLDivElement>) {
     event.stopPropagation();
+    clearSwipeTimer();
 
     if (event.touches.length >= 2) {
       const center = touchCenter(event.touches);
@@ -3483,6 +3578,13 @@ function WorkerGalleryViewer({
       return;
     }
 
+    if (gesture.mode === "swipe" && canNavigate) {
+      const stageWidth = stageRef.current?.clientWidth || window.innerWidth;
+      setSwipePhase("dragging");
+      setSwipeTarget(null);
+      setSwipeDeltaX(clamp(deltaX, -stageWidth, stageWidth));
+    }
+
     if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY) && event.cancelable) {
       event.preventDefault();
     }
@@ -3506,10 +3608,12 @@ function WorkerGalleryViewer({
       Math.abs(deltaX) > Math.abs(deltaY) * 1.18;
 
     if (gesture.mode === "swipe" && canNavigate && isHorizontalSwipe) {
-      navigateToPhoto(deltaX > 0
-        ? (safeIndex - 1 + photos.length) % photos.length
-        : (safeIndex + 1) % photos.length);
+      settleSwipeToPhoto(deltaX > 0 ? "previous" : "next");
       return;
+    }
+
+    if (gesture.mode === "swipe" && gesture.moved) {
+      finishSwipeReturn();
     }
 
     if (!gesture.moved) {
@@ -3536,7 +3640,7 @@ function WorkerGalleryViewer({
       <div
         aria-label="Просмотр фото"
         aria-modal="true"
-        className="worker-gallery-viewer"
+        className={`worker-gallery-viewer${swipeActive ? " is-swiping" : ""}`}
         onClick={(event) => event.stopPropagation()}
         role="dialog"
       >
@@ -3570,14 +3674,43 @@ function WorkerGalleryViewer({
               <ChevronRight size={26} />
             </button>
           ) : null}
-          <img
-            alt={title}
-            className="worker-gallery-viewer-image"
-            decoding="async"
-            draggable={false}
-            src={src}
-            style={imageStyle}
-          />
+          <div
+            className={`worker-gallery-viewer-track ${swipePhase === "dragging" ? "is-dragging" : ""}${isZoomed ? " is-zoomed" : ""}`}
+            style={trackStyle}
+          >
+            <div className="worker-gallery-viewer-slide previous" aria-hidden="true">
+              {previousSrc ? (
+                <img
+                  alt=""
+                  className="worker-gallery-viewer-image"
+                  decoding="async"
+                  draggable={false}
+                  src={previousSrc}
+                />
+              ) : null}
+            </div>
+            <div className="worker-gallery-viewer-slide current">
+              <img
+                alt={title}
+                className="worker-gallery-viewer-image"
+                decoding="async"
+                draggable={false}
+                src={src}
+                style={imageStyle}
+              />
+            </div>
+            <div className="worker-gallery-viewer-slide next" aria-hidden="true">
+              {nextSrc ? (
+                <img
+                  alt=""
+                  className="worker-gallery-viewer-image"
+                  decoding="async"
+                  draggable={false}
+                  src={nextSrc}
+                />
+              ) : null}
+            </div>
+          </div>
           {canNavigate ? (
             <button
               aria-label="Следующее фото"
