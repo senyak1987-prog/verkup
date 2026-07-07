@@ -258,9 +258,9 @@ function fetch_bitrix_deal_tech_spec_files($dealId)
     $fields = bitrix_live_field_names();
     $labels = array_replace(load_bitrix_custom_field_labels(), bitrix_known_tech_spec_file_labels());
     $bitrixDomain = bitrix_domain();
-    $techSpecFileFields = $fields['techSpecFiles']
-        ? bitrix_field_list($fields['techSpecFiles'])
-        : infer_deal_tech_spec_file_fields($deal, $labels);
+    $configuredTechSpecFileFields = $fields['techSpecFiles'] ? bitrix_field_list($fields['techSpecFiles']) : [];
+    $inferredTechSpecFileFields = infer_deal_tech_spec_file_fields($deal, $labels);
+    $techSpecFileFields = array_values(array_unique(array_merge($configuredTechSpecFileFields, $inferredTechSpecFileFields)));
     $techSpecFiles = count($techSpecFileFields) > 0
         ? bitrix_deal_files_from_fields($deal, $techSpecFileFields, $labels, $bitrixDomain)
         : tag_bitrix_deal_files(extract_bitrix_deal_files(infer_deal_file_field($deal), $bitrixDomain), 'techSpec', '');
@@ -435,6 +435,17 @@ function bitrix_file_download_candidates($dealId, $file)
     if ($fileId !== '') {
         $domain = bitrix_domain();
         if ($field !== '') {
+            foreach (['Y', 'N'] as $dynamic) {
+                $candidates[] = absolute_bitrix_file_url(
+                    '/bitrix/tools/crm_show_file.php?' . http_build_query([
+                        'ownerId' => $dealId,
+                        'fieldName' => $field,
+                        'dynamic' => $dynamic,
+                        'fileId' => $fileId,
+                    ]),
+                    $domain
+                );
+            }
             $candidates[] = absolute_bitrix_file_url(
                 '/bitrix/components/bitrix/crm.deal.show/show_file.php?' . http_build_query([
                     'ownerId' => $dealId,
@@ -1067,6 +1078,13 @@ function bitrix_webhook_auth_token()
 {
     $webhook = trim((string)bitrix_config('BITRIX_WEBHOOK_URL', ''));
     if ($webhook === '') return '';
+    $query = [];
+    $rawQuery = parse_url($webhook, PHP_URL_QUERY);
+    if (is_string($rawQuery) && $rawQuery !== '') {
+        parse_str($rawQuery, $query);
+        $token = first_text(array_get($query, 'auth', ''), array_get($query, 'access_token', ''));
+        if ($token !== '') return $token;
+    }
     $path = trim((string)parse_url($webhook, PHP_URL_PATH), '/');
     $parts = $path === '' ? [] : explode('/', $path);
     for ($index = 0; $index < count($parts); $index++) {

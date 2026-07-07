@@ -31,6 +31,13 @@ import {
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject, TouchEvent } from "react";
+import {
+  bitrixFileDisplayUrl,
+  bitrixFileDownloadUrl,
+  bitrixFileKey,
+  isBitrixImageFile,
+  mergeBitrixFileLists,
+} from "../lib/bitrixFiles";
 import { formatMoney, manufacturingCost, positionTotal } from "../lib/costing";
 import { buildSearchIndex, matchesSearchIndex } from "../lib/searchIndex";
 import {
@@ -2699,6 +2706,13 @@ function SupervisorDealCard({
     assignment && productionWorkers.some((worker) => worker.id === assignment.employeeId)
       ? assignment.employeeId
       : "";
+  const [pendingWorkerId, setPendingWorkerId] = useState(assignedWorkerId);
+
+  useEffect(() => {
+    setPendingWorkerId(assignedWorkerId);
+  }, [assignedWorkerId, deal.id]);
+
+  const canConfirmDealAssignment = Boolean(pendingWorkerId && pendingWorkerId !== assignedWorkerId);
 
   return (
     <article
@@ -2761,8 +2775,8 @@ function SupervisorDealCard({
             <select
               aria-label="Назначить макетчика"
               disabled={!productionWorkers.length}
-              onChange={(event) => onAssignDeal(event.target.value)}
-              value={assignedWorkerId}
+              onChange={(event) => setPendingWorkerId(event.target.value)}
+              value={pendingWorkerId}
             >
               <option value="" disabled>
                 {productionWorkers.length ? "Назначить макетчика" : "Нет макетчиков"}
@@ -2774,6 +2788,15 @@ function SupervisorDealCard({
               ))}
             </select>
           </label>
+          <button
+            className="primary compact production-assign-confirm"
+            disabled={!canConfirmDealAssignment}
+            onClick={() => pendingWorkerId && onAssignDeal(pendingWorkerId)}
+            type="button"
+          >
+            <CheckCircle2 size={15} />
+            Передать на сборку
+          </button>
         </div>
       </div>
 
@@ -2852,12 +2875,16 @@ function PartAssignmentPanel({
   spec: DealTechSpec;
   onAssign: (itemId: string, employeeId: string) => void;
 }) {
+  const [pendingByPart, setPendingByPart] = useState<Record<string, string>>({});
+
   return (
     <section className="part-assignment-panel">
       <h3>Назначение по изделиям</h3>
       {spec.draft.items.map((item, index) => {
         const assignment = assignmentsByPart.get(assignmentPartKey(deal.id, item.id));
         const employee = assignment ? employeesById.get(assignment.employeeId) : undefined;
+        const selectedEmployeeId = pendingByPart[item.id] ?? assignment?.employeeId ?? "";
+        const canConfirm = Boolean(selectedEmployeeId && selectedEmployeeId !== assignment?.employeeId);
 
         return (
           <div className="part-assignment-row" key={item.id}>
@@ -2866,20 +2893,32 @@ function PartAssignmentPanel({
               <strong>{techSpecItemTitle(item, index)}</strong>
               <span>{employee ? `Назначен: ${employee.name}` : "Не назначено"}</span>
             </div>
-            <select
-              disabled={!productionWorkers.length}
-              onChange={(event) => onAssign(item.id, event.target.value)}
-              value={assignment?.employeeId || ""}
-            >
-              <option value="" disabled>
-                Выберите
-              </option>
-              {productionWorkers.map((worker) => (
-                <option key={worker.id} value={worker.id}>
-                  {worker.name}
+            <div className="part-assignment-controls">
+              <select
+                disabled={!productionWorkers.length}
+                onChange={(event) =>
+                  setPendingByPart((current) => ({ ...current, [item.id]: event.target.value }))
+                }
+                value={selectedEmployeeId}
+              >
+                <option value="" disabled>
+                  Выберите макетчика
                 </option>
-              ))}
-            </select>
+                {productionWorkers.map((worker) => (
+                  <option key={worker.id} value={worker.id}>
+                    {worker.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                className="primary compact"
+                disabled={!canConfirm}
+                onClick={() => selectedEmployeeId && onAssign(item.id, selectedEmployeeId)}
+                type="button"
+              >
+                Передать
+              </button>
+            </div>
             <StatusBadge status={assignment?.status} />
           </div>
         );
@@ -4227,6 +4266,16 @@ function WorkerDealCard({
   );
 }
 
+function isTechSpecImageAttachment(attachment: TechSpecItem["attachments"][number]) {
+  const source = (attachment.dataUrl || "").split("?")[0] || "";
+  return (
+    attachment.type.startsWith("image/") ||
+    attachment.dataUrl.startsWith("data:image") ||
+    /\.(png|jpe?g|webp|gif|svg|bmp)$/i.test(source) ||
+    /\.(png|jpe?g|webp|gif|svg|bmp)$/i.test(attachment.name)
+  );
+}
+
 function CompletionCatalogLineEditor({
   catalogItems,
   canRemove,
@@ -4303,7 +4352,7 @@ function firstTechSpecImage(spec?: DealTechSpec, itemId?: string) {
     : spec.draft.items;
 
   for (const item of items) {
-    const image = item.attachments.find((attachment) => attachment.dataUrl.startsWith("data:image"));
+    const image = item.attachments.find(isTechSpecImageAttachment);
     if (image) return image;
   }
 
@@ -4323,7 +4372,7 @@ function TechSpecInline({
   spec?: DealTechSpec;
   expanded?: boolean;
 }) {
-  const cachedBitrixFiles = deal.techSpecFiles?.length ? deal.techSpecFiles : deal.installationFiles || [];
+  const cachedBitrixFiles = mergeBitrixFileLists(deal.techSpecFiles, deal.installationFiles);
   const [loadedBitrixFiles, setLoadedBitrixFiles] = useState(cachedBitrixFiles);
   const [bitrixFilesState, setBitrixFilesState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const bitrixStatus = deal.bitrixTechSpecStatus;
@@ -4345,7 +4394,7 @@ function TechSpecInline({
     setBitrixFilesState("loading");
     void loadBitrixDealFiles({ apiUrl }, deal.id, { refresh: true })
       .then((result) => {
-        const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];
+        const files = mergeBitrixFileLists(result.techSpecFiles, result.installationFiles);
         setLoadedBitrixFiles(files);
         setBitrixFilesState("done");
       })
@@ -4356,7 +4405,9 @@ function TechSpecInline({
 
   if (!spec) {
     const bitrixFiles = loadedBitrixFiles;
-    const preview = bitrixFiles.find((file) => file.type === "image") || bitrixFiles[0];
+    const preview = bitrixFiles.find(isBitrixImageFile) || bitrixFiles[0];
+    const previewUrl = bitrixFileDisplayUrl(preview);
+    const previewDownloadUrl = bitrixFileDownloadUrl(preview) || previewUrl;
     const missingText =
       bitrixFilesState === "loading"
         ? "Проверяю в Bitrix только эту сделку..."
@@ -4370,12 +4421,12 @@ function TechSpecInline({
 
     return (
       <section className={`production-tech-spec missing${preview ? " has-bitrix-source" : ""}`}>
-        {preview?.type === "image" && !preview.downloadError ? (
+        {preview && isBitrixImageFile(preview) && !preview.downloadError && previewUrl ? (
           <img
             alt={preview.name || "ТЗ из Bitrix"}
             className="production-tech-spec-bitrix-preview"
             loading="lazy"
-            src={preview.url}
+            src={previewUrl}
           />
         ) : (
           <ClipboardList size={16} />
@@ -4390,11 +4441,11 @@ function TechSpecInline({
             <>
               <small>{[preview.label, preview.name || "Файл ТЗ из Bitrix"].filter(Boolean).join(": ")}</small>
               <div className="production-tech-spec-bitrix-actions">
-                <a href={preview.url} rel="noreferrer" target="_blank">
+                <a href={previewUrl} rel="noreferrer" target="_blank">
                   <ExternalLink size={14} />
                   <span>Открыть</span>
                 </a>
-                <a download={preview.name || "tech-spec"} href={preview.downloadUrl || preview.url}>
+                <a download={preview.name || "tech-spec"} href={previewDownloadUrl}>
                   <Download size={14} />
                   <span>Сохранить</span>
                 </a>
@@ -4403,8 +4454,8 @@ function TechSpecInline({
                 <div className="production-tech-spec-bitrix-file-list">
                   {bitrixFiles.map((file, index) => (
                     <a
-                      href={file.downloadUrl || file.url}
-                      key={`${file.field || file.source || "file"}-${file.id}-${index}`}
+                      href={bitrixFileDownloadUrl(file) || bitrixFileDisplayUrl(file)}
+                      key={bitrixFileKey(file, index)}
                       rel="noreferrer"
                       target="_blank"
                     >
@@ -4513,7 +4564,7 @@ function SpecAttachmentGrid({ item }: { item: TechSpecItem }) {
     <div className="production-spec-attachments">
       {item.attachments.map((attachment) => (
         <figure key={attachment.id}>
-          {attachment.dataUrl.startsWith("data:image") ? (
+          {isTechSpecImageAttachment(attachment) ? (
             <img alt={attachment.name} decoding="async" loading="lazy" src={attachment.dataUrl} />
           ) : (
             <div className="production-spec-file">

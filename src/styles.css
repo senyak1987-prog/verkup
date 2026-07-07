@@ -8123,7 +8123,7 @@ tr.selected td,
 
 .part-assignment-row {
   display: grid;
-  grid-template-columns: 62px minmax(0, 1fr) minmax(140px, 190px) auto;
+  grid-template-columns: 62px minmax(0, 1fr) minmax(260px, 360px) auto;
   gap: 8px;
   align-items: center;
   border: 1px solid #e4e9f1;
@@ -8149,6 +8149,22 @@ tr.selected td,
   color: #667085;
   font-size: 12px;
   font-weight: 800;
+}
+
+.part-assignment-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.part-assignment-controls select {
+  min-width: 0;
+  flex: 1;
+}
+
+.production-assign-confirm {
+  white-space: nowrap;
 }
 
 .production-panel,
@@ -14952,11 +14968,15 @@ textarea {
 }
 
 .part-assignment-row {
-  grid-template-columns: 54px minmax(0, 1fr) minmax(150px, 220px) auto;
+  grid-template-columns: 54px minmax(0, 1fr);
 }
 
 .part-assignment-row span {
   font-weight: 400;
+}
+
+.part-assignment-controls {
+  grid-column: 1 / -1;
 }
 
 .worker-gallery-search {
