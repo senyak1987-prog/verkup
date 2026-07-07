@@ -254,6 +254,7 @@ function fetch_bitrix_deal_tech_spec_files($dealId)
             'imageCount' => 0,
         ];
     }
+    $deal = merge_bitrix_crm_item_payload($id, $deal);
 
     $fields = bitrix_live_field_names();
     $labels = array_replace(load_bitrix_custom_field_labels(), bitrix_known_tech_spec_file_labels());
@@ -280,6 +281,39 @@ function fetch_bitrix_deal_tech_spec_files($dealId)
         'imageCount' => array_get($status, 'imageCount', 0),
         'preview' => array_get($status, 'preview', null),
     ];
+}
+
+function merge_bitrix_crm_item_payload($dealId, $deal)
+{
+    if (!is_array($deal)) return $deal;
+    try {
+        $response = call_bitrix_rest('crm.item.get', [
+            'entityTypeId' => 2,
+            'id' => $dealId,
+        ]);
+        $item = array_get(array_get($response, 'result', []), 'item', []);
+        if (!is_array($item) || !count($item)) return $deal;
+
+        foreach ($item as $key => $value) {
+            $keyText = (string)$key;
+            if (!array_key_exists($keyText, $deal)) $deal[$keyText] = $value;
+            $legacyKey = bitrix_legacy_userfield_key($keyText);
+            if ($legacyKey !== '' && !array_key_exists($legacyKey, $deal)) $deal[$legacyKey] = $value;
+        }
+    } catch (Exception $error) {
+        // crm.item.get is not available on every Bitrix plan/webhook scope.
+    }
+    return $deal;
+}
+
+function bitrix_legacy_userfield_key($key)
+{
+    $key = trim((string)$key);
+    if ($key === '') return '';
+    if (preg_match('/^ufCrm(\d+)$/', $key, $match)) return 'UF_CRM_' . $match[1];
+    if (preg_match('/^ufCrm_(\d+)$/', $key, $match)) return 'UF_CRM_' . $match[1];
+    if (preg_match('/^UF_CRM_(\d+)$/', $key)) return $key;
+    return '';
 }
 
 function import_bitrix_tech_spec_index_entry_files($dealId, $entry, $force = false)
