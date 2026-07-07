@@ -49,6 +49,7 @@ export type BitrixDealFile = {
   url: string;
   downloadUrl?: string;
   field?: string;
+  label?: string;
   source?: "techSpec" | "installation" | "deal";
   type?: "image" | "file";
 };

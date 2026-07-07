@@ -4175,10 +4175,10 @@ function TechSpecInline({
           <ClipboardList size={16} />
         )}
         <div className="production-tech-spec-missing-body">
-          <span>{preview ? "ТЗ найдено в Bitrix." : "ТЗ еще не прикреплено к сделке."}</span>
+          <span>{preview ? "ТЗ из Bitrix" : "ТЗ еще не прикреплено к сделке."}</span>
           {preview ? (
             <>
-              <small>{preview.name || "Файл ТЗ из Bitrix"}</small>
+              <small>{[preview.label, preview.name || "Файл ТЗ из Bitrix"].filter(Boolean).join(": ")}</small>
               <div className="production-tech-spec-bitrix-actions">
                 <a href={preview.url} rel="noreferrer" target="_blank">
                   <ExternalLink size={14} />

@@ -590,10 +590,15 @@ function normalize_bitrix_deal($deal, $users, $dictionaries, $stageCodesById)
         'COMMENT',
     ]);
     $fileSource = $fields['installFiles'] ? array_get($deal, $fields['installFiles'], null) : infer_deal_file_field($deal);
-    $techSpecFileField = $fields['techSpecFiles'] ?: infer_deal_tech_spec_file_field($deal, array_get($dictionaries, 'customFieldLabels', []));
-    $techSpecFileSource = $techSpecFileField !== '' ? array_get($deal, $techSpecFileField, null) : infer_deal_file_field($deal);
+    $fieldLabels = array_get($dictionaries, 'customFieldLabels', []);
+    $techSpecFileFields = $fields['techSpecFiles']
+        ? bitrix_field_list($fields['techSpecFiles'])
+        : infer_deal_tech_spec_file_fields($deal, $fieldLabels);
+    $techSpecFileSource = count($techSpecFileFields) > 0 ? null : infer_deal_file_field($deal);
     $installationFiles = tag_bitrix_deal_files(extract_bitrix_deal_files($fileSource, $bitrixDomain), 'installation', $fields['installFiles']);
-    $techSpecFiles = tag_bitrix_deal_files(extract_bitrix_deal_files($techSpecFileSource, $bitrixDomain), 'techSpec', $techSpecFileField);
+    $techSpecFiles = count($techSpecFileFields) > 0
+        ? bitrix_deal_files_from_fields($deal, $techSpecFileFields, $fieldLabels, $bitrixDomain)
+        : tag_bitrix_deal_files(extract_bitrix_deal_files($techSpecFileSource, $bitrixDomain), 'techSpec', '');
 
     return [
         'id' => $id,
@@ -898,6 +903,12 @@ function bitrix_live_field_names()
     ];
 }
 
+function bitrix_field_list($value)
+{
+    $items = preg_split('/[,;\s]+/', trim((string)$value));
+    return array_values(array_filter(array_map('trim', is_array($items) ? $items : [])));
+}
+
 function value_by_field($row, $fieldName)
 {
     if (!$fieldName || !is_array($row) || !array_key_exists($fieldName, $row)) return '';
@@ -958,7 +969,7 @@ function infer_deal_file_field($deal)
     return null;
 }
 
-function infer_deal_tech_spec_file_field($deal, $labels = [])
+function infer_deal_tech_spec_file_fields($deal, $labels = [])
 {
     $keywords = [
         'TZ',
@@ -970,20 +981,59 @@ function infer_deal_tech_spec_file_field($deal, $labels = [])
         'ТЕХНИЧЕСК',
         'ЗАДАН',
         'МАКЕТ',
+        'ИЗГОТОВЛ',
+        'ПРОИЗВОДСТВ',
     ];
 
+    $fields = [];
     foreach ($deal as $field => $value) {
-        if (count(extract_bitrix_deal_files($value, bitrix_domain())) <= 0) continue;
-
         $haystack = normalize_bitrix_text((string)$field . ' ' . (string)array_get($labels, (string)$field, ''));
+        $matched = false;
         foreach ($keywords as $keyword) {
             if ($keyword !== '' && strpos($haystack, normalize_bitrix_text($keyword)) !== false) {
-                return (string)$field;
+                $matched = true;
+                break;
             }
         }
+        if (!$matched) continue;
+        if (count(extract_bitrix_deal_files($value, bitrix_domain())) <= 0) continue;
+        $fields[] = (string)$field;
     }
 
-    return '';
+    return array_values(array_unique($fields));
+}
+
+function bitrix_deal_files_from_fields($deal, $fields, $labels, $bitrixDomain)
+{
+    $items = [];
+    $seen = [];
+    foreach ($fields as $field) {
+        $fieldName = (string)$field;
+        if ($fieldName === '' || !array_key_exists($fieldName, $deal)) continue;
+
+        $label = (string)array_get($labels, $fieldName, $fieldName);
+        $files = tag_bitrix_deal_files(extract_bitrix_deal_files($deal[$fieldName], $bitrixDomain), 'techSpec', $fieldName);
+        $imageHint = is_bitrix_tech_spec_image_field($fieldName, $label);
+        foreach ($files as $file) {
+            if (!is_array($file)) continue;
+            $key = (string)array_get($file, 'url', '') . '|' . (string)array_get($file, 'id', '');
+            if ($key !== '|' && isset($seen[$key])) continue;
+            $seen[$key] = true;
+            $file['label'] = $label;
+            if ($imageHint) $file['type'] = 'image';
+            $items[] = $file;
+        }
+    }
+    return $items;
+}
+
+function is_bitrix_tech_spec_image_field($field, $label)
+{
+    $text = normalize_bitrix_text((string)$field . ' ' . (string)$label);
+    foreach (['КАРТИН', 'IMAGE', 'PHOTO', 'PICTURE', 'ФОТО'] as $needle) {
+        if (strpos($text, normalize_bitrix_text($needle)) !== false) return true;
+    }
+    return false;
 }
 
 function extract_bitrix_deal_files($value, $bitrixDomain)
@@ -1018,6 +1068,10 @@ function collect_bitrix_deal_files($value, &$files, $bitrixDomain)
             array_get($value, 'URL', ''),
             array_get($value, 'SRC', ''),
             array_get($value, 'DOWNLOAD_URL', ''),
+            array_get($value, 'URL_MACHINE', ''),
+            array_get($value, 'urlMachine', ''),
+            array_get($value, 'SHOW_URL', ''),
+            array_get($value, 'showUrl', ''),
             array_get($value, 'downloadUrl', ''),
             array_get($value, 'url', '')
         );
@@ -1047,6 +1101,18 @@ function collect_bitrix_deal_files($value, &$files, $bitrixDomain)
     }
 
     $text = trim((string)$value);
+    if (preg_match('/^\d+$/', $text)) {
+        $url = absolute_bitrix_file_url('/bitrix/tools/crm_show_file.php?fileId=' . rawurlencode($text), $bitrixDomain);
+        $files[] = [
+            'id' => $text,
+            'name' => 'Bitrix file ' . $text,
+            'url' => $url,
+            'downloadUrl' => $url,
+            'type' => 'file',
+        ];
+        return;
+    }
+
     if (preg_match('#^https?://#i', $text) || strpos($text, '/') === 0) {
         $absoluteUrl = absolute_bitrix_file_url($text, $bitrixDomain);
         $name = basename(parse_url($absoluteUrl, PHP_URL_PATH) ?: ('file-' . (count($files) + 1)));
