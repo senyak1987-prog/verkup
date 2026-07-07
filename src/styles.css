@@ -596,6 +596,17 @@ small,
   background: var(--surface, #fff);
 }
 
+.deal-render-more {
+  justify-self: center;
+  min-width: min(280px, 100%);
+  margin: 12px auto 0;
+  border: 1px solid var(--border-soft, #dce2ea);
+  border-radius: var(--radius-md, 12px);
+  background: var(--surface, #fff);
+  color: var(--text, #1f2933);
+  font-weight: 700;
+}
+
 .mobile-deal-card {
   display: grid;
   gap: 10px;

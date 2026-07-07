@@ -17,6 +17,7 @@ const REQUEST_TIMEOUT_MS = 18000;
 const DEAL_CACHE_RETAIN_MS = 24 * 60 * 60 * 1000;
 const DEAL_CACHE_VERSION = 3;
 const EMBEDDED_PRODUCTION_KEY = "__production";
+const cacheWriteSignatures = new Map<string, string>();
 
 type CatalogFavoriteOverride = {
   favorite: boolean;
@@ -216,7 +217,7 @@ export function writeCachedCalculations(data: StoredCalculations) {
 }
 
 export function writeCachedTechSpecs(data: StoredTechSpecs) {
-  writeCache("data/tech-specs.json", data);
+  writeCache("data/tech-specs.json", techSpecsForBrowserCache(data));
 }
 
 export function embeddedProductionFromTechSpecs(
@@ -379,18 +380,69 @@ function readCacheRecord<T>(path: string): CacheRecord<T> | undefined {
 }
 
 function writeCache<T>(path: string, data: T) {
+  const key = cacheKey(path);
+  const signature = dataSnapshotSignature(data);
+  if (cacheWriteSignatures.get(key) === signature) return;
+
   try {
     localStorage.setItem(
-      cacheKey(path),
+      key,
       JSON.stringify({
         version: isDealsPath(path) ? DEAL_CACHE_VERSION : undefined,
         savedAt: new Date().toISOString(),
         data,
       }),
     );
+    cacheWriteSignatures.set(key, signature);
   } catch {
     // Кэш не критичен: если браузер запретил запись, приложение продолжит работать онлайн.
   }
+}
+
+export function dataSnapshotSignature(value: unknown) {
+  if (!value || typeof value !== "object") return String(value ?? "");
+
+  const record = value as Record<string, unknown>;
+  const parts = [
+    String(record.generatedAt || ""),
+    arraySignature(record.items),
+    arraySignature(record.stages),
+    arraySignature(record.calculations),
+    arraySignature(record.specs),
+    arraySignature(record.employees),
+    arraySignature(record.assignments),
+    arraySignature(record.payouts),
+    arraySignature(record.notifications),
+    arraySignature(record.installations),
+    arraySignature(record.stockItems),
+    arraySignature(record.movements),
+    arraySignature(record.documents),
+    arraySignature(record.priceProposals),
+  ];
+
+  return parts.join("|");
+}
+
+function arraySignature(value: unknown) {
+  if (!Array.isArray(value)) return "";
+  const first = value[0] as { id?: unknown; updatedAt?: unknown } | undefined;
+  const last = value[value.length - 1] as { id?: unknown; updatedAt?: unknown } | undefined;
+  return [
+    value.length,
+    first?.id || "",
+    first?.updatedAt || "",
+    last?.id || "",
+    last?.updatedAt || "",
+  ].join(":");
+}
+
+function techSpecsForBrowserCache(data: StoredTechSpecs) {
+  if (!configuredDataApiUrl()) return data;
+  if (!(EMBEDDED_PRODUCTION_KEY in data)) return data;
+
+  const { [EMBEDDED_PRODUCTION_KEY]: _embeddedProduction, ...plainTechSpecs } =
+    data as StoredTechSpecsWithEmbeddedProduction;
+  return plainTechSpecs as StoredTechSpecs;
 }
 
 function withCatalogFavoriteOverrides(data: AppData<CatalogItem>): AppData<CatalogItem> {

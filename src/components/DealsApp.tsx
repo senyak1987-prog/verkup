@@ -30,6 +30,7 @@ import type {
 } from "../types";
 
 type DealFocusFilter = "all" | "costed" | "techSpec" | "production" | "installation" | "attention";
+const DEALS_OVERVIEW_RENDER_BATCH = 60;
 
 type DealsAppProps = {
   deals: Deal[];
@@ -88,6 +89,7 @@ export function DealsApp({
   const [selectedStageIds, setSelectedStageIds] = useState<string[]>([]);
   const [focusFilter, setFocusFilter] = useState<DealFocusFilter>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [renderLimit, setRenderLimit] = useState(DEALS_OVERVIEW_RENDER_BATCH);
   const filtersRef = useRef<HTMLDivElement | null>(null);
 
   const employeeById = useMemo(
@@ -152,6 +154,8 @@ export function DealsApp({
         ? selectedStageNames[0] || "1 стадия"
         : `${selectedStageIds.length} стадии`;
   const hasActiveFilters = Boolean(query.trim() || selectedStageIds.length || focusFilter !== "all");
+  const renderedDeals = filteredDeals.slice(0, renderLimit);
+  const hasMoreDeals = renderedDeals.length < filteredDeals.length;
 
   useEffect(() => {
     if (!filtersOpen) return;
@@ -165,6 +169,10 @@ export function DealsApp({
     window.addEventListener("pointerdown", handlePointerDown);
     return () => window.removeEventListener("pointerdown", handlePointerDown);
   }, [filtersOpen]);
+
+  useEffect(() => {
+    setRenderLimit(DEALS_OVERVIEW_RENDER_BATCH);
+  }, [focusFilter, query, selectedStageIds]);
 
   function handleQueryChange(value: string) {
     setQuery(value);
@@ -304,7 +312,7 @@ export function DealsApp({
 
       <section className="deals-overview-list" aria-label="Список сделок">
         {filteredDeals.length ? (
-          filteredDeals.map((deal) => {
+          renderedDeals.map((deal) => {
             const calculation = calculations.get(deal.id);
             const spec = techSpecs.get(deal.id);
             const assignments = productionByDeal.get(deal.id) || [];
@@ -328,6 +336,15 @@ export function DealsApp({
         ) : (
           <div className="deals-overview-empty">Сделок по выбранным условиям пока нет.</div>
         )}
+        {hasMoreDeals ? (
+          <button
+            className="deal-render-more"
+            onClick={() => setRenderLimit((current) => current + DEALS_OVERVIEW_RENDER_BATCH)}
+            type="button"
+          >
+            Показать еще {Math.min(DEALS_OVERVIEW_RENDER_BATCH, filteredDeals.length - renderedDeals.length)} из {filteredDeals.length}
+          </button>
+        ) : null}
       </section>
     </main>
   );

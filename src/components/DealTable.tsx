@@ -20,6 +20,8 @@ import { EmployeeCard } from "./EmployeeCard";
 
 const COLUMN_STORAGE_KEY = "verkupDealColumnWidths.v2";
 const MULTIPLE_STAGE_FILTER_VALUE = "__multiple_stages__";
+const DEAL_RENDER_BATCH = 80;
+const MOBILE_DEAL_TABLE_MEDIA = "(max-width: 1180px)";
 
 const tableColumns = [
   { id: "deal", label: "Сделка", defaultWidth: 185, minWidth: 160 },
@@ -109,6 +111,8 @@ export function DealTable({
   const [columnFilters, setColumnFilters] = useState<ColumnFilters>(emptyColumnFilters);
   const [dateSort, setDateSort] = useState<DateSort>(null);
   const [animatedExpandedRows, setAnimatedExpandedRows] = useState<AnimatedExpandedRow[]>([]);
+  const [renderLimit, setRenderLimit] = useState(DEAL_RENDER_BATCH);
+  const isMobileLayout = useMediaQuery(MOBILE_DEAL_TABLE_MEDIA);
   const expandedRowCacheRef = useRef(new Map<string, ReactNode>());
 
   useEffect(() => {
@@ -155,6 +159,10 @@ export function DealTable({
     return () => window.clearTimeout(timeoutId);
   }, [animatedExpandedRows]);
 
+  useEffect(() => {
+    setRenderLimit(DEAL_RENDER_BATCH);
+  }, [columnFilters, dateSort, query, selectedStageIds]);
+
   const tableWidth = useMemo(
     () => tableColumns.reduce((sum, column) => sum + columnWidths[column.id], 0),
     [columnWidths],
@@ -179,6 +187,11 @@ export function DealTable({
   const hasColumnFilters = Object.values(columnFilters).some(Boolean);
   const hasSmartFilters = hasColumnFilters || selectedStageIds.length > 0 || query.trim().length > 0;
   const hasTableFilters = hasColumnFilters || selectedStageIds.length > 0;
+  const renderedDeals = useMemo(
+    () => takeRenderedDeals(visibleDeals, renderLimit, selectedDealId),
+    [renderLimit, selectedDealId, visibleDeals],
+  );
+  const hasMoreDeals = renderedDeals.length < visibleDeals.length;
   const stageFilterValue =
     selectedStageIds.length === 0
       ? ""
@@ -383,108 +396,109 @@ export function DealTable({
         </button>
       </section>
 
-      <section className="mobile-deal-cards" aria-label="Сделки">
-        {visibleDeals.map((deal) => {
-          const calculation = calculations.get(deal.id);
-          const sales = saleBreakdownForDeal(deal, calculation, agentRatio);
-          const dealProfit = profit(deal, calculation, agentRatio);
-          const isSelected = selectedDealId === deal.id;
-          const animatedExpandedRow = animatedExpandedRowsByDeal.get(deal.id);
-          const animatedExpandedContent =
-            animatedExpandedRow && isSelected
-              ? expandedRow
-              : animatedExpandedRow?.content || expandedRowCacheRef.current.get(deal.id);
+      {isMobileLayout ? (
+        <section className="mobile-deal-cards" aria-label="Сделки">
+          {renderedDeals.map((deal) => {
+            const calculation = calculations.get(deal.id);
+            const sales = saleBreakdownForDeal(deal, calculation, agentRatio);
+            const dealProfit = profit(deal, calculation, agentRatio);
+            const isSelected = selectedDealId === deal.id;
+            const animatedExpandedRow = animatedExpandedRowsByDeal.get(deal.id);
+            const animatedExpandedContent =
+              animatedExpandedRow && isSelected
+                ? expandedRow
+                : animatedExpandedRow?.content || expandedRowCacheRef.current.get(deal.id);
 
-          return (
-            <motion.article
-              className={isSelected ? "mobile-deal-card selected" : "mobile-deal-card"}
-              data-deal-id={deal.id}
-              key={deal.id}
-              layout
-              whileTap={{ scale: 0.992 }}
-              transition={{ duration: 0.18, ease: "easeOut" }}
-            >
-              <button className="mobile-deal-card-main" onClick={() => onSelect(deal)} type="button">
-                <span className="mobile-deal-number">#{deal.number}</span>
-                <span className="mobile-deal-title">
-                  <strong>{deal.title || "Без названия"}</strong>
-                  <small>{deal.classification || deal.type || "Без классификации"}</small>
-                </span>
-                <span className="mobile-deal-stage">{deal.stageName || deal.stageCode || "-"}</span>
-              </button>
-              {stageOptions.length ? (
-                <select
-                  className="mobile-stage-select"
-                  value={stageIdForDeal(deal)}
-                  onChange={(event) => {
-                    const option = stageOptions.find((item) => item.id === event.target.value);
-                    onStageChange?.(deal, event.target.value, option?.name);
-                  }}
-                >
-                  {stageOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
-
-              <div className="mobile-deal-meta">
-                <span>
-                  <small>Ответственный</small>
-                  <strong>{displayResponsible(deal.responsible) || "-"}</strong>
-                </span>
-                <span>
-                  <small>Запуск</small>
-                  <strong>{formatDate(deal.startDate) || "-"}</strong>
-                </span>
-                <span>
-                  <small>Срок</small>
-                  <strong>{formatDate(deal.expectedFinishDate) || "-"}</strong>
-                </span>
-                <span>
-                  <small>Продажа</small>
-                  <strong>{formatMoney(sales.totalSale)}</strong>
-                </span>
-                <span>
-                  <small>Себестоимость</small>
-                  <strong>{formatMoney(finalCost(calculation))}</strong>
-                </span>
-                <span className={dealProfit < 0 ? "negative" : ""}>
-                  <small>Прибыль</small>
-                  <strong>{formatMoney(dealProfit)}</strong>
-                </span>
-              </div>
-
-              <div className="mobile-deal-actions">
-                <button className="primary" onClick={() => onSelect(deal)} type="button">
-                  <Pencil size={16} />
-                  Себестоимость / ТЗ
+            return (
+              <motion.article
+                className={isSelected ? "mobile-deal-card selected" : "mobile-deal-card"}
+                data-deal-id={deal.id}
+                key={deal.id}
+                layout
+                whileTap={{ scale: 0.992 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+              >
+                <button className="mobile-deal-card-main" onClick={() => onSelect(deal)} type="button">
+                  <span className="mobile-deal-number">#{deal.number}</span>
+                  <span className="mobile-deal-title">
+                    <strong>{deal.title || "Без названия"}</strong>
+                    <small>{deal.classification || deal.type || "Без классификации"}</small>
+                  </span>
+                  <span className="mobile-deal-stage">{deal.stageName || deal.stageCode || "-"}</span>
                 </button>
-                <a className="secondary" href={deal.bitrixUrl} rel="noreferrer" target="_blank">
-                  <ExternalLink size={16} />
-                  Bitrix
-                </a>
-              </div>
+                {stageOptions.length ? (
+                  <select
+                    className="mobile-stage-select"
+                    value={stageIdForDeal(deal)}
+                    onChange={(event) => {
+                      const option = stageOptions.find((item) => item.id === event.target.value);
+                      onStageChange?.(deal, event.target.value, option?.name);
+                    }}
+                  >
+                    {stageOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
 
-              {animatedExpandedRow && animatedExpandedContent ? (
-                <div className={`mobile-deal-expanded ${animatedExpandedRow.status}`}>
-                  <div className="deal-expand-shell">
-                    <div className="deal-expand-inner">{animatedExpandedContent}</div>
-                  </div>
+                <div className="mobile-deal-meta">
+                  <span>
+                    <small>Ответственный</small>
+                    <strong>{displayResponsible(deal.responsible) || "-"}</strong>
+                  </span>
+                  <span>
+                    <small>Запуск</small>
+                    <strong>{formatDate(deal.startDate) || "-"}</strong>
+                  </span>
+                  <span>
+                    <small>Срок</small>
+                    <strong>{formatDate(deal.expectedFinishDate) || "-"}</strong>
+                  </span>
+                  <span>
+                    <small>Продажа</small>
+                    <strong>{formatMoney(sales.totalSale)}</strong>
+                  </span>
+                  <span>
+                    <small>Себестоимость</small>
+                    <strong>{formatMoney(finalCost(calculation))}</strong>
+                  </span>
+                  <span className={dealProfit < 0 ? "negative" : ""}>
+                    <small>Прибыль</small>
+                    <strong>{formatMoney(dealProfit)}</strong>
+                  </span>
                 </div>
-              ) : null}
-            </motion.article>
-          );
-        })}
-        {!visibleDeals.length ? (
-          <div className="mobile-deal-empty">
-            Сделки не найдены. Проверьте синхронизацию Bitrix24 или фильтр поиска.
-          </div>
-        ) : null}
-      </section>
 
-      <div className="table-wrap">
+                <div className="mobile-deal-actions">
+                  <button className="primary" onClick={() => onSelect(deal)} type="button">
+                    <Pencil size={16} />
+                    Себестоимость / ТЗ
+                  </button>
+                  <a className="secondary" href={deal.bitrixUrl} rel="noreferrer" target="_blank">
+                    <ExternalLink size={16} />
+                    Bitrix
+                  </a>
+                </div>
+
+                {animatedExpandedRow && animatedExpandedContent ? (
+                  <div className={`mobile-deal-expanded ${animatedExpandedRow.status}`}>
+                    <div className="deal-expand-shell">
+                      <div className="deal-expand-inner">{animatedExpandedContent}</div>
+                    </div>
+                  </div>
+                ) : null}
+              </motion.article>
+            );
+          })}
+          {!visibleDeals.length ? (
+            <div className="mobile-deal-empty">
+              Сделки не найдены. Проверьте синхронизацию Bitrix24 или фильтр поиска.
+            </div>
+          ) : null}
+        </section>
+      ) : (
+        <div className="table-wrap">
         <table className="deals-table" style={{ width: `max(100%, ${tableWidth}px)` }}>
           <colgroup>
             {tableColumns.map((column) => (
@@ -519,7 +533,7 @@ export function DealTable({
             </tr>
           </thead>
           <tbody>
-            {visibleDeals.map((deal) => {
+            {renderedDeals.map((deal) => {
               const calculation = calculations.get(deal.id);
               const sales = saleBreakdownForDeal(deal, calculation, agentRatio);
               const isSelected = selectedDealId === deal.id;
@@ -644,7 +658,17 @@ export function DealTable({
             )}
           </tbody>
         </table>
-      </div>
+        </div>
+      )}
+      {hasMoreDeals ? (
+        <button
+          className="deal-render-more"
+          onClick={() => setRenderLimit((current) => current + DEAL_RENDER_BATCH)}
+          type="button"
+        >
+          Показать еще {Math.min(DEAL_RENDER_BATCH, visibleDeals.length - renderedDeals.length)} из {visibleDeals.length}
+        </button>
+      ) : null}
     </main>
   );
 }
@@ -1080,6 +1104,31 @@ function matchesColumnFilters(deal: Deal, filters: ColumnFilters) {
   if (filters.type && deal.type !== filters.type) return false;
   if (filters.classification && deal.classification !== filters.classification) return false;
   return true;
+}
+
+function takeRenderedDeals(deals: Deal[], limit: number, selectedDealId?: string) {
+  const rendered = deals.slice(0, limit);
+  if (!selectedDealId || rendered.some((deal) => deal.id === selectedDealId)) return rendered;
+
+  const selectedDeal = deals.find((deal) => deal.id === selectedDealId);
+  return selectedDeal ? [...rendered, selectedDeal] : rendered;
+}
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(query).matches : false,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+
+  return matches;
 }
 
 function compareDealsByDate(first: Deal, second: Deal, sort: NonNullable<DateSort>) {
