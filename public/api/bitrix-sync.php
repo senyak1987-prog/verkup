@@ -1574,6 +1574,25 @@ function require_bitrix_sync_token()
     }
 }
 
+function require_bitrix_file_push_token()
+{
+    $token = trim((string)bitrix_config('BITRIX_FILE_PUSH_TOKEN', bitrix_config('BITRIX_SYNC_TOKEN', '')));
+    if ($token === '') {
+        json_response(['success' => false, 'error' => 'File push token is not configured'], 403);
+    }
+
+    $provided = trim((string)first_defined(
+        array_get($_GET, 'token', ''),
+        array_get($_SERVER, 'HTTP_X_SYNC_TOKEN', ''),
+        array_get($_SERVER, 'HTTP_X_FILE_PUSH_TOKEN', ''),
+        array_get(request_json_if_possible(), 'token', '')
+    ));
+
+    if (!hash_equals($token, $provided)) {
+        json_response(['success' => false, 'error' => 'Forbidden'], 403);
+    }
+}
+
 function request_json_if_possible()
 {
     $raw = file_get_contents('php://input') ?: '';

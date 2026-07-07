@@ -105,7 +105,7 @@ try {
     }
 
     if ($method === 'POST' && $path === '/bitrix/push-tech-spec-file') {
-        require_bitrix_sync_token();
+        require_bitrix_file_push_token();
         json_response(handle_bitrix_tech_spec_file_push(), 200);
     }
 

@@ -10,6 +10,8 @@ return [
     // Optional protection for manual /api/bitrix/sync calls.
     // Automatic stale /data/deals.json sync does not need this token.
     'BITRIX_SYNC_TOKEN' => '',
+    // Required for /api/bitrix/push-tech-spec-file. Falls back to BITRIX_SYNC_TOKEN when empty.
+    'BITRIX_FILE_PUSH_TOKEN' => '',
     'BITRIX_SYNC_INTERVAL_SECONDS' => 300,
     'BITRIX_AUTO_SYNC_ON_READ' => '0',
 
