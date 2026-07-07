@@ -384,6 +384,12 @@ export async function loadBitrixDealFiles(
     dealId: string;
     fileCount?: number;
     imageCount?: number;
+    import?: {
+      downloaded?: number;
+      failed?: number;
+      kept?: number;
+      total?: number;
+    };
     installationFiles: BitrixDealFile[];
     status?: "found" | "missing" | string;
     success: boolean;

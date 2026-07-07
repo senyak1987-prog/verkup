@@ -28,7 +28,6 @@ import type {
   TemplateId,
 } from "../types";
 import {
-  bitrixFileDisplayUrl,
   isBitrixImageFile,
   mergeBitrixFileLists,
 } from "../lib/bitrixFiles";
@@ -591,7 +590,7 @@ function bitrixFileAttachmentType(file: BitrixDealFile) {
 }
 
 function createBitrixAttachmentFromFile(deal: Deal, file: BitrixDealFile, index: number): LayoutAttachment | null {
-  const url = bitrixFileDisplayUrl(file);
+  const url = file.localUrl || "";
   if (!url || file.downloadError) return null;
 
   const label = file.label || "ТЗ из Bitrix";
@@ -609,7 +608,7 @@ function createBitrixAttachmentFromFile(deal: Deal, file: BitrixDealFile, index:
 
 function createBitrixAttachmentsForDeal(deal: Deal, files: BitrixDealFile[]) {
   return mergeBitrixFileLists(files)
-    .filter((file) => bitrixFileDisplayUrl(file))
+    .filter((file) => file.localUrl)
     .sort((first, second) => Number(isBitrixImageFile(second)) - Number(isBitrixImageFile(first)))
     .map((file, index) => createBitrixAttachmentFromFile(deal, file, index))
     .filter((attachment): attachment is LayoutAttachment => Boolean(attachment));
@@ -636,6 +635,22 @@ function mergeMultilineText(current: string, addition: string) {
   if (!additionText) return currentText;
   if (currentText.includes(additionText)) return currentText;
   return [currentText, additionText].filter(Boolean).join("\n");
+}
+
+function bitrixFileImportKey(file: BitrixDealFile, index: number) {
+  return [file.field, file.source, file.id, file.localUrl, file.url, file.name, index].filter(Boolean).join(":");
+}
+
+function bitrixFilesImportKey(dealId: string, files: BitrixDealFile[]) {
+  return `${dealId}:${files.map(bitrixFileImportKey).join("|")}`;
+}
+
+function bitrixImportBlockedMessage(files: BitrixDealFile[], summary?: { failed?: number; total?: number }) {
+  const total = Number(summary?.total || files.length || 0);
+  const failed = Number(summary?.failed || files.filter((file) => file.downloadError).length || total);
+  if (!total) return "Файлы ТЗ в Bitrix не найдены.";
+  const suffix = failed ? ` Не скачано: ${failed}.` : "";
+  return `Bitrix нашел файлы ТЗ: ${total}, но не дал скачать их на сайт.${suffix} Макетчик без доступа к Bitrix их не увидит.`;
 }
 
 function isBlankInitialDraftItem(item: TechSpecItem) {
@@ -2010,9 +2025,11 @@ export function TechSpecBuilder({
   const [bitrixUploadState, setBitrixUploadState] = useState<"idle" | "working" | "done" | "error">("idle");
   const [storageIssue, setStorageIssue] = useState("");
   const [attachmentNotice, setAttachmentNotice] = useState("");
+  const [bitrixImportIssue, setBitrixImportIssue] = useState("");
   const [bitrixUploadError, setBitrixUploadError] = useState("");
   const exportRef = useRef<HTMLElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const bitrixAutoImportKeyRef = useRef("");
 
   const cachedBitrixFiles = useMemo(
     () => mergeBitrixFileLists(deal?.techSpecFiles, deal?.installationFiles),
@@ -2037,11 +2054,21 @@ export function TechSpecBuilder({
   const dealResponsiblePhone = responsiblePhoneFromCard(dealResponsibleCard, deal?.responsiblePhone);
   const dealResponsibleInternalPhone = responsibleInternalPhoneFromCard(dealResponsibleCard, deal?.responsiblePhone);
   const dealResponsibleContactPhone = responsiblePhoneForTechSpec(dealResponsibleCard, deal?.responsiblePhone);
+  const hasBitrixImportedAttachments = useMemo(
+    () => draft.items.some((item) => item.attachments.some(isBitrixImportedAttachment)),
+    [draft.items],
+  );
+  const loadedBitrixImportKey = useMemo(
+    () => (deal?.id ? bitrixFilesImportKey(deal.id, loadedBitrixFiles) : ""),
+    [deal?.id, loadedBitrixFiles],
+  );
 
   useEffect(() => {
     setLoadedBitrixFiles(cachedBitrixFiles);
     setBitrixFilesState("idle");
     setBitrixImportState("idle");
+    setBitrixImportIssue("");
+    bitrixAutoImportKeyRef.current = "";
   }, [deal?.id, cachedBitrixFiles]);
 
   const refreshBitrixFiles = () => {
@@ -2086,15 +2113,20 @@ export function TechSpecBuilder({
     };
   }, [bitrixFilesState, cachedBitrixFiles.length, deal?.id]);
 
-  const importBitrixFilesToDraft = () => {
+  const importBitrixFilesToDraft = (options: { automatic?: boolean } = {}) => {
     if (!deal?.id || bitrixImportState === "loading") return;
     const apiUrl = defaultSaveApiUrl();
     if (!apiUrl) {
       setBitrixImportState("error");
+      setBitrixImportIssue("Не настроен адрес API, поэтому ТЗ из Bitrix нельзя скачать на сайт.");
       return;
     }
 
     setBitrixImportState("loading");
+    setBitrixImportIssue("");
+    if (options.automatic) {
+      setAttachmentNotice("Автоматически загружаю ТЗ из Bitrix в Макеты и схемы...");
+    }
     void loadBitrixDealFiles({ apiUrl }, deal.id, { importFiles: true, refresh: true })
       .then((result) => {
         const files = mergeBitrixFileLists(result.techSpecFiles, result.installationFiles);
@@ -2103,9 +2135,10 @@ export function TechSpecBuilder({
         setBitrixFilesState("done");
 
         if (!importedAttachments.length) {
+          const message = bitrixImportBlockedMessage(files, result.import);
           setBitrixImportState("error");
-          setAttachmentNotice("Bitrix нашел файлы, но не дал скачать их на сайт. Макетчик без доступа к Bitrix их не увидит.");
-          window.setTimeout(() => setAttachmentNotice(""), 2800);
+          setBitrixImportIssue(message);
+          setAttachmentNotice(message);
           return;
         }
 
@@ -2155,15 +2188,33 @@ export function TechSpecBuilder({
           };
         });
         setBitrixImportState("done");
+        setBitrixImportIssue("");
         setAttachmentNotice(`ТЗ из Bitrix добавлено в Макеты и схемы: ${importedAttachments.length}`);
         window.setTimeout(() => setAttachmentNotice(""), 2400);
       })
       .catch((error) => {
+        const message = error instanceof Error ? error.message : "Не удалось загрузить ТЗ из Bitrix на сайт.";
         setBitrixImportState("error");
-        setAttachmentNotice(error instanceof Error ? error.message : "Не удалось загрузить ТЗ из Bitrix на сайт.");
-        window.setTimeout(() => setAttachmentNotice(""), 3200);
+        setBitrixImportIssue(message);
+        setAttachmentNotice(message);
       });
   };
+
+  useEffect(() => {
+    if (!deal?.id || !loadedBitrixFiles.length) return;
+    if (bitrixImportState === "loading") return;
+    if (hasBitrixImportedAttachments) return;
+    if (!loadedBitrixImportKey || bitrixAutoImportKeyRef.current === loadedBitrixImportKey) return;
+
+    bitrixAutoImportKeyRef.current = loadedBitrixImportKey;
+    importBitrixFilesToDraft({ automatic: true });
+  }, [
+    bitrixImportState,
+    deal?.id,
+    hasBitrixImportedAttachments,
+    loadedBitrixFiles.length,
+    loadedBitrixImportKey,
+  ]);
 
   useEffect(() => {
     const dealFallback = createDraftForDeal(deal);
@@ -2749,14 +2800,35 @@ export function TechSpecBuilder({
             const selectedWorkCost = getSelectedWorkCost(item, workCostOptions);
             const showBitrixImport = Boolean(deal && index === 0);
             const hasBitrixFiles = loadedBitrixFiles.length > 0;
+            const bitrixImportedCount = showBitrixImport
+              ? item.attachments.filter(isBitrixImportedAttachment).length
+              : 0;
             const bitrixImportLabel =
               bitrixImportState === "loading"
                 ? "Загружаю..."
                 : bitrixFilesState === "loading"
                   ? "Проверяю..."
-                  : hasBitrixFiles
-                    ? `Из Bitrix (${loadedBitrixFiles.length})`
-                    : "Проверить Bitrix";
+                  : bitrixImportState === "error"
+                    ? "Повторить Bitrix"
+                    : bitrixImportedCount
+                      ? `Из Bitrix добавлено (${bitrixImportedCount})`
+                      : hasBitrixFiles
+                        ? `Из Bitrix (${loadedBitrixFiles.length})`
+                        : "Проверить Bitrix";
+            const bitrixImportStatus = showBitrixImport
+              ? bitrixImportState === "loading"
+                ? "Автоматически загружаю ТЗ из Bitrix в Макеты и схемы..."
+                : bitrixImportIssue
+                  ? bitrixImportIssue
+                  : bitrixImportedCount
+                    ? `ТЗ из Bitrix уже добавлено в Макеты и схемы: ${bitrixImportedCount}`
+                    : ""
+              : "";
+            const bitrixImportStatusClass = [
+              "tech-spec-bitrix-inline-status",
+              bitrixImportIssue ? "warn" : "",
+              bitrixImportedCount && !bitrixImportIssue ? "success" : "",
+            ].filter(Boolean).join(" ");
 
             return (
               <article className="tech-spec-item" key={item.id}>
@@ -2800,7 +2872,7 @@ export function TechSpecBuilder({
                         <button
                           className="secondary compact tech-spec-bitrix-inline-button"
                           disabled={bitrixFilesState === "loading" || bitrixImportState === "loading"}
-                          onClick={hasBitrixFiles ? importBitrixFilesToDraft : refreshBitrixFiles}
+                          onClick={hasBitrixFiles ? () => importBitrixFilesToDraft() : refreshBitrixFiles}
                           type="button"
                         >
                           {hasBitrixFiles ? <FileImage size={16} /> : <RotateCcw size={16} />}
@@ -2826,6 +2898,9 @@ export function TechSpecBuilder({
                       </button>
                     </div>
                   </div>
+                  {bitrixImportStatus ? (
+                    <div className={bitrixImportStatusClass}>{bitrixImportStatus}</div>
+                  ) : null}
 
                   {item.attachments.length ? (
                     <div className="tech-spec-attachments">

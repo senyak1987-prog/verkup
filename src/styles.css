@@ -5245,6 +5245,30 @@ div.employee-profile-field .employee-profile-value {
   opacity: 0.72;
 }
 
+.tech-spec-bitrix-inline-status {
+  margin: -6px 0 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.35;
+  padding: 9px 11px;
+}
+
+.tech-spec-bitrix-inline-status.success {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.tech-spec-bitrix-inline-status.warn {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
 .tech-spec-attachments {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
