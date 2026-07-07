@@ -8771,6 +8771,32 @@ tr.selected td,
   min-width: 260px;
 }
 
+.production-worker-assign {
+  display: inline-flex;
+  align-items: center;
+  min-width: 190px;
+  gap: 6px;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 8px;
+  color: #667085;
+}
+
+.production-worker-assign select {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 9px 0;
+  color: #344054;
+  font-weight: 800;
+}
+
+.production-worker-assign:has(select:disabled) {
+  opacity: 0.65;
+}
+
 .production-deal-card.submitted {
   border-color: #f3c875;
   background: #fffdf6;

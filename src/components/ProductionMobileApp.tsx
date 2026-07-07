@@ -1044,6 +1044,7 @@ export function ProductionMobileApp({
   }
 
   function assignDeals(dealIds: string[], employeeId: string, techSpecItemId?: string) {
+    if (!canAssignDeals) return;
     const employee = employeesById.get(employeeId);
     if (!employee || !isAssemblyMaker(employee)) return;
 
@@ -2484,6 +2485,7 @@ export function ProductionMobileApp({
                     expanded={expandedDealIds.has(deal.id)}
                     techSpec={techSpecs.get(deal.id)}
                     productionWorkers={productionWorkers}
+                    onAssignDeal={(employeeId) => assignDeals([deal.id], employeeId)}
                     onAssignPart={(itemId, employeeId) => assignDealPart(deal.id, itemId, employeeId)}
                     onStageChange={(stage) => void changeDealStage(deal, stage)}
                     onToggle={() => toggleDealExpanded(deal.id)}
@@ -2679,6 +2681,7 @@ function SupervisorDealCard({
   reviewAssignments,
   techSpec,
   productionWorkers,
+  onAssignDeal,
   onAssignPart,
   onDeletePhoto,
   onStageChange,
@@ -2695,6 +2698,7 @@ function SupervisorDealCard({
   reviewAssignments: ProductionAssignment[];
   techSpec?: DealTechSpec;
   productionWorkers: ProductionEmployee[];
+  onAssignDeal: (employeeId: string) => void;
   onAssignPart: (itemId: string, employeeId: string) => void;
   onDeletePhoto: (assignment: ProductionAssignment, photo: ProductionPhoto) => void;
   onStageChange: (stage: DealStageCode) => void;
@@ -2703,6 +2707,10 @@ function SupervisorDealCard({
   onOpenDeal?: () => void;
 }) {
   const currentStage = stageCodeForDeal(deal);
+  const assignedWorkerId =
+    assignment && productionWorkers.some((worker) => worker.id === assignment.employeeId)
+      ? assignment.employeeId
+      : "";
 
   return (
     <article
@@ -2755,6 +2763,24 @@ function SupervisorDealCard({
               Перейти в ТЗ
             </button>
           ) : null}
+          <label className="production-worker-assign">
+            <UserRound size={15} />
+            <select
+              aria-label="Назначить макетчика"
+              disabled={!productionWorkers.length}
+              onChange={(event) => onAssignDeal(event.target.value)}
+              value={assignedWorkerId}
+            >
+              <option value="" disabled>
+                {productionWorkers.length ? "Назначить макетчика" : "Нет макетчиков"}
+              </option>
+              {productionWorkers.map((worker) => (
+                <option key={worker.id} value={worker.id}>
+                  {worker.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <select
             aria-label="Изменить стадию сделки"
             onChange={(event) => onStageChange(event.target.value as DealStageCode)}
