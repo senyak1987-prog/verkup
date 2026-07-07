@@ -6,7 +6,6 @@ import {
   KeyRound,
   LockKeyhole,
   Send,
-  ShieldCheck,
   UserRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -73,13 +72,22 @@ export function AccessGate({
     const target = event.currentTarget;
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    window.setTimeout(() => {
+    const keepFieldVisible = () => {
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const rect = target.getBoundingClientRect();
+      const bottomLimit = Math.max(180, viewportHeight - 24);
+
+      if (rect.top >= 12 && rect.bottom <= bottomLimit) return;
+
       target.scrollIntoView({
         block: "center",
         inline: "nearest",
         behavior: reduceMotion ? "auto" : "smooth",
       });
-    }, 180);
+    };
+
+    window.setTimeout(keepFieldVisible, 120);
+    window.setTimeout(keepFieldVisible, 420);
   }
 
   async function submitLogin() {
@@ -133,33 +141,13 @@ export function AccessGate({
     <main className="access-gate">
       <section className="access-shell" aria-labelledby="access-title">
         <aside className="access-brand-panel">
-          <div className="access-brand-row">
-            <span className="access-brand-mark" aria-hidden="true">V</span>
-            <div>
-              <span className="eyebrow">Рабочее пространство</span>
-              <h1 id="access-title">Штаб Verkup</h1>
-            </div>
-          </div>
-          <div className="access-brand-copy">
-            <p>Сделки, себестоимость, производство, монтажи, склад и финансы.</p>
-          </div>
-          <div className="access-status-list" aria-label="Состояние рабочего пространства">
-            <div className="access-status-row">
-              <span>Площадка</span>
-              <strong>manager.verkup.ru</strong>
-            </div>
-            <div className="access-status-row">
-              <span>Режим</span>
-              <strong>Рабочая версия</strong>
-            </div>
-            <div className="access-status-row">
-              <span>Доступ</span>
-              <strong>По учетной записи сотрудника</strong>
-            </div>
-          </div>
-          <div className="access-brand-foot">
-            <ShieldCheck size={18} />
-            <span>Вход открыт только активным сотрудникам с выданными правами.</span>
+          <div className="access-logo-lockup">
+            <img
+              alt="VERKUP"
+              className="access-logo"
+              src={`${import.meta.env.BASE_URL}verkup-logo-vector.svg`}
+            />
+            <p>рекламно-производственная компания</p>
           </div>
         </aside>
 
@@ -173,7 +161,7 @@ export function AccessGate({
             </span>
             <div>
               <span className="eyebrow">{mode === "login" ? "Защищенный вход" : "Приглашение"}</span>
-              <h2>{mode === "login" ? "Вход сотрудника" : "Заявка на доступ"}</h2>
+              <h2 id="access-title">{mode === "login" ? "Вход сотрудника" : "Заявка на доступ"}</h2>
             </div>
           </div>
 

@@ -3601,6 +3601,26 @@ function WorkerGalleryViewer({
         </div>
         <div className="worker-gallery-viewer-footer">
           <span>{photo?.uploadedAt ? formatDate(photo.uploadedAt) : "Фото работы"}</span>
+          {canNavigate ? (
+            <div className="worker-gallery-viewer-footer-nav" aria-label="Навигация по фото" role="group">
+              <button
+                aria-label="Предыдущее фото"
+                className="worker-gallery-viewer-footer-button previous"
+                onClick={() => navigateToPhoto((safeIndex - 1 + photos.length) % photos.length)}
+                type="button"
+              >
+                <ChevronRight size={22} />
+              </button>
+              <button
+                aria-label="Следующее фото"
+                className="worker-gallery-viewer-footer-button next"
+                onClick={() => navigateToPhoto((safeIndex + 1) % photos.length)}
+                type="button"
+              >
+                <ChevronRight size={22} />
+              </button>
+            </div>
+          ) : null}
           <a href={src} rel="noreferrer" target="_blank">Открыть оригинал</a>
         </div>
       </div>

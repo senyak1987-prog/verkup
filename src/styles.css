@@ -20635,6 +20635,10 @@ textarea:focus,
 .access-gate {
   position: relative;
   place-items: center;
+  align-content: start;
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-y: auto;
   overflow-x: clip;
   background:
     linear-gradient(90deg, rgba(242, 106, 18, 0.08) 0, rgba(242, 106, 18, 0) 36%),
@@ -20657,27 +20661,51 @@ textarea:focus,
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: minmax(300px, 0.92fr) minmax(380px, 480px);
-  width: min(100%, 1040px);
-  min-height: min(680px, calc(100dvh - 56px));
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 520px);
+  min-height: auto;
   overflow: hidden;
   border: 1px solid rgba(185, 195, 209, 0.7);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 24px 80px rgba(20, 27, 42, 0.12);
+  box-shadow: 0 20px 64px rgba(20, 27, 42, 0.12);
 }
 
 .access-brand-panel {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   background:
-    linear-gradient(150deg, rgba(20, 27, 42, 0.98), rgba(42, 50, 63, 0.95)),
-    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0 1px, transparent 1px 18px);
-  color: #f8fafc;
-  padding: 38px;
+    linear-gradient(180deg, rgba(255, 250, 246, 0.96), rgba(255, 255, 255, 0.96)),
+    #fff;
+  color: var(--text);
+  border-bottom: 1px solid rgba(230, 219, 208, 0.8);
+  padding: 24px 32px 18px;
+}
+
+.access-logo-lockup {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  min-width: 0;
+  text-align: center;
+}
+
+.access-logo {
+  display: block;
+  width: min(210px, 72vw);
+  height: auto;
+}
+
+.access-logo-lockup p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 760;
+  line-height: 1.25;
 }
 
 .access-brand-row {
@@ -20781,14 +20809,14 @@ textarea:focus,
 
 .access-shell .access-card {
   display: grid;
-  align-content: center;
-  gap: 18px;
+  align-content: start;
+  gap: 16px;
   width: 100%;
   max-width: none;
   border: 0;
   border-radius: 0 !important;
   background: rgba(255, 255, 255, 0.96);
-  padding: 40px;
+  padding: 28px 32px 32px;
   box-shadow: none;
 }
 
@@ -20813,7 +20841,7 @@ textarea:focus,
 .access-card-head h2 {
   margin: 3px 0 0;
   color: var(--text);
-  font-size: clamp(25px, 4vw, 34px);
+  font-size: clamp(24px, 4vw, 30px);
   font-weight: 760;
   letter-spacing: 0;
   line-height: 1.1;
@@ -20967,13 +20995,13 @@ textarea:focus,
 @media (max-width: 900px) {
   .access-shell {
     grid-template-columns: minmax(0, 1fr);
-    width: min(100%, 560px);
+    width: min(100%, 520px);
     min-height: auto;
   }
 
   .access-brand-panel {
-    gap: 20px;
-    padding: 28px;
+    gap: 8px;
+    padding: 20px 28px 16px;
   }
 
   .access-brand-copy {
@@ -20990,14 +21018,14 @@ textarea:focus,
   }
 
   .access-shell .access-card {
-    padding: 28px;
+    padding: 26px 28px 30px;
   }
 }
 
 @media (max-width: 768px) {
   .access-gate {
     align-items: start;
-    padding: calc(16px + env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+    padding: calc(8px + env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px));
   }
 
   .access-shell {
@@ -21005,7 +21033,19 @@ textarea:focus,
   }
 
   .access-brand-panel {
-    padding: 24px;
+    padding: 12px 16px 10px;
+  }
+
+  .access-logo {
+    width: min(164px, 66vw);
+  }
+
+  .access-logo-lockup {
+    gap: 5px;
+  }
+
+  .access-logo-lockup p {
+    font-size: 11px;
   }
 
   .access-brand-row h1 {
@@ -21017,12 +21057,22 @@ textarea:focus,
   }
 
   .access-shell .access-card {
-    gap: 16px;
-    padding: 24px;
+    gap: 12px;
+    padding: 16px 18px 18px;
+  }
+
+  .access-shell .access-card-head {
+    gap: 10px;
+  }
+
+  .access-card-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
   }
 
   .access-card-head h2 {
-    font-size: 26px;
+    font-size: 23px;
   }
 
   .access-shell .access-form input,
@@ -21030,11 +21080,51 @@ textarea:focus,
   .access-shell .access-form > .primary,
   .access-shell .access-install-button,
   .access-shell .access-tabs button {
-    min-height: 48px;
+    min-height: 46px;
   }
 
   .access-shell .access-password-toggle {
-    top: 5px;
+    top: 4px;
+  }
+
+  .access-gate:focus-within {
+    padding-top: calc(6px + env(safe-area-inset-top, 0px));
+  }
+
+  .access-gate:focus-within .access-brand-panel {
+    padding-top: 8px;
+    padding-bottom: 7px;
+  }
+
+  .access-gate:focus-within .access-logo {
+    width: min(132px, 58vw);
+  }
+
+  .access-gate:focus-within .access-logo-lockup p,
+  .access-gate:focus-within .access-card-head .eyebrow,
+  .access-gate:focus-within .access-mode-note,
+  .access-gate:focus-within .access-note-footer {
+    display: none;
+  }
+
+  .access-gate:focus-within .access-shell .access-card {
+    gap: 8px;
+    padding-top: 12px;
+    padding-bottom: 14px;
+  }
+
+  .access-gate:focus-within .access-card-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .access-gate:focus-within .access-card-head h2 {
+    margin-top: 0;
+    font-size: 20px;
+  }
+
+  .access-gate:focus-within .access-shell .access-form {
+    gap: 8px;
   }
 }
 
@@ -21053,9 +21143,12 @@ textarea:focus,
     font-size: 30px;
   }
 
-  .access-brand-panel,
+  .access-brand-panel {
+    padding: 10px 14px 8px;
+  }
+
   .access-shell .access-card {
-    padding: 20px;
+    padding: 14px;
   }
 
   .access-shell .access-card-head {
@@ -21293,6 +21386,26 @@ textarea:focus,
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.2);
 }
 
+.worker-gallery-viewer-footer-nav {
+  display: none;
+}
+
+.worker-gallery-viewer-footer-button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text-primary);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+}
+
+.worker-gallery-viewer-footer-button.previous svg {
+  transform: rotate(180deg);
+}
+
 @media (max-width: 720px) {
   .workspace-worker-shell .production-mobile,
   .production-mobile:has(.production-worker-view) {
@@ -21326,16 +21439,72 @@ textarea:focus,
   }
 
   .worker-gallery-viewer-backdrop {
-    padding: 0;
+    align-items: stretch;
+    padding: 0 !important;
   }
 
   .worker-gallery-viewer,
   .worker-gallery-viewer-backdrop .worker-gallery-viewer {
     width: 100vw;
-    height: 100dvh;
-    max-height: 100dvh;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 100dvh;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     border: 0;
-    border-radius: 0;
+    border-radius: 0 !important;
+  }
+
+  .worker-gallery-viewer-head {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 12px 8px;
+  }
+
+  .worker-gallery-viewer-stage {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .worker-gallery-viewer-stage > .worker-gallery-viewer-nav {
+    display: none !important;
+  }
+
+  .worker-gallery-viewer-image,
+  .worker-gallery-viewer-stage img.worker-gallery-viewer-image {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+  }
+
+  .worker-gallery-viewer-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    background: #111827;
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .worker-gallery-viewer-footer > span,
+  .worker-gallery-viewer-footer > a {
+    overflow: hidden;
+    min-width: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .worker-gallery-viewer-footer > a {
+    justify-self: end;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .worker-gallery-viewer-footer-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    justify-self: center;
   }
 }
 
