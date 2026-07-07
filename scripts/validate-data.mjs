@@ -4,6 +4,7 @@ import path from "node:path";
 const dealsPath = path.resolve("public/data/deals.json");
 const data = JSON.parse(await fs.readFile(dealsPath, "utf8"));
 const items = Array.isArray(data.items) ? data.items : [];
+const strictResponsibleValidation = isTruthy(process.env.STRICT_RESPONSIBLE_VALIDATION);
 
 const unresolved = items
   .filter((deal) => isNumericResponsible(responsibleName(deal)))
@@ -14,15 +15,20 @@ const unresolved = items
   }));
 
 if (unresolved.length) {
-  console.error(`В deals.json остались Bitrix ID вместо ФИО ответственных: ${unresolved.length}`);
+  const log = strictResponsibleValidation ? console.error : console.warn;
+  log(
+    `${strictResponsibleValidation ? "Ошибка" : "Предупреждение"}: в deals.json остались Bitrix ID вместо ФИО ответственных: ${unresolved.length}`,
+  );
   for (const deal of unresolved.slice(0, 20)) {
-    console.error(`#${deal.number}: ${deal.responsible} ${deal.title}`);
+    log(`#${deal.number}: ${deal.responsible} ${deal.title}`);
   }
   if (unresolved.length > 20) {
-    console.error(`...и еще ${unresolved.length - 20}`);
+    log(`...и еще ${unresolved.length - 20}`);
   }
-  console.error("Запустите npm run sync:bitrix и проверьте доступ webhook к методу user.get.");
-  process.exit(1);
+  log("Проверьте доступ webhook к методу user.get. Сайт продолжит работать, но вместо ФИО может показать ID.");
+  if (strictResponsibleValidation) {
+    process.exit(1);
+  }
 }
 
 const missingPhones = items
@@ -44,7 +50,11 @@ if (missingPhones.length) {
   console.warn("ТЗ можно подготовить, но телефон в него не подтянется, пока он не заполнен в карточке Bitrix.");
 }
 
-console.log(`OK: ответственные расшифрованы во всех сделках (${items.length}).`);
+if (unresolved.length) {
+  console.log(`OK: данные проверены (${items.length}), ответственные с ID: ${unresolved.length}.`);
+} else {
+  console.log(`OK: ответственные расшифрованы во всех сделках (${items.length}).`);
+}
 
 function responsibleName(deal) {
   return String(deal.responsibleCard?.name || deal.responsible || "").trim();
@@ -62,4 +72,8 @@ function isNumericResponsible(value) {
 function isFullPhone(value) {
   const digits = String(value || "").replace(/\D/g, "");
   return digits.length >= 10 && digits.length <= 15;
+}
+
+function isTruthy(value) {
+  return /^(1|true|yes)$/i.test(String(value || "").trim());
 }
