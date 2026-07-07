@@ -87,7 +87,7 @@ import {
 } from "./TechSpecBuilder";
 
 type ProductionView = "supervisor" | "worker";
-type SupervisorTab = "queue" | "assembly" | "review";
+type SupervisorTab = "queue" | "assembly" | "review" | "ready";
 type WorkerTab = "assigned" | "inProgress" | "ready" | "money" | "gallery";
 type WorkerDealTab = Extract<WorkerTab, "assigned" | "inProgress" | "ready">;
 type ProductionTheme = "day" | "night";
@@ -2401,13 +2401,6 @@ export function ProductionMobileApp({
               <h1>Сборка и фотоотчеты</h1>
               <p>Назначение макетчиков, контроль готовности и проверка выполненных сделок.</p>
             </section>
-            <section className="production-kpis" aria-label="Сводка производства">
-              <ProductionKpi label="На сборку" value={supervisorDealCounts.queue} />
-              <ProductionKpi label="На сборке" value={supervisorDealCounts.assembly} />
-              <ProductionKpi label="На проверке" value={supervisorDealCounts.review} />
-              <ProductionKpi label="Готово к отгрузке" value={supervisorDealCounts.readyForShipment} />
-            </section>
-
             <div className="production-section-tabs" role="tablist" aria-label="Сделки">
               <button
                 aria-selected={supervisorTab === "queue"}
@@ -2416,6 +2409,7 @@ export function ProductionMobileApp({
                 type="button"
               >
                 Сделки на сборку
+                <span>{supervisorDealCounts.queue}</span>
               </button>
               <button
                 aria-selected={supervisorTab === "assembly"}
@@ -2424,6 +2418,7 @@ export function ProductionMobileApp({
                 type="button"
               >
                 На сборке
+                <span>{supervisorDealCounts.assembly}</span>
               </button>
               <button
                 aria-selected={supervisorTab === "review"}
@@ -2432,6 +2427,16 @@ export function ProductionMobileApp({
                 type="button"
               >
                 На проверке
+                <span>{supervisorDealCounts.review}</span>
+              </button>
+              <button
+                aria-selected={supervisorTab === "ready"}
+                className={supervisorTab === "ready" ? "active" : ""}
+                onClick={() => setSupervisorTab("ready")}
+                type="button"
+              >
+                Готов к отгрузке
+                <span>{supervisorDealCounts.ready}</span>
               </button>
             </div>
 
@@ -4845,9 +4850,12 @@ function supervisorTabForDeal(
   assignments: ProductionAssignment[],
 ): SupervisorTab {
   const currentAssignments = currentAssignmentsForDeal(assignments, dealId, spec);
+  if (isDealReadyForShipment(dealId, spec, assignments)) {
+    return "ready";
+  }
   if (
     currentAssignments.some(
-      (assignment) => assignment.status === "submitted" || assignment.status === "readyForShipment",
+      (assignment) => assignment.status === "submitted",
     )
   ) {
     return "review";
@@ -4869,24 +4877,16 @@ function summarizeSupervisorDeals(
 ) {
   return deals.reduce(
     (summary, deal) => {
-      const currentAssignments = currentAssignmentsForDeal(assignments, deal.id, techSpecs.get(deal.id));
       const tab = supervisorTabForDeal(deal.id, techSpecs.get(deal.id), assignments);
       summary[tab] += 1;
-      if (
-        currentAssignments.some(
-          (assignment) => assignment.status === "readyForShipment",
-        )
-      ) {
-        summary.readyForShipment += 1;
-      }
       return summary;
     },
     {
       assembly: 0,
       queue: 0,
-      readyForShipment: 0,
+      ready: 0,
       review: 0,
-    } as Record<SupervisorTab, number> & { readyForShipment: number },
+    } as Record<SupervisorTab, number>,
   );
 }
 
