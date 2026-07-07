@@ -4316,36 +4316,47 @@ function TechSpecInline({
   const cachedBitrixFiles = deal.techSpecFiles?.length ? deal.techSpecFiles : deal.installationFiles || [];
   const [loadedBitrixFiles, setLoadedBitrixFiles] = useState(cachedBitrixFiles);
   const [bitrixFilesState, setBitrixFilesState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const bitrixStatus = deal.bitrixTechSpecStatus;
+  const indexedFileCount = bitrixStatus?.fileCount ?? cachedBitrixFiles.length;
 
   useEffect(() => {
     setLoadedBitrixFiles(cachedBitrixFiles);
     setBitrixFilesState("idle");
   }, [deal.id, cachedBitrixFiles.length]);
 
-  useEffect(() => {
-    if (spec || cachedBitrixFiles.length || !deal.id || bitrixFilesState !== "idle") return;
+  const checkBitrixFiles = () => {
+    if (!deal.id || bitrixFilesState === "loading") return;
     const apiUrl = defaultSaveApiUrl();
-    if (!apiUrl) return;
-    let canceled = false;
+    if (!apiUrl) {
+      setBitrixFilesState("error");
+      return;
+    }
+
     setBitrixFilesState("loading");
-    void loadBitrixDealFiles({ apiUrl }, deal.id)
+    void loadBitrixDealFiles({ apiUrl }, deal.id, { refresh: true })
       .then((result) => {
-        if (canceled) return;
         const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];
         setLoadedBitrixFiles(files);
         setBitrixFilesState("done");
       })
       .catch(() => {
-        if (!canceled) setBitrixFilesState("error");
+        setBitrixFilesState("error");
       });
-    return () => {
-      canceled = true;
-    };
-  }, [bitrixFilesState, cachedBitrixFiles.length, deal.id, spec]);
+  };
 
   if (!spec) {
     const bitrixFiles = loadedBitrixFiles;
     const preview = bitrixFiles.find((file) => file.type === "image") || bitrixFiles[0];
+    const missingText =
+      bitrixFilesState === "loading"
+        ? "Проверяю в Bitrix только эту сделку..."
+        : bitrixFilesState === "done"
+          ? "В Bitrix файлы ТЗ не найдены."
+          : indexedFileCount > 0
+            ? `В индексе Bitrix есть файлов: ${indexedFileCount}.`
+            : bitrixStatus?.status === "missing"
+              ? "По последней проверке ТЗ в Bitrix нет."
+              : "ТЗ еще не прикреплено к сделке.";
 
     return (
       <section className={`production-tech-spec missing${preview ? " has-bitrix-source" : ""}`}>
@@ -4363,9 +4374,7 @@ function TechSpecInline({
           <span>
             {preview
               ? "ТЗ из Bitrix"
-              : bitrixFilesState === "loading"
-                ? "Проверяю ТЗ в Bitrix..."
-                : "ТЗ еще не прикреплено к сделке."}
+              : missingText}
           </span>
           {preview ? (
             <>
@@ -4381,7 +4390,14 @@ function TechSpecInline({
                 </a>
               </div>
             </>
-          ) : null}
+          ) : (
+            <div className="production-tech-spec-bitrix-actions">
+              <button disabled={bitrixFilesState === "loading"} onClick={checkBitrixFiles} type="button">
+                <Search size={14} />
+                <span>{bitrixFilesState === "loading" ? "Проверяю..." : "Проверить в Bitrix"}</span>
+              </button>
+            </div>
+          )}
           {!preview && bitrixFilesState === "error" ? <small>Не удалось подтянуть файлы ТЗ из Bitrix.</small> : null}
         </div>
       </section>

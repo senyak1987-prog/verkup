@@ -1912,10 +1912,12 @@ type TechSpecBuilderProps = {
 function BitrixTechSpecSource({
   files,
   hasLocalSpec,
+  onRefresh,
   state,
 }: {
   files: BitrixDealFile[];
   hasLocalSpec: boolean;
+  onRefresh?: () => void;
   state: "idle" | "loading" | "done" | "error";
 }) {
   const preview = files.find((file) => file.type === "image") || files[0];
@@ -1962,8 +1964,23 @@ function BitrixTechSpecSource({
                 <Download size={15} />
                 Сохранить
               </a>
+              {onRefresh ? (
+                <button disabled={state === "loading"} onClick={onRefresh} type="button">
+                  <RotateCcw size={15} />
+                  Обновить из Bitrix
+                </button>
+              ) : null}
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {!preview && onRefresh ? (
+        <div className="tech-spec-bitrix-source-actions">
+          <button disabled={state === "loading"} onClick={onRefresh} type="button">
+            <RotateCcw size={15} />
+            {state === "loading" ? "Проверяю..." : "Проверить в Bitrix"}
+          </button>
         </div>
       ) : null}
 
@@ -2023,6 +2040,25 @@ export function TechSpecBuilder({
     setLoadedBitrixFiles(cachedBitrixFiles);
     setBitrixFilesState("idle");
   }, [deal?.id, cachedBitrixFiles]);
+
+  const refreshBitrixFiles = () => {
+    if (!deal?.id || bitrixFilesState === "loading") return;
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) {
+      setBitrixFilesState("error");
+      return;
+    }
+    setBitrixFilesState("loading");
+    void loadBitrixDealFiles({ apiUrl }, deal.id, { refresh: true })
+      .then((result) => {
+        const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];
+        setLoadedBitrixFiles(files);
+        setBitrixFilesState("done");
+      })
+      .catch(() => {
+        setBitrixFilesState("error");
+      });
+  };
 
   useEffect(() => {
     if (!deal?.id || cachedBitrixFiles.length || bitrixFilesState !== "idle") return;
@@ -2493,6 +2529,7 @@ export function TechSpecBuilder({
           files={loadedBitrixFiles}
           state={bitrixFilesState}
           hasLocalSpec={Boolean(storedSpec)}
+          onRefresh={refreshBitrixFiles}
         />
       ) : null}
 

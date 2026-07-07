@@ -41,6 +41,7 @@ export type Deal = {
   installationComment?: string;
   installationFiles?: BitrixDealFile[];
   techSpecFiles?: BitrixDealFile[];
+  bitrixTechSpecStatus?: BitrixTechSpecStatus;
 };
 
 export type BitrixDealFile = {
@@ -52,6 +53,14 @@ export type BitrixDealFile = {
   label?: string;
   source?: "techSpec" | "installation" | "deal";
   type?: "image" | "file";
+};
+
+export type BitrixTechSpecStatus = {
+  checkedAt?: string;
+  fileCount?: number;
+  imageCount?: number;
+  preview?: BitrixDealFile | null;
+  status?: "found" | "missing" | string;
 };
 
 export type DealStageCode = "tz" | "tzApproval" | "launch" | "production" | "defect";

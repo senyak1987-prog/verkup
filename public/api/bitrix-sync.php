@@ -2,6 +2,7 @@
 
 const BITRIX_DEFAULT_SYNC_INTERVAL_SECONDS = 300;
 const BITRIX_SYNC_LOCK_SECONDS = 60;
+const BITRIX_TECH_SPEC_CACHE_TTL_SECONDS = 21600;
 
 function maybe_sync_bitrix_deals()
 {
@@ -64,6 +65,7 @@ function sync_bitrix_deals($force = false)
 
         $data = fetch_bitrix_deals_payload();
         write_data_file('deals.json', $data);
+        refresh_bitrix_tech_spec_index_from_deals(array_get($data, 'items', []), 'sync');
 
         return [
             'success' => true,
@@ -150,6 +152,7 @@ function sync_bitrix_deal($dealId)
     $data['stages'] = $targetStageItems;
     $data['items'] = $nextItems;
     write_data_file('deals.json', $data);
+    upsert_bitrix_tech_spec_index_from_deal($normalized, 'event');
 
     return [
         'success' => true,
@@ -158,6 +161,45 @@ function sync_bitrix_deal($dealId)
         'dealId' => $id,
         'data' => $data,
     ];
+}
+
+function fetch_bitrix_deal_tech_spec_files_cached($dealId, $force = false)
+{
+    $id = trim((string)$dealId);
+    if ($id === '') throw new RuntimeException('Deal id is required');
+
+    $entry = bitrix_tech_spec_index_entry($id);
+    if (!$force && $entry && !bitrix_tech_spec_cache_expired($entry)) {
+        return bitrix_tech_spec_response_from_index_entry($entry, true);
+    }
+
+    try {
+        $result = fetch_bitrix_deal_tech_spec_files($id);
+        $entry = upsert_bitrix_tech_spec_index_from_files(
+            $id,
+            array_get($result, 'techSpecFiles', []),
+            array_get($result, 'installationFiles', []),
+            $force ? 'manual' : 'direct'
+        );
+        update_bitrix_deal_tech_spec_files_in_cache($id, $entry);
+
+        return array_merge($result, [
+            'cached' => false,
+            'checkedAt' => array_get($entry, 'checkedAt', ''),
+            'status' => array_get($entry, 'status', 'missing'),
+            'fileCount' => (int)array_get($entry, 'fileCount', 0),
+            'imageCount' => (int)array_get($entry, 'imageCount', 0),
+            'preview' => array_get($entry, 'preview', null),
+        ]);
+    } catch (Exception $error) {
+        if ($entry) {
+            $response = bitrix_tech_spec_response_from_index_entry($entry, true);
+            $response['stale'] = true;
+            $response['warning'] = $error->getMessage();
+            return $response;
+        }
+        throw $error;
+    }
 }
 
 function fetch_bitrix_deal_tech_spec_files($dealId)
@@ -169,11 +211,16 @@ function fetch_bitrix_deal_tech_spec_files($dealId)
     $response = call_bitrix_rest('crm.deal.get', ['id' => $id]);
     $deal = array_get($response, 'result', []);
     if (!is_array($deal) || count($deal) === 0) {
+        $checkedAt = gmdate('c');
         return [
             'success' => true,
             'dealId' => $id,
             'techSpecFiles' => [],
             'installationFiles' => [],
+            'checkedAt' => $checkedAt,
+            'status' => 'missing',
+            'fileCount' => 0,
+            'imageCount' => 0,
         ];
     }
 
@@ -188,12 +235,258 @@ function fetch_bitrix_deal_tech_spec_files($dealId)
         : tag_bitrix_deal_files(extract_bitrix_deal_files(infer_deal_file_field($deal), $bitrixDomain), 'techSpec', '');
     $installationSource = $fields['installFiles'] ? array_get($deal, $fields['installFiles'], null) : infer_deal_file_field($deal);
 
+    $installationFiles = tag_bitrix_deal_files(extract_bitrix_deal_files($installationSource, $bitrixDomain), 'installation', $fields['installFiles']);
+    $status = bitrix_tech_spec_status_payload($techSpecFiles, $installationFiles);
+
     return [
         'success' => true,
         'dealId' => $id,
         'techSpecFiles' => $techSpecFiles,
-        'installationFiles' => tag_bitrix_deal_files(extract_bitrix_deal_files($installationSource, $bitrixDomain), 'installation', $fields['installFiles']),
+        'installationFiles' => $installationFiles,
+        'checkedAt' => array_get($status, 'checkedAt', ''),
+        'status' => array_get($status, 'status', 'missing'),
+        'fileCount' => array_get($status, 'fileCount', 0),
+        'imageCount' => array_get($status, 'imageCount', 0),
+        'preview' => array_get($status, 'preview', null),
     ];
+}
+
+function read_bitrix_tech_spec_index()
+{
+    $data = read_data_file_raw('bitrix-tech-spec-index.json');
+    if (!isset($data['items']) || !is_array($data['items'])) $data['items'] = [];
+    $items = [];
+    $seen = [];
+    foreach ($data['items'] as $item) {
+        if (!is_array($item)) continue;
+        $dealId = trim((string)first_defined(array_get($item, 'dealId', ''), array_get($item, 'id', '')));
+        if ($dealId === '' || isset($seen[$dealId])) continue;
+        $seen[$dealId] = true;
+        $item['id'] = $dealId;
+        $item['dealId'] = $dealId;
+        $items[] = $item;
+    }
+    $data['items'] = $items;
+    if (!array_get($data, 'generatedAt', '')) $data['generatedAt'] = gmdate('c');
+    return $data;
+}
+
+function write_bitrix_tech_spec_index($data)
+{
+    if (!is_array($data)) $data = [];
+    if (!isset($data['items']) || !is_array($data['items'])) $data['items'] = [];
+    $data['generatedAt'] = gmdate('c');
+    write_data_file('bitrix-tech-spec-index.json', $data);
+}
+
+function bitrix_tech_spec_index_entry($dealId)
+{
+    $id = trim((string)$dealId);
+    if ($id === '') return null;
+    $index = read_bitrix_tech_spec_index();
+    foreach (array_get($index, 'items', []) as $entry) {
+        if (is_array($entry) && (string)array_get($entry, 'dealId', '') === $id) return $entry;
+    }
+    return null;
+}
+
+function bitrix_tech_spec_cache_expired($entry)
+{
+    $checkedAt = strtotime((string)array_get($entry, 'checkedAt', ''));
+    if (!$checkedAt) return true;
+    $ttl = (int)bitrix_config('BITRIX_TECH_SPEC_CACHE_TTL_SECONDS', BITRIX_TECH_SPEC_CACHE_TTL_SECONDS);
+    $ttl = max(60, $ttl);
+    return (time() - $checkedAt) >= $ttl;
+}
+
+function bitrix_tech_spec_status_payload($techSpecFiles, $installationFiles, $checkedAt = '')
+{
+    $techSpecFiles = is_array($techSpecFiles) ? array_values($techSpecFiles) : [];
+    $installationFiles = is_array($installationFiles) ? array_values($installationFiles) : [];
+    $files = array_values(array_merge($techSpecFiles, $installationFiles));
+    $preview = null;
+    $imageCount = 0;
+
+    foreach ($files as $file) {
+        if (!is_array($file)) continue;
+        if ((string)array_get($file, 'type', '') === 'image') {
+            $imageCount++;
+            if ($preview === null) $preview = $file;
+        }
+    }
+    if ($preview === null) {
+        foreach ($files as $file) {
+            if (is_array($file)) {
+                $preview = $file;
+                break;
+            }
+        }
+    }
+
+    return [
+        'checkedAt' => $checkedAt !== '' ? $checkedAt : gmdate('c'),
+        'status' => count($files) > 0 ? 'found' : 'missing',
+        'fileCount' => count($files),
+        'imageCount' => $imageCount,
+        'preview' => $preview,
+    ];
+}
+
+function bitrix_tech_spec_index_entry_from_files($dealId, $techSpecFiles, $installationFiles, $source = 'sync')
+{
+    $id = trim((string)$dealId);
+    $techSpecFiles = is_array($techSpecFiles) ? array_values($techSpecFiles) : [];
+    $installationFiles = is_array($installationFiles) ? array_values($installationFiles) : [];
+    $status = bitrix_tech_spec_status_payload($techSpecFiles, $installationFiles);
+
+    return [
+        'id' => $id,
+        'dealId' => $id,
+        'checkedAt' => array_get($status, 'checkedAt', gmdate('c')),
+        'source' => $source,
+        'status' => array_get($status, 'status', 'missing'),
+        'fileCount' => (int)array_get($status, 'fileCount', 0),
+        'imageCount' => (int)array_get($status, 'imageCount', 0),
+        'preview' => array_get($status, 'preview', null),
+        'techSpecFiles' => $techSpecFiles,
+        'installationFiles' => $installationFiles,
+    ];
+}
+
+function upsert_bitrix_tech_spec_index_from_files($dealId, $techSpecFiles, $installationFiles, $source = 'sync')
+{
+    $entry = bitrix_tech_spec_index_entry_from_files($dealId, $techSpecFiles, $installationFiles, $source);
+    if ((string)array_get($entry, 'dealId', '') === '') return $entry;
+
+    $index = read_bitrix_tech_spec_index();
+    $items = [];
+    $inserted = false;
+    foreach (array_get($index, 'items', []) as $item) {
+        if (!is_array($item)) continue;
+        if ((string)array_get($item, 'dealId', '') === (string)array_get($entry, 'dealId', '')) {
+            $items[] = $entry;
+            $inserted = true;
+        } else {
+            $items[] = $item;
+        }
+    }
+    if (!$inserted) array_unshift($items, $entry);
+    $index['items'] = $items;
+    write_bitrix_tech_spec_index($index);
+    return $entry;
+}
+
+function upsert_bitrix_tech_spec_index_from_deal($deal, $source = 'sync')
+{
+    if (!is_array($deal)) return null;
+    $dealId = (string)array_get($deal, 'id', '');
+    if ($dealId === '') return null;
+    return upsert_bitrix_tech_spec_index_from_files(
+        $dealId,
+        array_get($deal, 'techSpecFiles', []),
+        array_get($deal, 'installationFiles', []),
+        $source
+    );
+}
+
+function refresh_bitrix_tech_spec_index_from_deals($deals, $source = 'sync')
+{
+    if (!is_array($deals)) return;
+    $index = read_bitrix_tech_spec_index();
+    $entriesByDealId = [];
+    foreach (array_get($index, 'items', []) as $item) {
+        if (!is_array($item)) continue;
+        $dealId = (string)array_get($item, 'dealId', '');
+        if ($dealId !== '') $entriesByDealId[$dealId] = $item;
+    }
+
+    foreach ($deals as $deal) {
+        if (!is_array($deal)) continue;
+        $dealId = (string)array_get($deal, 'id', '');
+        if ($dealId === '') continue;
+        $entriesByDealId[$dealId] = bitrix_tech_spec_index_entry_from_files(
+            $dealId,
+            array_get($deal, 'techSpecFiles', []),
+            array_get($deal, 'installationFiles', []),
+            $source
+        );
+    }
+
+    $items = array_values($entriesByDealId);
+    usort($items, function ($first, $second) {
+        return strcmp((string)array_get($second, 'checkedAt', ''), (string)array_get($first, 'checkedAt', ''));
+    });
+    write_bitrix_tech_spec_index(['items' => $items]);
+}
+
+function remove_bitrix_tech_spec_index_entry($dealId)
+{
+    $id = trim((string)$dealId);
+    if ($id === '') return;
+    $index = read_bitrix_tech_spec_index();
+    $index['items'] = array_values(array_filter(array_get($index, 'items', []), function ($entry) use ($id) {
+        return !is_array($entry) || (string)array_get($entry, 'dealId', '') !== $id;
+    }));
+    write_bitrix_tech_spec_index($index);
+}
+
+function bitrix_tech_spec_response_from_index_entry($entry, $cached)
+{
+    $techSpecFiles = bitrix_file_array(array_get($entry, 'techSpecFiles', []));
+    $installationFiles = bitrix_file_array(array_get($entry, 'installationFiles', []));
+    $status = bitrix_tech_spec_status_payload(
+        $techSpecFiles,
+        $installationFiles,
+        (string)array_get($entry, 'checkedAt', '')
+    );
+
+    return [
+        'success' => true,
+        'cached' => $cached,
+        'dealId' => (string)array_get($entry, 'dealId', ''),
+        'techSpecFiles' => $techSpecFiles,
+        'installationFiles' => $installationFiles,
+        'checkedAt' => array_get($status, 'checkedAt', ''),
+        'status' => array_get($status, 'status', 'missing'),
+        'fileCount' => array_get($status, 'fileCount', 0),
+        'imageCount' => array_get($status, 'imageCount', 0),
+        'preview' => array_get($status, 'preview', null),
+    ];
+}
+
+function update_bitrix_deal_tech_spec_files_in_cache($dealId, $entry)
+{
+    $id = trim((string)$dealId);
+    if ($id === '' || !is_array($entry)) return;
+
+    $data = read_data_file_raw('deals.json');
+    $items = array_get($data, 'items', []);
+    if (!is_array($items)) return;
+
+    $updated = false;
+    foreach ($items as &$item) {
+        if (!is_array($item) || (string)array_get($item, 'id', '') !== $id) continue;
+        $item['techSpecFiles'] = bitrix_file_array(array_get($entry, 'techSpecFiles', []));
+        $item['installationFiles'] = bitrix_file_array(array_get($entry, 'installationFiles', []));
+        $item['bitrixTechSpecStatus'] = bitrix_tech_spec_status_payload(
+            $item['techSpecFiles'],
+            $item['installationFiles'],
+            (string)array_get($entry, 'checkedAt', '')
+        );
+        $updated = true;
+        break;
+    }
+    unset($item);
+
+    if (!$updated) return;
+    $data['items'] = $items;
+    $data['generatedAt'] = gmdate('c');
+    write_data_file('deals.json', $data);
+}
+
+function bitrix_file_array($value)
+{
+    return is_array($value) ? array_values($value) : [];
 }
 
 function remove_bitrix_deal_from_cache($dealId)
@@ -216,6 +509,7 @@ function remove_bitrix_deal_from_cache($dealId)
     $data['items'] = $items;
     if (!isset($data['stages']) || !is_array($data['stages'])) $data['stages'] = bitrix_target_stage_items();
     write_data_file('deals.json', $data);
+    remove_bitrix_tech_spec_index_entry($id);
 
     return [
         'success' => true,
@@ -635,6 +929,7 @@ function normalize_bitrix_deal($deal, $users, $dictionaries, $stageCodesById)
     $techSpecFiles = count($techSpecFileFields) > 0
         ? bitrix_deal_files_from_fields($deal, $techSpecFileFields, $fieldLabels, $bitrixDomain)
         : tag_bitrix_deal_files(extract_bitrix_deal_files($techSpecFileSource, $bitrixDomain), 'techSpec', '');
+    $bitrixTechSpecStatus = bitrix_tech_spec_status_payload($techSpecFiles, $installationFiles);
 
     return [
         'id' => $id,
@@ -662,6 +957,7 @@ function normalize_bitrix_deal($deal, $users, $dictionaries, $stageCodesById)
         'installationComment' => (string)$installationComment,
         'installationFiles' => $installationFiles,
         'techSpecFiles' => $techSpecFiles,
+        'bitrixTechSpecStatus' => $bitrixTechSpecStatus,
     ];
 }
 

@@ -100,9 +100,14 @@ try {
         json_response(['success' => true, 'stages' => bitrix_target_stage_items()], 200);
     }
 
+    if ($method === 'GET' && $path === '/bitrix/tech-spec-index') {
+        json_response(read_bitrix_tech_spec_index(), 200);
+    }
+
     if ($method === 'GET' && preg_match('#^/bitrix/deal-files/([^/]+)$#', $path, $match)) {
         $dealId = sanitize_segment($match[1]);
-        json_response(fetch_bitrix_deal_tech_spec_files($dealId), 200);
+        $refresh = in_array(strtolower((string)array_get($_GET, 'refresh', array_get($_GET, 'force', ''))), ['1', 'true', 'yes', 'on'], true);
+        json_response(fetch_bitrix_deal_tech_spec_files_cached($dealId, $refresh), 200);
     }
 
     if ($method === 'POST' && $path === '/move-stage') {
@@ -127,6 +132,10 @@ try {
 
     if ($method === 'GET' && preg_match('#^/data/([a-z0-9_-]+\.json)$#i', $path, $match)) {
         json_response(read_data_file($match[1]), 200);
+    }
+
+    if ($method === 'GET' && $path === '/photos') {
+        json_response(filter_photo_library($_GET), 200);
     }
 
     if ($method === 'GET' && preg_match('#^/deals/([^/]+)/photos$#', $path, $match)) {
@@ -1201,6 +1210,8 @@ function default_data($name)
         ];
     }
     if ($name === 'deals.json') return ['generatedAt' => $now, 'stages' => [], 'items' => []];
+    if ($name === 'bitrix-tech-spec-index.json') return ['generatedAt' => $now, 'items' => []];
+    if ($name === 'photo-library.json') return ['generatedAt' => $now, 'seededAt' => '', 'photos' => []];
     if ($name === 'catalogs.json') return ['generatedAt' => $now, 'items' => []];
     if ($name === 'events.json') return ['generatedAt' => $now, 'lastEventId' => 0, 'events' => []];
     return [];
@@ -1816,6 +1827,7 @@ function handle_photo_upload($dealId)
     $production['generatedAt'] = gmdate('c');
     $production['notifications'][] = notification_record('photosAdded', $dealId, $dealNumber, $dealTitle, $uploadedBy);
     write_data_file('production.json', normalize_production($production));
+    upsert_photo_library_records('production', $photos);
 
     return [
         'success' => true,
@@ -1866,6 +1878,7 @@ function handle_installation_photo_upload($installationId)
 
     $store['generatedAt'] = gmdate('c');
     write_data_file('installations.json', normalize_installations($store));
+    upsert_photo_library_records('installation', $photos);
     $data = read_installations();
     return [
         'success' => true,
@@ -2238,6 +2251,188 @@ function photos_for_deal($production, $dealId)
     return $photos;
 }
 
+function read_photo_library()
+{
+    $data = read_data_file_raw('photo-library.json');
+    if (!isset($data['photos']) || !is_array($data['photos'])) $data['photos'] = [];
+    if (!array_key_exists('seededAt', $data)) $data['seededAt'] = '';
+    if (!array_get($data, 'generatedAt', '')) $data['generatedAt'] = gmdate('c');
+    return $data;
+}
+
+function filter_photo_library($query)
+{
+    $library = ensure_photo_library_index();
+    $dealId = trim((string)array_get($query, 'dealId', ''));
+    $scope = trim((string)array_get($query, 'scope', ''));
+    $employeeId = trim((string)array_get($query, 'employeeId', ''));
+    $installationId = trim((string)array_get($query, 'installationId', ''));
+
+    $photos = array_values(array_filter(array_get($library, 'photos', []), function ($photo) use ($dealId, $scope, $employeeId, $installationId) {
+        if (!is_array($photo)) return false;
+        if ($dealId !== '' && (string)array_get($photo, 'dealId', '') !== $dealId) return false;
+        if ($scope !== '' && (string)array_get($photo, 'scope', '') !== $scope) return false;
+        if ($employeeId !== '' && (string)array_get($photo, 'employeeId', '') !== $employeeId) return false;
+        if ($installationId !== '' && (string)array_get($photo, 'installationId', '') !== $installationId) return false;
+        return true;
+    }));
+
+    return [
+        'success' => true,
+        'generatedAt' => array_get($library, 'generatedAt', ''),
+        'photos' => $photos,
+    ];
+}
+
+function ensure_photo_library_index()
+{
+    $library = read_photo_library();
+    if ((string)array_get($library, 'seededAt', '') !== '') return $library;
+
+    $photos = merge_photo_library_records(
+        array_get($library, 'photos', []),
+        array_merge(
+            collect_production_photo_library_records(read_data_file_raw('production.json')),
+            collect_installation_photo_library_records(read_data_file_raw('installations.json'))
+        )
+    );
+
+    $library = [
+        'generatedAt' => gmdate('c'),
+        'seededAt' => gmdate('c'),
+        'photos' => $photos,
+    ];
+    write_data_file('photo-library.json', $library);
+    return $library;
+}
+
+function collect_production_photo_library_records($production)
+{
+    $records = [];
+    foreach (array_get($production, 'assignments', []) as $assignment) {
+        if (!is_array($assignment)) continue;
+        $dealId = (string)array_get($assignment, 'dealId', '');
+        foreach (array_deep_get($assignment, ['completion', 'photos'], []) as $photo) {
+            if (!is_array($photo)) continue;
+            $records[] = photo_library_record('production', array_merge([
+                'dealId' => $dealId,
+                'assignmentId' => array_get($assignment, 'id', ''),
+                'employeeId' => array_get($assignment, 'employeeId', ''),
+            ], $photo));
+        }
+    }
+    return $records;
+}
+
+function collect_installation_photo_library_records($installations)
+{
+    $records = [];
+    foreach (array_get($installations, 'installations', []) as $installation) {
+        if (!is_array($installation)) continue;
+        $installationId = (string)array_get($installation, 'id', '');
+        $dealId = (string)array_get($installation, 'dealId', '');
+        foreach (array_get($installation, 'photos', []) as $photo) {
+            if (!is_array($photo)) continue;
+            $records[] = photo_library_record('installation', array_merge([
+                'installationId' => $installationId,
+                'dealId' => $dealId,
+            ], $photo));
+        }
+    }
+    return $records;
+}
+
+function upsert_photo_library_records($scope, $photos)
+{
+    if (!is_array($photos) || count($photos) === 0) return;
+    $library = ensure_photo_library_index();
+    $recordsByKey = [];
+
+    foreach (array_get($library, 'photos', []) as $record) {
+        if (!is_array($record)) continue;
+        $key = photo_library_key((string)array_get($record, 'scope', ''), $record);
+        if ($key !== '') $recordsByKey[$key] = $record;
+    }
+
+    foreach ($photos as $photo) {
+        if (!is_array($photo)) continue;
+        $record = photo_library_record($scope, $photo);
+        $key = photo_library_key($scope, $record);
+        if ($key !== '') $recordsByKey[$key] = $record;
+    }
+
+    write_data_file('photo-library.json', [
+        'generatedAt' => gmdate('c'),
+        'seededAt' => array_get($library, 'seededAt', gmdate('c')) ?: gmdate('c'),
+        'photos' => array_values($recordsByKey),
+    ]);
+}
+
+function remove_photo_library_record($scope, $photoId)
+{
+    $id = trim((string)$photoId);
+    if ($id === '') return;
+    $library = read_photo_library();
+    $library['photos'] = array_values(array_filter(array_get($library, 'photos', []), function ($record) use ($scope, $id) {
+        return !is_array($record)
+            || (string)array_get($record, 'scope', '') !== $scope
+            || (string)array_get($record, 'photoId', '') !== $id;
+    }));
+    $library['generatedAt'] = gmdate('c');
+    write_data_file('photo-library.json', $library);
+}
+
+function photo_library_record($scope, $photo)
+{
+    $photoId = (string)array_get($photo, 'id', '');
+    $record = [
+        'id' => photo_library_key($scope, $photo),
+        'scope' => $scope,
+        'photoId' => $photoId,
+        'dealId' => (string)array_get($photo, 'dealId', ''),
+        'assignmentId' => array_get($photo, 'assignmentId', null),
+        'installationId' => array_get($photo, 'installationId', null),
+        'employeeId' => (string)array_get($photo, 'employeeId', ''),
+        'kind' => (string)array_get($photo, 'kind', array_get($photo, 'type', 'photo')),
+        'type' => (string)array_get($photo, 'type', array_get($photo, 'kind', 'photo')),
+        'name' => (string)first_defined(array_get($photo, 'name', ''), array_get($photo, 'originalName', '')),
+        'originalName' => (string)array_get($photo, 'originalName', ''),
+        'url' => (string)array_get($photo, 'url', ''),
+        'thumbnailUrl' => (string)array_get($photo, 'thumbnailUrl', ''),
+        'mimeType' => (string)array_get($photo, 'mimeType', ''),
+        'size' => (int)array_get($photo, 'size', 0),
+        'uploadedAt' => (string)array_get($photo, 'uploadedAt', gmdate('c')),
+        'uploadedBy' => (string)first_defined(array_get($photo, 'uploadedBy', ''), array_get($photo, 'actor', '')),
+        'uploadedById' => (string)array_get($photo, 'uploadedById', ''),
+        'techSpecItemId' => array_get($photo, 'techSpecItemId', null),
+    ];
+    $record['id'] = $record['id'] !== '' ? $record['id'] : $scope . ':' . $photoId;
+    return $record;
+}
+
+function merge_photo_library_records()
+{
+    $recordsByKey = [];
+    foreach (func_get_args() as $records) {
+        if (!is_array($records)) continue;
+        foreach ($records as $record) {
+            if (!is_array($record)) continue;
+            $scope = (string)array_get($record, 'scope', '');
+            $key = photo_library_key($scope, $record);
+            if ($key !== '') $recordsByKey[$key] = $record;
+        }
+    }
+    return array_values($recordsByKey);
+}
+
+function photo_library_key($scope, $photo)
+{
+    $photoId = trim((string)array_get($photo, 'photoId', array_get($photo, 'id', '')));
+    if ($photoId === '') return '';
+    $scope = trim((string)$scope);
+    return $scope . ':' . $photoId;
+}
+
 function delete_uploaded_asset_url($url)
 {
     global $uploadsDir;
@@ -2275,6 +2470,7 @@ function delete_photo($dealId, $photoId)
     unset($assignment);
     $production['generatedAt'] = gmdate('c');
     write_data_file('production.json', $production);
+    remove_photo_library_record('production', $photoId);
     return ['success' => true];
 }
 
@@ -2308,6 +2504,7 @@ function delete_installation_photo($installationId, $photoId)
     if (!$target) throw new RuntimeException('Photo not found');
     $store['generatedAt'] = gmdate('c');
     write_data_file('installations.json', normalize_installations($store));
+    remove_photo_library_record('installation', $photoId);
     $data = read_installations();
     return ['success' => true, 'installation' => installation_by_id($data, $installationId), 'data' => $data];
 }

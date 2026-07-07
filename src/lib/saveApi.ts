@@ -367,12 +367,22 @@ export async function uploadTechSpecToBitrix(
   }>;
 }
 
-export async function loadBitrixDealFiles(settings: SaveApiSettings, dealId: string) {
-  return requestSaveApi(settings, `/bitrix/deal-files/${encodeURIComponent(dealId)}`, {
+export async function loadBitrixDealFiles(
+  settings: SaveApiSettings,
+  dealId: string,
+  options: { refresh?: boolean } = {},
+) {
+  const query = options.refresh ? "?refresh=1" : "";
+  return requestSaveApi(settings, `/bitrix/deal-files/${encodeURIComponent(dealId)}${query}`, {
     method: "GET",
   }) as Promise<{
+    cached?: boolean;
+    checkedAt?: string;
     dealId: string;
+    fileCount?: number;
+    imageCount?: number;
     installationFiles: BitrixDealFile[];
+    status?: "found" | "missing" | string;
     success: boolean;
     techSpecFiles: BitrixDealFile[];
   }>;

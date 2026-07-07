@@ -4875,7 +4875,8 @@ div.employee-profile-field .employee-profile-value {
   gap: 6px;
 }
 
-.tech-spec-bitrix-source-actions a {
+.tech-spec-bitrix-source-actions a,
+.tech-spec-bitrix-source-actions button {
   display: inline-flex;
   align-items: center;
   min-height: 34px;
@@ -4888,6 +4889,15 @@ div.employee-profile-field .employee-profile-value {
   font-size: 12px;
   font-weight: 800;
   text-decoration: none;
+}
+
+.tech-spec-bitrix-source-actions button {
+  cursor: pointer;
+}
+
+.tech-spec-bitrix-source-actions button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .tech-spec-header {
@@ -8882,7 +8892,8 @@ tr.selected td,
   gap: 6px;
 }
 
-.production-tech-spec-bitrix-actions a {
+.production-tech-spec-bitrix-actions a,
+.production-tech-spec-bitrix-actions button {
   display: inline-flex;
   align-items: center;
   min-height: 34px;
@@ -8897,7 +8908,17 @@ tr.selected td,
   text-decoration: none;
 }
 
-.production-tech-spec-bitrix-actions a:hover {
+.production-tech-spec-bitrix-actions button {
+  cursor: pointer;
+}
+
+.production-tech-spec-bitrix-actions button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.production-tech-spec-bitrix-actions a:hover,
+.production-tech-spec-bitrix-actions button:hover:not(:disabled) {
   border-color: #fb923c;
   color: #7c2d12;
 }
