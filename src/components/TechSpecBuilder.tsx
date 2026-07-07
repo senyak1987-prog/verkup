@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Copy,
   Download,
+  ExternalLink,
   FileImage,
   FileText,
   ImagePlus,
@@ -18,6 +19,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ClipboardEvent, ReactNode, RefObject } from "react";
 import type {
   AttachmentDimensions,
+  BitrixDealFile,
   CostPosition,
   Deal,
   DealTechSpec,
@@ -27,6 +29,7 @@ import type {
   TemplateId,
 } from "../types";
 import { formatMoney, positionQuantity, positionTotal } from "../lib/costing";
+import { defaultSaveApiUrl, loadBitrixDealFiles } from "../lib/saveApi";
 import {
   hydrateResponsibleCard,
   responsibleForDraft,
@@ -1906,6 +1909,69 @@ type TechSpecBuilderProps = {
   onUploadToBitrix?: (draft: TechSpecDraft, fileName: string, fileBase64: string) => Promise<void>;
 };
 
+function BitrixTechSpecSource({
+  files,
+  hasLocalSpec,
+  state,
+}: {
+  files: BitrixDealFile[];
+  hasLocalSpec: boolean;
+  state: "idle" | "loading" | "done" | "error";
+}) {
+  const preview = files.find((file) => file.type === "image") || files[0];
+
+  if (!files.length && state === "done") return null;
+
+  return (
+    <section className={`tech-spec-bitrix-source${preview ? " has-files" : ""}`}>
+      <div className="tech-spec-bitrix-source-head">
+        <ClipboardList size={18} />
+        <div>
+          <strong>ТЗ из Bitrix</strong>
+          <span>
+            {preview
+              ? hasLocalSpec
+                ? "Найдено внешнее ТЗ, подготовленное не в форме сайта."
+                : "Найдено ТЗ, подготовленное менеджером в Bitrix."
+              : state === "loading"
+                ? "Проверяю старую форму и файлы производства в Bitrix..."
+                : "Файлы ТЗ из Bitrix пока не найдены."}
+          </span>
+        </div>
+      </div>
+
+      {preview ? (
+        <div className="tech-spec-bitrix-source-body">
+          {preview.type === "image" ? (
+            <img alt={preview.name || "ТЗ из Bitrix"} decoding="async" loading="lazy" src={preview.url} />
+          ) : (
+            <div className="tech-spec-bitrix-source-file">
+              <FileText size={22} />
+              <span>{preview.type || "Файл"}</span>
+            </div>
+          )}
+          <div className="tech-spec-bitrix-source-meta">
+            <strong>{[preview.label, preview.name || "Файл ТЗ"].filter(Boolean).join(": ")}</strong>
+            {files.length > 1 ? <span>Всего файлов из Bitrix: {files.length}</span> : null}
+            <div className="tech-spec-bitrix-source-actions">
+              <a href={preview.url} rel="noreferrer" target="_blank">
+                <ExternalLink size={15} />
+                Открыть
+              </a>
+              <a download={preview.name || "tech-spec-bitrix"} href={preview.downloadUrl || preview.url}>
+                <Download size={15} />
+                Сохранить
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {state === "error" ? <p>Не удалось подтянуть ТЗ из Bitrix. Попробуйте обновить страницу позже.</p> : null}
+    </section>
+  );
+}
+
 export function TechSpecBuilder({
   topTabs,
   deal,
@@ -1930,6 +1996,12 @@ export function TechSpecBuilder({
   const exportRef = useRef<HTMLElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
+  const cachedBitrixFiles = useMemo(
+    () => (deal?.techSpecFiles?.length ? deal.techSpecFiles : deal?.installationFiles || []),
+    [deal?.installationFiles, deal?.techSpecFiles],
+  );
+  const [loadedBitrixFiles, setLoadedBitrixFiles] = useState<BitrixDealFile[]>(cachedBitrixFiles);
+  const [bitrixFilesState, setBitrixFilesState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const workCostOptions = useMemo(() => buildWorkCostOptions(costPositions), [costPositions]);
   const specText = useMemo(() => buildSpecText(draft, workCostOptions), [draft, workCostOptions]);
   const missingItems = useMemo(
@@ -1946,6 +2018,34 @@ export function TechSpecBuilder({
   const dealResponsiblePhone = responsiblePhoneFromCard(dealResponsibleCard, deal?.responsiblePhone);
   const dealResponsibleInternalPhone = responsibleInternalPhoneFromCard(dealResponsibleCard, deal?.responsiblePhone);
   const dealResponsibleContactPhone = responsiblePhoneForTechSpec(dealResponsibleCard, deal?.responsiblePhone);
+
+  useEffect(() => {
+    setLoadedBitrixFiles(cachedBitrixFiles);
+    setBitrixFilesState("idle");
+  }, [deal?.id, cachedBitrixFiles]);
+
+  useEffect(() => {
+    if (!deal?.id || cachedBitrixFiles.length || bitrixFilesState !== "idle") return;
+    const apiUrl = defaultSaveApiUrl();
+    if (!apiUrl) return;
+
+    let canceled = false;
+    setBitrixFilesState("loading");
+    void loadBitrixDealFiles({ apiUrl }, deal.id)
+      .then((result) => {
+        if (canceled) return;
+        const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];
+        setLoadedBitrixFiles(files);
+        setBitrixFilesState("done");
+      })
+      .catch(() => {
+        if (!canceled) setBitrixFilesState("error");
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [bitrixFilesState, cachedBitrixFiles.length, deal?.id]);
 
   useEffect(() => {
     const dealFallback = createDraftForDeal(deal);
@@ -2387,6 +2487,14 @@ export function TechSpecBuilder({
           <span>{missingCount ? `Нужно заполнить: ${missingCount}` : "Обязательные поля заполнены"}</span>
         </div>
       </section>
+
+      {deal ? (
+        <BitrixTechSpecSource
+          files={loadedBitrixFiles}
+          state={bitrixFilesState}
+          hasLocalSpec={Boolean(storedSpec)}
+        />
+      ) : null}
 
       <section className="tech-spec-header">
         <label>

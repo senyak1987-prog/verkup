@@ -4791,6 +4791,105 @@ div.employee-profile-field .employee-profile-value {
   color: #b54708;
 }
 
+.tech-spec-bitrix-source {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  background: #fff7ed;
+  padding: 12px;
+  color: #9a3412;
+}
+
+.tech-spec-bitrix-source-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.tech-spec-bitrix-source-head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tech-spec-bitrix-source-head strong {
+  color: #7c2d12;
+  font-size: 14px;
+}
+
+.tech-spec-bitrix-source-head span,
+.tech-spec-bitrix-source p,
+.tech-spec-bitrix-source-meta span {
+  margin: 0;
+  color: #9a3412;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.tech-spec-bitrix-source-body {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.tech-spec-bitrix-source-body img,
+.tech-spec-bitrix-source-file {
+  width: 82px;
+  height: 82px;
+  border: 1px solid #fdba74;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.tech-spec-bitrix-source-body img {
+  object-fit: cover;
+}
+
+.tech-spec-bitrix-source-file {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  color: #9a3412;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.tech-spec-bitrix-source-meta {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.tech-spec-bitrix-source-meta strong {
+  overflow-wrap: anywhere;
+  color: #7c2d12;
+  font-size: 13px;
+}
+
+.tech-spec-bitrix-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tech-spec-bitrix-source-actions a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  gap: 5px;
+  border: 1px solid #fdba74;
+  border-radius: 7px;
+  background: #fff;
+  padding: 6px 9px;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .tech-spec-header {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
