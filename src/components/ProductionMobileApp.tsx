@@ -31,7 +31,7 @@ import {
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject, TouchEvent } from "react";
-import { formatMoney, positionTotal } from "../lib/costing";
+import { formatMoney, manufacturingCost, positionTotal } from "../lib/costing";
 import { buildSearchIndex, matchesSearchIndex } from "../lib/searchIndex";
 import {
   completeProductionWork,
@@ -395,7 +395,7 @@ export function ProductionMobileApp({
   );
 
   const productionWorkers = useMemo(
-    () => employees.filter((employee) => isProductionWorker(employee)),
+    () => employees.filter((employee) => isAssemblyMaker(employee)),
     [employees],
   );
   const diodeCatalogItems = useMemo(
@@ -771,8 +771,10 @@ export function ProductionMobileApp({
     setNewEmployeeLogin("");
     setNewEmployeePin("");
     applyEmployeeGroupDefaults(selectedEmployeeGroupId);
-    setTargetEmployeeId(employee.id);
-    if (isProductionWorker(employee)) setSelectedEmployeeId(employee.id);
+    if (isAssemblyMaker(employee)) {
+      setTargetEmployeeId(employee.id);
+      setSelectedEmployeeId(employee.id);
+    }
   }
 
   async function createRegistrationLink() {
@@ -1043,7 +1045,7 @@ export function ProductionMobileApp({
 
   function assignDeals(dealIds: string[], employeeId: string, techSpecItemId?: string) {
     const employee = employeesById.get(employeeId);
-    if (!employee || !isProductionWorker(employee)) return;
+    if (!employee || !isAssemblyMaker(employee)) return;
 
     const now = new Date().toISOString();
     const dealMap = new Map(deals.map((deal) => [deal.id, deal]));
@@ -4333,7 +4335,7 @@ function TechSpecInline({
     }
 
     setBitrixFilesState("loading");
-    void loadBitrixDealFiles({ apiUrl }, deal.id, { refresh: true })
+    void loadBitrixDealFiles({ apiUrl }, deal.id, { importFiles: true, refresh: true })
       .then((result) => {
         const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];
         setLoadedBitrixFiles(files);
@@ -4360,7 +4362,7 @@ function TechSpecInline({
 
     return (
       <section className={`production-tech-spec missing${preview ? " has-bitrix-source" : ""}`}>
-        {preview?.type === "image" ? (
+        {preview?.type === "image" && !preview.downloadError ? (
           <img
             alt={preview.name || "ТЗ из Bitrix"}
             className="production-tech-spec-bitrix-preview"
@@ -4389,6 +4391,24 @@ function TechSpecInline({
                   <span>Сохранить</span>
                 </a>
               </div>
+              {bitrixFiles.length > 1 ? (
+                <div className="production-tech-spec-bitrix-file-list">
+                  {bitrixFiles.map((file, index) => (
+                    <a
+                      href={file.downloadUrl || file.url}
+                      key={`${file.field || file.source || "file"}-${file.id}-${index}`}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      <span>{file.label || `Файл ${index + 1}`}</span>
+                      <strong>{file.name || `ТЗ ${index + 1}`}</strong>
+                    </a>
+                  ))}
+                </div>
+              ) : null}
+              {preview.downloadError ? (
+                <small>Файл найден в Bitrix, локально скачать пока не удалось.</small>
+              ) : null}
             </>
           ) : (
             <div className="production-tech-spec-bitrix-actions">
@@ -4669,6 +4689,10 @@ function employeeGroupIdFor(employee: ProductionEmployee): EmployeeGroupId {
   return "noAccess";
 }
 
+function isAssemblyMaker(employee?: ProductionEmployee) {
+  return isProductionWorker(employee) && employee?.role !== "assembler";
+}
+
 function employeeAccessChoiceFor(employee: ProductionEmployee): EmployeeAccessChoice {
   const role = accessRoleFor(employee);
   if (role === "maker" && employee.role === "assembler") return "installer";
@@ -4919,12 +4943,17 @@ function earningForAssignment(
 ) {
   const spec = techSpecs.get(assignment.dealId);
   const calculation = calculations.get(assignment.dealId);
-  if (!spec || !calculation) return 0;
+  if (!calculation) return 0;
+  if (!spec) return manufacturingCost(calculation);
 
   const items = assignment.techSpecItemId
     ? spec.draft.items.filter((item) => item.id === assignment.techSpecItemId)
     : spec.draft.items;
   const selectedIds = new Set(items.flatMap((item) => item.workCostPositionIds || []));
+
+  if (!selectedIds.size) {
+    return assignment.techSpecItemId ? 0 : manufacturingCost(calculation);
+  }
 
   return calculation.positions
     .filter((position) => selectedIds.has(position.id))

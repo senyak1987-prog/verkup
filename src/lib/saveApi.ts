@@ -370,9 +370,12 @@ export async function uploadTechSpecToBitrix(
 export async function loadBitrixDealFiles(
   settings: SaveApiSettings,
   dealId: string,
-  options: { refresh?: boolean } = {},
+  options: { importFiles?: boolean; refresh?: boolean } = {},
 ) {
-  const query = options.refresh ? "?refresh=1" : "";
+  const params = new URLSearchParams();
+  if (options.refresh) params.set("refresh", "1");
+  if (options.importFiles) params.set("import", "1");
+  const query = params.toString() ? `?${params.toString()}` : "";
   return requestSaveApi(settings, `/bitrix/deal-files/${encodeURIComponent(dealId)}${query}`, {
     method: "GET",
   }) as Promise<{

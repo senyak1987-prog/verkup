@@ -104,10 +104,19 @@ try {
         json_response(read_bitrix_tech_spec_index(), 200);
     }
 
+    if ($method === 'GET' && preg_match('#^/bitrix/file/([^/]+)/([^/]+)$#', $path, $match)) {
+        $dealId = sanitize_segment($match[1]);
+        $fileId = sanitize_segment($match[2]);
+        $field = sanitize_bitrix_field_name((string)array_get($_GET, 'field', ''));
+        $download = in_array(strtolower((string)array_get($_GET, 'download', '')), ['1', 'true', 'yes', 'on'], true);
+        stream_bitrix_deal_file($dealId, $fileId, $field, $download);
+    }
+
     if ($method === 'GET' && preg_match('#^/bitrix/deal-files/([^/]+)$#', $path, $match)) {
         $dealId = sanitize_segment($match[1]);
         $refresh = in_array(strtolower((string)array_get($_GET, 'refresh', array_get($_GET, 'force', ''))), ['1', 'true', 'yes', 'on'], true);
-        json_response(fetch_bitrix_deal_tech_spec_files_cached($dealId, $refresh), 200);
+        $import = in_array(strtolower((string)array_get($_GET, 'import', array_get($_GET, 'download', ''))), ['1', 'true', 'yes', 'on'], true);
+        json_response(fetch_bitrix_deal_tech_spec_files_cached($dealId, $refresh, $import), 200);
     }
 
     if ($method === 'POST' && $path === '/move-stage') {

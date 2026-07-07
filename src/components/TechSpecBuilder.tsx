@@ -1944,7 +1944,7 @@ function BitrixTechSpecSource({
 
       {preview ? (
         <div className="tech-spec-bitrix-source-body">
-          {preview.type === "image" ? (
+          {preview.type === "image" && !preview.downloadError ? (
             <img alt={preview.name || "ТЗ из Bitrix"} decoding="async" loading="lazy" src={preview.url} />
           ) : (
             <div className="tech-spec-bitrix-source-file">
@@ -1971,6 +1971,24 @@ function BitrixTechSpecSource({
                 </button>
               ) : null}
             </div>
+            {files.length > 1 ? (
+              <div className="tech-spec-bitrix-source-file-list">
+                {files.map((file, index) => (
+                  <a
+                    href={file.downloadUrl || file.url}
+                    key={`${file.field || file.source || "file"}-${file.id}-${index}`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    <span>{file.label || `Файл ${index + 1}`}</span>
+                    <strong>{file.name || `ТЗ ${index + 1}`}</strong>
+                  </a>
+                ))}
+              </div>
+            ) : null}
+            {preview.downloadError ? (
+              <span>Файл найден в Bitrix, локально скачать пока не удалось.</span>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -2049,7 +2067,7 @@ export function TechSpecBuilder({
       return;
     }
     setBitrixFilesState("loading");
-    void loadBitrixDealFiles({ apiUrl }, deal.id, { refresh: true })
+    void loadBitrixDealFiles({ apiUrl }, deal.id, { importFiles: true, refresh: true })
       .then((result) => {
         const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];
         setLoadedBitrixFiles(files);
@@ -2067,7 +2085,7 @@ export function TechSpecBuilder({
 
     let canceled = false;
     setBitrixFilesState("loading");
-    void loadBitrixDealFiles({ apiUrl }, deal.id)
+    void loadBitrixDealFiles({ apiUrl }, deal.id, { importFiles: true })
       .then((result) => {
         if (canceled) return;
         const files = result.techSpecFiles?.length ? result.techSpecFiles : result.installationFiles || [];

@@ -3,6 +3,7 @@
 const BITRIX_DEFAULT_SYNC_INTERVAL_SECONDS = 300;
 const BITRIX_SYNC_LOCK_SECONDS = 60;
 const BITRIX_TECH_SPEC_CACHE_TTL_SECONDS = 21600;
+const BITRIX_TECH_SPEC_MAX_DOWNLOAD_BYTES = 60 * 1024 * 1024;
 
 function maybe_sync_bitrix_deals()
 {
@@ -163,39 +164,69 @@ function sync_bitrix_deal($dealId)
     ];
 }
 
-function fetch_bitrix_deal_tech_spec_files_cached($dealId, $force = false)
+function fetch_bitrix_deal_tech_spec_files_cached($dealId, $force = false, $import = false)
 {
     $id = trim((string)$dealId);
     if ($id === '') throw new RuntimeException('Deal id is required');
 
     $entry = bitrix_tech_spec_index_entry($id);
     if (!$force && $entry && !bitrix_tech_spec_cache_expired($entry)) {
-        return bitrix_tech_spec_response_from_index_entry($entry, true);
+        $importSummary = null;
+        if ($import) {
+            $imported = import_bitrix_tech_spec_index_entry_files($id, $entry, false);
+            $entry = array_get($imported, 'entry', $entry);
+            $importSummary = array_get($imported, 'summary', null);
+        }
+        $response = bitrix_tech_spec_response_from_index_entry($entry, true);
+        if (is_array($importSummary)) $response['import'] = $importSummary;
+        return $response;
     }
 
     try {
         $result = fetch_bitrix_deal_tech_spec_files($id);
+        $techSpecFiles = array_get($result, 'techSpecFiles', []);
+        $installationFiles = array_get($result, 'installationFiles', []);
+        $importSummary = null;
+
+        if ($import) {
+            $importedFiles = import_bitrix_deal_tech_spec_file_sets($id, $techSpecFiles, $installationFiles, $force);
+            $techSpecFiles = array_get($importedFiles, 'techSpecFiles', []);
+            $installationFiles = array_get($importedFiles, 'installationFiles', []);
+            $importSummary = array_get($importedFiles, 'summary', null);
+        }
+
         $entry = upsert_bitrix_tech_spec_index_from_files(
             $id,
-            array_get($result, 'techSpecFiles', []),
-            array_get($result, 'installationFiles', []),
-            $force ? 'manual' : 'direct'
+            $techSpecFiles,
+            $installationFiles,
+            $import ? 'local_import' : ($force ? 'manual' : 'direct')
         );
         update_bitrix_deal_tech_spec_files_in_cache($id, $entry);
 
-        return array_merge($result, [
+        $response = array_merge($result, [
             'cached' => false,
             'checkedAt' => array_get($entry, 'checkedAt', ''),
             'status' => array_get($entry, 'status', 'missing'),
             'fileCount' => (int)array_get($entry, 'fileCount', 0),
             'imageCount' => (int)array_get($entry, 'imageCount', 0),
             'preview' => array_get($entry, 'preview', null),
+            'techSpecFiles' => bitrix_file_array($techSpecFiles),
+            'installationFiles' => bitrix_file_array($installationFiles),
         ]);
+        if (is_array($importSummary)) $response['import'] = $importSummary;
+        return $response;
     } catch (Exception $error) {
         if ($entry) {
+            $importSummary = null;
+            if ($import) {
+                $imported = import_bitrix_tech_spec_index_entry_files($id, $entry, false);
+                $entry = array_get($imported, 'entry', $entry);
+                $importSummary = array_get($imported, 'summary', null);
+            }
             $response = bitrix_tech_spec_response_from_index_entry($entry, true);
             $response['stale'] = true;
             $response['warning'] = $error->getMessage();
+            if (is_array($importSummary)) $response['import'] = $importSummary;
             return $response;
         }
         throw $error;
@@ -248,6 +279,337 @@ function fetch_bitrix_deal_tech_spec_files($dealId)
         'fileCount' => array_get($status, 'fileCount', 0),
         'imageCount' => array_get($status, 'imageCount', 0),
         'preview' => array_get($status, 'preview', null),
+    ];
+}
+
+function import_bitrix_tech_spec_index_entry_files($dealId, $entry, $force = false)
+{
+    $imported = import_bitrix_deal_tech_spec_file_sets(
+        $dealId,
+        array_get($entry, 'techSpecFiles', []),
+        array_get($entry, 'installationFiles', []),
+        $force
+    );
+    $nextEntry = upsert_bitrix_tech_spec_index_from_files(
+        $dealId,
+        array_get($imported, 'techSpecFiles', []),
+        array_get($imported, 'installationFiles', []),
+        'local_import'
+    );
+    update_bitrix_deal_tech_spec_files_in_cache($dealId, $nextEntry);
+
+    return [
+        'entry' => $nextEntry,
+        'summary' => array_get($imported, 'summary', []),
+    ];
+}
+
+function import_bitrix_deal_tech_spec_file_sets($dealId, $techSpecFiles, $installationFiles, $force = false)
+{
+    $summary = [
+        'downloaded' => 0,
+        'failed' => 0,
+        'kept' => 0,
+        'total' => 0,
+    ];
+
+    return [
+        'techSpecFiles' => import_bitrix_deal_file_list($dealId, $techSpecFiles, $force, $summary),
+        'installationFiles' => import_bitrix_deal_file_list($dealId, $installationFiles, $force, $summary),
+        'summary' => $summary,
+    ];
+}
+
+function import_bitrix_deal_file_list($dealId, $files, $force, &$summary)
+{
+    $files = is_array($files) ? array_values($files) : [];
+    $imported = [];
+    foreach ($files as $file) {
+        if (!is_array($file)) continue;
+        $summary['total']++;
+        $result = import_bitrix_deal_file($dealId, $file, $force);
+        $status = (string)array_get($result, 'status', '');
+        if (isset($summary[$status])) $summary[$status]++;
+        $imported[] = array_get($result, 'file', $file);
+    }
+    return $imported;
+}
+
+function import_bitrix_deal_file($dealId, $file, $force = false)
+{
+    $file = normalize_bitrix_file_for_import($dealId, $file);
+    $localPath = bitrix_local_tech_spec_path((string)array_get($file, 'localUrl', ''));
+    if (!$localPath) $localPath = bitrix_local_tech_spec_path((string)array_get($file, 'url', ''));
+
+    if (!$force && $localPath !== '' && is_file($localPath)) {
+        $localUrl = first_text(array_get($file, 'localUrl', ''), array_get($file, 'url', ''));
+        $file['localUrl'] = $localUrl;
+        $file['url'] = $localUrl;
+        $file['downloadUrl'] = $localUrl;
+        $file['size'] = filesize($localPath) ?: array_get($file, 'size', 0);
+        $mime = bitrix_detect_file_mime($localPath);
+        if ($mime !== '') $file['mimeType'] = $mime;
+        $file['type'] = bitrix_file_type_from_mime((string)array_get($file, 'mimeType', ''), (string)array_get($file, 'name', ''));
+        unset($file['downloadError']);
+        return ['file' => $file, 'status' => 'kept'];
+    }
+
+    try {
+        $downloaded = bitrix_download_deal_file_bytes($dealId, $file);
+        $stored = store_bitrix_tech_spec_file_bytes(
+            $dealId,
+            $file,
+            (string)array_get($downloaded, 'bytes', ''),
+            (string)array_get($downloaded, 'mimeType', '')
+        );
+        $file['localUrl'] = array_get($stored, 'url', '');
+        $file['url'] = array_get($stored, 'url', '');
+        $file['downloadUrl'] = array_get($stored, 'url', '');
+        $file['mimeType'] = array_get($stored, 'mimeType', array_get($downloaded, 'mimeType', ''));
+        $file['size'] = array_get($stored, 'size', strlen((string)array_get($downloaded, 'bytes', '')));
+        $file['downloadedAt'] = gmdate('c');
+        $file['type'] = bitrix_file_type_from_mime((string)array_get($file, 'mimeType', ''), (string)array_get($file, 'name', ''));
+        unset($file['downloadError']);
+        return ['file' => $file, 'status' => 'downloaded'];
+    } catch (Exception $error) {
+        $file['downloadError'] = $error->getMessage();
+        if (!array_get($file, 'localUrl', '')) {
+            $file['type'] = 'file';
+        }
+        return ['file' => $file, 'status' => 'failed'];
+    }
+}
+
+function normalize_bitrix_file_for_import($dealId, $file)
+{
+    $id = trim((string)array_get($file, 'id', ''));
+    if ($id === '') $id = substr(sha1((string)array_get($file, 'url', '') . '|' . json_encode($file)), 0, 16);
+    $file['id'] = $id;
+    $file['name'] = trim((string)array_get($file, 'name', '')) ?: ('Bitrix file ' . $id);
+
+    $bitrixUrl = first_text(array_get($file, 'bitrixUrl', ''), array_get($file, 'url', ''));
+    $bitrixDownloadUrl = first_text(array_get($file, 'bitrixDownloadUrl', ''), array_get($file, 'downloadUrl', ''), $bitrixUrl);
+    if ($bitrixUrl !== '' && !bitrix_is_local_tech_spec_url($bitrixUrl)) $file['bitrixUrl'] = $bitrixUrl;
+    if ($bitrixDownloadUrl !== '' && !bitrix_is_local_tech_spec_url($bitrixDownloadUrl)) $file['bitrixDownloadUrl'] = $bitrixDownloadUrl;
+
+    if (!array_get($file, 'url', '')) {
+        $file['url'] = $bitrixUrl ?: bitrix_proxy_file_url($dealId, $file);
+    }
+    if (!array_get($file, 'downloadUrl', '')) {
+        $file['downloadUrl'] = $bitrixDownloadUrl ?: array_get($file, 'url', '');
+    }
+    return $file;
+}
+
+function bitrix_download_deal_file_bytes($dealId, $file)
+{
+    $errors = [];
+    foreach (bitrix_file_download_candidates($dealId, $file) as $url) {
+        try {
+            return bitrix_fetch_binary_url($url, (string)array_get($file, 'name', ''));
+        } catch (Exception $error) {
+            $errors[] = $error->getMessage();
+        }
+    }
+    $message = count($errors) ? implode('; ', array_slice($errors, 0, 3)) : 'No download URL';
+    throw new RuntimeException($message);
+}
+
+function bitrix_file_download_candidates($dealId, $file)
+{
+    $candidates = [];
+    $fileId = trim((string)array_get($file, 'id', ''));
+    foreach (bitrix_rest_download_url_candidates($fileId) as $url) $candidates[] = $url;
+
+    foreach ([
+        array_get($file, 'bitrixDownloadUrl', ''),
+        array_get($file, 'downloadUrl', ''),
+        array_get($file, 'bitrixUrl', ''),
+        array_get($file, 'url', ''),
+    ] as $url) {
+        $url = trim((string)$url);
+        if ($url !== '' && !bitrix_is_local_tech_spec_url($url)) $candidates[] = $url;
+    }
+
+    $field = sanitize_bitrix_field_name((string)array_get($file, 'field', ''));
+    if ($fileId !== '') {
+        $domain = bitrix_domain();
+        if ($field !== '') {
+            $candidates[] = absolute_bitrix_file_url(
+                '/bitrix/components/bitrix/crm.deal.show/show_file.php?' . http_build_query([
+                    'ownerId' => $dealId,
+                    'fieldName' => $field,
+                    'dynamic' => 'Y',
+                    'fileId' => $fileId,
+                ]),
+                $domain
+            );
+        }
+        $candidates[] = absolute_bitrix_file_url('/bitrix/tools/crm_show_file.php?fileId=' . rawurlencode($fileId), $domain);
+    }
+
+    return bitrix_expand_authenticated_url_candidates($candidates);
+}
+
+function bitrix_rest_download_url_candidates($fileId)
+{
+    $id = trim((string)$fileId);
+    if ($id === '' || !preg_match('/^\d+$/', $id)) return [];
+
+    $urls = [];
+    foreach ([
+        ['method' => 'disk.file.get', 'params' => ['id' => $id]],
+        ['method' => 'disk.attachedObject.get', 'params' => ['id' => $id]],
+        ['method' => 'disk.file.getExternalLink', 'params' => ['id' => $id]],
+    ] as $request) {
+        try {
+            $response = call_bitrix_rest($request['method'], $request['params']);
+            bitrix_collect_download_urls(array_get($response, 'result', []), $urls);
+        } catch (Exception $error) {
+            // Some Bitrix file ids are CRM file ids, not Disk object ids.
+        }
+    }
+    return $urls;
+}
+
+function bitrix_collect_download_urls($value, &$urls)
+{
+    if (!is_array($value)) {
+        $text = trim((string)$value);
+        if ($text !== '' && preg_match('#^https?://#i', $text)) $urls[] = $text;
+        return;
+    }
+    foreach ($value as $key => $item) {
+        if (is_array($item)) {
+            bitrix_collect_download_urls($item, $urls);
+            continue;
+        }
+        $text = trim((string)$item);
+        if ($text === '' || !preg_match('#^https?://#i', $text)) continue;
+        $keyText = strtoupper((string)$key);
+        if (strpos($keyText, 'DOWNLOAD') !== false || $keyText === 'URL' || strpos($keyText, 'URL_') === 0) {
+            $urls[] = $text;
+        }
+    }
+}
+
+function bitrix_expand_authenticated_url_candidates($urls)
+{
+    $expanded = [];
+    $seen = [];
+    $auth = bitrix_webhook_auth_token();
+    foreach ($urls as $url) {
+        $url = trim((string)$url);
+        if ($url === '' || bitrix_is_local_tech_spec_url($url)) continue;
+        foreach ([$url, bitrix_url_with_query($url, ['download' => '1'])] as $candidate) {
+            if ($candidate === '') continue;
+            if (!isset($seen[$candidate])) {
+                $seen[$candidate] = true;
+                $expanded[] = $candidate;
+            }
+            $existingAuth = bitrix_url_query_value($candidate, 'auth');
+            if ($auth !== '' && ($existingAuth === null || $existingAuth === '')) {
+                $withAuth = bitrix_url_with_query($candidate, ['auth' => $auth]);
+                if ($withAuth !== '' && !isset($seen[$withAuth])) {
+                    $seen[$withAuth] = true;
+                    $expanded[] = $withAuth;
+                }
+            }
+        }
+    }
+    return $expanded;
+}
+
+function bitrix_fetch_binary_url($url, $name = '')
+{
+    $raw = '';
+    $status = 0;
+    $contentType = '';
+
+    if (function_exists('curl_init')) {
+        $curl = curl_init($url);
+        curl_setopt_array($curl, [
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HEADER => true,
+            CURLOPT_HTTPHEADER => ['User-Agent: Verkup/1.0'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_CONNECTTIMEOUT => 10,
+        ]);
+        $response = curl_exec($curl);
+        $status = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $headerSize = (int)curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+        $error = curl_error($curl);
+        curl_close($curl);
+        if ($response === false || $response === '') throw new RuntimeException('empty response: ' . ($error ?: $url));
+        $headers = substr((string)$response, 0, $headerSize);
+        $raw = substr((string)$response, $headerSize);
+        $contentType = bitrix_content_type_from_header_text($headers);
+    } else {
+        $context = stream_context_create([
+            'http' => [
+                'header' => "User-Agent: Verkup/1.0\r\n",
+                'ignore_errors' => true,
+                'timeout' => 30,
+            ],
+        ]);
+        $raw = @file_get_contents($url, false, $context);
+        $headers = isset($http_response_header) ? $http_response_header : [];
+        $status = bitrix_http_status_from_headers($headers);
+        $contentType = bitrix_content_type_from_headers($headers);
+        if ($raw === false || $raw === '') throw new RuntimeException('empty response: ' . $url);
+    }
+
+    if ($status >= 400) throw new RuntimeException('HTTP ' . $status . ': ' . $url);
+    if (strlen((string)$raw) > BITRIX_TECH_SPEC_MAX_DOWNLOAD_BYTES) {
+        throw new RuntimeException('file is too large');
+    }
+
+    $probe = ltrim(substr((string)$raw, 0, 300));
+    if (stripos($contentType, 'text/html') !== false || preg_match('#^<(?:!doctype|html|head|body)#i', $probe)) {
+        throw new RuntimeException('Bitrix returned HTML page');
+    }
+
+    if (stripos($contentType, 'application/json') !== false) {
+        $json = json_decode((string)$raw, true);
+        if (is_array($json) && (isset($json['error']) || isset($json['error_description']))) {
+            throw new RuntimeException(first_text(array_get($json, 'error_description', ''), array_get($json, 'error', 'Bitrix JSON error')));
+        }
+    }
+
+    $mime = bitrix_detect_mime_bytes((string)$raw, $contentType, $name);
+    return [
+        'bytes' => (string)$raw,
+        'mimeType' => $mime,
+    ];
+}
+
+function store_bitrix_tech_spec_file_bytes($dealId, $file, $bytes, $mime)
+{
+    global $uploadsDir;
+    $safeDealId = sanitize_segment((string)$dealId);
+    $fileDir = $uploadsDir . DIRECTORY_SEPARATOR . 'bitrix-tech-specs' . DIRECTORY_SEPARATOR . $safeDealId;
+    if (!is_dir($fileDir) && !mkdir($fileDir, 0755, true)) {
+        throw new RuntimeException('Cannot create Bitrix tech spec directory');
+    }
+
+    $name = (string)array_get($file, 'name', '');
+    $ext = bitrix_extension_for_download($name, $mime);
+    $fileId = sanitize_segment((string)array_get($file, 'id', substr(sha1($name . $bytes), 0, 16)));
+    $field = sanitize_bitrix_field_name((string)array_get($file, 'field', ''));
+    $base = ($field !== '' ? strtolower($field) . '_' : '') . $fileId;
+    $filename = $base . '.' . $ext;
+    $path = $fileDir . DIRECTORY_SEPARATOR . $filename;
+    if (file_put_contents($path, $bytes, LOCK_EX) === false) {
+        throw new RuntimeException('Cannot save Bitrix tech spec file');
+    }
+
+    $prefix = public_prefix();
+    $baseUrl = $prefix . '/uploads/bitrix-tech-specs/' . rawurlencode($safeDealId) . '/';
+    return [
+        'mimeType' => $mime,
+        'size' => strlen($bytes),
+        'url' => $baseUrl . rawurlencode($filename),
     ];
 }
 
@@ -487,6 +849,258 @@ function update_bitrix_deal_tech_spec_files_in_cache($dealId, $entry)
 function bitrix_file_array($value)
 {
     return is_array($value) ? array_values($value) : [];
+}
+
+function sanitize_bitrix_field_name($value)
+{
+    $safe = preg_replace('/[^a-zA-Z0-9_]+/', '_', trim((string)$value));
+    $safe = trim((string)$safe, '_');
+    return $safe !== '' ? substr($safe, 0, 96) : '';
+}
+
+function stream_bitrix_deal_file($dealId, $fileId, $field = '', $download = false)
+{
+    $entry = bitrix_tech_spec_index_entry($dealId);
+    if (!$entry) {
+        $response = fetch_bitrix_deal_tech_spec_files_cached($dealId, true, true);
+        $entry = bitrix_tech_spec_index_entry($dealId);
+        if (!$entry && is_array($response)) {
+            $entry = bitrix_tech_spec_index_entry_from_files(
+                $dealId,
+                array_get($response, 'techSpecFiles', []),
+                array_get($response, 'installationFiles', []),
+                'direct'
+            );
+        }
+    } else {
+        $imported = import_bitrix_tech_spec_index_entry_files($dealId, $entry, false);
+        $entry = array_get($imported, 'entry', $entry);
+    }
+
+    $file = find_bitrix_index_file($entry, $fileId, $field);
+    if (!$file) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Bitrix file not found';
+        exit;
+    }
+
+    $path = bitrix_local_tech_spec_path((string)first_text(array_get($file, 'localUrl', ''), array_get($file, 'url', '')));
+    if ($path === '' || !is_file($path)) {
+        $result = import_bitrix_deal_file($dealId, $file, true);
+        $file = array_get($result, 'file', $file);
+        $path = bitrix_local_tech_spec_path((string)first_text(array_get($file, 'localUrl', ''), array_get($file, 'url', '')));
+    }
+
+    if ($path === '' || !is_file($path)) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Bitrix file could not be downloaded';
+        exit;
+    }
+
+    $mime = bitrix_detect_file_mime($path) ?: (string)array_get($file, 'mimeType', 'application/octet-stream');
+    $name = sanitize_original_name((string)array_get($file, 'name', basename($path)));
+    header('Content-Type: ' . $mime);
+    header('Content-Length: ' . filesize($path));
+    header('Content-Disposition: ' . ($download ? 'attachment' : 'inline') . '; filename="' . addslashes($name) . '"');
+    readfile($path);
+    exit;
+}
+
+function find_bitrix_index_file($entry, $fileId, $field = '')
+{
+    if (!is_array($entry)) return null;
+    $needleId = trim((string)$fileId);
+    $needleField = sanitize_bitrix_field_name($field);
+    foreach (array_merge(bitrix_file_array(array_get($entry, 'techSpecFiles', [])), bitrix_file_array(array_get($entry, 'installationFiles', []))) as $file) {
+        if (!is_array($file)) continue;
+        if ((string)array_get($file, 'id', '') !== $needleId) continue;
+        if ($needleField !== '' && sanitize_bitrix_field_name((string)array_get($file, 'field', '')) !== $needleField) continue;
+        return $file;
+    }
+    return null;
+}
+
+function bitrix_proxy_file_url($dealId, $file)
+{
+    $query = [];
+    $field = sanitize_bitrix_field_name((string)array_get($file, 'field', ''));
+    if ($field !== '') $query['field'] = $field;
+    $suffix = count($query) ? ('?' . http_build_query($query)) : '';
+    return public_prefix() . '/api/bitrix/file/' . rawurlencode((string)$dealId) . '/' . rawurlencode((string)array_get($file, 'id', 'file')) . $suffix;
+}
+
+function bitrix_is_local_tech_spec_url($url)
+{
+    return bitrix_local_tech_spec_path($url) !== '';
+}
+
+function bitrix_local_tech_spec_path($url)
+{
+    global $uploadsDir;
+    $url = trim((string)$url);
+    if ($url === '') return '';
+    $path = parse_url($url, PHP_URL_PATH);
+    if (!$path) $path = $url;
+    $path = rawurldecode(str_replace('\\', '/', $path));
+    $prefix = public_prefix() . '/uploads/bitrix-tech-specs/';
+    if (strpos($path, $prefix) !== 0) return '';
+    $relative = substr($path, strlen($prefix));
+    if ($relative === '' || strpos($relative, '..') !== false) return '';
+    $parts = array_values(array_filter(explode('/', $relative), function ($part) {
+        return $part !== '' && $part !== '.';
+    }));
+    if (count($parts) < 2) return '';
+    foreach ($parts as $part) {
+        if (sanitize_segment($part) === 'unknown' && $part !== 'unknown') return '';
+    }
+    return $uploadsDir . DIRECTORY_SEPARATOR . 'bitrix-tech-specs' . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $parts);
+}
+
+function bitrix_detect_file_mime($path)
+{
+    if (!is_file($path)) return '';
+    if (class_exists('finfo')) {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = strtolower((string)$finfo->file($path));
+        if ($mime !== '') return $mime;
+    }
+    return 'application/octet-stream';
+}
+
+function bitrix_detect_mime_bytes($bytes, $contentType = '', $name = '')
+{
+    $mime = strtolower(trim(preg_replace('/;.*/', '', (string)$contentType)));
+    if ($mime === '' || $mime === 'application/octet-stream') {
+        if (class_exists('finfo')) {
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $detected = strtolower((string)$finfo->buffer($bytes));
+            if ($detected !== '') $mime = $detected;
+        }
+    }
+    if ($mime === '' || $mime === 'application/octet-stream') {
+        $ext = strtolower(pathinfo((string)$name, PATHINFO_EXTENSION));
+        $byExt = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            'pdf' => 'application/pdf',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'xls' => 'application/vnd.ms-excel',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'doc' => 'application/msword',
+            'csv' => 'text/csv',
+            'txt' => 'text/plain',
+        ];
+        if (isset($byExt[$ext])) $mime = $byExt[$ext];
+    }
+    return $mime ?: 'application/octet-stream';
+}
+
+function bitrix_extension_for_download($name, $mime)
+{
+    $ext = strtolower(pathinfo((string)$name, PATHINFO_EXTENSION));
+    $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'xlsx', 'xls', 'docx', 'doc', 'csv', 'txt'];
+    if (in_array($ext, $allowed, true)) return $ext === 'jpeg' ? 'jpg' : $ext;
+
+    switch (strtolower((string)$mime)) {
+        case 'image/jpeg':
+        case 'image/pjpeg':
+            return 'jpg';
+        case 'image/png':
+            return 'png';
+        case 'image/webp':
+            return 'webp';
+        case 'image/gif':
+            return 'gif';
+        case 'application/pdf':
+            return 'pdf';
+        case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+            return 'xlsx';
+        case 'application/vnd.ms-excel':
+            return 'xls';
+        case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+            return 'docx';
+        case 'application/msword':
+            return 'doc';
+        case 'text/csv':
+            return 'csv';
+        case 'text/plain':
+            return 'txt';
+        default:
+            return 'bin';
+    }
+}
+
+function bitrix_file_type_from_mime($mime, $name = '')
+{
+    $mime = strtolower((string)$mime);
+    if (strpos($mime, 'image/') === 0) return 'image';
+    return preg_match('/\.(png|jpe?g|webp|gif)$/i', (string)$name) ? 'image' : 'file';
+}
+
+function bitrix_content_type_from_header_text($headers)
+{
+    $contentType = '';
+    foreach (preg_split('/\r?\n/', (string)$headers) as $header) {
+        if (stripos($header, 'Content-Type:') === 0) {
+            $contentType = trim(substr($header, strlen('Content-Type:')));
+        }
+    }
+    return $contentType;
+}
+
+function bitrix_content_type_from_headers($headers)
+{
+    foreach ((array)$headers as $header) {
+        if (stripos((string)$header, 'Content-Type:') === 0) {
+            return trim(substr((string)$header, strlen('Content-Type:')));
+        }
+    }
+    return '';
+}
+
+function bitrix_webhook_auth_token()
+{
+    $webhook = trim((string)bitrix_config('BITRIX_WEBHOOK_URL', ''));
+    if ($webhook === '') return '';
+    $path = trim((string)parse_url($webhook, PHP_URL_PATH), '/');
+    $parts = $path === '' ? [] : explode('/', $path);
+    for ($index = 0; $index < count($parts); $index++) {
+        if ($parts[$index] === 'rest' && isset($parts[$index + 2])) return (string)$parts[$index + 2];
+    }
+    return '';
+}
+
+function bitrix_url_with_query($url, $params)
+{
+    $url = trim((string)$url);
+    if ($url === '') return '';
+    $parts = parse_url($url);
+    if (!is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) return $url;
+    $query = [];
+    if (!empty($parts['query'])) parse_str($parts['query'], $query);
+    foreach ($params as $key => $value) {
+        if ($value !== '') $query[$key] = $value;
+    }
+    $rebuilt = $parts['scheme'] . '://' . $parts['host'];
+    if (!empty($parts['port'])) $rebuilt .= ':' . $parts['port'];
+    $rebuilt .= array_get($parts, 'path', '');
+    if (count($query)) $rebuilt .= '?' . http_build_query($query);
+    if (!empty($parts['fragment'])) $rebuilt .= '#' . $parts['fragment'];
+    return $rebuilt;
+}
+
+function bitrix_url_query_value($url, $key)
+{
+    $parts = parse_url((string)$url);
+    if (!is_array($parts) || empty($parts['query'])) return null;
+    $query = [];
+    parse_str($parts['query'], $query);
+    return array_key_exists($key, $query) ? (string)$query[$key] : null;
 }
 
 function remove_bitrix_deal_from_cache($dealId)
@@ -1422,12 +2036,23 @@ function collect_bitrix_deal_files($value, &$files, $bitrixDomain)
         $url = first_text(
             array_get($value, 'URL', ''),
             array_get($value, 'SRC', ''),
+            array_get($value, 'SHOW_URL', ''),
+            array_get($value, 'showUrl', ''),
             array_get($value, 'DOWNLOAD_URL', ''),
             array_get($value, 'URL_MACHINE', ''),
             array_get($value, 'urlMachine', ''),
+            array_get($value, 'downloadUrl', ''),
+            array_get($value, 'url', '')
+        );
+        $downloadUrl = first_text(
+            array_get($value, 'DOWNLOAD_URL', ''),
+            array_get($value, 'URL_MACHINE', ''),
+            array_get($value, 'urlMachine', ''),
+            array_get($value, 'downloadUrl', ''),
+            array_get($value, 'SRC', ''),
+            array_get($value, 'URL', ''),
             array_get($value, 'SHOW_URL', ''),
             array_get($value, 'showUrl', ''),
-            array_get($value, 'downloadUrl', ''),
             array_get($value, 'url', '')
         );
         $id = first_text(array_get($value, 'ID', ''), array_get($value, 'id', ''), array_get($value, 'FILE_ID', ''), array_get($value, 'fileId', ''));
@@ -1440,12 +2065,15 @@ function collect_bitrix_deal_files($value, &$files, $bitrixDomain)
         );
         if ($url !== '') {
             $absoluteUrl = absolute_bitrix_file_url($url, $bitrixDomain);
+            $absoluteDownloadUrl = absolute_bitrix_file_url($downloadUrl ?: $url, $bitrixDomain);
             $fileName = $name !== '' ? $name : ('File ' . ($id !== '' ? $id : (count($files) + 1)));
             $files[] = [
                 'id' => $id !== '' ? (string)$id : (string)(count($files) + 1),
                 'name' => $fileName,
                 'url' => $absoluteUrl,
-                'downloadUrl' => $absoluteUrl,
+                'downloadUrl' => $absoluteDownloadUrl,
+                'bitrixUrl' => $absoluteUrl,
+                'bitrixDownloadUrl' => $absoluteDownloadUrl,
                 'type' => preg_match('/\.(png|jpe?g|webp|gif)$/i', $fileName) || preg_match('/image/i', first_text(array_get($value, 'CONTENT_TYPE', ''), array_get($value, 'type', ''))) ? 'image' : 'file',
             ];
             return;
@@ -1463,6 +2091,8 @@ function collect_bitrix_deal_files($value, &$files, $bitrixDomain)
             'name' => 'Bitrix file ' . $text,
             'url' => $url,
             'downloadUrl' => $url,
+            'bitrixUrl' => $url,
+            'bitrixDownloadUrl' => $url,
             'type' => 'file',
         ];
         return;
@@ -1476,6 +2106,8 @@ function collect_bitrix_deal_files($value, &$files, $bitrixDomain)
             'name' => rawurldecode($name),
             'url' => $absoluteUrl,
             'downloadUrl' => $absoluteUrl,
+            'bitrixUrl' => $absoluteUrl,
+            'bitrixDownloadUrl' => $absoluteUrl,
             'type' => preg_match('/\.(png|jpe?g|webp|gif)$/i', $name) ? 'image' : 'file',
         ];
     }

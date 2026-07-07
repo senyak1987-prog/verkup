@@ -4900,6 +4900,34 @@ div.employee-profile-field .employee-profile-value {
   opacity: 0.7;
 }
 
+.tech-spec-bitrix-source-file-list {
+  display: grid;
+  gap: 6px;
+}
+
+.tech-spec-bitrix-source-file-list a {
+  display: grid;
+  gap: 2px;
+  border: 1px solid #fed7aa;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 7px 9px;
+  color: #9a3412;
+  text-decoration: none;
+}
+
+.tech-spec-bitrix-source-file-list a span {
+  color: #c2410c;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.tech-spec-bitrix-source-file-list a strong {
+  overflow-wrap: anywhere;
+  color: #7c2d12;
+  font-size: 12px;
+}
+
 .tech-spec-header {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -8921,6 +8949,34 @@ tr.selected td,
 .production-tech-spec-bitrix-actions button:hover:not(:disabled) {
   border-color: #fb923c;
   color: #7c2d12;
+}
+
+.production-tech-spec-bitrix-file-list {
+  display: grid;
+  gap: 5px;
+}
+
+.production-tech-spec-bitrix-file-list a {
+  display: grid;
+  gap: 2px;
+  border: 1px solid #fed7aa;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 6px 8px;
+  color: #9a3412;
+  text-decoration: none;
+}
+
+.production-tech-spec-bitrix-file-list a span {
+  color: #c2410c;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.production-tech-spec-bitrix-file-list a strong {
+  overflow-wrap: anywhere;
+  color: #7c2d12;
+  font-size: 12px;
 }
 
 .production-tech-spec-head {
