@@ -5234,6 +5234,17 @@ div.employee-profile-field .employee-profile-value {
   display: none;
 }
 
+.tech-spec-bitrix-inline-button {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.tech-spec-bitrix-inline-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .tech-spec-attachments {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

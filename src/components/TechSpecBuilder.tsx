@@ -4,7 +4,6 @@ import {
   ClipboardList,
   Copy,
   Download,
-  ExternalLink,
   FileImage,
   FileText,
   ImagePlus,
@@ -30,8 +29,6 @@ import type {
 } from "../types";
 import {
   bitrixFileDisplayUrl,
-  bitrixFileDownloadUrl,
-  bitrixFileKey,
   isBitrixImageFile,
   mergeBitrixFileLists,
 } from "../lib/bitrixFiles";
@@ -583,60 +580,62 @@ function safeBitrixItemId(dealId: string, file: BitrixDealFile, index: number) {
     .slice(0, 96);
 }
 
+function safeBitrixAttachmentId(dealId: string, file: BitrixDealFile, index: number) {
+  return `${safeBitrixItemId(dealId, file, index)}-attachment`;
+}
+
 function bitrixFileAttachmentType(file: BitrixDealFile) {
   if (file.mimeType) return file.mimeType;
   if (isBitrixImageFile(file)) return "image/*";
   return "application/octet-stream";
 }
 
-function createBitrixItemFromFile(deal: Deal, file: BitrixDealFile, index: number): TechSpecItem | null {
+function createBitrixAttachmentFromFile(deal: Deal, file: BitrixDealFile, index: number): LayoutAttachment | null {
   const url = bitrixFileDisplayUrl(file);
   if (!url || file.downloadError) return null;
 
-  const item = createItem("plate");
   const label = file.label || "ТЗ из Bitrix";
   const fileName = file.name || `ТЗ ${index + 1}`;
   const attachmentName = [label, fileName].filter(Boolean).join(" - ");
 
   return {
-    ...item,
-    id: safeBitrixItemId(deal.id, file, index),
-    attachments: [
-      {
-        id: safeBitrixItemId(deal.id, file, index) + "-file",
-        name: attachmentName,
-        type: bitrixFileAttachmentType(file),
-        dataUrl: url,
-        note: "Загружено из Bitrix на сайт",
-      },
-    ],
-    fields: {
-      ...item.fields,
-      name: label,
-      quantity: "1 шт",
-      size: "по ТЗ из Bitrix",
-      layout: fileName,
-      installPlace: deal.title || "",
-      baseMaterial: item.fields.baseMaterial || "ПВХ",
-      baseThickness: item.fields.baseThickness || "по ТЗ",
-      imageType: item.fields.imageType || "Печать",
-      notes: [
-        "Файл ТЗ загружен из Bitrix и доступен макетчику на сайте.",
-        file.downloadedAt ? `Загружено: ${file.downloadedAt}` : "",
-        file.id ? `Bitrix file: ${file.id}` : "",
-      ].filter(Boolean).join("\n"),
-      bitrixFileId: file.id || "",
-      bitrixFileField: file.field || "",
-    },
+    id: safeBitrixAttachmentId(deal.id, file, index),
+    name: attachmentName,
+    type: bitrixFileAttachmentType(file),
+    dataUrl: url,
+    note: "Загружено из Bitrix на сайт",
   };
 }
 
-function createBitrixItemsForDeal(deal: Deal, files: BitrixDealFile[]) {
+function createBitrixAttachmentsForDeal(deal: Deal, files: BitrixDealFile[]) {
   return mergeBitrixFileLists(files)
     .filter((file) => bitrixFileDisplayUrl(file))
     .sort((first, second) => Number(isBitrixImageFile(second)) - Number(isBitrixImageFile(first)))
-    .map((file, index) => createBitrixItemFromFile(deal, file, index))
-    .filter((item): item is TechSpecItem => Boolean(item));
+    .map((file, index) => createBitrixAttachmentFromFile(deal, file, index))
+    .filter((attachment): attachment is LayoutAttachment => Boolean(attachment));
+}
+
+function isBitrixImportedAttachment(attachment: LayoutAttachment) {
+  return attachment.id.startsWith("bitrix-") || attachment.note === "Загружено из Bitrix на сайт";
+}
+
+function bitrixAttachmentLayoutText(attachments: LayoutAttachment[]) {
+  return attachments.map((attachment, index) => attachment.name || `ТЗ из Bitrix ${index + 1}`).join("\n");
+}
+
+function bitrixAttachmentNoteText(attachments: LayoutAttachment[]) {
+  return [
+    "ТЗ загружено из Bitrix и доступно макетчику на сайте.",
+    ...attachments.map((attachment) => `- ${attachment.name}`),
+  ].join("\n");
+}
+
+function mergeMultilineText(current: string, addition: string) {
+  const currentText = String(current || "").trim();
+  const additionText = String(addition || "").trim();
+  if (!additionText) return currentText;
+  if (currentText.includes(additionText)) return currentText;
+  return [currentText, additionText].filter(Boolean).join("\n");
 }
 
 function isBlankInitialDraftItem(item: TechSpecItem) {
@@ -1991,126 +1990,6 @@ type TechSpecBuilderProps = {
   onUploadToBitrix?: (draft: TechSpecDraft, fileName: string, fileBase64: string) => Promise<void>;
 };
 
-function BitrixTechSpecSource({
-  files,
-  hasLocalSpec,
-  importState,
-  onImport,
-  onRefresh,
-  state,
-}: {
-  files: BitrixDealFile[];
-  hasLocalSpec: boolean;
-  importState: "idle" | "loading" | "done" | "error";
-  onImport?: () => void;
-  onRefresh?: () => void;
-  state: "idle" | "loading" | "done" | "error";
-}) {
-  const preview = files.find(isBitrixImageFile) || files[0];
-  const previewUrl = bitrixFileDisplayUrl(preview);
-  const previewDownloadUrl = bitrixFileDownloadUrl(preview) || previewUrl;
-
-  if (!files.length && state === "done") return null;
-
-  return (
-    <section className={`tech-spec-bitrix-source${preview ? " has-files" : ""}`}>
-      <div className="tech-spec-bitrix-source-head">
-        <ClipboardList size={18} />
-        <div>
-          <strong>ТЗ из Bitrix</strong>
-          <span>
-            {preview
-              ? hasLocalSpec
-                ? "Найдено внешнее ТЗ, подготовленное не в форме сайта."
-                : "Найдено ТЗ, подготовленное менеджером в Bitrix."
-              : state === "loading"
-                ? "Проверяю старую форму и файлы производства в Bitrix..."
-                : "Файлы ТЗ из Bitrix пока не найдены."}
-          </span>
-        </div>
-      </div>
-
-      {preview ? (
-        <div className="tech-spec-bitrix-source-body">
-          {isBitrixImageFile(preview) && !preview.downloadError && previewUrl ? (
-            <img alt={preview.name || "ТЗ из Bitrix"} decoding="async" loading="lazy" src={previewUrl} />
-          ) : (
-            <div className="tech-spec-bitrix-source-file">
-              <FileText size={22} />
-              <span>{preview.type || "Файл"}</span>
-            </div>
-          )}
-          <div className="tech-spec-bitrix-source-meta">
-            <strong>{[preview.label, preview.name || "Файл ТЗ"].filter(Boolean).join(": ")}</strong>
-            {files.length > 1 ? <span>Всего файлов из Bitrix: {files.length}</span> : null}
-            <div className="tech-spec-bitrix-source-actions">
-              <a href={previewUrl} rel="noreferrer" target="_blank">
-                <ExternalLink size={15} />
-                Открыть
-              </a>
-              <a download={preview.name || "tech-spec-bitrix"} href={previewDownloadUrl}>
-                <Download size={15} />
-                Сохранить
-              </a>
-              {onImport ? (
-                <button disabled={importState === "loading"} onClick={onImport} type="button">
-                  <FileImage size={15} />
-                  {importState === "loading"
-                    ? "Загружаю..."
-                    : hasLocalSpec
-                      ? "Обновить ТЗ на сайте"
-                      : "Загрузить на сайт и создать ТЗ"}
-                </button>
-              ) : null}
-              {onRefresh ? (
-                <button disabled={state === "loading"} onClick={onRefresh} type="button">
-                  <RotateCcw size={15} />
-                  Обновить из Bitrix
-                </button>
-              ) : null}
-            </div>
-            {files.length > 1 ? (
-              <div className="tech-spec-bitrix-source-file-list">
-                {files.map((file, index) => (
-                  <a
-                    href={bitrixFileDownloadUrl(file) || bitrixFileDisplayUrl(file)}
-                    key={bitrixFileKey(file, index)}
-                    rel="noreferrer"
-                    target="_blank"
-                  >
-                    <span>{file.label || `Файл ${index + 1}`}</span>
-                    <strong>{file.name || `ТЗ ${index + 1}`}</strong>
-                  </a>
-                ))}
-              </div>
-            ) : null}
-            {preview.downloadError ? (
-              <span>Файл найден в Bitrix, локально скачать пока не удалось.</span>
-            ) : null}
-            {importState === "done" ? (
-              <span>Файлы загружены на сайт и добавлены в пункты ТЗ.</span>
-            ) : null}
-            {importState === "error" ? (
-              <span>Не удалось загрузить файлы на сайт. Проверьте доступ API к Bitrix.</span>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {!preview && onRefresh ? (
-        <div className="tech-spec-bitrix-source-actions">
-          <button disabled={state === "loading"} onClick={onRefresh} type="button">
-            <RotateCcw size={15} />
-            {state === "loading" ? "Проверяю..." : "Проверить в Bitrix"}
-          </button>
-        </div>
-      ) : null}
-
-      {state === "error" ? <p>Не удалось подтянуть ТЗ из Bitrix. Попробуйте обновить страницу позже.</p> : null}
-    </section>
-  );
-}
-
 export function TechSpecBuilder({
   topTabs,
   deal,
@@ -2219,32 +2098,64 @@ export function TechSpecBuilder({
     void loadBitrixDealFiles({ apiUrl }, deal.id, { importFiles: true, refresh: true })
       .then((result) => {
         const files = mergeBitrixFileLists(result.techSpecFiles, result.installationFiles);
-        const importedItems = createBitrixItemsForDeal(deal, files);
+        const importedAttachments = createBitrixAttachmentsForDeal(deal, files);
         setLoadedBitrixFiles(files);
         setBitrixFilesState("done");
 
-        if (!importedItems.length) {
+        if (!importedAttachments.length) {
           setBitrixImportState("error");
-          setAttachmentNotice("В Bitrix не нашлось картинок или файлов, которые удалось загрузить на сайт.");
+          setAttachmentNotice("Bitrix нашел файлы, но не дал скачать их на сайт. Макетчик без доступа к Bitrix их не увидит.");
           window.setTimeout(() => setAttachmentNotice(""), 2800);
           return;
         }
 
         setDraft((current) => {
           const fallback = createDraftForDeal(deal);
-          const existingBitrixIds = new Set(importedItems.map((item) => item.fields.bitrixFileId).filter(Boolean));
-          const manualItems = current.items
-            .filter((item) => !existingBitrixIds.has(item.fields.bitrixFileId || ""))
-            .filter((item) => !(current.items.length === 1 && isBlankInitialDraftItem(item)));
+          const hydrated = hydrateDraftFromDeal(current, fallback);
+          const baseItems = hydrated.items.length ? hydrated.items : [createItem("letters")];
+          const blankIndex = baseItems.findIndex(isBlankInitialDraftItem);
+          const targetIndex = blankIndex >= 0 ? blankIndex : 0;
+          const importedIds = new Set(importedAttachments.map((attachment) => attachment.id));
+          const importedUrls = new Set(importedAttachments.map((attachment) => attachment.dataUrl));
+          const importedLayout = bitrixAttachmentLayoutText(importedAttachments);
+          const importedNote = bitrixAttachmentNoteText(importedAttachments);
 
           return {
-            ...hydrateDraftFromDeal(current, fallback),
-            globalNote: current.globalNote || fallback.globalNote,
-            items: [...importedItems, ...manualItems],
+            ...hydrated,
+            globalNote: hydrated.globalNote || fallback.globalNote,
+            items: baseItems.map((item, index) => {
+              const keptAttachments = item.attachments.filter(
+                (attachment) =>
+                  !isBitrixImportedAttachment(attachment) &&
+                  !importedIds.has(attachment.id) &&
+                  !importedUrls.has(attachment.dataUrl),
+              );
+              if (index !== targetIndex) {
+                return { ...item, attachments: keptAttachments };
+              }
+
+              const itemIsBlank = isBlankInitialDraftItem(item);
+              return {
+                ...item,
+                attachments: [...importedAttachments, ...keptAttachments],
+                fields: {
+                  ...item.fields,
+                  name: item.fields.name || fallback.projectName || "ТЗ из Bitrix",
+                  layout: item.fields.layout
+                    ? mergeMultilineText(item.fields.layout, importedLayout)
+                    : importedLayout,
+                  installPlace: item.fields.installPlace || fallback.projectName || "",
+                  notes: item.fields.notes
+                    ? mergeMultilineText(item.fields.notes, importedNote)
+                    : importedNote,
+                  size: item.fields.size || (itemIsBlank ? "по ТЗ из Bitrix" : ""),
+                },
+              };
+            }),
           };
         });
         setBitrixImportState("done");
-        setAttachmentNotice(`ТЗ из Bitrix загружено на сайт: ${importedItems.length}`);
+        setAttachmentNotice(`ТЗ из Bitrix добавлено в Макеты и схемы: ${importedAttachments.length}`);
         window.setTimeout(() => setAttachmentNotice(""), 2400);
       })
       .catch((error) => {
@@ -2695,17 +2606,6 @@ export function TechSpecBuilder({
         </div>
       </section>
 
-      {deal ? (
-        <BitrixTechSpecSource
-          files={loadedBitrixFiles}
-          state={bitrixFilesState}
-          importState={bitrixImportState}
-          hasLocalSpec={Boolean(storedSpec)}
-          onImport={importBitrixFilesToDraft}
-          onRefresh={refreshBitrixFiles}
-        />
-      ) : null}
-
       <section className="tech-spec-header">
         <label>
           <span>Номер сделки</span>
@@ -2847,6 +2747,16 @@ export function TechSpecBuilder({
             const fields = [...commonFields, ...template.fields];
             const missing = new Set(getRequiredMissing(item));
             const selectedWorkCost = getSelectedWorkCost(item, workCostOptions);
+            const showBitrixImport = Boolean(deal && index === 0);
+            const hasBitrixFiles = loadedBitrixFiles.length > 0;
+            const bitrixImportLabel =
+              bitrixImportState === "loading"
+                ? "Загружаю..."
+                : bitrixFilesState === "loading"
+                  ? "Проверяю..."
+                  : hasBitrixFiles
+                    ? `Из Bitrix (${loadedBitrixFiles.length})`
+                    : "Проверить Bitrix";
 
             return (
               <article className="tech-spec-item" key={item.id}>
@@ -2886,6 +2796,17 @@ export function TechSpecBuilder({
                       <p>Изображение, SVG или файл вектора можно загрузить с диска либо вставить из буфера.</p>
                     </div>
                     <div className="toolbar-actions">
+                      {showBitrixImport ? (
+                        <button
+                          className="secondary compact tech-spec-bitrix-inline-button"
+                          disabled={bitrixFilesState === "loading" || bitrixImportState === "loading"}
+                          onClick={hasBitrixFiles ? importBitrixFilesToDraft : refreshBitrixFiles}
+                          type="button"
+                        >
+                          {hasBitrixFiles ? <FileImage size={16} /> : <RotateCcw size={16} />}
+                          {bitrixImportLabel}
+                        </button>
+                      ) : null}
                       <label className="secondary compact tech-spec-upload-button">
                         <Upload size={16} />
                         Загрузить

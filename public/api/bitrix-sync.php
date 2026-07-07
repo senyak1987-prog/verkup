@@ -372,7 +372,7 @@ function import_bitrix_deal_file($dealId, $file, $force = false)
         unset($file['downloadError']);
         return ['file' => $file, 'status' => 'downloaded'];
     } catch (Exception $error) {
-        $file['downloadError'] = $error->getMessage();
+        $file['downloadError'] = sanitize_bitrix_download_error($error->getMessage());
         if (!array_get($file, 'localUrl', '')) {
             $file['type'] = 'file';
         }
@@ -408,11 +408,19 @@ function bitrix_download_deal_file_bytes($dealId, $file)
         try {
             return bitrix_fetch_binary_url($url, (string)array_get($file, 'name', ''));
         } catch (Exception $error) {
-            $errors[] = $error->getMessage();
+            $errors[] = sanitize_bitrix_download_error($error->getMessage());
         }
     }
     $message = count($errors) ? implode('; ', array_slice($errors, 0, 3)) : 'No download URL';
     throw new RuntimeException($message);
+}
+
+function sanitize_bitrix_download_error($message)
+{
+    $message = (string)$message;
+    $message = preg_replace('/([?&](?:auth|access_token)=)[^;&\s]+/i', '$1***', $message);
+    $message = preg_replace('#(/rest/\d+/)[^/\s?;]+#i', '$1***', $message);
+    return $message ?: 'Bitrix file download failed';
 }
 
 function bitrix_file_download_candidates($dealId, $file)
@@ -420,6 +428,11 @@ function bitrix_file_download_candidates($dealId, $file)
     $candidates = [];
     $fileId = trim((string)array_get($file, 'id', ''));
     foreach (bitrix_rest_download_url_candidates($fileId) as $url) $candidates[] = $url;
+
+    $field = sanitize_bitrix_field_name((string)array_get($file, 'field', ''));
+    foreach (bitrix_crm_userfield_file_download_candidates($dealId, $field, $fileId) as $url) {
+        $candidates[] = $url;
+    }
 
     foreach ([
         array_get($file, 'bitrixDownloadUrl', ''),
@@ -431,7 +444,6 @@ function bitrix_file_download_candidates($dealId, $file)
         if ($url !== '' && !bitrix_is_local_tech_spec_url($url)) $candidates[] = $url;
     }
 
-    $field = sanitize_bitrix_field_name((string)array_get($file, 'field', ''));
     if ($fileId !== '') {
         $domain = bitrix_domain();
         if ($field !== '') {
@@ -460,6 +472,46 @@ function bitrix_file_download_candidates($dealId, $file)
     }
 
     return bitrix_expand_authenticated_url_candidates($candidates);
+}
+
+function bitrix_crm_userfield_file_download_candidates($dealId, $field, $fileId)
+{
+    $dealId = trim((string)$dealId);
+    $field = sanitize_bitrix_field_name((string)$field);
+    $fileId = trim((string)$fileId);
+    if ($dealId === '' || $field === '' || $fileId === '') return [];
+
+    $domain = bitrix_domain();
+    $queries = [
+        [
+            'action' => 'rest.file.get',
+            'entity' => 'CRM_DEAL',
+            'id' => $dealId,
+            'field' => $field,
+            'value' => $fileId,
+        ],
+        [
+            'action' => 'rest.file.get',
+            'entity' => 'CRM_DEAL',
+            'entityId' => $dealId,
+            'field' => $field,
+            'fileId' => $fileId,
+        ],
+        [
+            'action' => 'rest.file.get',
+            'entity' => 'CRM_DEAL',
+            'ENTITY_ID' => $dealId,
+            'FIELD_NAME' => $field,
+            'VALUE_ID' => $fileId,
+        ],
+    ];
+
+    return array_map(
+        function ($query) use ($domain) {
+            return absolute_bitrix_file_url('/bitrix/services/main/ajax.php?' . http_build_query($query), $domain);
+        },
+        $queries
+    );
 }
 
 function bitrix_rest_download_url_candidates($fileId)
