@@ -3,7 +3,7 @@ import type { KeyboardEvent } from "react";
 import { RotateCcw, ScanLine } from "lucide-react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { buildSignModel, disposeSignObject, sceneFontName } from "../lib/signSceneGeometry";
+import { buildSignModel, disposeSignObject } from "../lib/signSceneGeometry";
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
 import "../sign-scene-3d.css";
 
@@ -23,7 +23,7 @@ export type SignScene3DProps = {
 type SceneRuntime = {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
+  camera: THREE.OrthographicCamera;
   controls: OrbitControls;
   model: THREE.Group | null;
   wall: THREE.Mesh;
@@ -37,6 +37,10 @@ type SceneRuntime = {
 };
 
 export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, resetKey = 0, onUnavailable }: SignScene3DProps) {
+  const layoutRef = useRef(layout);
+  layoutRef.current = project.productId === "panel"
+    ? { ...layout, viewWidth: project.panelSize * 1.8, viewHeight: project.panelSize * 1.42 }
+    : layout;
   const hostRef = useRef<HTMLDivElement>(null);
   const runtimeRef = useRef<SceneRuntime | null>(null);
   const unavailableRef = useRef(onUnavailable);
@@ -46,7 +50,6 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
   const [unavailable, setUnavailable] = useState(false);
   unavailableRef.current = onUnavailable;
   zoomRef.current = zoom;
-  const fallbackFont = project.productId === "letters" && Boolean(project.lettersText.trim()) && !/manrope|roboto condensed/i.test(project.letterFont);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -72,7 +75,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       renderer.shadowMap.type = THREE.PCFShadowMap;
       renderer.setClearColor(0, 0);
       const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(34, 1, 1, 100000);
+      const camera = new THREE.OrthographicCamera(-500, 500, 500, -500, 1, 100000);
       camera.position.set(400, 180, 1800);
       camera.zoom = Math.max(0.5, Math.min(2, zoomRef.current / 100));
       controls = new OrbitControls(camera, renderer.domElement);
@@ -81,6 +84,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       controls.screenSpacePanning = true;
       controls.rotateSpeed = 0.68;
       controls.zoomSpeed = 0.85;
+      controls.minZoom = 0.35;
+      controls.maxZoom = 5;
       controls.minPolarAngle = 0.08;
       controls.maxPolarAngle = Math.PI - 0.08;
       const wall = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
@@ -116,17 +121,16 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const box = new THREE.Box3();
           for (const child of runtime.model.children) if (child.name !== "dimensions") box.expandByObject(child);
           if (box.isEmpty()) return;
-          const center = box.getCenter(new THREE.Vector3());
-          const fitBox = box.clone();
-          const dimensions = runtime.model.getObjectByName("dimensions");
-          if (dimensions) fitBox.expandByObject(dimensions);
-          const size = new THREE.Vector3(
-            Math.max(Math.abs(fitBox.min.x - center.x), Math.abs(fitBox.max.x - center.x)) * 2,
-            Math.max(Math.abs(fitBox.min.y - center.y), Math.abs(fitBox.max.y - center.y)) * 2,
-            fitBox.max.z - fitBox.min.z,
-          );
-          const tangent = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-          runtime.distance = Math.max(size.y / (2 * tangent), size.x / (2 * tangent * Math.max(0.2, camera.aspect)), size.z * 3) * (dimensions ? 1.28 : 1.42);
+          const center = new THREE.Vector3(0, 0, box.max.z / 2);
+          const view = layoutRef.current;
+          const aspect = Math.max(0.2, host.clientWidth / Math.max(1, host.clientHeight));
+          const viewHeight = Math.max(view.viewHeight, view.viewWidth / aspect);
+          camera.left = -viewHeight * aspect / 2;
+          camera.right = viewHeight * aspect / 2;
+          camera.top = viewHeight / 2;
+          camera.bottom = -viewHeight / 2;
+          camera.updateProjectionMatrix();
+          runtime.distance = Math.max(view.viewWidth, view.viewHeight) * 3;
           const direction = preserveOrbit
             ? camera.position.clone().sub(currentControls.target).normalize()
             : front ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0.3, 0.12, 1).normalize();
@@ -143,7 +147,6 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const canvasWidth = Math.max(1, Math.round(box.width));
           const canvasHeight = Math.max(1, Math.round(box.height));
           currentRenderer.setSize(canvasWidth, canvasHeight, false);
-          camera.aspect = canvasWidth / canvasHeight;
           camera.updateProjectionMatrix();
           if (runtime.model) runtime.frame(false, true);
           requestRender();
@@ -224,7 +227,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       shadow.top = height * 2; shadow.bottom = -height * 2;
       shadow.near = 1; shadow.far = Math.max(width, height) * 6 + 1000;
       shadow.updateProjectionMatrix();
-      runtime.frame(false, preserveOrbit);
+      runtime.frame(true, preserveOrbit);
       runtime.requestRender();
       setLoading(false);
     }).catch(() => {
@@ -264,8 +267,9 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     if (key === "arrowright") sphere.theta += 0.12;
     if (key === "arrowup") sphere.phi = Math.max(0.08, sphere.phi - 0.12);
     if (key === "arrowdown") sphere.phi = Math.min(Math.PI - 0.08, sphere.phi + 0.12);
-    if (key === "+" || key === "=") sphere.radius = Math.max(runtime.controls.minDistance, sphere.radius * 0.85);
-    if (key === "-") sphere.radius = Math.min(runtime.controls.maxDistance, sphere.radius / 0.85);
+    if (key === "+" || key === "=") runtime.camera.zoom = Math.min(5, runtime.camera.zoom / 0.85);
+    if (key === "-") runtime.camera.zoom = Math.max(0.35, runtime.camera.zoom * 0.85);
+    runtime.camera.updateProjectionMatrix();
     runtime.camera.position.copy(runtime.controls.target).add(new THREE.Vector3().setFromSpherical(sphere));
     runtime.controls.update(); runtime.requestRender();
   };
@@ -287,7 +291,6 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       {unavailable && <div className="sign-scene-3d-status" role="status">3D сейчас недоступно. Открываем плоский вид.</div>}
       {!loading && !unavailable && <p className="sign-scene-3d-hint">Перетащите для вращения · колесо или два пальца для масштаба</p>}
       <div className="sign-scene-3d-notices" aria-live="polite">
-        {fallbackFont && <span>3D-контур: {sceneFontName(project.letterFont)}. Выбранный системный шрифт доступен в 2D.</span>}
         {project.productId === "letters" && project.mountMode === "frame" && project.letterHeight > 550 &&
           <span>Рама 15 × 15 мм показана в масштабе. Для букв выше 550 мм профиль требует проверки.</span>}
       </div>
