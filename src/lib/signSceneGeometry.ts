@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { loadLetterContours } from "./letterContours";
+import { panelConstruction } from "./panelConstruction";
 
 type SceneColor = { value: string };
 export type SignSceneBox = { x: number; y: number; width: number; height: number };
@@ -9,6 +10,8 @@ export type SignSceneProject = {
   sceneMode: "day" | "night";
   panelShape: "circle" | "square" | "rounded";
   panelSize: number;
+  panelWallGap?: number;
+  panelCornerRadius?: number;
   panelImage: string;
   panelImageScale: number;
   panelImageX: number;
@@ -141,7 +144,7 @@ async function imageTexture(source: string, scale = 100, x = 0, y = 0) {
 }
 
 async function applyArtwork(mesh: THREE.Mesh, shape: THREE.Shape, source: string, size: number,
-  depth: number, night: boolean, faceLit: boolean, scale = 100, x = 0, y = 0) {
+  depth: number, night: boolean, faceLit: boolean, scale = 100, x = 0, y = 0, bothSides = false) {
   if (!source) return;
   const texture = await imageTexture(source, scale, x, y);
   const geometry = new THREE.ShapeGeometry(shape, 24);
@@ -155,7 +158,15 @@ async function applyArtwork(mesh: THREE.Mesh, shape: THREE.Shape, source: string
     polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   const image = new THREE.Mesh(geometry, material);
   image.position.z = depth + 0.35;
+  image.name = "front-artwork";
   mesh.add(image);
+  if (bothSides) {
+    const back = new THREE.Mesh(geometry, material);
+    back.rotation.y = Math.PI;
+    back.position.z = -0.35;
+    back.name = "back-artwork";
+    mesh.add(back);
+  }
 }
 
 function addDimension(group: THREE.Group, start: THREE.Vector3, end: THREE.Vector3,
@@ -169,19 +180,23 @@ function addDimension(group: THREE.Group, start: THREE.Vector3, end: THREE.Vecto
     new THREE.LineBasicMaterial({ color: night ? "#c3d0d9" : "#77838a", transparent: true, opacity: 0.8 }));
   group.add(line);
   const canvas = document.createElement("canvas");
-  canvas.width = 512; canvas.height = 96;
+  canvas.width = 512; canvas.height = 64;
   const context = canvas.getContext("2d")!;
-  context.font = "500 38px Arial, sans-serif";
+  context.font = "500 42px Arial, sans-serif";
+  canvas.width = Math.ceil(context.measureText(label).width + 24);
+  context.font = "500 42px Arial, sans-serif";
   context.textAlign = "center"; context.textBaseline = "middle";
   context.fillStyle = night ? "#dce4e7" : "#47535b";
-  context.fillText(label, 256, 48);
+  context.fillText(label, canvas.width / 2, 32);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true,
     depthTest: false, depthWrite: false, toneMapped: false }));
   sprite.position.copy(labelPosition);
-  const labelWidth = Math.max(scale * 0.65, 145);
-  sprite.scale.set(labelWidth, labelWidth * 96 / 512, 1);
+  const labelHeight = Math.max(scale * 0.07, 20);
+  sprite.userData.labelAspect = canvas.width / canvas.height;
+  sprite.userData.labelHeight = labelHeight;
+  sprite.scale.set(labelHeight * sprite.userData.labelAspect, labelHeight, 1);
   group.add(sprite);
 }
 
@@ -241,6 +256,7 @@ function lightProjection(project: SignSceneProject, layout: SignSceneLayout,
 export async function buildSignModel(project: SignSceneProject, layout: SignSceneLayout,
   width: number, height: number, depth: number, showDimensions: boolean) {
   const group = new THREE.Group();
+  group.userData.productId = project.productId;
   const night = project.sceneMode === "night";
   const modelDepth = Math.max(1, project.productId === "letters" ? project.letterDepth : depth);
   const faceLit = night && (project.productId === "panel" || project.glowMode !== "halo");
@@ -262,20 +278,37 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
   try {
     if (project.productId === "panel") {
       const size = project.panelSize;
-      const shape = logoShape(project.panelShape, size);
+      const mount = panelConstruction(size, project.panelShape, project.panelWallGap, project.panelCornerRadius);
+      const shape = project.panelShape === "circle" ? logoShape("circle", size) : roundedShape(size, size, mount.radius);
       const panel = extrude(shape, modelDepth, face, side);
       panel.name = "panel-body";
       group.add(panel);
       await applyArtwork(panel, shape, project.panelImage, size, modelDepth, night, faceLit,
-        project.panelImageScale, project.panelImageX, project.panelImageY);
-      const steel = new THREE.MeshStandardMaterial({ color: night ? "#35414a" : "#626e74", metalness: 0.75, roughness: 0.37 });
-      for (const y of [-size * 0.24, size * 0.24]) {
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(size * 0.56, 20, 20), steel);
-        arm.position.set(-size * 0.53, y, modelDepth / 2);
-        arm.castShadow = true; group.add(arm);
+        project.panelImageScale, project.panelImageX, project.panelImageY, true);
+      const inner = project.panelShape === "circle" ? logoShape("circle", size - mount.rim * 2)
+        : roundedShape(size - mount.rim * 2, size - mount.rim * 2, Math.max(0, mount.radius - mount.rim));
+      const ring = shape.clone();
+      ring.holes.push(new THREE.Path(inner.getPoints(48)));
+      for (const z of [-0.6, modelDepth - 1]) {
+        const rim = extrude(ring, 1.6, side, side);
+        rim.position.z = z; rim.name = "panel-rim"; group.add(rim);
       }
-      const plate = new THREE.Mesh(new THREE.BoxGeometry(16, size * 0.7, 60), steel);
-      plate.position.set(-size * 0.81, 0, modelDepth / 2); group.add(plate);
+      const steel = new THREE.MeshStandardMaterial({ color: night ? "#35414a" : "#34414a", metalness: 0.65, roughness: 0.4 });
+      for (const y of mount.armYs) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(mount.armEndX - mount.armStartX, 20, 20), steel);
+        arm.position.set((mount.armStartX + mount.armEndX) / 2, y, modelDepth / 2);
+        arm.name = "bracket-arm";
+        arm.castShadow = true; group.add(arm);
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(5, 30, 100), steel);
+        plate.position.set(mount.wallX + 2.5, y, modelDepth / 2);
+        plate.name = "wall-mount-plate"; plate.castShadow = true; group.add(plate);
+        for (const offset of [-34, 34]) {
+          const bolt = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 3, 6), steel);
+          bolt.rotation.z = Math.PI / 2;
+          bolt.position.set(mount.wallX + 6.5, y, modelDepth / 2 + offset);
+          bolt.name = "wall-anchor"; group.add(bolt);
+        }
+      }
       if (showDimensions) {
         const y = -size / 2 - size * 0.15;
         addDimension(dimensionGroup, new THREE.Vector3(-size / 2, y, modelDepth + 3),
@@ -287,6 +320,9 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         addDimension(dimensionGroup, new THREE.Vector3(size / 2 + size * 0.16, size / 2, 0),
           new THREE.Vector3(size / 2 + size * 0.16, size / 2, modelDepth), Math.round(modelDepth) + " мм",
           new THREE.Vector3(size / 2 + size * 0.28, size / 2, modelDepth / 2), size * 0.65, night);
+        addDimension(dimensionGroup, new THREE.Vector3(mount.wallX, size / 2 + 35, modelDepth / 2),
+          new THREE.Vector3(-size / 2, size / 2 + 35, modelDepth / 2), mount.gap + " мм до стены",
+          new THREE.Vector3(mount.wallX + mount.gap / 2, size / 2 + 65, modelDepth / 2), size * 0.7, night);
       }
     } else {
       const glyph = await glyphData(project, layout);
