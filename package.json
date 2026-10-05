@@ -19,7 +19,8 @@
     "realtime:server": "node server/realtime-server.mjs",
     "pages:deploy": "npx --yes wrangler@4.97.0 pages deploy dist --project-name verkup-test --branch main",
     "worker:deploy": "npx --yes wrangler@4.97.0 deploy --config worker/wrangler.toml",
-    "test:letter-construction": "node scripts/test-letter-construction.mjs"
+    "test:letter-construction": "node scripts/test-letter-construction.mjs",
+    "test:panel-construction": "node scripts/test-panel-construction.mjs"
   },
   "dependencies": {
     "framer-motion": "^12.41.0",

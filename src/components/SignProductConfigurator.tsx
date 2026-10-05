@@ -223,6 +223,8 @@ const DEFAULT_PROJECT = {
   panelShape: "circle" as PanelShape,
   panelSize: 500,
   panelDepth: 60,
+  panelWallGap: 120,
+  panelCornerRadius: 60,
   panelImage: "",
   panelImageScale: 82,
   panelImageX: 0,
@@ -268,7 +270,7 @@ const SECTION_GROUPS: Record<string, StudioSection> = {
   "Надпись": "design", "Форма": "design", "Размер": "design",
   "Лицо Oracal 8500": "colors", "Борт Oracal 641": "colors", "Кантик": "colors",
   "Свечение": "light", "Контражурная подложка": "light",
-  "Размещение": "mount", "Рама": "mount", "Подложка АКП": "mount",
+  "Размещение": "mount", "Рама": "mount", "Подложка АКП": "mount", "Крепление к стене": "mount",
   "Логотип": "logo", "Изображение": "logo",
 };
 const PROJECT_ENUMS: Record<string, readonly unknown[]> = {
@@ -282,6 +284,7 @@ const PROJECT_RANGES: Record<string, [number, number]> = {
   letterHeight: [120, 1200], letterDepth: [40, 60], logoScale: [45, 130],
   letterWidth: [0, 20000],
   panelSize: [200, 2000], panelDepth: [30, 160],
+  panelWallGap: [60, 400], panelCornerRadius: [0, 300],
   frameEdgeInset: [0, 120], frameTopPosition: [10, 20], frameBottomPosition: [10, 20],
   acpWidth: [400, 20000], acpHeight: [250, 10000], acpDepth: [30, 100],
 };
@@ -461,6 +464,7 @@ export function SignProductConfigurator() {
     lettersText,
     lettersWidth,
     letterTextBox,
+    letterContours,
     logoScale,
     logoShape,
     mountMode,
@@ -562,7 +566,7 @@ export function SignProductConfigurator() {
   }
   function createCurrentSvg(withDimensions = showDimensions) {
     if (productId === "panel") {
-      return createPanelSvgMarkup({ shape: panelShape, size: panelSize, faceColor: panelFaceColor.value, sideColor: panelSideColor.value, image: panelImage, imageScale: panelImageScale, imageX: panelImageX, imageY: panelImageY, sceneMode, showDimensions: withDimensions, flat: true });
+      return createPanelSvgMarkup({ shape: panelShape, size: panelSize, depth: project.panelDepth, wallGap: project.panelWallGap, cornerRadius: project.panelCornerRadius, faceColor: panelFaceColor.value, sideColor: panelSideColor.value, image: panelImage, imageScale: panelImageScale, imageX: panelImageX, imageY: panelImageY, sceneMode, showDimensions: withDimensions, flat: true });
     }
     return createLettersSvgMarkup({
       sceneMode,
@@ -639,7 +643,7 @@ export function SignProductConfigurator() {
         <aside className="builder-controls" id="studio-controls" aria-label="Настройки вывески">
           <header className="controls-heading"><h2>Настройте вывеску</h2><span>Все изменения — на макете</span></header>
           <nav className="studio-section-tabs" aria-label="Разделы настроек">
-            {SECTION_ITEMS.filter(item => productId === "letters" || ["design", "colors", "logo"].includes(item.id)).map(item => <button type="button" key={item.id} aria-pressed={activeSection === item.id} className={activeSection === item.id ? "active" : ""} onClick={() => setActiveSection(item.id)}><item.icon size={18} /><span>{productId === "panel" && item.id === "design" ? "Форма" : item.label}</span></button>)}
+            {SECTION_ITEMS.filter(item => productId === "letters" || ["design", "colors", "mount", "logo"].includes(item.id)).map(item => <button type="button" key={item.id} aria-pressed={activeSection === item.id} className={activeSection === item.id ? "active" : ""} onClick={() => setActiveSection(item.id)}><item.icon size={18} /><span>{productId === "panel" && item.id === "design" ? "Форма" : item.label}</span></button>)}
           </nav>
           <div className="controls-body"><SectionContext.Provider value={activeSection}>
           {productId === "panel" ? (
@@ -653,6 +657,10 @@ export function SignProductConfigurator() {
               sideColor={panelSideColor}
               size={panelSize}
               depth={project.panelDepth}
+              wallGap={project.panelWallGap}
+              cornerRadius={project.panelCornerRadius}
+              onWallGapChange={value => setProject(previous => ({ ...previous, panelWallGap: value }))}
+              onCornerRadiusChange={value => setProject(previous => ({ ...previous, panelCornerRadius: value }))}
               onDepthChange={setPanelDepth}
               onFaceColorChange={setPanelFaceColor}
               onImageChange={(event) => void handleImageUpload(event, setPanelImage)}
@@ -731,7 +739,7 @@ export function SignProductConfigurator() {
             <div className="scene-switch" role="group" aria-label="Режим визуализации">
               <button type="button" aria-pressed={sceneMode === "day"} className={sceneMode === "day" ? "active" : ""} onClick={() => setSceneMode("day")}><Sun size={16} />День</button>
               <button type="button" aria-pressed={sceneMode === "night"} className={sceneMode === "night" ? "active" : ""} onClick={() => setSceneMode("night")}><Moon size={16} />Ночь</button>
-            </div><div className="canvas-tools"><button type="button" aria-label="Уменьшить макет" disabled={zoom <= 60} onClick={() => setZoom(value => Math.max(60, value - 10))}><Minus size={16} /></button><span className="zoom-value">{zoom}%</span><button type="button" aria-label="Увеличить макет" disabled={zoom >= 140} onClick={() => setZoom(value => Math.min(140, value + 10))}><Plus size={16} /></button><button type="button" aria-label="Подогнать макет" onClick={handleFitPreview}><Maximize size={16} /></button></div>
+            </div><div className="canvas-tools"><button type="button" aria-label="Уменьшить макет" disabled={zoom <= 60} onClick={() => setZoom(value => Math.max(60, value - 10))}><Minus size={16} /></button><span className="zoom-value" title="100% — макет целиком в окне">{zoom}%</span><button type="button" aria-label="Увеличить макет" disabled={zoom >= 100} onClick={() => setZoom(value => Math.min(100, value + 10))}><Plus size={16} /></button><button type="button" aria-label="Подогнать макет" onClick={handleFitPreview}><Maximize size={16} /></button></div>
           </header>
           <div className="canvas-mode-toolbar">
             <div className="view-switch" role="group" aria-label="Вид макета"><button type="button" aria-pressed={viewMode === "2d"} className={viewMode === "2d" ? "active" : ""} onClick={() => { setViewMode("2d"); setZoom(100); }}>2D</button><button type="button" aria-pressed={viewMode === "3d"} className={viewMode === "3d" ? "active" : ""} onClick={() => { setViewMode("3d"); setZoom(100); }}>3D · вращение</button></div>
@@ -754,6 +762,9 @@ export function SignProductConfigurator() {
                 imageY={panelImageY}
                 sceneMode={sceneMode}
                 size={panelSize}
+                depth={project.panelDepth}
+                wallGap={project.panelWallGap}
+                cornerRadius={project.panelCornerRadius}
                 showDimensions={showDimensions}
               />
             ) : (
@@ -810,7 +821,7 @@ export function SignProductConfigurator() {
                 ? mountMode === "frame"
                   ? frameNeedsApproval ? `${mountLabel} — по согласованию` : `${mountLabel}, профиль 15 × 15 мм`
                   : mountLabel
-                : "Кронштейн"}
+                : `Две консоли · отступ от стены ${project.panelWallGap} мм`}
             </strong>
           </div>
           <div className="summary-block">
@@ -859,6 +870,7 @@ class SceneBoundary extends Component<{ children: ReactNode; onFail: () => void 
 }
 
 function PanelControls({
+  wallGap, cornerRadius, onWallGapChange, onCornerRadiusChange,
   faceColor,
   imageScale,
   imageX,
@@ -878,6 +890,10 @@ function PanelControls({
   onSideColorChange,
   onSizeChange,
 }: {
+  wallGap: number;
+  cornerRadius: number;
+  onWallGapChange: (value: number) => void;
+  onCornerRadiusChange: (value: number) => void;
   faceColor: ColorOption;
   imageScale: number;
   imageX: number;
@@ -912,6 +928,7 @@ function PanelControls({
             </button>
           ))}
         </div>
+        {shape === "rounded" && <NumberField label="Радиус углов, мм" min={0} max={Math.min(300, size / 2)} value={Math.min(cornerRadius, size / 2)} onChange={onCornerRadiusChange} />}
       </ControlSection>
 
       <ControlSection title="Размер">
@@ -930,13 +947,18 @@ function PanelControls({
         </div>
       </ControlSection>
 
+      <ControlSection title="Крепление к стене">
+        <NumberField label="Отступ корпуса от стены, мм" min={60} max={400} value={wallGap} onChange={onWallGapChange} />
+        <p className="control-note">Двусторонний световой короб стоит перпендикулярно фасаду. Две консоли 20 × 20 мм закреплены на отдельных монтажных пластинах. Отступ считается от стены до края корпуса.</p>
+      </ControlSection>
+
       <ControlSection title="Изображение">
         <label className="public-upload">
           <Upload size={17} />
           {panelImage ? "Заменить изображение" : "Загрузить изображение"}
           <input accept="image/png,image/jpeg,image/webp" onChange={onImageChange} type="file" />
         </label>
-        <small className="control-note">PNG, JPG или WebP · до 2 МБ</small>
+        <small className="control-note">PNG, JPG или WebP · до 2 МБ. Изображение наносится на обе стороны.</small>
         <RangeField label="Масштаб" max={130} min={45} onChange={onImageScaleChange} value={imageScale} />
         <RangeField label="Сдвиг X" max={40} min={-40} onChange={onImageXChange} value={imageX} />
         <RangeField label="Сдвиг Y" max={40} min={-40} onChange={onImageYChange} value={imageY} />
@@ -1217,6 +1239,7 @@ function LettersControls({
 }
 
 function PanelPreview({
+  depth, wallGap, cornerRadius,
   image,
   shape,
   sideColor,
@@ -1228,6 +1251,9 @@ function PanelPreview({
   size,
   showDimensions,
 }: {
+  depth: number;
+  wallGap: number;
+  cornerRadius: number;
   image: string;
   shape: PanelShape;
   sideColor: string;
@@ -1239,8 +1265,40 @@ function PanelPreview({
   size: number;
   showDimensions: boolean;
 }) {
-  const markup = createPanelSvgMarkup({ image, shape, sideColor, faceColor, imageScale, imageX, imageY, sceneMode, size, showDimensions, flat: true });
-  return <div className="panel-svg-render" dangerouslySetInnerHTML={{ __html: markup.replace(/<\?xml[^>]*\?>\s*/, "") }} />;
+  const markup = createPanelSvgMarkup({ image, shape, sideColor, faceColor, imageScale, imageX, imageY, sceneMode, size, depth, wallGap, cornerRadius, showDimensions, flat: true });
+  return <SvgMarkupPreview className="panel-svg-render" markup={markup.replace(/<\?xml[^>]*\?>\s*/, "")} />;
+}
+
+/** Keep measurement text readable in screen pixels, including a very wide sign on a phone. */
+function SvgMarkupPreview({ className, markup }: { className: string; markup: string }) {
+  const host = useRef<HTMLDivElement>(null);
+  const [labels, setLabels] = useState<{text: string; x: number; y: number; vertical: boolean}[]>([]);
+  useEffect(() => {
+    const element = host.current;
+    if (!element) return;
+    const update = () => {
+      const bounds = element.getBoundingClientRect();
+      if (!bounds.width || !bounds.height) return;
+      const scaleX = element.clientWidth / bounds.width, scaleY = element.clientHeight / bounds.height;
+      setLabels(Array.from(element.querySelectorAll<SVGTextElement>("[data-dimensions] text")).map(text => {
+        const rect = text.getBoundingClientRect();
+        const vertical = Boolean(text.getAttribute("transform")?.includes("rotate"));
+        const edgeX = vertical ? 10 : 44, edgeY = vertical ? 44 : 10;
+        return { text: text.textContent ?? "", vertical,
+          x: clamp((rect.x + rect.width / 2 - bounds.x) * scaleX, edgeX, element.clientWidth - edgeX),
+          y: clamp((rect.y + rect.height / 2 - bounds.y) * scaleY, edgeY, element.clientHeight - edgeY) };
+      }));
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [markup]);
+  return <div className={className} ref={host}>
+    <div className="studio-svg-layer" dangerouslySetInnerHTML={{ __html: markup }} />
+    <div className="studio-measure-labels" aria-hidden="true">{labels.map((label, index) => <span key={index}
+      style={{ left: label.x, top: label.y, transform: `translate(-50%, -50%)${label.vertical ? " rotate(-90deg)" : ""}` }}>{label.text}</span>)}</div>
+  </div>;
 }
 
 function LettersPreview({
@@ -1299,10 +1357,7 @@ function LettersPreview({
 
   return (
     <div className={"letters-scene mount-" + mountMode + (haloBackerEnabled ? " with-halo-backer" : "")}>
-      <div
-        className="letters-svg-render"
-        dangerouslySetInnerHTML={{ __html: svg }}
-      />
+      <SvgMarkupPreview className="letters-svg-render" markup={svg} />
       <div className="preview-dimension">
         h {height} мм · глубина до рамы {depth} мм
         {mountMode === "frame" ? " · профиль " + frameProfile + "x" + frameProfile + " · рама " + Math.round(layout.railWidth) + " мм" : ""}
@@ -1511,7 +1566,9 @@ function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayou
   const panelRequired = config.mountMode === "acp";
   const baseWidth = panelRequired ? Math.max(config.acpLayout.faceWidth, signWidth) : signWidth;
   const baseHeight = panelRequired ? Math.max(config.acpLayout.faceHeight, signHeight) : signHeight;
-  const margin = Math.max(120, Math.min(550, Math.max(baseHeight * 0.3, baseWidth * 0.045)));
+  const ink = config.contours?.inkBox;
+  const inkOverhang = ink && natural ? Math.max(0, natural.y - ink.y, ink.y + ink.height - natural.y - natural.height) * textHeight / natural.height : 0;
+  const margin = Math.max(120, inkOverhang + 80, Math.min(550, Math.max(baseHeight * 0.3, baseWidth * 0.045)));
   const viewWidth = baseWidth + margin * 2;
   const viewHeight = baseHeight + margin * 2;
   const signBox = { x: (viewWidth - signWidth) / 2, y: (viewHeight - signHeight) / 2, width: signWidth, height: signHeight };

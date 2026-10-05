@@ -9,6 +9,14 @@ export const SIGN_FONTS = [
   { label: "Oswald · вытянутый", value: "Oswald, sans-serif", file: "Oswald-Variable.ttf", weight: 700 },
   { label: "Russo One · широкий", value: '"Russo One", sans-serif', file: "RussoOne-Regular.ttf", weight: 400 },
   { label: "Lobster · рукописный", value: "Lobster, cursive", file: "Lobster-Regular.ttf", weight: 400 },
+  { label: "Rubik · мягкий гротеск", value: "Rubik, sans-serif", file: "Rubik-Variable.ttf", weight: 800 },
+  { label: "Unbounded · широкий геометрический", value: "Unbounded, sans-serif", file: "Unbounded-Variable.ttf", weight: 700 },
+  { label: "Exo 2 · технологичный", value: '"Exo 2", sans-serif', file: "Exo2-Variable.ttf", weight: 800 },
+  { label: "Raleway · элегантный", value: "Raleway, sans-serif", file: "Raleway-Variable.ttf", weight: 800 },
+  { label: "Comfortaa · округлый", value: "Comfortaa, sans-serif", file: "Comfortaa-Variable.ttf", weight: 700 },
+  { label: "Roboto Slab · брусковый", value: '"Roboto Slab", serif', file: "RobotoSlab-Variable.ttf", weight: 800 },
+  { label: "Playfair Display · классический", value: '"Playfair Display", serif', file: "PlayfairDisplay-Variable.ttf", weight: 800 },
+  { label: "Yeseva One · декоративный", value: '"Yeseva One", serif', file: "YesevaOne-Regular.ttf", weight: 400 },
 ] as const;
 
 export type LetterContours = {
