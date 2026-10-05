@@ -8,6 +8,8 @@ export type PanelSvgConfig = {
   imageX: number;
   imageY: number;
   sceneMode?: "day" | "night";
+  showDimensions?: boolean;
+  flat?: boolean;
 };
 
 /** A self-contained scene shared by the browser preview and the SVG download. */
@@ -33,10 +35,10 @@ export function createPanelSvgMarkup(config: PanelSvgConfig) {
   const faceY = size * 0.11;
   const centerX = faceX + size / 2;
   const centerY = faceY + size / 2;
-  const depthX = size * 0.056;
-  const depthY = size * 0.034;
-  const viewWidth = size * 1.48;
-  const viewHeight = size * 1.22;
+  const depthX = config.flat ? 0 : size * 0.056;
+  const depthY = config.flat ? 0 : size * 0.034;
+  const viewWidth = size * 1.55;
+  const viewHeight = size * 1.42;
   const radius = config.shape === "rounded" ? size * 0.15 : 0;
   const geometry = (fill: string, dx = 0, dy = 0, stroke = "none", strokeWidth = 0) =>
     config.shape === "circle"
@@ -63,6 +65,12 @@ export function createPanelSvgMarkup(config: PanelSvgConfig) {
   const artwork = image
     ? `<g clip-path="url(#panel-face-clip)"><image href="${escape(image)}" x="${n(imageX)}" y="${n(imageY)}" width="${n(imageSize)}" height="${n(imageSize)}" preserveAspectRatio="xMidYMid meet" /></g>`
     : `<text x="${n(centerX)}" y="${n(centerY)}" dominant-baseline="middle" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-size="${n(size * 0.13)}" fill="#13202b" opacity="0.66">LOGO</text>`;
+  const dimensionColor = night ? "#dce5e0" : "#1b322b";
+  const dimensions = config.showDimensions ? `<g data-dimensions="true" fill="${dimensionColor}" stroke="${dimensionColor}" stroke-width="1.2" font-family="Manrope,Arial,sans-serif" font-size="${n(size * 0.04)}">
+    <path fill="none" d="M${n(faceX)} ${n(faceY + size * 1.03)}V${n(faceY + size * 1.14)}M${n(faceX + size)} ${n(faceY + size * 1.03)}V${n(faceY + size * 1.14)}M${n(faceX)} ${n(faceY + size * 1.1)}H${n(faceX + size)}M${n(faceX + size * 1.03)} ${n(faceY)}H${n(faceX + size * 1.14)}M${n(faceX + size * 1.03)} ${n(faceY + size)}H${n(faceX + size * 1.14)}M${n(faceX + size * 1.1)} ${n(faceY)}V${n(faceY + size)}" />
+    <text stroke="none" text-anchor="middle" x="${n(centerX)}" y="${n(faceY + size * 1.2)}">${Math.round(size)} мм</text>
+    <text stroke="none" text-anchor="middle" transform="translate(${n(faceX + size * 1.2)} ${n(centerY)}) rotate(-90)">${Math.round(size)} мм</text>
+  </g>` : "";
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Визуализация панель-кронштейна" width="${n(viewWidth)}mm" height="${n(viewHeight)}mm" viewBox="0 0 ${n(viewWidth)} ${n(viewHeight)}">
@@ -93,5 +101,6 @@ export function createPanelSvgMarkup(config: PanelSvgConfig) {
     ${geometry("url(#panel-face-material)", 0, 0, mix(config.sideColor, "#ffffff", 0.18), n(size * 0.003))}
     ${artwork}
   </g>
+  ${dimensions}
 </svg>`;
 }

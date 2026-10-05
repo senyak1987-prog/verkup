@@ -1,0 +1,575 @@
+/* Dimension controls, viewing tools and purchase controls for the public studio. */
+.public-sign-configurator.sign-studio .studio-workspace {
+  grid-template-rows: auto auto minmax(0, 1fr) 47px;
+}
+
+.public-sign-configurator.sign-studio .canvas-mode-toolbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  min-height: 49px;
+  border-bottom: 1px solid #42463d;
+  background: #30352e;
+  padding: 5px 20px;
+  color: #dbe1d0;
+}
+
+.public-sign-configurator.sign-studio .view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid #4b5242;
+  border-radius: 5px;
+  background: #24291f;
+  padding: 3px;
+}
+
+.public-sign-configurator.sign-studio .view-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 49px;
+  min-height: 31px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  padding: 4px 10px;
+  color: #b4beaa;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.25;
+  box-shadow: none;
+}
+
+.public-sign-configurator.sign-studio .view-switch button.active,
+.public-sign-configurator.sign-studio .view-switch button[aria-pressed="true"] {
+  background: #e5ebda;
+  color: #353d2c;
+}
+
+.public-sign-configurator.sign-studio .view-switch button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.public-sign-configurator.sign-studio .dimensions-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 38px;
+  padding: 4px 0 4px 5px;
+  color: #ccd5be;
+  font-size: 11px;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.public-sign-configurator.sign-studio .dimensions-toggle input[type="checkbox"] {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--studio-accent, #e45c22);
+  cursor: pointer;
+}
+
+.public-sign-configurator.sign-studio .builder-controls .dimensions-toggle {
+  justify-content: flex-start;
+  color: #4c5640;
+}
+
+.public-sign-configurator.sign-studio .studio-3d-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
+  color: #e6ecd9;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.public-sign-configurator.sign-studio .preview-2d-note {
+  margin-left: auto;
+  color: #aab99a;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.public-sign-configurator.sign-studio .dimension-number-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 15px 12px;
+  min-width: 0;
+}
+
+.public-sign-configurator.sign-studio .dimension-number-grid .builder-field {
+  min-width: 0;
+}
+
+.public-sign-configurator.sign-studio .dimension-number-grid input[type="number"] {
+  min-height: 46px;
+  font-size: 15px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.public-sign-configurator.sign-studio .dimension-number-grid :is(small, .control-note) {
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.public-sign-configurator.sign-studio .width-auto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  padding: 6px 0;
+  color: #626f53;
+  font-size: 10px;
+  font-weight: 450;
+  line-height: 1.4;
+  text-align: left;
+  box-shadow: none;
+}
+
+.public-sign-configurator.sign-studio .width-auto > span {
+  min-width: 0;
+}
+
+.public-sign-configurator.sign-studio .width-auto button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  padding: 6px 2px 6px 6px;
+  color: #a14724;
+  font-size: 11px;
+  font-weight: 550;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  box-shadow: none;
+}
+
+.public-sign-configurator.sign-studio .width-auto button:disabled {
+  color: #7a846b;
+  opacity: 0.7;
+  text-decoration: none;
+}
+
+.public-sign-configurator.sign-studio .frame-policy {
+  display: grid;
+  gap: 9px;
+  border: 1px solid #dfe6d4;
+  border-radius: 5px;
+  background: #f7f9f2;
+  padding: 13px;
+  color: #69765b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.public-sign-configurator.sign-studio .frame-policy > :is(p, span, small) {
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.public-sign-configurator.sign-studio .frame-profile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: start;
+  min-height: 25px;
+  border: 1px solid #d7e0cb;
+  border-radius: 4px;
+  background: #edf2e5;
+  padding: 3px 8px;
+  color: #4e5a40;
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.public-sign-configurator.sign-studio .frame-policy.warning {
+  border-color: #eddbc9;
+  background: #fff4e9;
+  color: #916046;
+}
+
+.public-sign-configurator.sign-studio .frame-policy.warning .frame-profile {
+  border-color: #ebccb2;
+  background: #ffead5;
+  color: #995029;
+}
+
+.public-sign-configurator.sign-studio .studio-cart-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  border: 1px solid #d8dfca;
+  border-radius: 6px;
+  background: transparent;
+  padding: 9px 12px;
+  color: #4c5640;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.public-sign-configurator.sign-studio .cart-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: #e6ecd9;
+  padding: 0 5px;
+  color: #566644;
+  font-size: 10px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.public-sign-configurator.sign-studio .studio-purchase {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px 24px;
+  min-width: 0;
+  margin-top: 5px;
+  border-top: 1px solid #dce3d0;
+  padding-top: 20px;
+}
+
+.public-sign-configurator.sign-studio .price-details {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.public-sign-configurator.sign-studio .price-details > span {
+  color: #626f53;
+  font-size: 11px;
+  font-weight: 450;
+}
+
+.public-sign-configurator.sign-studio .price-total {
+  grid-column: 1;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 0;
+  color: #333d29;
+  font-size: 30px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+  line-height: 1.3;
+}
+
+.public-sign-configurator.sign-studio .price-total strong {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+}
+
+.public-sign-configurator.sign-studio .price-total :is(span, small) {
+  color: #626f53;
+  font-size: 11px;
+  font-weight: 450;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+.public-sign-configurator.sign-studio .price-formula {
+  grid-column: 1;
+  color: #626f53;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+
+.public-sign-configurator.sign-studio .price-notes {
+  grid-column: 1;
+  max-width: 530px;
+  color: #626f53;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.public-sign-configurator.sign-studio .price-notes p + p {
+  margin-top: 5px;
+}
+
+.public-sign-configurator.sign-studio .studio-add-cart,
+.public-sign-configurator.sign-studio .studio-add-cart.primary {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  gap: 9px;
+  min-width: 213px;
+  min-height: 49px;
+  border: 1px solid #c54b1c;
+  border-radius: 6px;
+  background: #c54b1c;
+  padding: 13px 20px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  box-shadow: none;
+}
+
+.public-sign-configurator.sign-studio .studio-add-cart:disabled {
+  border-color: #dae2cc;
+  background: #e6eddc;
+  color: #73815f;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.public-sign-configurator.sign-studio .studio-purchase:has(> .price-details) > .studio-add-cart {
+  grid-row: 1 / span 2;
+}
+
+.public-sign-configurator.sign-studio .purchase-basis {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  border-top: 1px solid #e7ecdf;
+  padding-top: 12px;
+  color: #626f53;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .public-sign-configurator.sign-studio .view-switch button:not(.active):not([aria-pressed="true"]):hover {
+    background: #39452e;
+    color: #fff;
+  }
+
+  .public-sign-configurator.sign-studio .studio-cart-toggle:hover {
+    border-color: #b8c8a1;
+    background: #edf2e5;
+  }
+
+  .public-sign-configurator.sign-studio .studio-add-cart:not(:disabled):hover {
+    border-color: #ae3e14;
+    background: #ae3e14;
+  }
+
+  .public-sign-configurator.sign-studio .width-auto button:not(:disabled):hover {
+    color: #c34d20;
+    text-decoration-thickness: 1.5px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  .public-sign-configurator.sign-studio .canvas-mode-toolbar {
+    gap: 7px 10px;
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .public-sign-configurator.sign-studio .preview-2d-note {
+    display: none;
+  }
+
+  .public-sign-configurator.sign-studio .studio-purchase {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .public-sign-configurator.sign-studio .studio-add-cart,
+  .public-sign-configurator.sign-studio .studio-add-cart.primary {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .public-sign-configurator.sign-studio .studio-purchase:has(> .price-details) > .studio-add-cart {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 767px) {
+  .public-sign-configurator.sign-studio .studio-actions {
+    flex-basis: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .public-sign-configurator.sign-studio .studio-actions :is(.studio-button, .studio-cart-toggle) {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 11px;
+  }
+
+  .public-sign-configurator.sign-studio .studio-workspace {
+    grid-template-rows: 46px 57px 228px 32px;
+    height: 365px;
+  }
+
+  .public-sign-configurator.sign-studio .studio-workspace.is-3d {
+    position: static;
+    top: auto;
+    grid-template-rows: 46px 57px 308px 32px;
+    height: 445px;
+  }
+
+  .public-sign-configurator.sign-studio .studio-workspace.is-3d .builder-preview,
+  .public-sign-configurator.sign-studio .studio-workspace.is-3d .builder-preview.day,
+  .public-sign-configurator.sign-studio .studio-workspace.is-3d .builder-preview.night {
+    min-height: 308px;
+    height: 308px;
+  }
+
+  .public-sign-configurator.sign-studio .canvas-mode-toolbar {
+    flex-wrap: nowrap;
+    gap: 6px;
+    min-height: 57px;
+    padding: 3px 10px;
+  }
+
+  .public-sign-configurator.sign-studio .view-switch {
+    padding: 2px;
+  }
+
+  .public-sign-configurator.sign-studio .view-switch button {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+
+  .public-sign-configurator.sign-studio .dimensions-toggle {
+    min-height: 44px;
+    padding: 4px 0 4px 7px;
+    font-size: 11px;
+  }
+
+  .public-sign-configurator.sign-studio .preview-2d-note {
+    display: none;
+  }
+
+  .public-sign-configurator.sign-studio .builder-preview,
+  .public-sign-configurator.sign-studio .builder-preview.day,
+  .public-sign-configurator.sign-studio .builder-preview.night {
+    min-height: 228px;
+    height: 228px;
+  }
+
+  .public-sign-configurator.sign-studio :is(.letters-svg-render, .panel-svg-render) > svg {
+    max-height: 190px;
+  }
+
+  .public-sign-configurator.sign-studio .builder-controls {
+    scroll-margin-top: 382px;
+  }
+
+  .public-sign-configurator.sign-studio .dimension-number-grid {
+    gap: 14px 10px;
+  }
+
+  .public-sign-configurator.sign-studio .dimension-number-grid input[type="number"] {
+    min-height: 46px;
+    font-size: 16px;
+  }
+
+  .public-sign-configurator.sign-studio .frame-policy {
+    padding: 13px;
+    font-size: 12px;
+  }
+
+  .public-sign-configurator.sign-studio .studio-purchase {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+    padding-top: 20px;
+  }
+
+  .public-sign-configurator.sign-studio .price-total {
+    font-size: 29px;
+  }
+
+  .public-sign-configurator.sign-studio .price-total :is(span, small) {
+    font-size: 11px;
+  }
+
+  .public-sign-configurator.sign-studio .price-notes {
+    max-width: none;
+    font-size: 11px;
+  }
+
+  .public-sign-configurator.sign-studio .studio-add-cart,
+  .public-sign-configurator.sign-studio .studio-add-cart.primary {
+    grid-column: 1;
+    grid-row: auto;
+    width: 100%;
+    min-height: 50px;
+    margin-top: 9px;
+    font-size: 13px;
+  }
+
+  .public-sign-configurator.sign-studio .studio-purchase:has(> .price-details) > .studio-add-cart {
+    grid-row: auto;
+  }
+
+  .public-sign-configurator.sign-studio .purchase-basis {
+    margin-top: 8px;
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-sign-configurator.sign-studio .studio-add-cart,
+  .public-sign-configurator.sign-studio .studio-cart-toggle,
+  .public-sign-configurator.sign-studio .view-switch button {
+    transition-duration: 0.01ms;
+  }
+}
+
+@media (max-width: 767px) and (max-height: 620px) {
+  .public-sign-configurator.sign-studio .studio-workspace {
+    position: static;
+    top: auto;
+  }
+}
