@@ -386,6 +386,23 @@ export function SignProductConfigurator() {
   const latestProject = useRef(project);
   latestProject.current = project;
   const [notice, setNotice] = useState("");
+  const workspaceRef = useRef<HTMLElement>(null);
+  const [previewHeight, setPreviewHeight] = useState(() => Math.max(220, Math.min(620, window.innerHeight - 340)));
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!workspaceRef.current || window.matchMedia("(max-width: 767px)").matches) return;
+        const top = workspaceRef.current.getBoundingClientRect().top;
+        setPreviewHeight(Math.max(220, Math.min(620, Math.floor(window.innerHeight - Math.max(12, top) - 12))));
+      });
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("scroll", update); window.removeEventListener("resize", update); };
+  }, [notice]);
   const [saveStatus, setSaveStatus] = useState("Сохранено на устройстве");
   const projectFileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -734,7 +751,7 @@ export function SignProductConfigurator() {
           </div>
           <details className="studio-help"><summary>Как пользоваться студией<ChevronRight size={14} /></summary><p>Выберите тип вывески и настройте параметры по разделам. Переключайте день и ночь, чтобы оценить свечение. Проект сохраняется в этом браузере. Скачайте JSON для переноса на другое устройство.</p><p>Макет дает представление о конструкции. Цвета на экране могут отличаться от физических образцов Oracal; производственную документацию нужно подготовить отдельно.</p></details>
         </aside>
-        <section className={`studio-workspace ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет">
+        <section ref={workspaceRef} style={{ "--workspace-height": `${previewHeight}px` } as CSSProperties} className={`studio-workspace ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет">
           <header className="canvas-toolbar"><div className="canvas-title"><strong>Предпросмотр</strong><span>{sceneMode === "day" ? "Дневное освещение" : "Ночное освещение"}</span></div>
             <div className="scene-switch" role="group" aria-label="Режим визуализации">
               <button type="button" aria-pressed={sceneMode === "day"} className={sceneMode === "day" ? "active" : ""} onClick={() => setSceneMode("day")}><Sun size={16} />День</button>
