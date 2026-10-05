@@ -1,8 +1,6 @@
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
-import { parse, Path } from "opentype.js";
-import type { Font, RenderOptions } from "opentype.js";
-import { serializeGlyphPath } from "./glyphPath";
+import { loadLetterContours } from "./letterContours";
 
 type SceneColor = { value: string };
 export type SignSceneBox = { x: number; y: number; width: number; height: number };
@@ -51,6 +49,8 @@ export type SignSceneLayout = {
   textHeight?: number;
   textTop?: number;
   fontSize: number;
+  textPathData?: string;
+  textNaturalBox?: SignSceneBox;
   signBox: SignSceneBox;
   railX: number;
   railWidth: number;
@@ -62,24 +62,6 @@ export type SignSceneLayout = {
   haloBackerBox: SignSceneBox;
   haloBackerRadius: number;
 };
-
-const fontCache = new Map<string, Promise<Font>>();
-export function sceneFontName(font: string) {
-  return /roboto condensed/i.test(font) ? "Roboto Condensed" : "Manrope";
-}
-
-async function loadFont(fontName: string) {
-  const filename = fontName === "Roboto Condensed" ? "RobotoCondensed-Variable.ttf" : "Manrope-Variable.ttf";
-  const url = import.meta.env.BASE_URL + "fonts/" + filename;
-  if (!fontCache.has(url)) {
-    const pending = fetch(url).then(async (response) => {
-      if (!response.ok) throw new Error("Не удалось загрузить контуры шрифта.");
-      return parse(await response.arrayBuffer());
-    }).catch((error) => { fontCache.delete(url); throw error; });
-    fontCache.set(url, pending);
-  }
-  return fontCache.get(url)!;
-}
 
 function roundedShape(width: number, height: number, radius = 0) {
   const left = -width / 2, right = width / 2, bottom = -height / 2, top = height / 2;
@@ -203,37 +185,15 @@ function addDimension(group: THREE.Group, start: THREE.Vector3, end: THREE.Vecto
   group.add(sprite);
 }
 
-type GlyphData = { path: Path; pathData: string; box: { x1: number; y1: number; x2: number; y2: number }; shapes: THREE.Shape[] };
-
-async function glyphData(project: SignSceneProject): Promise<GlyphData> {
-  const fontName = sceneFontName(project.letterFont);
-  const font = await loadFont(fontName);
-  const text = project.lettersText.trim().normalize("NFC");
-  for (const character of text) if (!font.hasChar(character) && !/\s/.test(character))
-    throw new Error("Для одного из символов доступен только плоский вид.");
-  const options = { kerning: true, variation: { wght: fontName === "Manrope" ? 800 : 900 } } as RenderOptions;
-  let path: Path;
-  try {
-    path = font.getPath(text, 0, 0, 100, options);
-  } catch (error) {
-    if (!(error instanceof Error) || !error.message.includes("substitutionType")) throw error;
-    // OpenType.js 2 cannot apply Roboto Condensed's contextual ccmp lookup.
-    // Its regular Latin/Cyrillic glyph contours and kerning remain available.
-    path = new Path();
-    const glyphs = Array.from(text, (character) => font.charToGlyph(character));
-    const scale = 100 / font.unitsPerEm;
-    let x = 0;
-    glyphs.forEach((glyph, index) => {
-      path.extend(glyph.getPath(x, 0, 100, options, font));
-      x += (glyph.advanceWidth || 0) * scale;
-      if (glyphs[index + 1]) x += font.getKerningValue(glyph, glyphs[index + 1]) * scale;
-    });
-  }
-  const pathData = serializeGlyphPath(path);
-  const data = new SVGLoader().parse('<svg xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="' + pathData + '" /></svg>');
-  const shapes = data.paths.flatMap((shapePath) => shapePath.toShapes());
-  if (project.lettersText.trim() && !shapes.length) throw new Error("Шрифт не содержит контуров для этой надписи.");
-  return { path, pathData, box: path.getBoundingBox(), shapes };
+type GlyphData = { pathData: string; box: { x1: number; y1: number; x2: number; y2: number }; shapes: THREE.Shape[] };
+async function glyphData(project: SignSceneProject, layout: SignSceneLayout): Promise<GlyphData> {
+  const contours = layout.textPathData && layout.textNaturalBox
+    ? { pathData: layout.textPathData, mainBox: layout.textNaturalBox }
+    : await loadLetterContours(project.letterFont, project.lettersText);
+  const box = contours.mainBox;
+  const data = new SVGLoader().parse('<svg xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="' + contours.pathData + '" /></svg>');
+  return { pathData: contours.pathData, box: { x1: box.x, y1: box.y, x2: box.x + box.width, y2: box.y + box.height },
+    shapes: data.paths.flatMap(shapePath => shapePath.toShapes()) };
 }
 
 function lightProjection(project: SignSceneProject, layout: SignSceneLayout,
@@ -288,7 +248,8 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
   const haloLit = night && (project.glowMode === "faceHalo" || project.glowMode === "halo");
   const faceColor = project.productId === "panel" ? project.panelFaceColor.value : project.letterFaceColor.value;
   const sideColor = project.productId === "panel" ? project.panelSideColor.value : project.letterSideColor.value;
-  const face = solidMaterial(faceColor, night, faceLit);
+  const face = night ? solidMaterial(faceColor, night, faceLit)
+    : new THREE.MeshBasicMaterial({ color: faceColor, toneMapped: false });
   const side = solidMaterial(sideColor, night, sideLit);
   if (sideLit) {
     side.emissive.set(sideColor).lerp(new THREE.Color(faceColor), 0.78);
@@ -328,7 +289,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
           new THREE.Vector3(size / 2 + size * 0.28, size / 2, modelDepth / 2), size * 0.65, night);
       }
     } else {
-      const glyph = await glyphData(project);
+      const glyph = await glyphData(project, layout);
       const centerX = layout.signBox.x + layout.signBox.width / 2;
       const centerY = layout.signBox.y + layout.signBox.height / 2;
       const toX = (x: number) => x - centerX;
@@ -355,8 +316,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         text.geometry.setIndex(reversed);
         text.geometry.computeVertexNormals();
         text.geometry.computeBoundingBox();
-        const bounds = text.geometry.boundingBox!;
-        text.position.set(toX(layout.textX) - bounds.min.x, toY(textTop) - bounds.max.y, rear);
+        text.position.set(toX(layout.textX) - box.x1 * textWidth / Math.max(1, box.x2 - box.x1), toY(layout.textBaseline), rear);
         text.name = "extruded-letter-contours";
         if (project.letterOutlineEnabled) contour(text, project.outlineColor.value);
         group.add(text);
@@ -418,7 +378,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         addDimension(dimensionGroup, new THREE.Vector3(-halfWidth - offset, -halfHeight, z),
           new THREE.Vector3(-halfWidth - offset, halfHeight, z), Math.round(height) + " мм",
           new THREE.Vector3(-halfWidth - offset * 1.8, 0, z), dimensionScale * 0.85, night);
-        const constructionBack = project.mountMode === "acp" ? -project.acpDepth : 0;
+        const constructionBack = rear;
         const constructionFront = rear + modelDepth;
         addDimension(dimensionGroup, new THREE.Vector3(halfWidth + offset, halfHeight, constructionBack),
           new THREE.Vector3(halfWidth + offset, halfHeight, constructionFront), Math.round(constructionFront - constructionBack) + " мм",
