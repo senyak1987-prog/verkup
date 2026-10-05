@@ -1,0 +1,22 @@
+/* Standalone route foundation; the CRM stylesheet is intentionally not loaded. */
+* { box-sizing: border-box; }
+body { margin: 0; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+.acp-layout-diagram { position: relative; overflow: hidden; border: 1px solid; }
+.acp-layout-face { position: absolute; z-index: 2; display: grid; place-items: center; border: 1px solid #b7c5af; background: #f8faf3dd; color: #4f6440; font-size: 12px; font-weight: 700; }
+.acp-line { position: absolute; z-index: 3; pointer-events: none; }
+.acp-line.vertical { top: 0; bottom: 0; }
+.acp-line.horizontal { left: 0; right: 0; }
+.acp-line.red.vertical { border-left: 1.5px solid #d04e30; }
+.acp-line.red.horizontal { border-top: 1.5px solid #d04e30; }
+.acp-line.gray.vertical { border-left: 1px solid #727a6b; }
+.acp-line.gray.horizontal { border-top: 1px solid #727a6b; }
+.acp-line.seam.vertical { border-left: 2px dashed #53754a; }
+.acp-line.seam.horizontal { border-top: 2px dashed #53754a; }
+.acp-corner { position: absolute; z-index: 4; width: 24px; height: 24px; border: 1px solid #727a6b; background: #ffffffbb; }
+.acp-corner.top-left { top: 0; left: 0; clip-path: polygon(0 0,100% 0,0 100%); }
+.acp-corner.top-right { top: 0; right: 0; clip-path: polygon(0 0,100% 0,100% 100%); }
+.acp-corner.bottom-left { bottom: 0; left: 0; clip-path: polygon(0 0,100% 100%,0 100%); }
+.acp-corner.bottom-right { bottom: 0; right: 0; clip-path: polygon(100% 0,100% 100%,0 100%); }
