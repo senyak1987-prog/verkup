@@ -1,20 +1,20 @@
 ---
-name: "Веркуп — студия вывесок"
+name: "Город Свет — студия вывесок"
 description: "Визуальная система существующего публичного конструктора вывесок."
 colors:
-  accent: "#e45c22"
-  accent-hover: "#c64a17"
-  action: "#c54b1c"
+  accent: "#ffcc32"
+  accent-hover: "#efbc20"
+  action: "#ffcc32"
   action-hover: "#ae3e14"
   accent-soft: "#fff1e9"
-  ink: "#272822"
+  ink: "#172333"
   muted: "#74756d"
   control-muted: "#626857"
   border: "#e5e5dd"
   paper: "#ffffff"
-  shell: "#f6f6f1"
-  workspace: "#282c28"
-  workspace-secondary: "#30352e"
+  shell: "#f5f7fa"
+  workspace: "#172333"
+  workspace-secondary: "#172333"
   selected-view: "#e5ebda"
 typography:
   headline:
@@ -86,11 +86,11 @@ components:
     height: "20px"
 ---
 
-# Design System: Веркуп — студия вывесок
+# Design System: Город Свет — студия вывесок
 
 ## Overview
 
-The current studio uses a cream page, white controls, olive neutrals, and orange actions. Its dark preview is the visual center: lettering, material depth, dimensions, and illumination carry the expression while the interface stays compact and practical. Preserve the existing Веркуп mark and Russian interface.
+The current studio uses a cream page, white controls, olive neutrals, and orange actions. Its dark preview is the visual center: lettering, material depth, dimensions, and illumination carry the expression while the interface stays compact and practical. Preserve the existing Город Свет mark and Russian interface.
 
 This records the built public studio, not a new identity or a rule for unrelated CRM screens. Ground truth is `src/sign-studio.css`, `src/sign-studio-commerce.css`, `src/sign-cart.css`, `src/sign-scene-3d.css`, and the matching components. Current captures are in `.impeccable/review/` at desktop, mobile, and the actual 489px viewport.
 
@@ -151,3 +151,7 @@ Use the existing small rectangular radii: fields and option tiles use `field`, b
 - **Don't** turn scene glow or user-selected material colors into decorative UI effects.
 - **Don't** replace the compact borders, small radii, and underlined tabs with a new component style.
 - **Don't** label a locally saved basket as a submitted order or visually fold unpriced work into the calculated total.
+
+## Палитра Город Свет
+
+Предварительный бренд: графит #172333, жёлтый #ffcc32, нейтральный фон #f5f7fa. Фирменный эталон ожидается от пользователя. Рабочие поверхности 2D и 3D нейтральные, чтобы не искажать цвет пленки. Контуры букв и фронтальный масштаб едины.
