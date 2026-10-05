@@ -42,7 +42,7 @@ main.public-sign-configurator.sign-studio .studio-workspace.is-3d {
   position: sticky;
   top: 12px;
   z-index: 5;
-  height: min(620px, calc(100svh - 24px));
+  height: var(--workspace-height, min(620px, calc(100svh - 24px)));
   grid-template-rows: 58px 49px minmax(0, 1fr) 38px;
   align-self: start;
 }
