@@ -1,0 +1,37 @@
+/* Город Свет: the work surface stays neutral so material colours remain readable. */
+main.public-sign-configurator.sign-studio {
+  --studio-accent: #ffcc32;
+  --studio-accent-hover: #efbc20;
+  --studio-accent-soft: #fff7d8;
+  --studio-ink: #172333;
+  --studio-muted: #647182;
+  --studio-border: #dfe4eb;
+  --studio-shell: #f5f7fa;
+}
+main.public-sign-configurator.sign-studio .studio-brand { color: #172333; }
+main.public-sign-configurator.sign-studio .studio-brand-mark { color: #172333; background: #ffcc32; padding: 7px; border-radius: 7px; }
+main.public-sign-configurator.sign-studio :is(.studio-button.primary, .studio-add-cart) { background: #ffcc32; border-color: #ffcc32; color: #172333; }
+main.public-sign-configurator.sign-studio :is(.studio-button.primary, .studio-add-cart):hover { background: #efbc20; border-color: #efbc20; }
+main.public-sign-configurator.sign-studio :is(.studio-section-tabs button.active, .product-option.active, .type-option.active) { color: #172333; border-color: #d6a700; }
+main.public-sign-configurator.sign-studio :is(.control-note, .builder-field > span, .range-field > span, .controls-heading > span, .summary-block > span, .studio-help, .summary-heading p) { color: #5b6878; }
+main.public-sign-configurator.sign-studio :is(.canvas-toolbar, .canvas-mode-toolbar, .canvas-footer, .studio-workspace) { background: #172333; border-color: #344255; color: #dde5ee; }
+main.public-sign-configurator.sign-studio .view-switch { background: #111b29; border-color: #455369; }
+main.public-sign-configurator.sign-studio .view-switch button { color: #d4dde8; }
+main.public-sign-configurator.sign-studio .view-switch button.active { background: #ffcc32; color: #172333; }
+main.public-sign-configurator.sign-studio .dimensions-toggle { color: #dde5ee; }
+main.public-sign-configurator.sign-studio .scene-switch { background: #111b29; border-color: #455369; }
+main.public-sign-configurator.sign-studio .scene-switch button { color: #d4dde8; }
+main.public-sign-configurator.sign-studio .scene-switch button.active { background: #fff7d8; color: #172333; }
+main.public-sign-configurator.sign-studio .studio-section-tabs button.active { border-bottom-color: #c49b00; }
+main.public-sign-configurator.sign-studio .studio-cart button.primary { background: #ffcc32; color: #172333; }
+main.public-sign-configurator.sign-studio .preview-wall { background: #e9eae5; box-shadow: none; }
+main.public-sign-configurator.sign-studio .builder-preview.night .preview-wall { background: #222d38; }
+main.public-sign-configurator.sign-studio .preview-wall::before,
+main.public-sign-configurator.sign-studio .preview-wall::after { display: none; }
+main.public-sign-configurator.sign-studio .preview-art { width: 100%; height: 100%; }
+main.public-sign-configurator.sign-studio :is(.letters-scene, .panel-scene) { padding: 0; }
+main.public-sign-configurator.sign-studio :is(.letters-svg-render, .panel-svg-render) > svg { width: 100%; height: 100%; max-height: none; filter: none; }
+.studio-font-loading { position: absolute; z-index: 5; left: 16px; top: 14px; padding: 8px 12px; background: #fff7d8; color: #172333; border-radius: 5px; font-size: 12px; pointer-events: none; }
+main.public-sign-configurator.sign-studio input[type="range"] { accent-color: #b18a00; }
+main.public-sign-configurator.sign-studio :focus-visible { outline-color: #926d00; }
+main.public-sign-configurator.sign-studio ::selection { background: #ffcc32; color: #172333; }
