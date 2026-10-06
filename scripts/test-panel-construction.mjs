@@ -83,6 +83,66 @@ test('Both support arms meet the real panel outline, including fully rounded sma
   }
 });
 
+test('Circular panels retain a smooth silhouette and radial side normals with flat face normals',async()=>{
+  for(const size of [550,2000]) {
+    const depth=160,radius=size/2;
+    const project={productId:'panel',panelShape:'circle',panelSize:size,panelWallGap:120,panelCornerRadius:60,
+      sceneMode:'day',panelFaceColor:{value:'#ffffff'},panelSideColor:{value:'#172333'},panelImage:''};
+    const model=await scene.buildSignModel(project,{},size,size,depth,false),body=model.getObjectByName('panel-body');
+    const geometry=body.geometry,positions=geometry.getAttribute('position'),normals=geometry.getAttribute('normal'),indices=geometry.getIndex();
+    assert.ok(positions.count<100000,'A smooth housing must not require an excessive vertex count');
+    let assemblyVertices=0;model.traverse(mesh=>{if(mesh.geometry)assemblyVertices+=mesh.geometry.getAttribute('position').count;});
+    assert.ok(assemblyVertices<100000,'The smooth body, both rims and all brackets together remain within a practical geometry budget');
+    const vertex=i=>indices?indices.getX(i):i;
+    const sideNormals=new Map();
+    let sideTriangles=0,maxSagitta=0;
+    for(const group of geometry.groups)for(let offset=group.start;offset<group.start+group.count;offset+=3) {
+      const triangle=[0,1,2].map(i=>vertex(offset+i));
+      if(group.materialIndex===1) {
+        sideTriangles++;
+        for(const index of triangle) {
+          const x=positions.getX(index),y=positions.getY(index),z=positions.getZ(index);
+          const radial=new THREE.Vector3(x,y,0).normalize(),normal=new THREE.Vector3().fromBufferAttribute(normals,index);
+          close(Math.hypot(x,y),radius,'The manufactured circle preserves its specified radius',.001);
+          assert.ok(radial.dot(normal)>.99999,'The round side must reflect light continuously instead of showing one normal per flat segment');
+          assert.ok(Math.abs(normal.z)<.000001,'The side normal stays separate from the front and back face normals');
+          const key=[x,y,z].map(value=>value.toFixed(4)).join(',');
+          if(sideNormals.has(key))assert.ok(sideNormals.get(key).distanceTo(normal)<.000001,'Adjacent triangles agree on the same curved-surface normal');
+          else sideNormals.set(key,normal);
+        }
+        for(let i=0;i<3;i++) {
+          const a=triangle[i],b=triangle[(i+1)%3];
+          if(Math.abs(positions.getZ(a)-positions.getZ(b))>.001)continue;
+          const chord=Math.hypot(positions.getX(a)-positions.getX(b),positions.getY(a)-positions.getY(b));
+          if(chord>.001)maxSagitta=Math.max(maxSagitta,radius-Math.sqrt(Math.max(0,radius*radius-chord*chord/4)));
+        }
+      } else for(const index of triangle) {
+        const z=positions.getZ(index),normal=new THREE.Vector3().fromBufferAttribute(normals,index);
+        assert.ok(Math.abs(z)<.001||Math.abs(z-depth)<.001,'Face triangles stay on the two physical face planes');
+        assert.ok(Math.abs(normal.x)<.000001&&Math.abs(normal.y)<.000001,'The cap retains a flat normal rather than inheriting rounded side normals');
+        close(normal.z,z<depth/2?-1:1,'Front and back face normals remain flat',.000001);
+      }
+    }
+    assert.ok(sideTriangles>0);
+    assert.ok(maxSagitta<=.1,`${size} mm circular outline deviation must stay below 0.1 mm, got ${maxSagitta}`);
+    assert.ok(body.castShadow&&body.receiveShadow,'The real housing casts and receives scene shadows');
+    scene.disposeSignObject(model);
+  }
+});
+
+test('Square panels keep their hard side corners when curved panels receive smooth normals',async()=>{
+  const size=550,depth=160,project={productId:'panel',panelShape:'square',panelSize:size,panelWallGap:120,panelCornerRadius:60,
+    sceneMode:'day',panelFaceColor:{value:'#ffffff'},panelSideColor:{value:'#172333'},panelImage:''};
+  const model=await scene.buildSignModel(project,{},size,size,depth,false),geometry=model.getObjectByName('panel-body').geometry;
+  const normals=geometry.getAttribute('normal'),indices=geometry.getIndex();
+  for(const group of geometry.groups)if(group.materialIndex===1)for(let i=group.start;i<group.start+group.count;i++) {
+    const index=indices?indices.getX(i):i,x=Math.abs(normals.getX(index)),y=Math.abs(normals.getY(index));
+    assert.ok((Math.abs(x-1)<.000001&&y<.000001)||(x<.000001&&Math.abs(y-1)<.000001),'A square corner retains two distinct planar side normals');
+    assert.ok(Math.abs(normals.getZ(index))<.000001);
+  }
+  scene.disposeSignObject(model);
+});
+
 test('Wall and corner brackets touch the actual facade planes, retain physical size, and project away from the building', async()=>{
   for(const mode of mountingModes)for(const shape of ['circle','square','rounded'])for(const size of [200,500,2000])
     for(const depth of [30,60,160])for(const gap of [60,120,400]) {
@@ -236,4 +296,28 @@ test('Выключатель гасит вывеску отдельно от с�
   const on=svg.createPanelSvgMarkup({...config,lightsOn:true}),off=svg.createPanelSvgMarkup({...config,lightsOn:false});
   assert.match(on,/id="panel-face" filter=/);assert.doesNotMatch(off,/id="panel-face" filter=/);assert.match(off,/data-dimensions="true"/);
   scene.disposeSignObject(group);
+});
+
+test('Window interiors wait for their own transition and illuminate progressively without following the sign switch',()=>{
+  const pose=mount.panelMountLayout(550,'circle',120,60,160,'corner');
+  const model=facadeScene.createFacadeModel('windows',550,550,{panelMount:pose});
+  const windows=[];model.traverse(mesh=>{if(mesh.userData.facadeKind==='glass')windows.push(mesh.material);});
+  windows.sort((a,b)=>a.userData.windowIndex-b.userData.windowIndex);
+  assert.ok(windows.length>=4);
+  scene.applySignLighting(model,1,true,0);
+  assert.ok(windows.every(material=>material.emissiveIntensity===0),'Reaching exterior night must not immediately turn all window interiors on');
+  scene.applySignLighting(model,1,true,.1);
+  assert.ok(windows[0].emissiveIntensity>0,'The first window begins its warm fade');
+  assert.ok(windows[3].emissiveIntensity===0,'Later windows wait for their individual activation offset');
+  const initial=windows.map(material=>material.emissiveIntensity);
+  scene.applySignLighting(model,1,false,.1);
+  assert.deepEqual(windows.map(material=>material.emissiveIntensity),initial,'The sign circuit does not switch off the building interiors');
+  scene.applySignLighting(model,1,false,1);
+  for(const material of windows)close(material.emissiveIntensity,material.userData.maxWindowEmission,'Every window reaches its own final warm intensity',.000001);
+  scene.applySignLighting(model,0,true,0);
+  for(const material of windows) {
+    assert.equal(material.emissiveIntensity,0);
+    assert.ok(material.color.equals(material.userData.dayColor),'The daylight glass appearance restores without retaining the warm interior colour');
+  }
+  scene.disposeSignObject(model);
 });
