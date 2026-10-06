@@ -2,12 +2,48 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import ts from 'typescript';
+import * as THREE from 'three';
 
 const source=fs.readFileSync(new URL('../src/lib/sceneLighting.ts',import.meta.url),'utf8');
 const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
 const lighting={};new Function('exports',compiled)(lighting);
 const {sceneLightingAt,sceneLightingDuration,SCENE_LIGHTING_TIMING}=lighting;
 const close=(value,expected)=>assert.ok(Math.abs(value-expected)<.000001,`${value} != ${expected}`);
+
+const sceneSource=fs.readFileSync(new URL('../src/components/SignScene3D.tsx',import.meta.url),'utf8');
+const shadowSource=sceneSource.slice(sceneSource.indexOf('export function pointShadowFrustum('),sceneSource.indexOf('\ntype SceneRuntime'));
+const shadowCompiled=ts.transpileModule(shadowSource,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
+const shadowApi={};new Function('exports','THREE',shadowCompiled)(shadowApi,THREE);
+
+test('Point shadow planes contain every caster and receiver at all daylight marker positions',()=>{
+  for(const span of [100,550,2624,7800])for(const marker of [{x:.06,y:.94},{x:.5,y:.5},{x:.94,y:.06}]) {
+    const bounds=new THREE.Box3(new THREE.Vector3(-span/2,-span*.35,-90),new THREE.Vector3(span/2,span*.35,80));
+    const position=new THREE.Vector3((marker.x-.5)*span*4,(.5-marker.y)*span*4,span*2.8);
+    const range=shadowApi.pointShadowFrustum(bounds,position);
+    assert.ok(range.near>0&&range.far>range.near);
+    for(const x of [bounds.min.x,bounds.max.x])for(const y of [bounds.min.y,bounds.max.y])for(const z of [bounds.min.z,bounds.max.z]) {
+      const axisDepth=Math.max(Math.abs(x-position.x),Math.abs(y-position.y),Math.abs(z-position.z));
+      assert.ok(axisDepth>range.near&&axisDepth<range.far,'Cube-face clipping must retain the entire physical scene');
+    }
+    assert.ok(range.bias<0&&Number.isFinite(range.bias));
+  }
+});
+
+test('Tight cube depth improves precision for small letters on a wide sign without detaching their shadows',()=>{
+  for(const span of [550,2624,7800]) {
+    const bounds=new THREE.Box3(new THREE.Vector3(-span/2,-250,-15),new THREE.Vector3(span/2,250,60));
+    const position=new THREE.Vector3(-span*1.28,span*1.2,span*2.8);
+    const range=shadowApi.pointShadowFrustum(bounds,position),axisDepth=position.z;
+    const derivative=(near,far,z)=>near*far/((far-near)*z*z);
+    const previousNear=span*.005,previousFar=position.length()+span*3;
+    const oldPrecision=1/(2**24*derivative(previousNear,previousFar,axisDepth));
+    const precision=1/(2**24*derivative(range.near,range.far,axisDepth));
+    assert.ok(oldPrecision/precision>100,'The near plane must not waste almost all perspective precision near the light');
+    assert.ok(precision<.01,'Even a small 80 mm second row retains submillimetre depth precision');
+    const farthest=Math.max(...['x','y','z'].flatMap(axis=>[Math.abs(position[axis]-bounds.min[axis]),Math.abs(position[axis]-bounds.max[axis])]));
+    close(-range.bias/derivative(range.near,range.far,farthest),.35);
+  }
+});
 
 test('The scene reaches night before the warm window lights fade in',()=>{
   const from={night:0,windows:0};

@@ -185,3 +185,159 @@ test('3D builds each independently fonted row and the exact shared welded-frame 
   }
   scene.disposeSignObject(model);
 });
+
+test('Trimless letters retain exact 40/50/60mm depth, flat original caps and a sub-mm side joint', async () => {
+  const bytes = fs.readFileSync(new URL('../public/fonts/Manrope-Variable.ttf', import.meta.url));
+  const font = opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const data = contourApi.contoursFromFont(font, 'ОН', 800), natural = data.mainBox;
+  const pathBox = { x: 120, y: 80, width: natural.width / natural.height * 120, height: 120 };
+  const row = { id: 'line-0', index: 0, text: 'ОН', font: 'Manrope', box: pathBox, pathBox, inkBox: pathBox,
+    pathData: data.pathData, naturalBox: natural, defaultX: pathBox.x, defaultY: pathBox.y };
+  const glyphShapes = load('glyphShapes', { three: THREE });
+  const baseline = new THREE.ExtrudeGeometry(glyphShapes.filledGlyphShapes(svgLoader.SVGLoader.prototype.parse('<path d="' + data.pathData + '" />').paths),
+    { depth: 50, bevelEnabled: false, curveSegments: 14, steps: 1 });
+  const expectedCapVertices = baseline.groups.filter(group => group.materialIndex === 0).reduce((sum, group) => sum + group.count, 0);
+  for (const depth of [40, 50, 60]) {
+    const project = { productId: 'letters', sceneMode: 'day', letterHeight: 120, letterDepth: depth, mountMode: 'frame', glowMode: 'face',
+      logoEnabled: false, letterFaceColor: { value: '#ffffff' }, letterSideColor: { value: '#cccccc' }, outlineColor: { value: '#000000' } };
+    const layout = { textRows: [row], frameSegments: frame([{ id: row.id, box: row.box }]).segments, signBox: pathBox,
+      textX: pathBox.x, textTop: pathBox.y, textWidth: pathBox.width, textHeight: pathBox.height, logoBox: { x: 0, y: 0, width: 0, height: 0 } };
+    const model = await scene.buildSignModel(project, layout, pathBox.width, pathBox.height, depth, false);
+    const mesh = model.getObjectByName('extruded-letter-row-0'), geometry = mesh.geometry;
+    const box = new THREE.Box3().setFromObject(mesh), positions = geometry.getAttribute('position'), normals = geometry.getAttribute('normal'), index = geometry.getIndex();
+    assert.equal(box.min.z, 15); assert.equal(box.max.z, 15 + depth);
+    assert.equal(mesh.material[0].metalness, 0); assert.ok(mesh.material[1].roughness > mesh.material[0].roughness);
+    assert.equal(mesh.userData.frontSeamDepth, .55); assert.ok(geometry.groups.length <= 4, 'The seam must not add one draw call per contour edge');
+    assert.equal(geometry.groups.filter(group => [0, 2].includes(group.materialIndex)).reduce((sum, group) => sum + group.count, 0), expectedCapVertices,
+      'The seam only divides the side wall; it cannot add or duplicate face triangles');
+    let curvedSideNormals = 0, frontJointVertices = 0;
+    const shared = new Map();
+    for (const group of geometry.groups) for (let offset = group.start; offset < group.start + group.count; offset++) {
+      const vertex = index ? index.getX(offset) : offset, z = positions.getZ(vertex), normal = new THREE.Vector3().fromBufferAttribute(normals, vertex);
+      assert.ok(Math.abs(normal.length() - 1) < .00001);
+      if ([0, 2].includes(group.materialIndex)) {
+        assert.ok(Math.abs(normal.x) < .000001 && Math.abs(normal.y) < .000001);
+        assert.ok(Math.abs(z) < .001 || Math.abs(z - depth) < .001);
+        assert.ok(Math.abs(normal.z - (z < depth / 2 ? -1 : 1)) < .000001);
+      } else {
+        assert.ok(Math.abs(normal.z) < .000001, 'Side smoothing cannot blend a cap normal into the return');
+        if (Math.abs(normal.x) > .02 && Math.abs(normal.y) > .02) curvedSideNormals++;
+        const key = [positions.getX(vertex), positions.getY(vertex), z].map(value => value.toFixed(4)).join(',');
+        const adjacent = shared.get(key) ?? []; adjacent.push(normal); shared.set(key, adjacent);
+        if (group.materialIndex === 3) { assert.ok(z >= depth - .5501 && z <= depth + .0001); frontJointVertices++; }
+      }
+    }
+    assert.ok(curvedSideNormals > 0 && frontJointVertices > 0);
+    let hardCorner = false;
+    for (const adjacent of shared.values()) for (const a of adjacent) for (const b of adjacent) {
+      if (a.dot(b) > Math.SQRT1_2) assert.ok(a.distanceTo(b) < .00001, 'Smooth neighbouring walls agree on a continuous highlight');
+      else hardCorner = true;
+    }
+    assert.ok(hardCorner, 'The corners of Н remain sharp rather than being rounded into its face');
+    scene.disposeSignObject(model);
+  }
+  baseline.dispose();
+});
+
+test('Frame tube edges are softly finished inside the square 15mm profile and welded joints reuse their own surface', async () => {
+  const segments = frame([row('one', 0, 0, 700, 120), row('two', 150, 250, 400, 120)]).segments;
+  const project = { productId: 'letters', sceneMode: 'day', letterHeight: 120, letterDepth: 50, mountMode: 'frame', glowMode: 'face',
+    logoEnabled: false, letterFaceColor: { value: '#ffffff' }, letterSideColor: { value: '#cccccc' }, outlineColor: { value: '#000000' } };
+  const model = await scene.buildSignModel(project, { frameSegments: segments, signBox: { x: 0, y: 0, width: 700, height: 370 },
+    textPathData: 'M0 0', textNaturalBox: { x: 0, y: 0, width: 1, height: 1 }, textX: 0, textBaseline: 120, textHeight: 120,
+    logoBox: { x: 0, y: 0, width: 0, height: 0 } }, 700, 370, 50, false);
+  for (const segment of segments) {
+    const pipe = model.children.find(child => child.userData.frameSegmentId === segment.id), geometry = pipe.geometry;
+    geometry.computeBoundingBox(); const bounds = geometry.boundingBox;
+    assert.equal(geometry.parameters.radius, .3);
+    assert.ok(Math.abs(bounds.max.x - bounds.min.x - segment.width) < .001); assert.ok(Math.abs(bounds.max.y - bounds.min.y - segment.height) < .001);
+    assert.equal(bounds.min.z, -7.5); assert.equal(bounds.max.z, 7.5);
+    assert.ok(geometry.getAttribute('position').count <= 900, 'Tiny edge finishing stays within a practical tube budget');
+    assert.equal(pipe.children.length, 0, 'Weld detailing must not overlay another coplanar mesh');
+    const normals = geometry.getAttribute('normal'); let flat = 0, edge = 0;
+    for (let index = 0; index < normals.count; index++) {
+      const components = [normals.getX(index), normals.getY(index), normals.getZ(index)].map(Math.abs);
+      if (components.some(value => value > .99999)) flat++; else edge++;
+    }
+    assert.ok(flat > 0 && edge > 0, 'The tube retains flat square faces with a slight edge highlight');
+    if (segment.kind !== 'rail') { assert.ok(geometry.groups.length <= 2); assert.ok(geometry.groups.some(group => group.materialIndex === 1)); }
+  }
+  scene.disposeSignObject(model);
+});
+
+test('FrontSide acrylic caps face the camera, preserve material assignment and are hittable across every real glyph triangle', async () => {
+  const entry = contourApi.SIGN_FONTS.find(item => item.file === 'Exo2-Variable.ttf');
+  const bytes = fs.readFileSync(new URL('../public/fonts/' + entry.file, import.meta.url));
+  const font = opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const data = contourApi.contoursFromFont(font, 'ДАНА МИХОЙТ', entry.weight), natural = data.mainBox;
+  const pathBox = { x: 100, y: 50, width: natural.width / natural.height * 2201, height: 2201 };
+  const row = { id: 'line-0', index: 0, text: 'ДАНА МИХОЙТ', font: entry.value, box: pathBox, pathBox, inkBox: pathBox,
+    pathData: data.pathData, naturalBox: natural, defaultX: pathBox.x, defaultY: pathBox.y };
+  const model = await scene.buildSignModel({ productId: 'letters', sceneMode: 'day', letterHeight: 2201, letterDepth: 60, mountMode: 'frame', glowMode: 'face',
+    logoEnabled: false, letterFaceColor: { value: '#ffffff' }, letterSideColor: { value: '#ffffff' }, outlineColor: { value: '#000000' } },
+  { textRows: [row], frameSegments: [], signBox: pathBox, textX: pathBox.x, textTop: pathBox.y, textWidth: pathBox.width, textHeight: pathBox.height,
+    logoBox: { x: 0, y: 0, width: 0, height: 0 } }, pathBox.width, pathBox.height, 60, false);
+  model.updateMatrixWorld(true);
+  const mesh = model.getObjectByName('extruded-letter-row-0'), geometry = mesh.geometry;
+  const position = geometry.getAttribute('position'), indices = geometry.getIndex(), vertex = offset => indices ? indices.getX(offset) : offset;
+  assert.equal(mesh.material[0].side, THREE.FrontSide); assert.equal(mesh.material[2].side, THREE.FrontSide);
+  const coverage = new Set(); let frontTriangles = 0, hitTriangles = 0;
+  for (const group of geometry.groups) for (let offset = group.start; offset < group.start + group.count; offset += 3) {
+    assert.ok(offset + 2 < (indices?.count ?? position.count));
+    for (const slot of [offset, offset + 1, offset + 2]) { assert.ok(!coverage.has(slot)); coverage.add(slot); }
+    if (![0, 2].includes(group.materialIndex)) continue;
+    const points = [0, 1, 2].map(i => new THREE.Vector3().fromBufferAttribute(position, vertex(offset + i)));
+    const normal = points[1].clone().sub(points[0]).cross(points[2].clone().sub(points[0]));
+    if (normal.lengthSq() < 1e-8) continue;
+    normal.normalize();
+    const expectedZ = group.materialIndex === 0 ? 60 : 0, expectedNormal = group.materialIndex === 0 ? 1 : -1;
+    for (const point of points) assert.ok(Math.abs(point.z - expectedZ) < .0001, 'Material0 belongs only to the forward face, material2 only to the rear');
+    assert.ok(Math.abs(normal.z - expectedNormal) < .000001, 'Actual triangle winding must face outward, independent of its shading normal');
+    if (group.materialIndex === 0) {
+      frontTriangles++;
+      const center = points[0].clone().add(points[1]).add(points[2]).multiplyScalar(1 / 3).applyMatrix4(mesh.matrixWorld);
+      const hit = new THREE.Raycaster(center.clone().add(new THREE.Vector3(0, 0, 10)), new THREE.Vector3(0, 0, -1)).intersectObject(mesh, false)[0];
+      if (hit && hit.face.materialIndex === 0 && Math.abs(hit.point.z - 75) < .001) hitTriangles++;
+    }
+  }
+  assert.equal(coverage.size, indices?.count ?? position.count); assert.ok(frontTriangles > 100);
+  assert.equal(hitTriangles, frontTriangles, 'Every visible acrylic face triangle must survive FrontSide culling and ray projection');
+  scene.disposeSignObject(model);
+});
+
+test('Actual captured Arial Black80 keeps every forward acrylic triangle visible through the production seam and smoothing', async () => {
+  const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/arial-black-raster-sign.json', import.meta.url), 'utf8'));
+  const shapePath = svgLoader.SVGLoader.prototype.parse('<path d="' + fixture.pathData + '" />');
+  const shapes = load('glyphShapes', { three: THREE }).filledGlyphShapes(shapePath.paths);
+  const original = new THREE.ExtrudeGeometry(shapes, { depth: 60, bevelEnabled: false, steps: 2 });
+  assert.equal(original.index, null, 'The installed r186 extrusion is nonindexed before the renderer restores reflected winding');
+  const pathBox = { x: 140, y: 250, width: fixture.mainBox.width / fixture.mainBox.height * 80, height: 80 };
+  const row = { id: 'line-1', index: 1, text: fixture.text, font: '"Arial Black", sans-serif', box: pathBox, pathBox, inkBox: pathBox,
+    pathData: fixture.pathData, naturalBox: fixture.mainBox, defaultX: pathBox.x, defaultY: pathBox.y };
+  const project = { productId: 'letters', sceneMode: 'day', letterHeight: 201, letterDepth: 60, mountMode: 'frame', glowMode: 'face',
+    logoEnabled: false, letterFaceColor: { value: '#ffffff' }, letterSideColor: { value: '#ffffff' }, outlineColor: { value: '#000000' } };
+  const model = await scene.buildSignModel(project, { textRows: [row], frameSegments: frame([{ id: row.id, box: row.box }]).segments, signBox: pathBox,
+    textX: pathBox.x, textTop: pathBox.y, textWidth: pathBox.width, textHeight: 80, logoBox: { x: 0, y: 0, width: 0, height: 0 } }, pathBox.width, 80, 60, false);
+  model.updateMatrixWorld(true);
+  const mesh = model.getObjectByName('extruded-letter-row-1'), geometry = mesh.geometry;
+  const position = geometry.getAttribute('position'), indices = geometry.getIndex(), triangles = new Set();
+  const expected = original.groups.filter(group => group.materialIndex === 0).reduce((sum, group) => sum + group.count / 6, 0);
+  let visible = 0;
+  assert.equal(mesh.userData.font, row.font); assert.equal(mesh.material[0].side, THREE.FrontSide);
+  for (const group of geometry.groups) if (group.materialIndex === 0) for (let offset = group.start; offset < group.start + group.count; offset += 3) {
+    const points = [0, 1, 2].map(i => new THREE.Vector3().fromBufferAttribute(position, indices.getX(offset + i)));
+    const key = points.map(point => point.toArray().join(',')).sort().join(';'); assert.ok(!triangles.has(key), 'The front joint cannot duplicate cap triangles'); triangles.add(key);
+    const winding = points[1].clone().sub(points[0]).cross(points[2].clone().sub(points[0]));
+    assert.ok(winding.z > 0 && Math.abs(winding.x) < .000001 && Math.abs(winding.y) < .000001);
+    for (const point of points) assert.equal(point.z, 60);
+    const center = points[0].clone().add(points[1]).add(points[2]).multiplyScalar(1 / 3).applyMatrix4(mesh.matrixWorld);
+    const hit = new THREE.Raycaster(center.clone().add(new THREE.Vector3(0, 0, 5)), new THREE.Vector3(0, 0, -1)).intersectObject(mesh, false)[0];
+    assert.ok(hit && hit.face.materialIndex === 0 && Math.abs(hit.point.z - 75) < .001, 'Real raster font triangles survive culling at their forward face'); visible++;
+  }
+  assert.equal(visible, expected); assert.ok(visible > 100);
+  for (const pipe of model.children.filter(child => child.name === 'frame-15x15mm')) {
+    assert.equal(pipe.geometry.index, null, 'Rounded tube surfaces remain nonindexed and are not reinterpreted as vertex indices');
+    assert.equal(pipe.geometry.getAttribute('position').count, 900);
+  }
+  original.dispose(); scene.disposeSignObject(model);
+});
