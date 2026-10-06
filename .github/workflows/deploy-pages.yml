@@ -25,6 +25,16 @@ jobs:
           node-version: 20
 
       - run: npm install
+      - name: Validate sign studio
+        run: |
+          npm run test:sign-studio
+          npm run test:sign-scene
+          npm run test:letter-construction
+          npm run test:panel-construction
+          npm run test:sign-editor
+          npm run test:font-surfaces
+          npm run test:neon-curves
+          npm run test:facade-models
       - name: Build site
         env:
           VITE_SAVE_API_URL: ${{ vars.VITE_SAVE_API_URL }}

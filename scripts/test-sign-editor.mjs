@@ -29,10 +29,11 @@ const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth
 test('Saved neon and editor projects restore safely, while old projects receive compatible defaults',()=>{
   const old=schema.validate({version:1,project:{lettersText:'ЦВЕТЫ',letterFont:'Montserrat, sans-serif'}});
   assert.equal(old.secondLineText,''); assert.equal(old.logoOffsetX,0); assert.equal(old.neonDiameter,6);
-  const imported=schema.validate({version:1,project:{productId:'neon',neonText:'СВЕТ\nКОФЕ\nEXTRA',neonDiameter:8,neonFont:'slanted',neonColor:'#ad459f',acpDepth:100,acpWidth:20000,acpHeight:10000,logoOffsetX:75}});
-  assert.equal(imported.neonText,'СВЕТ\nКОФЕ'); assert.equal(imported.neonDiameter,8); assert.equal(imported.logoOffsetX,75);
+  const imported=schema.validate({version:1,project:{productId:'neon',neonText:'СВЕТ\nКОФЕ\nEXTRA\nHIDDEN',neonDiameter:8,neonFont:'slanted',neonColor:'#ad459f',acpDepth:100,acpWidth:20000,acpHeight:10000,logoOffsetX:75,lightsOn:false,neonLineFonts:['rounded','soft','slanted'],neonLineColors:['#ff0044','#00bbcc','#ffd966'],neonLineOffsets:[{x:15,y:-30}],neonLineScales:[.7,1.5]}});
+  assert.equal(imported.neonText,'СВЕТ\nКОФЕ\nEXTRA'); assert.equal(imported.neonDiameter,8); assert.equal(imported.logoOffsetX,75);
+  assert.equal(old.lightsOn,true); assert.equal(old.facadePalette,'stone'); assert.equal(imported.lightsOn,false); assert.deepEqual(imported.neonLineOffsets,[{x:15,y:-30}]); assert.deepEqual(imported.neonLineScales,[.7,1.5]);
   assert.equal(imported.acpWidth,3750); assert.equal(imported.acpHeight,1250);
-  for(const project of [{neonColor:'url(javascript:alert(1))'},{neonDiameter:7},{neonFont:'missing'}])
+  for(const project of [{neonColor:'url(javascript:alert(1))'},{neonDiameter:7},{neonFont:'missing'},{neonLineFonts:['missing']},{neonLineColors:['url(#x)']},{neonLineOffsets:[{x:NaN,y:0}]},{backdropImage:'https://example.com/img.jpg'}])
     assert.throws(()=>schema.validate({version:1,project}));
 });
 

@@ -269,3 +269,42 @@ main.public-sign-configurator.sign-studio .neon-color-palette button[aria-presse
  main.public-sign-configurator.sign-studio .canvas-mode-toolbar .view-switch button {min-height:28px;padding:5px 7px;}
  main.public-sign-configurator.sign-studio .canvas-mode-toolbar {column-gap:6px;row-gap:4px;}
 }
+
+/* Keep the brand in the controls, and let each building use its own materials. */
+main.public-sign-configurator.sign-studio .studio-workspace .builder-preview,
+main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.night {background:linear-gradient(145deg,#f5f1e9,#d8dde1);}
+main.public-sign-configurator.sign-studio .builder-preview::before {background:radial-gradient(ellipse at 80% 5%,#34445b,transparent 75%),linear-gradient(135deg,#202732,#0b101b);}
+main.public-sign-configurator.sign-studio .sign-power-switch {display:flex;align-items:center;gap:7px;min-height:34px;padding:5px 8px;border:1px solid #6c8578;border-radius:5px;background:#0c3026;color:#e4ece6;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap;}
+main.public-sign-configurator.sign-studio .sign-power-switch.on {border-color:#d3bc84;color:#f5e4b2;}
+main.public-sign-configurator.sign-studio .power-lever {width:27px;height:16px;border:1px solid #9aa99e;border-radius:3px;background:#334c41;position:relative;}
+main.public-sign-configurator.sign-studio .power-lever::after {content:'';position:absolute;width:10px;height:10px;left:2px;top:2px;border-radius:2px;background:#c2cfc6;transform:translateX(0);transition:transform 160ms ease-out,background 160ms;box-shadow:0 1px 2px #041b1599;}
+main.public-sign-configurator.sign-studio .sign-power-switch.on .power-lever::after {transform:translateX(11px);background:#eddaa6;}
+main.public-sign-configurator.sign-studio .power-state {min-width:26px;}
+main.public-sign-configurator.sign-studio .facade-finishes {display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 16px;}
+main.public-sign-configurator.sign-studio .facade-finishes button {display:flex;align-items:center;gap:6px;min-height:36px;padding:6px 9px;border:1px solid #b5c5bb;border-radius:4px;background:#fff;color:#334c41;font:inherit;font-size:12px;cursor:pointer;}
+main.public-sign-configurator.sign-studio .facade-finishes button[aria-pressed=true] {border-color:#16803d;background:#edf5ec;outline:1px solid #16803d;outline-offset:1px;}
+main.public-sign-configurator.sign-studio .facade-finishes i {width:16px;height:16px;display:block;border-radius:2px;}
+main.public-sign-configurator.sign-studio .neon-controls-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;}
+main.public-sign-configurator.sign-studio .neon-controls-heading h3 {margin:0;}
+main.public-sign-configurator.sign-studio .neon-undo {display:flex;align-items:center;gap:6px;padding:6px 9px;min-height:34px;border:1px solid #b5c5bb;border-radius:4px;background:#fff;color:#194d36;cursor:pointer;}
+main.public-sign-configurator.sign-studio .neon-undo:disabled {opacity:.45;cursor:default;}
+main.public-sign-configurator.sign-studio .neon-font-gallery button {background:#232a32;color:#f2eee7;}
+main.public-sign-configurator.sign-studio .neon-font-gallery small {color:#c6d0da;}
+main.public-sign-configurator.sign-studio .neon-color-palette button {width:34px;height:34px;}
+main.public-sign-configurator.sign-studio .neon-line-caption {margin:0;padding-bottom:6px;border-bottom:1px solid #dbe3dd;overflow-wrap:anywhere;}
+main.public-sign-configurator.sign-studio .photo-backdrop-controls {margin-top:20px;padding-top:14px;border-top:1px solid #d1ddd5;}
+main.public-sign-configurator.sign-studio .photo-backdrop-controls summary {font-size:14px;font-weight:600;cursor:pointer;margin-bottom:12px;}
+main.public-sign-configurator.sign-studio .photo-upload {cursor:pointer;display:inline-flex;color:#194d36;background:#fff;}
+main.public-sign-configurator.sign-studio .photo-upload input {position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;}
+main.public-sign-configurator.sign-studio .photo-backdrop-controls p {font-size:12px;line-height:1.5;color:#52695a;}
+main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toolbar) {grid-template-rows:58px auto auto minmax(0,1fr) 38px;}
+@media(max-width:767px) {
+ main.public-sign-configurator.sign-studio .sign-power-switch {min-height:32px;padding:5px;gap:5px;}
+ main.public-sign-configurator.sign-studio .power-caption,main.public-sign-configurator.sign-studio .power-state {display:none;}
+ main.public-sign-configurator.sign-studio .scene-switch {width:auto;min-width:115px;flex-shrink:0;}
+ main.public-sign-configurator.sign-studio .canvas-tools {gap:1px;padding-left:3px;}
+ main.public-sign-configurator.sign-studio .canvas-tools button {width:25px;min-width:25px;}
+ main.public-sign-configurator.sign-studio .zoom-value {min-width:30px;font-size:10px;}
+ main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toolbar) {grid-template-rows:46px auto auto minmax(0,1fr) 32px;}
+}
+@media(prefers-reduced-motion:reduce) {main.public-sign-configurator.sign-studio .power-lever::after {transition:none;}}

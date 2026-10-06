@@ -3,7 +3,7 @@ import { panelConstruction } from "./panelConstruction";
 export type PanelSvgConfig = {
   shape: "circle" | "square" | "rounded"; size: number; depth?: number; wallGap?: number; cornerRadius?: number;
   faceColor: string; sideColor: string; image: string; imageScale: number; imageX: number; imageY: number;
-  sceneMode?: "day" | "night"; showDimensions?: boolean; flat?: boolean;
+  sceneMode?: "day" | "night"; lightsOn?: boolean; showDimensions?: boolean; flat?: boolean;
 };
 
 /** Orthographic elevation: physical edges and arm lengths match the 3D model. */
@@ -13,6 +13,7 @@ export function createPanelSvgMarkup(config: PanelSvgConfig) {
   const size = Math.min(3000, Math.max(100, config.size));
   const mount = panelConstruction(size, config.shape, config.wallGap, config.cornerRadius);
   const night = config.sceneMode === "night";
+  const lit = night && config.lightsOn !== false;
   const margin = Math.max(70, size * 0.14);
   const wallX = margin, faceX = wallX + mount.gap, faceY = margin;
   const centerX = faceX + size / 2, centerY = faceY + size / 2;
@@ -46,7 +47,7 @@ export function createPanelSvgMarkup(config: PanelSvgConfig) {
     <filter id="panel-face-light" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="${n(size * 0.025)}" flood-color="${escape(config.faceColor)}" flood-opacity="0.55" /></filter></defs>
 
   <g id="wall-bracket">${brackets}</g>
-  <g id="panel-face"${night ? ' filter="url(#panel-face-light)"' : ""}>${geometry(escape(config.sideColor))}${geometry(escape(config.faceColor), mount.rim)}${artwork}</g>
+  <g id="panel-face"${lit ? ' filter="url(#panel-face-light)"' : ""}${night&&!lit?' opacity="0.48"':''}>${geometry(escape(config.sideColor))}${geometry(escape(config.faceColor), mount.rim)}${artwork}</g>
   ${dimensions}
 </svg>`;
 }

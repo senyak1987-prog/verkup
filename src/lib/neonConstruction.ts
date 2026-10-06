@@ -10,7 +10,9 @@ export const NEON_FONTS = [
   ...EXTERNAL_NEON_FONTS.map(font=>({...font,cyrillic:false})),
 ] as const;
 export type NeonPoint = [number, number];
-export type NeonDesign = { width: number; height: number; paths: NeonPoint[][]; cuts: { visibleMm: number; cutMm: number; hiddenTailMm: number }[]; radius: number };
+export type NeonLineBounds={index:number;x:number;y:number;width:number;height:number};
+export type NeonDesignOptions={lineFonts?:readonly string[];lineColors?:readonly string[];lineScales?:readonly number[];lineOffsets?:readonly {x:number;y:number}[];icon?:string;targetWidth?:number};
+export type NeonDesign = { width: number; height: number; paths: NeonPoint[][]; cuts: { visibleMm: number; cutMm: number; hiddenTailMm: number }[]; radius: number;pathColors?:(string|undefined)[];pathLineIndices?:number[];lines?:NeonLineBounds[];iconBounds?:NeonLineBounds;anchorX?:number;anchorY?:number };
 // Single centerlines, deliberately designed for tubing rather than outlined print fonts.
 const glyphs: Record<string, string> = {
   А: '0,100 35,0 70,100|13,65 57,65', Б: '70,0 0,0 0,100 48,100 70,82 70,62 48,48 0,48',
@@ -61,9 +63,9 @@ export function roundNeonCorners(points: NeonPoint[], radius: number): NeonPoint
     const la = length(a,b), lc = length(c,b);
     const u = [(a[0]-b[0])/la,(a[1]-b[1])/la], v = [(c[0]-b[0])/lc,(c[1]-b[1])/lc];
     const angle = Math.acos(Math.max(-1, Math.min(1, u[0]*v[0]+u[1]*v[1])));
-    if (!la || !lc || angle < .02 || Math.PI-angle < .22) { output.push(b); continue; }
+    if (!la || !lc || angle < .02 || Math.PI-angle < .008) { output.push(b); continue; }
     const tangent = radius / Math.tan(angle / 2);
-    if (tangent > Math.min(la,lc) / 2) throw new Error('Увеличьте высоту неоновой надписи для этого изгиба.');
+    if (tangent > Math.min(la,lc) + .001) throw new Error('Увеличьте высоту неоновой надписи для этого изгиба.');
     const start: NeonPoint = [b[0]+u[0]*tangent,b[1]+u[1]*tangent];
     const end: NeonPoint = [b[0]+v[0]*tangent,b[1]+v[1]*tangent];
     const bisector = [u[0]+v[0], u[1]+v[1]], norm = Math.hypot(...bisector);
@@ -72,9 +74,10 @@ export function roundNeonCorners(points: NeonPoint[], radius: number): NeonPoint
     const from = Math.atan2(start[1]-center[1],start[0]-center[0]);
     let sweep = Math.atan2(end[1]-center[1],end[0]-center[0])-from;
     while(sweep > Math.PI) sweep-=Math.PI*2; while(sweep < -Math.PI) sweep+=Math.PI*2;
-    for(let step=0;step<=12;step++) { const theta=from+sweep*step/12; output.push([center[0]+radius*Math.cos(theta),center[1]+radius*Math.sin(theta)]); }
+    const steps=Math.max(3,Math.ceil(Math.abs(sweep)/(Math.PI/48)));
+    for(let step=0;step<=steps;step++) { const theta=from+sweep*step/steps; output.push([center[0]+radius*Math.cos(theta),center[1]+radius*Math.sin(theta)]); }
   }
-  if(closed && output.length) output.push(output[0]);
+  if(closed && output.length) output.push([...output[0]] as NeonPoint);
   return output;
 }
 function simplifyStroke(points:NeonPoint[],tolerance:number):NeonPoint[] {
@@ -86,35 +89,38 @@ function simplifyStroke(points:NeonPoint[],tolerance:number):NeonPoint[] {
   return [...simplifyStroke(points.slice(0,index+1),tolerance).slice(0,-1),...simplifyStroke(points.slice(index),tolerance)];
 }
 function adaptTubeStroke(raw:NeonPoint[],radius:number):NeonPoint[][] {
-  const points=simplifyStroke(raw,radius*.4);
-  if(points.length<3)return [points];
-  const closed=length(points[0],points[points.length-1])<.001;
-  const input=closed?points.slice(0,-1):points;
-  const breaks:number[]=[];
-  for(let i=0;i<input.length;i++) {
-    if(!closed&&(i===0||i===input.length-1))continue;
-    const a=input[(i+input.length-1)%input.length],b=input[i],c=input[(i+1)%input.length],la=length(a,b),lc=length(c,b);
-    const cosine=((a[0]-b[0])*(c[0]-b[0])+(a[1]-b[1])*(c[1]-b[1]))/(la*lc),angle=Math.acos(Math.max(-1,Math.min(1,cosine)));
-    if(angle>.02&&Math.PI-angle>.22&&radius/Math.tan(angle/2)>Math.min(la,lc)/2)breaks.push(i);
-  }
-  if(!breaks.length)return [roundNeonCorners(points,radius)];
-  // Split tight joins into separately cut lengths instead of reducing the bend radius.
-  const first=closed?breaks[0]:0;
-  const open=closed?[...input.slice(first),...input.slice(0,first),input[first]]:input;
-  const indices=closed?breaks.slice(1).map(i=>(i-first+input.length)%input.length).sort((a,b)=>a-b):breaks;
-  const result:NeonPoint[][]=[];let from=0;
-  for(const end of [...indices,open.length-1]) {
-    const segment=open.slice(from,end+1).map(p=>[...p] as NeonPoint);
-    const trim=(index:number,next:number)=>{const a=segment[index],b=segment[next],d=length(a,b),amount=Math.min(radius*1.5,d*.35);segment[index]=[a[0]+(b[0]-a[0])*amount/d,a[1]+(b[1]-a[1])*amount/d];};
-    if(segment.length>1) {
-      if(closed||from>0)trim(0,1);
-      if(closed||end<open.length-1)trim(segment.length-1,segment.length-2);
-      const total=segment.reduce((sum,p,i)=>sum+(i?length(p,segment[i-1]):0),0);
-      if(total>radius)result.push(...adaptTubeStroke(segment,radius));
+  const clean=raw.filter((point,index)=>!index||length(point,raw[index-1])>.0001);
+  if(clean.length<3)return [clean];
+  const closed=length(clean[0],clean[clean.length-1])<.001;
+  const simplified=simplifyStroke(clean,radius*.05);
+  const input=closed?simplified.slice(0,-1):simplified;
+  const tangentAt=(index:number)=>{
+    if(!closed&&(index===0||index===input.length-1))return 0;
+    const b=input[index],a=input[(index+input.length-1)%input.length],c=input[(index+1)%input.length];
+    const la=length(a,b),lc=length(c,b);
+    if(la<.0001||lc<.0001)return Infinity;
+    const cosine=((a[0]-b[0])*(c[0]-b[0])+(a[1]-b[1])*(c[1]-b[1]))/(la*lc);
+    const angle=Math.acos(Math.max(-1,Math.min(1,cosine)));
+    return Math.PI-angle<.008?0:radius/Math.tan(angle/2);
+  };
+  // Source SVG curves contain many short adjacent chords. Reserve room for a
+  // full-radius bend across those chords instead of cutting the visible stroke.
+  // Tiny cusps are softened locally; genuine pen lifts remain separate paths.
+  while(input.length>(closed?3:2)) {
+    const tangents=input.map((_,index)=>tangentAt(index));let remove=-1,worst=1;
+    for(let index=0;index<input.length-(closed?0:1);index++) {
+      const next=(index+1)%input.length,available=length(input[index],input[next]);
+      const ratio=(tangents[index]+tangents[next])/(available||.0001);
+      if(ratio<=worst)continue;
+      const removableA=closed||index>0,removableB=closed||next<input.length-1;
+      const candidate=removableA&&(!removableB||tangents[index]>=tangents[next])?index:removableB?next:-1;
+      if(candidate>=0){remove=candidate;worst=ratio;}
     }
-    from=end;
+    if(remove<0)break;
+    input.splice(remove,1);
   }
-  return result;
+  const rounded=roundNeonCorners(closed?[...input,input[0]]:input,radius);
+  return [rounded.filter((point,index)=>!index||length(point,rounded[index-1])>.0001)];
 }
 const SOFT_GLYPHS:Record<string,string>={
   В:'M0 100V0H35C82 0 82 48 35 48H0M35 48C85 48 85 100 35 100H0',
@@ -127,31 +133,41 @@ const SOFT_GLYPHS:Record<string,string>={
   S:'M68 14C25 -20 -15 20 8 40C28 58 64 42 70 71C80 110 25 117 0 86',
   R:'M0 100V0H35C83 0 83 50 35 50H0M35 50L70 100',
 };
-export function createNeonDesign(text: string, height: number, diameter: number, font: string, align='center'): NeonDesign {
-  const paths: NeonPoint[][]=[]; const pathRows:number[]=[];
-  const external=EXTERNAL_NEON_FONTS.some(f=>f.id===font),data=getNeonFont(font);
-  if(external&&!data)throw new Error('Шрифт загружается.');
-  const handwritten=font==='handwritten'||font==='signature';
-  const lines=text.normalize('NFC').trim().split('\n').slice(0,2),lineWidths:number[]=[];
-  const sx=height/100*(font==='narrow'?.72:font==='signature'?.85:1),sy=height/100;
-  const gap=Math.max(diameter*2,height*(handwritten?.03:.16));
-  for(let row=0;row<lines.length;row++) {
-    let x=0;const rowPaths:NeonPoint[][]=[];
-    for(const char of lines[row]) {
-      if(char===' '){x+=height*.4;continue;}
+const NEON_ICONS:Record<string,string>={
+  heart:'M50 92C15 69 -4 42 8 22C19 3 39 8 50 28C61 8 81 3 92 22C104 42 85 69 50 92Z',
+  star:'M50 5L61 36L95 38L68 59L78 91L50 72L22 91L32 59L5 38L39 36Z',
+  bolt:'M60 4L18 58H47L39 96L83 42H54Z',
+  cup:'M12 26H70V58C70 87 12 87 12 58V26M70 32C99 26 104 64 70 64M4 91H84M31 7C17 12 41 17 29 22M51 4C37 9 61 14 49 19',
+  music:'M31 77V21L78 10V66M31 29L78 18M31 77C10 66 4 93 21 92C32 92 36 81 31 77M78 66C57 55 51 82 68 81C79 81 83 70 78 66',
+  infinity:'M50 50C29 16 1 17 1 50C1 83 29 84 50 50C71 16 99 17 99 50C99 83 71 84 50 50Z',
+};
+export function createNeonDesign(text: string, height: number, diameter: number, font: string, align='center',options:NeonDesignOptions={}): NeonDesign {
+  const paths: NeonPoint[][]=[],pathRows:number[]=[],pathColors:(string|undefined)[]=[];
+  const textLines=text.normalize('NFC').split('\n').slice(0,3).map(line=>line.trim()),lineWidths:number[]=[];
+  const icon=NEON_ICONS[options.icon??'none'],iconScale=height*.8/100,textOrigin=icon?height*.8+Math.max(diameter*3,height*.18):0;
+  let rowY=0;
+  for(let row=0;row<textLines.length;row++) {
+    const rowFont=options.lineFonts?.[row]||font,external=EXTERNAL_NEON_FONTS.some(f=>f.id===rowFont),data=getNeonFont(rowFont);
+    if(external&&!data)throw new Error('Шрифт загружается.');
+    const handwritten=rowFont==='handwritten'||rowFont==='signature',rowScale=Math.max(.5,Math.min(2,options.lineScales?.[row]??1)),rowHeight=height*rowScale;
+    const sx=rowHeight/100*(rowFont==='narrow'?.72:rowFont==='signature'?.85:1),sy=rowHeight/100;
+    const gap=Math.max(diameter*2,rowHeight*(handwritten?.03:.16));
+    let x=textOrigin;const rowPaths:NeonPoint[][]=[];
+    for(const char of textLines[row]) {
+      if(char===' '){x+=rowHeight*.4;continue;}
       let strokes:NeonPoint[][]=[],advance=70,scaleX=sx,scaleY=sy;
       if(data) {
         const glyph=data.glyphs[char];
         if(!glyph)throw new Error(`Этот шрифт не содержит «${char}». Выберите шрифт с кириллицей или измените текст.`);
         strokes=glyph.paths.map(path=>path.map(([px,py])=>[px,data.capHeight-py] as NeonPoint));
-        advance=glyph.advance;scaleX=scaleY=height/data.capHeight;
+        advance=glyph.advance;scaleX=scaleY=rowHeight/data.capHeight;
       } else if(handwritten&&/^[\p{L}]$/u.test(char)) {
         const lower=char.toLowerCase(),key=HANDWRITTEN_LATIN[lower]??lower;
         if(!HANDWRITTEN_GLYPHS[key])throw new Error(`Неоновый шрифт не содержит «${char}».`);
         strokes=sampleStrokePath(HANDWRITTEN_GLYPHS[key]);advance=Math.max(50,...strokes.flat().map(p=>p[0]));
       } else {
         const key=latin[char.toUpperCase()]??char.toUpperCase();
-        const soft=font==='soft'?SOFT_GLYPHS[key]:undefined;
+        const soft=rowFont==='soft'?SOFT_GLYPHS[key]:undefined;
         const definition=glyphs[key];
         if(!definition)throw new Error(`Неоновый шрифт не содержит «${char}». Используйте русские, латинские буквы и цифры.`);
         if(soft)strokes=sampleStrokePath(soft);
@@ -159,46 +175,74 @@ export function createNeonDesign(text: string, height: number, diameter: number,
         advance=Math.max(70,...strokes.flat().map(p=>p[0]));
       }
       for(const points of strokes) {
-        const physical=points.map(([px,py])=>[x+px*scaleX+((font==='slanted'||font==='signature')?(100-py)*sy*.18:0),py*scaleY+row*height*1.55] as NeonPoint);
+        const physical=points.map(([px,py])=>[x+px*scaleX+((rowFont==='slanted'||rowFont==='signature')?(100-py)*sy*.18:0),py*scaleY+rowY] as NeonPoint);
         rowPaths.push(...adaptTubeStroke(physical,diameter/2));
       }
       x+=advance*scaleX+gap;
     }
-    lineWidths.push(Math.max(1,x-gap));paths.push(...rowPaths);pathRows.push(...rowPaths.map(()=>row));
+    lineWidths.push(Math.max(1,x-gap-textOrigin));paths.push(...rowPaths);pathRows.push(...rowPaths.map(()=>row));
+    const rowColor=options.lineColors?.[row];pathColors.push(...rowPaths.map(()=>rowColor&&/^#[\da-f]{6}$/i.test(rowColor)?rowColor:undefined));
+    rowY+=rowHeight*1.55;
   }
   const longest=Math.max(...lineWidths);
   paths.forEach((path,index)=>path.forEach(point=>{const space=longest-lineWidths[pathRows[index]];point[0]+=align==='left'?0:align==='right'?space:space/2;}));
+  if(icon)for(const stroke of sampleStrokePath(icon)) {
+    paths.push(...adaptTubeStroke(stroke.map(([x,y])=>[x*iconScale,y*iconScale+height*.1] as NeonPoint),diameter/2));
+    pathRows.push(-1);pathColors.push(undefined);
+  }
+  if(options.targetWidth&&options.targetWidth>diameter) {
+    const points=paths.flat(),min=Math.min(0,...points.map(p=>p[0])),max=Math.max(1,...points.map(p=>p[0]));
+    const stretch=(options.targetWidth-diameter)/(max-min||1);
+    for(let index=0;index<paths.length;index++)paths[index]=adaptTubeStroke(paths[index].map(([x,y])=>[(x-min)*stretch,y] as NeonPoint),diameter/2)[0];
+  }
+  const base=paths.flat(),baseMinX=Math.min(0,...base.map(p=>p[0])),baseMaxX=Math.max(1,...base.map(p=>p[0]));
+  const baseMinY=Math.min(0,...base.map(p=>p[1])),baseMaxY=Math.max(height,...base.map(p=>p[1]));
+  paths.forEach((path,index)=>{const offset=options.lineOffsets?.[pathRows[index]];if(offset)path.forEach(point=>{point[0]+=Number.isFinite(offset.x)?offset.x:0;point[1]+=Number.isFinite(offset.y)?offset.y:0;});});
   const flat=paths.flat();
   const minX=Math.min(0,...flat.map(p=>p[0])),maxX=Math.max(1,...flat.map(p=>p[0]));
   const minY=Math.min(0,...flat.map(p=>p[1])),maxY=Math.max(height,...flat.map(p=>p[1]));
   const width=maxX-minX+diameter,totalHeight=maxY-minY+diameter;
   for(const path of paths)for(const point of path){point[0]+=diameter/2-minX;point[1]+=diameter/2-minY;}
+  const bounds=(index:number):NeonLineBounds|undefined=>{const points=paths.filter((_,pathIndex)=>pathRows[pathIndex]===index).flat();if(!points.length)return;const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]),x=Math.min(...xs)-diameter/2,y=Math.min(...ys)-diameter/2;return {index,x,y,width:Math.max(...xs)+diameter/2-x,height:Math.max(...ys)+diameter/2-y};};
+  const lines=textLines.map((_,index)=>bounds(index)).filter((line):line is NeonLineBounds=>!!line);
   const cuts=paths.map(path=>{const visibleMm=path.reduce((sum,p,i)=>sum+(i?length(path[i-1],p):0),0),cutMm=Math.ceil((visibleMm-1e-7)/10)*10;return {visibleMm,cutMm,hiddenTailMm:cutMm-visibleMm};});
-  return {width,height:totalHeight,paths,cuts,radius:diameter/2};
+  return {width,height:totalHeight,paths,cuts,radius:diameter/2,pathColors,pathLineIndices:pathRows,lines,iconBounds:bounds(-1),anchorX:(baseMinX+baseMaxX)/2+diameter/2-minX,anchorY:(baseMinY+baseMaxY)/2+diameter/2-minY};
 }
+export function neonDesignPlacement(design:NeonDesign,width:number,height:number) {return {x:width/2-(design.anchorX??design.width/2),y:height/2-(design.anchorY??design.height/2)};}
+export function neonRequiredBacker(design:NeonDesign,padding=30) {const x=design.anchorX??design.width/2,y=design.anchorY??design.height/2;return {width:Math.ceil(2*Math.max(x,design.width-x)+padding*2),height:Math.ceil(2*Math.max(y,design.height-y)+padding*2)};}
 export function neonBackerOutline(design:NeonDesign,width:number,height:number,shape:string):NeonPoint[] {
   if(shape!=='contour') {
     const radius=shape==='rounded'?Math.min(45,width/4,height/4):0;
     if(!radius)return [[0,0],[width,0],[width,height],[0,height]];
     return [[width-radius,radius],[width-radius,height-radius],[radius,height-radius],[radius,radius]].flatMap(([cx,cy],corner)=>Array.from({length:9},(_,i)=>{const angle=-Math.PI/2+corner*Math.PI/2+i*Math.PI/16;return [cx+radius*Math.cos(angle),cy+radius*Math.sin(angle)] as NeonPoint;}));
   }
-  const points=design.paths.flat().map(([x,y])=>[(width-design.width)/2+x,(height-design.height)/2+y] as NeonPoint).sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const placement=neonDesignPlacement(design,width,height);
+  const centerlines=design.paths.flat().map(([x,y])=>[placement.x+x,placement.y+y] as NeonPoint);
+  const xs=centerlines.map(p=>p[0]),ys=centerlines.map(p=>p[1]);
+  const padX=Math.max(design.radius+2,Math.min(Math.min(...xs),width-Math.max(...xs))),padY=Math.max(design.radius+2,Math.min(Math.min(...ys),height-Math.max(...ys)));
+  const points=centerlines.flatMap(([x,y])=>[[-padX,-padY],[padX,-padY],[padX,padY],[-padX,padY]].map(([dx,dy])=>[Math.max(0,Math.min(width,x+dx)),Math.max(0,Math.min(height,y+dy))] as NeonPoint));
+  // Keep requested overall dimensions even when the text is moved away from
+  // the center, while the convex envelope still encloses every visible tube.
+  points.push([0,height/2],[width,height/2],[width/2,0],[width/2,height]);
+  points.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
   if(points.length<3)return [[0,0],[width,0],[width,height],[0,height]];
   const cross=(a:NeonPoint,b:NeonPoint,c:NeonPoint)=>(b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
   const half=(items:NeonPoint[])=>{const hull:NeonPoint[]=[];for(const p of items){while(hull.length>1&&cross(hull[hull.length-2],hull[hull.length-1],p)<=0)hull.pop();hull.push(p);}hull.pop();return hull;};
   const hull=[...half(points),...half([...points].reverse())];
-  const minX=Math.min(...hull.map(p=>p[0])),maxX=Math.max(...hull.map(p=>p[0])),minY=Math.min(...hull.map(p=>p[1])),maxY=Math.max(...hull.map(p=>p[1]));
-  return hull.map(([x,y])=>[(x-minX)/(maxX-minX||1)*width,(y-minY)/(maxY-minY||1)*height]);
+  return hull;
 }
 export function neonHolderPositions(outline:NeonPoint[],width:number,height:number):NeonPoint[] {
   return [[0,0],[width,0],[width,height],[0,height]].map(corner=>{const nearest=outline.reduce((a,b)=>length(a,corner as NeonPoint)<length(b,corner as NeonPoint)?a:b);const dx=width/2-nearest[0],dy=height/2-nearest[1],d=Math.hypot(dx,dy);return [nearest[0]+dx/d*28,nearest[1]+dy/d*28] as NeonPoint;});
 }
-export function neonSvg(design: NeonDesign, backerWidth: number, backerHeight: number, diameter: number, color: string, night: boolean, dimensions: boolean, shape="rectangle", brightness=85) {
+export type NeonPreviewOptions={lightsOn?:boolean;backerColor?:'clear'|'white'|'black';installMode?:'standoffs'|'hanging'};
+export function neonSvg(design: NeonDesign, backerWidth: number, backerHeight: number, diameter: number, color: string, night: boolean, dimensions: boolean, shape="rectangle", brightness=85,options:NeonPreviewOptions={}) {
   const pad=Math.max(80,backerHeight*.2), width=backerWidth+pad*2, height=backerHeight+pad*2;
-  const x=(width-design.width)/2,y=(height-design.height)/2;
+  const placement=neonDesignPlacement(design,backerWidth,backerHeight),x=pad+placement.x,y=pad+placement.y;
   const outline=neonBackerOutline(design,backerWidth,backerHeight,shape),holders=neonHolderPositions(outline,backerWidth,backerHeight);
   const backerPath=outline.map((p,i)=>`${i?'L':'M'}${p[0]+pad} ${p[1]+pad}`).join(' ')+'Z';
-  const power=brightness/100;
-  const strokes=design.paths.map(points=>`<polyline points="${points.map(p=>p.map(n=>n.toFixed(2)).join(',')).join(' ')}"/>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Неоновая вывеска"><defs><filter id="neon-bloom" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${diameter*2}"/></filter></defs><path d="${backerPath}" fill="${night?'#94c7ce':'#fff'}" fill-opacity=".07" stroke="${night?'#b9dae2':'#70888a'}" stroke-opacity=".6" stroke-width="2"/>${holders.map(([cx,cy])=>`<circle cx="${pad+cx}" cy="${pad+cy}" r="7" fill="#9caeac" stroke="#f5faf8" stroke-width="2"/>`).join('')}<g transform="translate(${x} ${y})" fill="none" stroke-linejoin="round" stroke-linecap="round">${night?`<g stroke="${color}" stroke-width="${diameter*2}" opacity="${power*.6}" filter="url(#neon-bloom)">${strokes}</g>`:''}<g stroke="#263c38" stroke-width="${diameter+2}" opacity=".2" transform="translate(2 4)">${strokes}</g><g stroke="${color}" stroke-width="${diameter}">${strokes}</g><g stroke="${night?'#fff9ed':'#ffffff'}" stroke-opacity="${night?power*.85:'.45'}" stroke-width="${diameter*.35}">${strokes}</g></g>${dimensions?`<g data-dimensions="true" fill="${night?'#d5e8e1':'#194d36'}" stroke="${night?'#d5e8e1':'#194d36'}" font-family="Arial" font-size="24"><path d="M${pad} ${height-pad/2}H${width-pad}M${width-pad/2} ${pad}V${height-pad}"/><text x="${width/2}" y="${height-pad/4}" text-anchor="middle" stroke="none">${Math.round(backerWidth)} мм</text><text x="${width-pad/4}" y="${height/2}" text-anchor="middle" stroke="none" transform="rotate(-90 ${width-pad/4} ${height/2})">${Math.round(backerHeight)} мм</text></g>`:''}</svg>`;
+  const power=brightness/100,lightsOn=options.lightsOn!==false,backerColor=options.backerColor??'clear';
+  const strokes=(individual=false)=>design.paths.map((points,index)=>`<path${individual&&design.pathColors?.[index]?` stroke="${design.pathColors[index]}"`:''} d="${points.map((p,i)=>`${i?'L':'M'}${p.map(n=>n.toFixed(2)).join(' ')}`).join(' ')}"/>`).join('');
+  const backerFill=backerColor==='black'?'#171a20':backerColor==='white'?'#f5f4ef':'#f4fbff';
+  const hardware=options.installMode==='hanging'?holders.slice(0,2).map(([cx,cy])=>`<path d="M${pad+cx} ${pad+cy}V${Math.max(8,pad*.12)}" stroke="#939ca6" stroke-width="1.5"/><circle cx="${pad+cx}" cy="${pad+cy}" r="5" fill="none" stroke="#bac3cb" stroke-width="2"/>`).join(''):holders.map(([cx,cy])=>`<circle cx="${pad+cx}" cy="${pad+cy}" r="7" fill="#9ba3aa" stroke="#f5faf8" stroke-width="2"/>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Неоновая вывеска" data-lights-on="${lightsOn}"><defs><filter id="neon-bloom" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${diameter*2}"/></filter></defs><path d="${backerPath}" fill="${backerFill}" fill-opacity="${backerColor==='clear'?'.07':'1'}" stroke="${night?'#bac7d0':'#85909b'}" stroke-opacity=".65" stroke-width="2"/>${hardware}<g transform="translate(${x} ${y})" fill="none" stroke-linejoin="round" stroke-linecap="round">${lightsOn?`<g data-neon-glow="true" stroke="${color}" stroke-width="${diameter*2}" opacity="${power*(night?.62:.15)}" filter="url(#neon-bloom)">${strokes(true)}</g>`:''}<g stroke="#1c2026" stroke-width="${diameter+2}" opacity=".18" transform="translate(2 4)">${strokes()}</g><g stroke="${color}" stroke-width="${diameter}">${strokes(true)}</g><g stroke="#fff9f0" stroke-opacity="${lightsOn?power*(night?.87:.55):'.16'}" stroke-width="${diameter*.35}">${strokes()}</g></g>${dimensions?`<g data-dimensions="true" fill="${night?'#e2e8f0':'#334155'}" stroke="${night?'#e2e8f0':'#334155'}" font-family="Arial" font-size="24"><path d="M${pad} ${height-pad/2}H${width-pad}M${width-pad/2} ${pad}V${height-pad}"/><text x="${width/2}" y="${height-pad/4}" text-anchor="middle" stroke="none">${Math.round(backerWidth)} мм</text><text x="${width-pad/4}" y="${height/2}" text-anchor="middle" stroke="none" transform="rotate(-90 ${width-pad/4} ${height/2})">${Math.round(backerHeight)} мм</text></g>`:''}</svg>`;
 }
