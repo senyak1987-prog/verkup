@@ -38,7 +38,7 @@ export function resizeLayoutLine(layout: AlignmentLayout, selected: LayoutObject
   const vertical = Number.isFinite(deltaY) ? deltaY / Math.max(1, row.box.height) : 0;
   const ratio = 1 + (Math.abs(horizontal) > Math.abs(vertical) ? horizontal : vertical);
   const previous = lineHeights[row.index] || baseHeight;
-  const height = Math.max(40, Math.min(1200, Math.round(previous * ratio)));
+  const height = Math.max(100, Math.min(700, Math.round(previous * ratio)));
   const length = Math.max(lineHeights.length, row.index + 1);
   const heights = Array.from({ length }, (_, index) => lineHeights[index] ?? baseHeight);
   heights[row.index] = height;
