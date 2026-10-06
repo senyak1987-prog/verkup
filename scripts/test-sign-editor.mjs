@@ -327,7 +327,8 @@ test('The same four facade compositions render in 2D and as a separate rotatable
     const svg=facade.createFacadeSvg(place.id,'<svg viewBox="0 0 100 100"><path id="face" d="M0 0H100"/></svg>',true);
     assert.match(svg,/main-facade-face/);assert.doesNotMatch(svg,/NaN|undefined|Infinity/);
     const model=threeFacade.createFacadeModel(place.id,1000,300);
-    assert.equal(model.children.length,facade.facadeRects(place.id,false).length);
+    assert.ok(model.children.length>facade.facadeRects(place.id,false).length);
+    assert.equal(model.userData.closedBuilding,true);
     assert.ok(model.getObjectByName('facade-wall').receiveShadow);
     model.traverse(child=>{child.geometry?.dispose();child.material?.dispose();});
   }

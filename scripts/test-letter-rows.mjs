@@ -176,3 +176,19 @@ test('3D ACP joints match the balanced physical sections used in 2D',async()=>{
  assert.deepEqual(joints.map(x=>x.position.x),[-1500,1500]);
  scene.disposeSignObject(model);
 });
+
+
+test('Halo on ACP has physical 20 mm standoffs behind each row and logo, with independent face and return colours',async()=>{
+ const result=layout(fixture({mountMode:'acp',acpLayout:{faceWidth:4000,faceHeight:1000,depth:50}}));
+ const project={productId:'letters',sceneMode:'day',letterHeight:210,letterDepth:50,mountMode:'acp',glowMode:'halo',logoEnabled:true,logoShape:'circle',logoImage:'',acpDepth:50,acpColor:{value:'#ffffff'},letterFaceColor:{value:'#ff0000'},letterSideColor:{value:'#222222'},logoFaceColor:{value:'#00ff00'},logoSideColor:{value:'#0000ff'},haloLightColor:{value:'#ffff00'}};
+ const model=await scene.buildSignModel(project,result,4000,1000,50,false);
+ const panel=new THREE.Box3().setFromObject(model.getObjectByName('acp-box'));
+ const logo=model.getObjectByName('extruded-logo');
+ const meshes=[logo,...result.textRows.map(row=>model.getObjectByName('extruded-letter-row-'+row.index))];
+ for(const mesh of meshes){const bounds=new THREE.Box3().setFromObject(mesh);near(bounds.min.z-panel.max.z,20,'Full body begins 20 mm in front of the panel');near(bounds.max.z-bounds.min.z,50,'Letter depth remains 50 mm');}
+ assert.equal(logo.material[0].userData.dayColor.getHexString(),'00ff00');assert.equal(logo.material[1].userData.dayColor.getHexString(),'0000ff');
+ assert.equal(meshes[1].material[0].userData.dayColor.getHexString(),'ff0000');assert.equal(meshes[1].material[1].userData.dayColor.getHexString(),'222222');
+ const spacers=model.children.filter(mesh=>mesh.name==='halo-distance-spacer');assert.ok(spacers.length>6);
+ for(const spacer of spacers){const bounds=new THREE.Box3().setFromObject(spacer);near(bounds.min.z,panel.max.z,'Spacer touches ACP');near(bounds.max.z,20,'Spacer touches rear of body');}
+ scene.disposeSignObject(model);
+});
