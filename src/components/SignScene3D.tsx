@@ -6,7 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { applySignLighting, buildSignModel, disposeSignObject } from "../lib/signSceneGeometry";
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { attachFacadePair, createFacadeModel, createPanelMountContext, createScalePerson } from "../lib/signFacade3D";
+import { attachFacadePair, createFacadeModel, createPanelMountContext, createScalePerson, loadScalePersonBrand, setFacadeProductVisibility } from "../lib/signFacade3D";
 import { DAYLIGHT_LEVELS, daylightSource } from "../lib/signDaylight";
 import { signFocusBounds, zoomFocusWeight } from "../lib/signCameraFocus";
 import type { DaylightMarker } from "../lib/signDaylight";
@@ -27,6 +27,8 @@ export type SignScene3DProps = {
   placement?: SignPlacement;
   companion?: { project: SignSceneProject; width: number; height: number; depth: number };
   showPerson?: boolean;
+  showSign?: boolean;
+  showPanel?: boolean;
   onZoomChange?: (value: number) => void;
   resetKey?: number;
   onUnavailable?: () => void;
@@ -68,11 +70,12 @@ type SceneRuntime = {
   source: (marker: DaylightMarker) => void;
 };
 
-export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', companion, showPerson = true, onZoomChange, resetKey = 0, onUnavailable }: SignScene3DProps) {
+export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', companion, showPerson = true, showSign = true, showPanel = true, onZoomChange, resetKey = 0, onUnavailable }: SignScene3DProps) {
   const geometryKey = JSON.stringify({ ...project, sceneMode: undefined, lightsOn:undefined });
   const modelProject = useMemo(() => ({ ...project, sceneMode: 'night' as const, lightsOn:true }), [geometryKey]);
   const lightsOnRef=useRef(project.lightsOn!==false);
   const showPersonRef = useRef(showPerson); showPersonRef.current = showPerson;
+  const visibilityRef = useRef({ showSign, showPanel }); visibilityRef.current = { showSign, showPanel };
   const companionKey = companion ? JSON.stringify({ ...companion, project: { ...companion.project, sceneMode: undefined, lightsOn: undefined } }) : '';
   const modelCompanion = useMemo(() => companion ? { ...companion, project: { ...companion.project, sceneMode: 'night' as const, lightsOn: true } } : undefined, [companionKey]);
   lightsOnRef.current=project.lightsOn!==false;
@@ -400,13 +403,17 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       }
       const facade = model.getObjectByName('facade') as THREE.Group | undefined;
       if (facade) {
-        const person = createScalePerson(facade, signFocusBounds(model).getCenter(new THREE.Vector3()));
+        setFacadeProductVisibility(model, visibilityRef.current.showSign, visibilityRef.current.showPanel);
+        const brand = await loadScalePersonBrand(import.meta.env.BASE_URL).catch(() => undefined);
+        if (version !== buildRef.current || runtime !== runtimeRef.current) { brand?.dispose(); disposeSignObject(model); return; }
+        const person = createScalePerson(facade, signFocusBounds(model).getCenter(new THREE.Vector3()), brand);
         if (person) { person.visible = showPersonRef.current; facade.add(person); }
       }
       runtime.model = model;
       if (hostRef.current) {
         hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId;
         hostRef.current.dataset.contextProducts = (model.userData.contextProducts ?? [project.productId]).join(',');
+        hostRef.current.dataset.visibleProducts = (model.userData.visibleProducts ?? [project.productId]).join(',');
         hostRef.current.dataset.scalePersonHeight = facade?.getObjectByName('scale-person') ? '1750' : '';
       }
       runtime.scene.add(model);
@@ -429,8 +436,18 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
 
   useEffect(() => {
     const runtime = runtimeRef.current, person = runtime?.model?.getObjectByName('scale-person');
-    if (person) { person.visible = showPerson; runtime!.requestRender(); }
+    if (person) { person.visible = showPerson; runtime!.key.shadow.needsUpdate = true; runtime!.requestRender(); }
   }, [showPerson]);
+
+  useEffect(() => {
+    const runtime = runtimeRef.current;
+    if (!runtime?.model || placement === 'none') return;
+    setFacadeProductVisibility(runtime.model, showSign, showPanel);
+    if (hostRef.current) hostRef.current.dataset.visibleProducts = runtime.model.userData.visibleProducts.join(',');
+    const focus = signFocusBounds(runtime.model);
+    if (!focus.isEmpty()) focus.getCenter(runtime.signAnchor);
+    runtime.key.shadow.needsUpdate = true; runtime.focusZoom(); runtime.requestRender();
+  }, [showSign, showPanel, placement]);
 
   useEffect(() => {
     const targetNight = project.sceneMode === "night";

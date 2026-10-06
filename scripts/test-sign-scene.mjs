@@ -60,6 +60,18 @@ const boxMesh = (name, size, position = [0, 0, 0]) => {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size)); mesh.name = name; mesh.position.set(...position); return mesh;
 };
 
+test('Zoom follows the remaining visible product and returns no sign bounds when both are hidden', () => {
+  const model = new THREE.Group(), primary = new THREE.Group(), companion = new THREE.Group();
+  primary.name = 'primary-sign'; companion.name = 'companion-sign';
+  primary.add(boxMesh('extruded-letter-contours', [1800,350,60]));
+  const panel = boxMesh('panel-body', [550,550,80], [2200,0,300]); companion.add(panel); model.add(primary,companion);
+  primary.visible = false;
+  const focus = signFocusBounds(model), expected = new THREE.Box3().setFromObject(panel);
+  close(focus.min.distanceTo(expected.min),0,'Hidden letters cannot hijack the visible panel focus');
+  close(focus.max.distanceTo(expected.max),0,'Focus follows the physical panel');
+  companion.visible = false; assert.ok(signFocusBounds(model).isEmpty());
+});
+
 test('Zoom focus preserves the base target below 100% and progresses without a 150% threshold', () => {
   for (const zoom of [.25, .5, .8, 1, 0, -1, NaN, Infinity]) assert.equal(zoomFocusWeight(zoom), 0);
   let previous = 0;

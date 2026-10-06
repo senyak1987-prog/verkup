@@ -577,19 +577,10 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
           toY(layout.panelBox.y + layout.panelBox.height / 2), -project.acpDepth);
         backer.name = "acp-box"; group.add(backer);
       }
-      if (project.haloBackerEnabled && project.mountMode === "wall" &&
-        (project.glowMode === "faceHalo" || project.glowMode === "halo")) {
-        const backerShape = roundedShape(layout.haloBackerBox.width, layout.haloBackerBox.height, layout.haloBackerRadius);
-        const material = solidMaterial(project.haloBackerColor.value, night);
-        const backer = extrude(backerShape, 3, material, material);
-        backer.position.set(toX(layout.haloBackerBox.x + layout.haloBackerBox.width / 2),
-          toY(layout.haloBackerBox.y + layout.haloBackerBox.height / 2), 0.2);
-        group.add(backer);
-      }
       if (haloLit) {
         const halo = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.10);
         halo.position.x = toX(layout.signBox.x + layout.signBox.width / 2); halo.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
-        halo.position.z = project.haloBackerEnabled && project.mountMode === "wall" ? 3.8 : 0.4;
+        halo.position.z = 0.4;
         (halo.material as THREE.MeshBasicMaterial).opacity = 1;
         halo.name = "rear-halo-projection"; group.add(halo);
       }
