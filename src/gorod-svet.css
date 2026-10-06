@@ -383,3 +383,10 @@ main.public-sign-configurator.sign-studio .studio-empty-preview p { margin:0; ma
 main.public-sign-configurator.sign-studio .studio-empty-preview .studio-button { min-height:40px; background:#f6f8f5; border-color:#a3b4a9; color:#234a35; text-decoration:none; }
 main.public-sign-configurator.sign-studio .builder-preview.night .studio-empty-preview { color:#e7e7e7; }
 @media(max-width:767px) { main.public-sign-configurator.sign-studio .studio-project-actions button { min-height:40px; } }
+
+main.public-sign-configurator.sign-studio .studio-header .studio-reset-all { border-color:#d3bc84; background:#284c3c; color:#f5e4b2; }
+main.public-sign-configurator.sign-studio .facade-context-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:10px 20px; padding:9px 16px; background:#153f31; color:#e3eee6; font-size:11px; }
+main.public-sign-configurator.sign-studio .facade-context-toolbar label { display:inline-flex; align-items:center; gap:7px; min-height:32px; cursor:pointer; }
+main.public-sign-configurator.sign-studio .facade-context-toolbar input { width:16px; height:16px; accent-color:#d3bc84; }
+main.public-sign-configurator.sign-studio .facade-context-toolbar span { margin-left:auto; color:#b8cebf; }
+@media(max-width:767px) { main.public-sign-configurator.sign-studio .facade-context-toolbar { padding:7px 10px; gap:3px 14px; } main.public-sign-configurator.sign-studio .facade-context-toolbar label { min-height:40px; } main.public-sign-configurator.sign-studio .facade-context-toolbar span { width:100%; margin-left:0; } }

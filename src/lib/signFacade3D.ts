@@ -55,17 +55,17 @@ function wallGeometry(rects: FacadeRect[], anchor: { x: number; y: number }) {
 }
 
 export function createFacadeModel(place: SignPlacement, _signWidth: number, _signHeight: number,
-  options: FacadeOptions & { panelMount?: PanelFacadeMount } = {}, panelWallSurface = false) {
+  options: FacadeOptions & { panelMount?: PanelFacadeMount; frontSign?: boolean } = {}, panelWallSurface = false) {
   const group = new THREE.Group(); group.name = 'facade';
   if (options.panelMount) {
     const panel = options.panelMount;
     group.userData.panelMountMode = panel.mode;
     const wallShift = 4 + (place === 'canopy' ? 1500 : 0);
-    const front = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, true);
+    const front = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, !options.frontSign);
     front.position.z = wallShift;
     if (isPanelCornerMount(panel.mode)) {
       front.name = 'facade-front'; front.position.x = -3900;
-      const side = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, true);
+      const side = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, !options.frontSign);
       side.name = 'facade-side'; side.rotation.y = Math.PI / 2;
       side.position.set(wallShift, 0, -3900);
       const offset = front.userData.windowCount ?? 0;
@@ -175,4 +175,80 @@ export function createPanelMountContext(panel: PanelFacadeMount, palette: Facade
   } else addWall('panel-context-front-wall', span, thickness, 0, -thickness / 2);
   group.userData.panelMount = panelMountLayout(panel.size, panel.shape ?? 'square', panel.gap, panel.cornerRadius, panel.depth, panel.mode);
   return group;
+}
+
+/** Two independently sized products share one building and the same wall planes. */
+export function attachFacadePair(model: THREE.Group, companion: THREE.Group, primaryKind: string,
+  place: Exclude<SignPlacement, 'none'>, panel: PanelFacadeMount, frontWidth: number, frontHeight: number,
+  palette: FacadeOptions['palette'] = 'stone') {
+  const primary = new THREE.Group(); primary.name = 'primary-sign';
+  for (const child of [...model.children]) primary.add(child);
+  companion.name = 'companion-sign';
+  const frontSign = primaryKind === 'panel' ? companion : primary;
+  const panelSign = primaryKind === 'panel' ? primary : companion;
+  const pose = panelMountLayout(panel.size, panel.shape ?? 'square', panel.gap, panel.cornerRadius, panel.depth, panel.mode);
+  const facade = createFacadeModel(place, frontWidth, frontHeight, { palette, panelMount: pose, frontSign: true });
+  facade.updateWorldMatrix(true, true);
+  const wall = new THREE.Box3().setFromObject(facade.getObjectByName('facade-wall')!);
+  const surface = new THREE.Box3().setFromObject(facade.getObjectByName(place === 'canopy' ? 'facade-canopy-fascia' : 'facade-sign-mounting-band')!);
+  const frontBounds = new THREE.Box3().setFromObject(frontSign);
+  const centre = surface.getCenter(new THREE.Vector3());
+  frontSign.position.set(centre.x, centre.y, surface.max.z - frontBounds.min.z + 4);
+  panelSign.rotation.y = pose.rotationY;
+  panelSign.position.set(pose.position.x + (isPanelCornerMount(panel.mode) ? wall.max.x : wall.max.x - 600),
+    centre.y + pose.position.y, wall.max.z + pose.position.z);
+  panelSign.userData.mountMode = pose.mode;
+  model.add(primary, companion, facade);
+  if (primaryKind === 'panel') model.userData.panelPose = pose;
+  model.userData.contextProducts = [primaryKind, primaryKind === 'panel' ? 'letters' : 'panel'];
+  return facade;
+}
+
+export const SCALE_PERSON_HEIGHT_MM = 1750;
+
+/** A quiet, smooth silhouette with real millimetre dimensions, standing on the pavement. */
+export function createScalePerson(facade: THREE.Group, target: THREE.Vector3) {
+  const pavement = facade.getObjectByName('facade-pavement');
+  if (!pavement) return null;
+  facade.updateWorldMatrix(true, true);
+  const ground = new THREE.Box3().setFromObject(pavement);
+  const person = new THREE.Group(); person.name = 'scale-person';
+  person.userData.heightMm = SCALE_PERSON_HEIGHT_MM;
+  const material = new THREE.MeshStandardMaterial({ color: '#454b50', roughness: .94, metalness: 0, envMapIntensity: .25 });
+  material.userData.dayColor = material.color.clone();
+  const sphere = new THREE.SphereGeometry(1, 32, 24);
+  const add = (geometry: THREE.BufferGeometry, name: string, position: THREE.Vector3) => {
+    const mesh = new THREE.Mesh(geometry, material); mesh.name = name;
+    mesh.position.copy(position); mesh.castShadow = true; mesh.receiveShadow = true; person.add(mesh); return mesh;
+  };
+  const oval = (name: string, x: number, y: number, z: number, width: number, height: number, depth: number) => {
+    const mesh = add(sphere, name, new THREE.Vector3(x, y, z)); mesh.scale.set(width, height, depth); return mesh;
+  };
+  const limb = (name: string, start: THREE.Vector3, end: THREE.Vector3, radius: number) => {
+    const axis = end.clone().sub(start), length = axis.length();
+    const mesh = add(new THREE.CapsuleGeometry(radius, Math.max(0, length - 2 * radius), 8, 20), name, start.clone().add(end).multiplyScalar(.5));
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.normalize()); return mesh;
+  };
+  const torso = new THREE.Shape();
+  torso.moveTo(-43, 1515); torso.bezierCurveTo(-70, 1490, -174, 1480, -207, 1410);
+  torso.bezierCurveTo(-218, 1330, -165, 1150, -143, 1070); torso.quadraticCurveTo(-173, 975, -127, 905);
+  torso.lineTo(127, 905); torso.quadraticCurveTo(173, 975, 143, 1070);
+  torso.bezierCurveTo(165, 1150, 218, 1330, 207, 1410); torso.bezierCurveTo(174, 1480, 70, 1490, 43, 1515); torso.closePath();
+  add(new THREE.ExtrudeGeometry(torso, { depth: 180, curveSegments: 32, bevelEnabled: true, bevelThickness: 8, bevelSize: 8, bevelSegments: 4 }), 'person-torso', new THREE.Vector3(0, 0, -90));
+  oval('person-neck', 0, 1505, 0, 43, 82, 44);
+  oval('person-head', 0, 1635, 0, 97, 115, 94);
+  for (const side of [-1, 1]) {
+    limb('person-leg', new THREE.Vector3(side * 73, 940, 0), new THREE.Vector3(side * 88, 40, 0), 66);
+    oval('person-shoe', side * 88, 30, 50, 67, 30, 140);
+    limb('person-upper-arm', new THREE.Vector3(side * 201, 1400, 0), new THREE.Vector3(side * 245, 1100, 0), 65);
+    limb('person-forearm', new THREE.Vector3(side * 245, 1110, 0), new THREE.Vector3(side * 254, 842, 15), 46);
+    oval('person-hand', side * 254, 840, 15, 37, 65, 35);
+  }
+  person.position.set(THREE.MathUtils.clamp(target.x + 1100, ground.min.x + 350, ground.max.x - 350), ground.max.y, ground.max.z - 400);
+  const direction = target.clone().sub(person.position);
+  person.rotation.y = Math.atan2(direction.x, direction.z);
+  const eyeAngle = Math.atan2(target.y - person.position.y - 1635, Math.hypot(direction.x, direction.z));
+  oval('person-profile', 0, 1635 + 92 * Math.sin(eyeAngle), 92 * Math.cos(eyeAngle), 16, 17, 26);
+  person.userData.lookTarget = target.toArray(); person.userData.groundY = ground.max.y;
+  return person;
 }

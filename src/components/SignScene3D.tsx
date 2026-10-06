@@ -6,7 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { applySignLighting, buildSignModel, disposeSignObject } from "../lib/signSceneGeometry";
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { createFacadeModel, createPanelMountContext } from "../lib/signFacade3D";
+import { attachFacadePair, createFacadeModel, createPanelMountContext, createScalePerson } from "../lib/signFacade3D";
 import { DAYLIGHT_LEVELS, daylightSource } from "../lib/signDaylight";
 import { signFocusBounds, zoomFocusWeight } from "../lib/signCameraFocus";
 import type { DaylightMarker } from "../lib/signDaylight";
@@ -25,6 +25,8 @@ export type SignScene3DProps = {
   showDimensions: boolean;
   zoom: number;
   placement?: SignPlacement;
+  companion?: { project: SignSceneProject; width: number; height: number; depth: number };
+  showPerson?: boolean;
   onZoomChange?: (value: number) => void;
   resetKey?: number;
   onUnavailable?: () => void;
@@ -66,10 +68,13 @@ type SceneRuntime = {
   source: (marker: DaylightMarker) => void;
 };
 
-export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', onZoomChange, resetKey = 0, onUnavailable }: SignScene3DProps) {
+export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', companion, showPerson = true, onZoomChange, resetKey = 0, onUnavailable }: SignScene3DProps) {
   const geometryKey = JSON.stringify({ ...project, sceneMode: undefined, lightsOn:undefined });
   const modelProject = useMemo(() => ({ ...project, sceneMode: 'night' as const, lightsOn:true }), [geometryKey]);
   const lightsOnRef=useRef(project.lightsOn!==false);
+  const showPersonRef = useRef(showPerson); showPersonRef.current = showPerson;
+  const companionKey = companion ? JSON.stringify({ ...companion, project: { ...companion.project, sceneMode: undefined, lightsOn: undefined } }) : '';
+  const modelCompanion = useMemo(() => companion ? { ...companion, project: { ...companion.project, sceneMode: 'night' as const, lightsOn: true } } : undefined, [companionKey]);
   lightsOnRef.current=project.lightsOn!==false;
   const lightFraction = useRef(project.sceneMode === 'night' ? 1 : 0);
   const windowFraction = useRef(lightFraction.current);
@@ -277,7 +282,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
             : runtime.model.userData.placement === 'none' && panelPose ? new THREE.Vector3(-1, .15, .65) : new THREE.Vector3(.85, .12, 1);
           const direction = preserveOrbit
             ? camera.position.clone().sub(currentControls.target).normalize()
-            : front ? panelFront : (panelPose ? panelDefault : new THREE.Vector3(panelRef.current ? 0.68 : canopyView ? 0.55 : 0.3, canopyView ? 0.3 : 0.12, 1)).normalize();
+            : front ? panelFront : (panelPose ? panelDefault : runtime.model.userData.contextProducts
+              ? new THREE.Vector3(.75, .16, 1) : new THREE.Vector3(panelRef.current ? 0.68 : canopyView ? 0.55 : 0.3, canopyView ? 0.3 : 0.12, 1)).normalize();
           runtime.fitCenter.copy(center);
           const focus = center.clone().lerp(runtime.signAnchor, zoomFocusWeight(camera.zoom));
           currentControls.target.copy(focus);
@@ -345,6 +351,17 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     setLoading(true);
     // The facade keeps its physical scale; construction labels stay in the screen-pinned size bar.
     void buildSignModel(modelProject, layout, width, height, depth, showDimensions && placement === 'none').then(async(model) => {
+      if (modelCompanion && placement !== 'none') {
+        try {
+          const paired = await buildSignModel(modelCompanion.project, layout, modelCompanion.width, modelCompanion.height, modelCompanion.depth, false);
+          const panelProject = project.productId === 'panel' ? project : modelCompanion.project;
+          const frontWidth = project.productId === 'panel' ? modelCompanion.width : width;
+          const frontHeight = project.productId === 'panel' ? modelCompanion.height : height;
+          attachFacadePair(model, paired, project.productId, placement,
+            { mode: panelProject.panelMountMode ?? 'wall', size: panelProject.panelSize, depth: project.productId === 'panel' ? depth : modelCompanion.depth,
+              gap: panelProject.panelWallGap ?? 120, shape: panelProject.panelShape, cornerRadius: panelProject.panelCornerRadius }, frontWidth, frontHeight, project.facadePalette);
+        } catch (error) { disposeSignObject(model); throw error; }
+      }
       if(placement==='none'&&project.productId!=='panel'&&project.backdropImage&&/^data:image\/(png|jpeg|webp);base64,/.test(project.backdropImage)) {
         try {
           const texture=await new THREE.TextureLoader().loadAsync(project.backdropImage);
@@ -367,7 +384,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         runtime.scene.remove(runtime.model);
         disposeSignObject(runtime.model);
       }
-      if (project.productId === 'panel') {
+      if (!model.getObjectByName('facade') && project.productId === 'panel') {
         const pose = panelMountLayout(project.panelSize, project.panelShape, project.panelWallGap, project.panelCornerRadius, depth, project.panelMountMode ?? 'wall');
         const construction = new THREE.Group(); construction.name = 'panel-construction';
         for (const child of [...model.children]) construction.add(child);
@@ -377,12 +394,21 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         const panelMount = { mode: pose.mode, size: project.panelSize, depth, gap: pose.gap, shape: project.panelShape, cornerRadius: project.panelCornerRadius };
         model.add(placement === 'none' ? createPanelMountContext(panelMount, project.facadePalette)
           : createFacadeModel(placement, width, height, { palette: project.facadePalette, panelMount: pose }));
-      } else if (placement !== 'none') {
+      } else if (!model.getObjectByName('facade') && placement !== 'none') {
         const signBackMm = Math.max(0, -new THREE.Box3().setFromObject(model).min.z);
         model.add(createFacadeModel(placement, width, height, { palette: project.facadePalette, signBackMm }));
       }
+      const facade = model.getObjectByName('facade') as THREE.Group | undefined;
+      if (facade) {
+        const person = createScalePerson(facade, signFocusBounds(model).getCenter(new THREE.Vector3()));
+        if (person) { person.visible = showPersonRef.current; facade.add(person); }
+      }
       runtime.model = model;
-      if (hostRef.current) { hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId; }
+      if (hostRef.current) {
+        hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId;
+        hostRef.current.dataset.contextProducts = (model.userData.contextProducts ?? [project.productId]).join(',');
+        hostRef.current.dataset.scalePersonHeight = facade?.getObjectByName('scale-person') ? '1750' : '';
+      }
       runtime.scene.add(model);
       runtime.bounds.setFromObject(model);
       const focusBounds = signFocusBounds(model);
@@ -390,7 +416,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       else focusBounds.getCenter(runtime.signAnchor);
       runtime.source(sunMarkerRef.current);
       runtime.light(lightFraction.current, windowFraction.current, lightsOnRef.current);
-      runtime.frame(project.productId !== "panel" && placement !== 'canopy', preserveOrbit);
+      runtime.frame(!modelCompanion && project.productId !== "panel" && placement !== 'canopy', preserveOrbit);
       runtime.requestRender();
       setLoading(false);
     }).catch(() => {
@@ -399,7 +425,12 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       unavailableRef.current?.();
     });
     return () => { if (version === buildRef.current) buildRef.current++; };
-  }, [modelProject, layout, width, height, depth, showDimensions, placement, unavailable]);
+  }, [modelProject, modelCompanion, layout, width, height, depth, showDimensions, placement, unavailable]);
+
+  useEffect(() => {
+    const runtime = runtimeRef.current, person = runtime?.model?.getObjectByName('scale-person');
+    if (person) { person.visible = showPerson; runtime!.requestRender(); }
+  }, [showPerson]);
 
   useEffect(() => {
     const targetNight = project.sceneMode === "night";
@@ -494,13 +525,14 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           <ScanLine size={15} /><span>Спереди</span>
         </button>
         <button type="button" onClick={() => changeView(false)} title="Сбросить ракурс (R)" disabled={unavailable}>
-          <RotateCcw size={15} /><span>Сбросить</span>
+          <RotateCcw size={15} /><span>Сбросить ракурс</span>
         </button>
       </div>
       {loading && <div className="sign-scene-3d-status" role="status">Готовим объемную модель…</div>}
       {unavailable && <div className="sign-scene-3d-status" role="status">3D сейчас недоступно. Открываем плоский вид.</div>}
       {!loading && !unavailable && <p className="sign-scene-3d-hint">Перетащите для вращения · колесо или два пальца для масштаба</p>}
       <div className="sign-scene-3d-notices" aria-live="polite">
+        {placement !== 'none' && showPerson && <span className="scale-person-note">Человек 175 см · дверь 110 × 210 см</span>}
         {project.productId === "letters" && project.mountMode === "frame" && project.letterHeight > 550 &&
           <span>Рама 15 × 15 мм показана в масштабе. Для букв выше 550 мм профиль требует проверки.</span>}
       </div>

@@ -169,6 +169,16 @@ test('Zoom-out preserves the base camera target and high-zoom resize/orbit keeps
   }
 });
 
+test('A paired facade zooms toward its primary letters, excluding the companion panel and human', () => {
+  const model = new THREE.Group(), primary = new THREE.Group(), companion = new THREE.Group();
+  primary.name = 'primary-sign'; companion.name = 'companion-sign';
+  const letters = boxMesh('extruded-letter-row-0',[2000,400,60],[100,15,30]); primary.add(letters);
+  companion.add(boxMesh('panel-body',[160,550,550],[3200,15,395]));
+  model.add(primary,companion,boxMesh('scale-person',[500,1750,300],[1000,-2300,1500]));
+  const expected = new THREE.Box3().setFromObject(letters), actual = signFocusBounds(model);
+  close(actual.min.distanceTo(expected.min),0,'Focus excludes companion panel'); close(actual.max.distanceTo(expected.max),0,'Focus excludes the scale figure');
+});
+
 test('The dependency-free 2D pixel transform has the same progressive focus and unchanged zoom-out target', () => {
   for (const [viewport, anchor] of [[{ width: 1200, height: 800 }, { x: 580, y: 100 }], [{ width: 390, height: 340 }, { x: 195, y: 50 }], [{ width: 1000, height: 600 }, { x: 150, y: 120 }], [{ width: 1200, height: 800 }, { x: 900, y: 650 }]]) {
     const initial = { x: 2 * (anchor.x - viewport.width / 2) / viewport.width, y: 2 * (anchor.y - viewport.height / 2) / viewport.height };

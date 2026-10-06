@@ -403,8 +403,8 @@ function loadSavedProject(): ProjectState {
   } catch { return { ...DEFAULT_PROJECT }; }
 }
 
-function resetProjectSettings(current: ProjectState): ProjectState {
-  return { ...DEFAULT_PROJECT, productId: current.productId };
+function resetProjectSettings(): ProjectState {
+  return { ...DEFAULT_PROJECT };
 }
 
 function clearProjectArtwork(current: ProjectState): ProjectState {
@@ -429,7 +429,7 @@ export function SignProductConfigurator() {
   const [canUndo,setCanUndo] = useState(false);
   const [selectedNeonLine,setSelectedNeonLine] = useState(0);
   useEffect(() => { setSelectedNeonLine(index => Math.min(index, project.neonText.split('\n').length - 1)); }, [project.neonText]);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(true);
   const [layoutSelection, setLayoutSelection] = useState<LayoutObject>("composition");
   const layoutInteraction = useRef<"idle" | "start" | "active">("idle");
   useEffect(() => { if (!project.logoEnabled && layoutSelection === "logo") setLayoutSelection("composition"); }, [project.logoEnabled, layoutSelection]);
@@ -541,6 +541,8 @@ export function SignProductConfigurator() {
   const [fitSignal, setFitSignal] = useState(0);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [showDimensions, setShowDimensions] = useState(true);
+  const [showFacadePair, setShowFacadePair] = useState(true);
+  const [showScalePerson, setShowScalePerson] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const cart = useSignCart<ProjectState>();
   const latestProject = useRef(project);
@@ -557,7 +559,10 @@ export function SignProductConfigurator() {
     setLayoutSelection("composition"); setSelectedNeonLine(0); setActiveSection("design");
     setFitSignal(value => value + 1); setNotice(message);
   };
-  const handleResetSettings = () => replaceProjectWithUndo(resetProjectSettings(project), "Настройки сброшены. Действие можно отменить.");
+  const handleResetSettings = () => {
+    replaceProjectWithUndo(resetProjectSettings(), "Все изменения сброшены. Возвращены исходные параметры конструктора. Действие можно отменить.");
+    setShowDimensions(true); setShowFacadePair(true); setShowScalePerson(true); setCartOpen(false); setEditing(true);
+  };
   const handleClearLayout = () => replaceProjectWithUndo(clearProjectArtwork(project), "Макет очищен. Действие можно отменить.");
   useEffect(() => {
     const art = previewArtRef.current;
@@ -791,6 +796,11 @@ export function SignProductConfigurator() {
     : productId === "panel" ? panelSvgFaceBox(panelSize,clamp(project.panelWallGap,60,400),project.panelMountMode)
     : mountMode === "acp" ? lettersLayout.panelBox : lettersLayout.signBox;
   const signDepth = productId === "neon" ? (project.neonInstallMode==='hanging'?3:23) + project.neonDiameter : productId === "panel" ? project.panelDepth : letterDepth;
+  const companionScene = !showFacadePair || placement === 'none' ? undefined : productId === 'panel'
+    ? !fontPending && letterContours && !isProjectBlank({ ...project, productId: 'letters' })
+      ? { project: { ...project, productId: 'letters' as const }, width: mountMode === 'acp' ? acpWidth : measuredLettersWidth,
+          height: mountMode === 'acp' ? acpHeight : Math.round(lettersLayout.signBox.height), depth: letterDepth } : undefined
+    : { project: { ...project, productId: 'panel' as const }, width: panelSize, height: panelSize, depth: project.panelDepth };
   const panelMount=productId==='panel'?panelMountLayout(panelSize,panelShape,project.panelWallGap,project.panelCornerRadius,project.panelDepth,project.panelMountMode):undefined;
   const cartQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
   function handleAddToCart() {
@@ -933,6 +943,7 @@ export function SignProductConfigurator() {
         </a>
         <div className="studio-header-meta"><Check size={14} /><span role="status">{saveStatus}</span></div>
         <div className="studio-actions">
+          <button className="studio-button studio-reset-all" type="button" onClick={handleResetSettings} title="Сбросить надписи, изображения, размеры, материалы и настройки просмотра к исходным значениям"><RotateCcw size={16} /><span>Сбросить всё</span></button>
           <input hidden ref={projectFileRef} type="file" accept=".json,application/json" onChange={event => void handleOpenProject(event)} />
           <button className="studio-button" type="button" onClick={() => projectFileRef.current?.click()}><FolderOpen size={16} /><span>Открыть</span></button>
           <button className="studio-button" type="button" onClick={handleSaveProject}><Save size={16} /><span>Сохранить проект</span></button>
@@ -946,7 +957,7 @@ export function SignProductConfigurator() {
         catch { setNotice("Этот проект не удалось открыть. Остальные позиции корзины доступны."); }
       }} /></div>}
       {cart.error && !cartOpen && <div className="studio-notice" role="alert">{cart.error}<button type="button" aria-label="Закрыть ошибку корзины" onClick={cart.dismissError}><X size={16} /></button></div>}
-      <div className="studio-heading"><div><h1>Ваша вывеска. В деталях.</h1><p>Соберите макет и посмотрите, как он будет выглядеть днем и ночью.</p></div><span>Конструктор вывесок<ArrowUpRight size={16} /></span></div>
+      <div className="studio-heading"><div><h1>Конструктор вывесок</h1><p>Создайте макет с размерами. Затем примерьте вывеску и кронштейн на фасаде в 3D.</p></div><span>Город Свет<ArrowUpRight size={16} /></span></div>
       <section className="product-tabs" aria-label="Тип вывески">
         {[...PRODUCTS].reverse().map(product => <button type="button" key={product.id} aria-pressed={productId === product.id} className={productId === product.id ? "active" : ""} onClick={() => { setProductId(product.id); setActiveSection("design"); setZoom(100); }}>
           {product.id === "letters" ? <Type size={24} /> : <Maximize size={24} />}
@@ -958,7 +969,6 @@ export function SignProductConfigurator() {
         <aside className="builder-controls" id="studio-controls" aria-label="Настройки вывески">
           <header className="controls-heading"><h2>Настройте вывеску</h2><span>Все изменения — на макете</span></header>
           <div className="studio-project-actions" role="group" aria-label="Действия с макетом">
-            <button type="button" onClick={handleResetSettings}><RotateCcw size={14} />Сбросить настройки</button>
             <button type="button" onClick={handleClearLayout}><Eraser size={14} />Очистить макет</button>
             <button type="button" title="Отменить последнее изменение (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={14} />Отменить</button>
           </div>
@@ -1070,11 +1080,16 @@ export function SignProductConfigurator() {
             </div><div className="canvas-tools"><button type="button" aria-label="Уменьшить макет" disabled={zoom <= 25} onClick={() => setZoom(value => Math.max(25, value - 10))}><Minus size={16} /></button><span className="zoom-value" title="100% — масштаб после подгонки">{zoom}%</span><button type="button" aria-label="Увеличить макет" disabled={zoom >= 400} onClick={() => setZoom(value => Math.min(400, value + 10))}><Plus size={16} /></button><button type="button" aria-label="Подогнать макет" onClick={handleFitPreview}><Maximize size={16} /></button></div>
           </header>
           <div className="canvas-mode-toolbar">
-            <div className="view-switch" role="group" aria-label="Вид макета"><button type="button" aria-pressed={viewMode === "2d"} className={viewMode === "2d" ? "active" : ""} onClick={() => { setViewMode("2d"); setZoom(100); }}>2D</button><button type="button" aria-pressed={viewMode === "3d"} className={viewMode === "3d" ? "active" : ""} onClick={() => { setViewMode("3d"); setZoom(100); }}>3D · вращение</button></div>
+            <div className="view-switch" role="group" aria-label="Вид макета"><button type="button" aria-pressed={viewMode === "2d"} className={viewMode === "2d" ? "active" : ""} onClick={() => { setViewMode("2d"); setZoom(100); setPlacement('none'); setEditing(true); }}>Конструктор · 2D</button><button type="button" aria-pressed={viewMode === "3d"} className={viewMode === "3d" ? "active" : ""} onClick={() => { setViewMode("3d"); setZoom(100); setEditing(false); if (placement === 'none') setPlacement('windows'); }}>Примерка · 3D</button></div>
             {productId !== "panel" && viewMode === "2d" && <button className={"editor-toggle " + (editing ? "active" : "")} type="button" aria-pressed={editing} onClick={() => { setPlacement("none"); setEditing(!editing); }}>Редактировать макет</button>}
             <label className="placement-select"><span>Размещение</span><select aria-label="Размещение в основном просмотре" value={placement} onChange={e=>{setPlacement(e.target.value as SignPlacement);setEditing(false);}}>{SIGN_PLACEMENTS.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
             <label className="dimensions-toggle"><input type="checkbox" checked={showDimensions} onChange={event => setShowDimensions(event.target.checked)} />Размеры</label>
           </div>
+          {viewMode === '3d' && placement !== 'none' && <div className="facade-context-toolbar" role="group" aria-label="Общий вид фасада">
+            <label><input type="checkbox" checked={showFacadePair} onChange={event => setShowFacadePair(event.target.checked)} />{productId === 'neon' ? 'Неон + кронштейн' : 'Вывеска + кронштейн'}</label>
+            <label><input type="checkbox" checked={showScalePerson} onChange={event => setShowScalePerson(event.target.checked)} />Человек 175 см</label>
+            <span>Параметры каждого изделия — в его вкладке</span>
+          </div>}
           {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar layout-alignment-toolbar" aria-label="Выбор и выравнивание объектов макета">
             <button className="layout-pack-button" type="button" title="Собрать логотип и надпись в ряд с обычным промежутком и центрировать по обеим осям" disabled={fontPending} onClick={packLayout}>Собрать и центрировать</button>
             <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => setLayoutSelection(event.target.value as LayoutObject)}><option value="text">Все строки</option>{lineSettings.filter(row=>row.text.trim()).map(row=><option key={row.index} value={`line-${row.index}`}>Строка {row.index+1}</option>)}<option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
@@ -1101,7 +1116,7 @@ export function SignProductConfigurator() {
           {blankSign ? <div className="studio-empty-preview" role="status"><Type size={34} aria-hidden="true" /><strong>Макет пуст</strong>
             <p>{productId === "neon" ? "Добавьте надпись или фигуру в настройках." : "Добавьте надпись или логотип в настройках."}</p>
             <a className="studio-button" href="#studio-controls" onClick={() => setActiveSection("design")}>Добавить надпись</a>
-          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
+          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showPerson={showScalePerson} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
             {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
               <PanelPreview
                 lightsOn={project.lightsOn}
