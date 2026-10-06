@@ -373,3 +373,17 @@ main.public-sign-configurator.sign-studio .facade-svg-render.windows-lit [data-w
 @media(prefers-reduced-motion:reduce) {
   main.public-sign-configurator.sign-studio .facade-svg-render [data-window-light] { transition:none; }
 }
+
+main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.day,
+main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.night { background:linear-gradient(145deg,#e2e7e9,#bec9ce); }
+main.public-sign-configurator.sign-studio .editor-toolbar .layout-object-select select { min-height:32px; min-width:145px; padding:5px 9px; border:1px solid #8aa58f; border-radius:4px; background:#f5f8f1; color:#184833; font:inherit; font-size:11px; }
+main.public-sign-configurator.sign-studio .editor-toolbar .alignment-actions { display:flex; align-items:center; gap:4px; }
+main.public-sign-configurator.sign-studio .editor-toolbar .alignment-reference { color:#d4e2d7; font-size:10px; }
+main.public-sign-configurator.sign-studio .editor-toolbar :is(button,select):focus-visible { outline:2px solid #f2d678; outline-offset:2px; }
+@media(max-width:767px) { main.public-sign-configurator.sign-studio .editor-toolbar .layout-object-select select { min-height:40px; min-width:135px; } main.public-sign-configurator.sign-studio .editor-toolbar .alignment-actions button { min-height:40px; } }
+
+main.public-sign-configurator.sign-studio .editor-toolbar .layout-object-select { color:#e8eee8; }
+main.public-sign-configurator.sign-studio .editor-toolbar .alignment-actions button { display:inline-flex; align-items:center; justify-content:center; gap:4px; }
+
+main.public-sign-configurator.sign-studio .editor-toolbar .layout-pack-button { display:inline-flex; align-items:center; gap:5px; background:#f2dda1; border-color:#d7b56d; color:#233e2d; font-weight:650; }
+@media(max-width:767px) { main.public-sign-configurator.sign-studio .editor-toolbar .layout-pack-button { min-height:40px; } }
