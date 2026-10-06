@@ -15,8 +15,9 @@ function load(name, dependencies = {}) {
   return exports;
 }
 
-const facade = load('signFacade');
-const scene = load('signFacade3D', { three: THREE, './signFacade': facade });
+const panelMount = load('panelConstruction');
+const facade = load('signFacade', { './panelConstruction': panelMount });
+const scene = load('signFacade3D', { three: THREE, './signFacade': facade, './panelConstruction': panelMount });
 const places = facade.SIGN_PLACEMENTS.filter(place => place.id !== 'none');
 const dimensions = [[600, 180], [1800, 300], [5000, 300], [1200, 800]];
 const close = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < .01, `${message}: ${actual} != ${expected}`);
