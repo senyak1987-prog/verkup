@@ -36,6 +36,7 @@ jobs:
           npm run test:neon-curves
           npm run test:facade-models
           npm run test:scene-lighting
+          npm run test:daylight
       - name: Build site
         env:
           VITE_SAVE_API_URL: ${{ vars.VITE_SAVE_API_URL }}
