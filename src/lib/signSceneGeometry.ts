@@ -11,6 +11,10 @@ export type SignSceneProject = {
   productId: "panel" | "letters" | "neon";
   neonText?: string; neonFont?: string; neonHeight?: number; neonDiameter?: number; neonColor?: string;
   neonBackerShape?: string; neonBrightness?: number; neonAlign?: string;
+  lightsOn?: boolean; facadePalette?: 'stone'|'brick'|'charcoal';
+  backdropImage?: string; backdropWidth?: number;
+  neonBackerColor?: 'clear'|'white'|'black'; neonInstallMode?: 'standoffs'|'hanging'; neonKeepAspect?:boolean; neonTargetWidth?:number;
+  neonLineFonts?: string[]; neonLineColors?:string[]; neonLineScales?:number[]; neonLineOffsets?:{x:number;y:number}[]; neonIcon?:string;
   sceneMode: "day" | "night";
   panelShape: "circle" | "square" | "rounded";
   panelSize: number;
@@ -480,20 +484,25 @@ export function disposeSignObject(object: THREE.Object3D) {
   object.clear();
 }
 
-export function applySignLighting(group: THREE.Object3D, night: number) {
+export function applySignLighting(group: THREE.Object3D, night: number, lightsOn = true) {
+  const on = lightsOn ? 1 : 0;
   group.traverse(child => {
     const mesh = child as THREE.Mesh;
     if (!mesh.material) return;
     for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
       const lit = material as THREE.MeshStandardMaterial;
       if (lit.emissive) {
-        lit.emissiveIntensity = (material.userData.maxEmission ?? 0) * night;
-        if (material.userData.dayColor) lit.color.copy(material.userData.dayColor).multiplyScalar(1 - night * .28);
+        lit.emissiveIntensity = material.userData.facadeEmission
+          ? (material.userData.maxEmission ?? 0) * night
+          : material.userData.neonEmission !== undefined
+            ? material.userData.neonEmission * (.35 + .65 * night) * on
+            : (material.userData.maxEmission ?? 0) * (.12 + .88 * night) * on;
       }
-      if (material.userData.lightOpacity !== undefined) material.opacity = material.userData.lightOpacity * night;
-      if (material.userData.neonCore) material.opacity = .25 + night * .55 * (material.userData.neonBrightness??1);
-      if (material.userData.neonAura) material.opacity = night * .055;
-      if (child instanceof THREE.Sprite) (material as THREE.SpriteMaterial).color.set('#1b4635').lerp(new THREE.Color('#ffffff'), night);
+      if (material.userData.dayColor && lit.color) lit.color.copy(material.userData.dayColor).multiplyScalar(1 - night * (material.userData.photoBackdrop ? .7 : .28));
+      if (material.userData.lightOpacity !== undefined) material.opacity = material.userData.lightOpacity * night * on;
+      if (material.userData.neonCore) material.opacity = on * (.25 + night * .55) * (material.userData.neonBrightness??1);
+      if (material.userData.neonAura) material.opacity = night * .055 * on;
+      if (child instanceof THREE.Sprite) (material as THREE.SpriteMaterial).color.set('#45515e').lerp(new THREE.Color('#ffffff'), night);
     }
   });
 }

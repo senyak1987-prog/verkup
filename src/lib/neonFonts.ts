@@ -29,7 +29,19 @@ export function sampleStrokePath(d:string):StrokePoint[][] {
     else if(cmd==='V')add([origin[0],number()+(relative?origin[1]:0)]);
     else if(cmd==='C'||cmd==='Q') {
       const a=pair(),b=pair(),c=cmd==='C'?pair():b;
-      for(let step=1;step<=16;step++) {const t=step/16,u=1-t;add(cmd==='C'?[u*u*u*origin[0]+3*u*u*t*a[0]+3*u*t*t*b[0]+t*t*t*c[0],u*u*u*origin[1]+3*u*u*t*a[1]+3*u*t*t*b[1]+t*t*t*c[1]]:[u*u*origin[0]+2*u*t*a[0]+t*t*b[0],u*u*origin[1]+2*u*t*a[1]+t*t*b[1]]);}
+      // Subdivide according to curvature: a long straight stem needs two points,
+      // while a small handwriting loop must not turn into sixteen sharp chords.
+      const controls:StrokePoint[]=cmd==='C'?[origin,a,b,c]:[origin,a,b];
+      const flatten=(points:StrokePoint[],depth:number)=>{
+        const first=points[0],last=points[points.length-1],dx=last[0]-first[0],dy=last[1]-first[1],chord=Math.hypot(dx,dy);
+        const error=Math.max(...points.slice(1,-1).map(p=>chord?Math.abs(dx*(first[1]-p[1])-(first[0]-p[0])*dy)/chord:Math.hypot(p[0]-first[0],p[1]-first[1])));
+        const polygon=points.reduce((sum,p,index)=>sum+(index?Math.hypot(p[0]-points[index-1][0],p[1]-points[index-1][1]):0),0);
+        if(depth>=12||(error<=.15&&polygon-chord<=.15)){add(last);return;}
+        const left:StrokePoint[]=[first],right:StrokePoint[]=[last];let level=points;
+        while(level.length>1){level=level.slice(0,-1).map((p,index)=>[(p[0]+level[index+1][0])/2,(p[1]+level[index+1][1])/2] as StrokePoint);left.push(level[0]);right.unshift(level[level.length-1]);}
+        flatten(left,depth+1);flatten(right,depth+1);
+      };
+      flatten(controls,0);
     } else if(cmd==='Z'){add(start);command='';}
     else throw new Error('Неподдерживаемый контур однолинейного шрифта.');
   }
