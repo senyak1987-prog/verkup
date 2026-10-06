@@ -44,7 +44,7 @@ export function createPanelSvgMarkup(config: PanelSvgConfig) {
 <svg xmlns="http://www.w3.org/2000/svg" width="${n(viewWidth)}" height="${n(viewHeight)}" viewBox="0 0 ${n(viewWidth)} ${n(viewHeight)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Двусторонняя панель-кронштейн на двух консолях, вид спереди">
   <defs><clipPath id="panel-face-clip">${geometry("#fff", mount.rim)}</clipPath>
     <filter id="panel-face-light" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="${n(size * 0.025)}" flood-color="${escape(config.faceColor)}" flood-opacity="0.55" /></filter></defs>
-  <g id="panel-wall"><rect x="${n(wallX - 24)}" y="${n(faceY - 10)}" width="24" height="${n(size + 20)}" fill="${night ? "#53616b" : "#a5afb4"}" /><line x1="${n(wallX)}" x2="${n(wallX)}" y1="${n(faceY - 10)}" y2="${n(faceY + size + 10)}" stroke="${night ? "#89969e" : "#74848f"}" stroke-width="2" /></g>
+
   <g id="wall-bracket">${brackets}</g>
   <g id="panel-face"${night ? ' filter="url(#panel-face-light)"' : ""}>${geometry(escape(config.sideColor))}${geometry(escape(config.faceColor), mount.rim)}${artwork}</g>
   ${dimensions}

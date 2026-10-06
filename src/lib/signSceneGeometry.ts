@@ -1,12 +1,14 @@
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { loadLetterContours } from "./letterContours";
+import { createNeonModel } from "./neonScene";
 import { panelConstruction } from "./panelConstruction";
 
 type SceneColor = { value: string };
 export type SignSceneBox = { x: number; y: number; width: number; height: number };
 export type SignSceneProject = {
-  productId: "panel" | "letters";
+  productId: "panel" | "letters" | "neon";
+  neonText?: string; neonFont?: string; neonHeight?: number; neonDiameter?: number; neonColor?: string;
   sceneMode: "day" | "night";
   panelShape: "circle" | "square" | "rounded";
   panelSize: number;
@@ -92,11 +94,13 @@ function logoShape(shapeName: string, size: number) {
 function solidMaterial(color: string, night: boolean, emissive = false) {
   const value = new THREE.Color(color);
   if (night && !emissive) value.multiplyScalar(0.55);
-  return new THREE.MeshStandardMaterial({
+  const material = new THREE.MeshStandardMaterial({
     color: value, roughness: emissive ? 0.28 : 0.46, metalness: 0.08,
     emissive: emissive ? new THREE.Color(color) : new THREE.Color(0),
-    emissiveIntensity: emissive ? 2.4 : 0,
+    emissiveIntensity: emissive ? 1.4 : 0,
   });
+  material.userData.dayColor = new THREE.Color(color);
+  return material;
 }
 
 function extrude(shapes: THREE.Shape | THREE.Shape[], depth: number, face: THREE.Material, side: THREE.Material,
@@ -201,14 +205,20 @@ function addDimension(group: THREE.Group, start: THREE.Vector3, end: THREE.Vecto
 }
 
 type GlyphData = { pathData: string; box: { x1: number; y1: number; x2: number; y2: number }; shapes: THREE.Shape[] };
+const glyphCache = new Map<string, GlyphData>();
 async function glyphData(project: SignSceneProject, layout: SignSceneLayout): Promise<GlyphData> {
   const contours = layout.textPathData && layout.textNaturalBox
     ? { pathData: layout.textPathData, mainBox: layout.textNaturalBox }
     : await loadLetterContours(project.letterFont, project.lettersText);
   const box = contours.mainBox;
+  const key = contours.pathData + JSON.stringify(box);
+  const cached = glyphCache.get(key); if (cached) return cached;
   const data = new SVGLoader().parse('<svg xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="' + contours.pathData + '" /></svg>');
-  return { pathData: contours.pathData, box: { x1: box.x, y1: box.y, x2: box.x + box.width, y2: box.y + box.height },
+  const result = { pathData: contours.pathData, box: { x1: box.x, y1: box.y, x2: box.x + box.width, y2: box.y + box.height },
     shapes: data.paths.flatMap(shapePath => shapePath.toShapes()) };
+  if (glyphCache.size >= 24) glyphCache.delete(glyphCache.keys().next().value!);
+  glyphCache.set(key, result);
+  return result;
 }
 
 function lightProjection(project: SignSceneProject, layout: SignSceneLayout,
@@ -264,8 +274,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
   const haloLit = night && (project.glowMode === "faceHalo" || project.glowMode === "halo");
   const faceColor = project.productId === "panel" ? project.panelFaceColor.value : project.letterFaceColor.value;
   const sideColor = project.productId === "panel" ? project.panelSideColor.value : project.letterSideColor.value;
-  const face = night ? solidMaterial(faceColor, night, faceLit)
-    : new THREE.MeshBasicMaterial({ color: faceColor, toneMapped: false });
+  const face = solidMaterial(faceColor, night, faceLit);
   const side = solidMaterial(sideColor, night, sideLit);
   if (sideLit) {
     side.emissive.set(sideColor).lerp(new THREE.Color(faceColor), 0.78);
@@ -276,7 +285,15 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
   dimensionGroup.name = "dimensions";
   const dimensionScale = Math.max(150, height);
   try {
-    if (project.productId === "panel") {
+    if (project.productId === "neon") {
+      const neon = createNeonModel(project, width, height); group.add(neon);
+      if (showDimensions) {
+        const offset = Math.max(55, height * .2), z = 35;
+        addDimension(dimensionGroup, new THREE.Vector3(-width/2,-height/2-offset,z), new THREE.Vector3(width/2,-height/2-offset,z), Math.round(width)+" мм", new THREE.Vector3(0,-height/2-offset*1.5,z), dimensionScale,night);
+        addDimension(dimensionGroup, new THREE.Vector3(-width/2-offset,-height/2,z), new THREE.Vector3(-width/2-offset,height/2,z), Math.round(height)+" мм", new THREE.Vector3(-width/2-offset*1.8,0,z),dimensionScale*.85,night);
+      }
+      face.dispose(); side.dispose();
+    } else if (project.productId === "panel") {
       const size = project.panelSize;
       const mount = panelConstruction(size, project.panelShape, project.panelWallGap, project.panelCornerRadius);
       const shape = project.panelShape === "circle" ? logoShape("circle", size) : roundedShape(size, size, mount.radius);
@@ -326,8 +343,9 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       }
     } else {
       const glyph = await glyphData(project, layout);
-      const centerX = layout.signBox.x + layout.signBox.width / 2;
-      const centerY = layout.signBox.y + layout.signBox.height / 2;
+      const referenceBox = project.mountMode === "acp" ? layout.panelBox : layout.signBox;
+      const centerX = referenceBox.x + referenceBox.width / 2;
+      const centerY = referenceBox.y + referenceBox.height / 2;
       const toX = (x: number) => x - centerX;
       const toY = (y: number) => centerY - y;
       const textWidth = layout.textWidth ?? Math.max(1, layout.signBox.x + layout.signBox.width - layout.textX);
@@ -383,7 +401,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
           toY(layout.panelBox.y + layout.panelBox.height / 2), -project.acpDepth);
         backer.name = "acp-box"; group.add(backer);
       }
-      if (project.haloBackerEnabled && project.mountMode !== "frame" &&
+      if (project.haloBackerEnabled && project.mountMode === "wall" &&
         (project.glowMode === "faceHalo" || project.glowMode === "halo")) {
         const backerShape = roundedShape(layout.haloBackerBox.width, layout.haloBackerBox.height, layout.haloBackerRadius);
         const material = solidMaterial(project.haloBackerColor.value, night);
@@ -394,12 +412,14 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       }
       if (haloLit) {
         const halo = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.10);
-        halo.position.z = project.haloBackerEnabled && project.mountMode !== "frame" ? 3.8 : 0.4;
+        halo.position.x = toX(layout.signBox.x + layout.signBox.width / 2); halo.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
+        halo.position.z = project.haloBackerEnabled && project.mountMode === "wall" ? 3.8 : 0.4;
         (halo.material as THREE.MeshBasicMaterial).opacity = 1;
         halo.name = "rear-halo-projection"; group.add(halo);
       }
       if (faceLit) {
         const aura = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.02);
+        aura.position.x = toX(layout.signBox.x + layout.signBox.width / 2); aura.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
         aura.position.z = rear + modelDepth + 0.75;
         (aura.material as THREE.MeshBasicMaterial).opacity = 0.22;
         aura.name = "face-light-aura"; group.add(aura);
@@ -422,6 +442,15 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       }
     }
     if (showDimensions) group.add(dimensionGroup);
+    group.traverse(child => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.material) return;
+      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        const lit = material as THREE.MeshStandardMaterial;
+        if (lit.emissive) { material.userData.maxEmission = lit.emissiveIntensity; material.userData.dayColor ??= lit.color.clone(); }
+        if (child.name === 'rear-halo-projection' || child.name === 'face-light-aura') material.userData.lightOpacity = material.opacity;
+      }
+    });
     return group;
   } catch (error) {
     disposeSignObject(group);
@@ -447,4 +476,22 @@ export function disposeSignObject(object: THREE.Object3D) {
   geometries.forEach((geometry) => geometry.dispose());
   materials.forEach((material) => material.dispose());
   object.clear();
+}
+
+export function applySignLighting(group: THREE.Object3D, night: number) {
+  group.traverse(child => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.material) return;
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      const lit = material as THREE.MeshStandardMaterial;
+      if (lit.emissive) {
+        lit.emissiveIntensity = (material.userData.maxEmission ?? 0) * night;
+        if (material.userData.dayColor) lit.color.copy(material.userData.dayColor).multiplyScalar(1 - night * .28);
+      }
+      if (material.userData.lightOpacity !== undefined) material.opacity = material.userData.lightOpacity * night;
+      if (material.userData.neonCore) material.opacity = .25 + night * .55;
+      if (material.userData.neonAura) material.opacity = night * .055;
+      if (child instanceof THREE.Sprite) (material as THREE.SpriteMaterial).color.set('#1b4635').lerp(new THREE.Color('#ffffff'), night);
+    }
+  });
 }

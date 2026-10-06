@@ -1,6 +1,7 @@
 import { parse, Path } from "opentype.js";
 import type { Font, RenderOptions } from "opentype.js";
 import { serializeGlyphPath } from "./glyphPath";
+import { systemFontContours } from "./systemFontContours";
 
 export const SIGN_FONTS = [
   { label: "Manrope · современный", value: "Manrope, sans-serif", file: "Manrope-Variable.ttf", weight: 800 },
@@ -17,16 +18,20 @@ export const SIGN_FONTS = [
   { label: "Roboto Slab · брусковый", value: '"Roboto Slab", serif', file: "RobotoSlab-Variable.ttf", weight: 800 },
   { label: "Playfair Display · классический", value: '"Playfair Display", serif', file: "PlayfairDisplay-Variable.ttf", weight: 800 },
   { label: "Yeseva One · декоративный", value: '"Yeseva One", serif', file: "YesevaOne-Regular.ttf", weight: 400 },
+  { label: "Arial · системный", value: "Arial, sans-serif", file: "", weight: 700 },
+  { label: "Arial Black · системный", value: '"Arial Black", sans-serif', file: "", weight: 900 },
 ] as const;
 
 export type LetterContours = {
   pathData: string;
   inkBox: { x: number; y: number; width: number; height: number };
   mainBox: { x: number; y: number; width: number; height: number };
+  lineFactor?: number;
 };
 const fonts = new Map<string, Promise<Font>>();
 export function resolveSignFont(value: string) {
-  return SIGN_FONTS.find(item => value.toLowerCase().includes(item.value.split(",")[0].replace(/"/g, "").toLowerCase())) ?? SIGN_FONTS[0];
+  const family = value.split(',')[0].replace(/"/g, '').trim().toLowerCase();
+  return SIGN_FONTS.find(item => family === item.value.split(',')[0].replace(/"/g, '').toLowerCase()) ?? SIGN_FONTS[0];
 }
 
 export function fontLetterPath(font: Font, text: string, weight: number): Path {
@@ -63,8 +68,32 @@ export function contoursFromFont(font: Font, text: string, weight: number): Lett
   };
 }
 
+const contourCache = new Map<string, LetterContours>();
+export function combineLetterLines(lines: LetterContours[]): LetterContours {
+  if (lines.length === 1) return lines[0];
+  const lineHeight = Math.max(...lines.map(line => line.mainBox.height));
+  const width = Math.max(...lines.map(line => line.mainBox.width));
+  let minY = Infinity, maxY = -Infinity;
+  const pathData = lines.map((line, index) => {
+    const dx = (width - line.mainBox.width) / 2 - line.mainBox.x;
+    const dy = index * lineHeight * 1.35 - line.mainBox.y;
+    minY = Math.min(minY, line.inkBox.y + dy); maxY = Math.max(maxY, line.inkBox.y + line.inkBox.height + dy);
+    return line.pathData.replace(/([MLQC])([^MLQCZ]+)/g, (_all, command: string, numbers: string) => {
+      const values = numbers.trim().split(/[\s,]+/).map(Number);
+      return command + values.map((n, i) => Number((n + (i % 2 ? dy : dx)).toFixed(3))).join(' ');
+    });
+  }).join('');
+  return { pathData, mainBox: { x: 0, y: 0, width, height: lineHeight * (1 + (lines.length - 1) * 1.35) },
+    inkBox: { x: 0, y: minY, width, height: maxY - minY }, lineFactor: 1 + (lines.length - 1) * 1.35 };
+}
 export async function loadLetterContours(value: string, text: string): Promise<LetterContours> {
   const selected = resolveSignFont(value);
+  const cacheKey = selected.value + '|' + text.normalize('NFC');
+  const cached = contourCache.get(cacheKey); if (cached) return cached;
+  let result: LetterContours;
+  const lines = text.split('\n').slice(0, 2);
+  if (!selected.file) result = combineLetterLines(lines.map(line => systemFontContours(selected.value.split(',')[0].replace(/"/g, ''), line, selected.weight)));
+  else {
   if (!fonts.has(selected.file)) {
     const pending = fetch(import.meta.env.BASE_URL + "fonts/" + selected.file).then(async response => {
       if (!response.ok) throw new Error("Не удалось загрузить шрифт. Проверьте соединение и попробуйте ещё раз.");
@@ -72,5 +101,10 @@ export async function loadLetterContours(value: string, text: string): Promise<L
     }).catch(error => { fonts.delete(selected.file); throw error; });
     fonts.set(selected.file, pending);
   }
-  return contoursFromFont(await fonts.get(selected.file)!, text, selected.weight);
+    const font = await fonts.get(selected.file)!;
+    result = combineLetterLines(lines.map(line => contoursFromFont(font, line, selected.weight)));
+  }
+  if (contourCache.size >= 80) contourCache.delete(contourCache.keys().next().value!);
+  contourCache.set(cacheKey, result);
+  return result;
 }
