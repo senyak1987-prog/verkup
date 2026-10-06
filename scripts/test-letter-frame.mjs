@@ -162,7 +162,7 @@ test('Wall-mounted letters never gain a plate without an explicit contour path',
 test('Контурная подложка имеет толщину 3 мм и появляется только при контражуре и включённой опции',async()=>{
   const box={x:0,y:0,width:1000,height:300};
   const row={id:'line-0',index:0,font:'test',text:'A',box,pathBox:box,pathData:'M0 0L1000 0L1000 300L0 300Z',naturalBox:box};
-  const project={productId:'letters',sceneMode:'day',letterHeight:300,letterDepth:50,mountMode:'wall',logoEnabled:false,
+  const project={productId:'letters',sceneMode:'day',letterHeight:300,letterDepth:50,mountMode:'frame',logoEnabled:false,
     letterFaceColor:{value:'#ffffff'},letterSideColor:{value:'#222222'},haloBackerColor:{value:'#888888'}};
   const path='M-20 0Q-20 -20 0 -20L1000 -20Q1020 -20 1020 0L1020 300Q1020 320 1000 320L0 320Q-20 320 -20 300Z';
   const layout={textRows:[row],signBox:box,textX:0,textTop:0,textWidth:1000,textHeight:300,haloBackerPath:path};
@@ -170,8 +170,8 @@ test('Контурная подложка имеет толщину 3 мм и п
     const model=await scene.buildSignModel({...project,glowMode:mode,haloBackerEnabled:enabled},layout,1000,300,50,false);
     const plate=model.getObjectByName('halo-contour-backer');
     assert.equal(Boolean(plate),enabled&&['halo','faceHalo'].includes(mode));
-    if(plate){const bounds=new THREE.Box3().setFromObject(plate);assert.ok(Math.abs(bounds.getSize(new THREE.Vector3()).z-3)<.00001);
-      assert.equal(bounds.min.x,-520);assert.equal(bounds.max.x,520);assert.equal(bounds.min.y,-170);assert.equal(bounds.max.y,170);}
+    if(plate){const letter=model.getObjectByName('extruded-letter-row-0');const bodyBounds=new THREE.Box3().setFromObject(letter);assert.equal(bodyBounds.min.z,28);assert.equal(bodyBounds.max.z,65);const bounds=new THREE.Box3().setFromObject(plate);assert.ok(Math.abs(bounds.getSize(new THREE.Vector3()).z-3)<.00001);
+      assert.equal(bounds.min.z,15);assert.equal(bounds.max.z,18);assert.equal(plate.userData.mount,"frame");assert.equal(bounds.min.x,-520);assert.equal(bounds.max.x,520);assert.equal(bounds.min.y,-170);assert.equal(bounds.max.y,170);}
     scene.disposeSignObject(model);
   }
 });
