@@ -21,6 +21,7 @@ import { createFacadeSvg, SIGN_PLACEMENTS } from "../lib/signFacade";
 import type { FacadeSignBox, SignPlacement } from "../lib/signFacade";
 import { loadNeonFont } from "../lib/neonFonts";
 import { NEON_FONTS } from "../lib/neonConstruction";
+import { SCENE_LIGHTING_TIMING } from "../lib/sceneLighting";
 import { SignCart } from "./SignCart";
 
 const SignScene3D = lazy(() => import("./SignScene3D"));
@@ -1460,8 +1461,21 @@ function SvgMarkupPreview({ className, markup, children }: { className: string; 
   const host = useRef<HTMLDivElement>(null);
   const prior = useRef(markup);
   const [previous, setPrevious] = useState('');
+  const facadeNight = /data-facade-night="true"/.test(markup);
+  const lastWindowMode = useRef(facadeNight);
+  const [windowsLit, setWindowsLit] = useState(facadeNight);
   useEffect(() => {
-    const isNight = (value: string) => /ночной|#d5e8e1/.test(value);
+    if (lastWindowMode.current === facadeNight) return;
+    lastWindowMode.current = facadeNight;
+    if (!facadeNight || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setWindowsLit(facadeNight); return;
+    }
+    setWindowsLit(false);
+    const timer = window.setTimeout(() => setWindowsLit(true), SCENE_LIGHTING_TIMING.windowsDelayMs);
+    return () => window.clearTimeout(timer);
+  }, [facadeNight]);
+  useEffect(() => {
+    const isNight = (value: string) => /data-facade-night="true"|ночной|#d5e8e1/.test(value);
     const kind = (value:string)=>value.match(/aria-label="([^"]+)"/)?.[1];
     if (kind(prior.current)===kind(markup) && isNight(prior.current) !== isNight(markup) && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       setPrevious(prior.current);
@@ -1493,7 +1507,7 @@ function SvgMarkupPreview({ className, markup, children }: { className: string; 
     observer.observe(element);
     return () => observer.disconnect();
   }, [markup]);
-  return <div className={className} ref={host}>
+  return <div className={className + (windowsLit ? " windows-lit" : " windows-dark")} ref={host} data-window-lights={windowsLit ? "on" : "off"}>
     <div className="studio-svg-layer" dangerouslySetInnerHTML={{ __html: markup }} />
     {previous && <div className="studio-svg-layer studio-svg-previous" aria-hidden="true" dangerouslySetInnerHTML={{__html:previous.replace(/id="([^"]+)"/g, (_a,id:string)=>`id="previous-${id}"`).replace(/url\(#([^\)]+)\)/g, (_a,id:string)=>`url(#previous-${id})`)}}/>}
     {children}
