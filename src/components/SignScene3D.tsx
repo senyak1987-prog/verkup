@@ -196,6 +196,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const panelPose = runtime.model.userData.panelPose as ReturnType<typeof panelMountLayout> | undefined;
           const panelFront = panelPose ? new THREE.Vector3(Math.sin(panelPose.rotationY), 0, Math.cos(panelPose.rotationY)) : new THREE.Vector3(0, 0, 1);
           const panelDefault = panelPose?.mode === 'corner' ? new THREE.Vector3(.3, .18, 1)
+            : panelPose?.mode === 'corner-front' ? new THREE.Vector3(.8, .18, 1)
+            : panelPose?.mode === 'corner-side' ? new THREE.Vector3(1, .18, .8)
             : runtime.model.userData.placement === 'none' && panelPose ? new THREE.Vector3(-1, .15, .65) : new THREE.Vector3(.85, .12, 1);
           const direction = preserveOrbit
             ? camera.position.clone().sub(currentControls.target).normalize()

@@ -1,12 +1,13 @@
-import { panelMountLayout, panelMountPoint } from "./panelConstruction";
+import { panelMountLayout, panelMountPoint, isPanelCornerMount } from "./panelConstruction";
+import type { PanelMountMode } from "./panelConstruction";
 
 export type PanelSvgConfig = {
   shape: "circle" | "square" | "rounded"; size: number; depth?: number; wallGap?: number; cornerRadius?: number;
   faceColor: string; sideColor: string; image: string; imageScale: number; imageX: number; imageY: number;
-  sceneMode?: "day" | "night"; lightsOn?: boolean; showDimensions?: boolean; flat?: boolean; mountMode?: "wall" | "corner";
+  sceneMode?: "day" | "night"; lightsOn?: boolean; showDimensions?: boolean; flat?: boolean; mountMode?: PanelMountMode;
 };
 
-export function panelSvgFaceBox(size:number,gap:number,mode:"wall"|"corner"='wall') {
+export function panelSvgFaceBox(size:number,gap:number,mode:PanelMountMode='wall') {
   const margin=Math.max(70,size*.14),left=mode==='corner'?180*Math.SQRT1_2+45:0;
   return {x:margin+left+gap,y:margin,width:size,height:size,margin,left};
 }
@@ -45,7 +46,7 @@ export function createPanelSvgMarkup(config: PanelSvgConfig) {
     <text stroke="none" text-anchor="middle" x="${n(wallX + mount.gap / 2)}" y="${n(faceY - 40)}" font-size="${n(font * 0.8)}">${mount.gap} мм</text>
   </g>`;
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${n(viewWidth)}" height="${n(viewHeight)}" viewBox="0 0 ${n(viewWidth)} ${n(viewHeight)}" data-panel-mount="${mount.mode}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Двусторонняя панель-кронштейн, ${mount.mode==='corner'?'на углу здания':'перпендикулярно стене'}. Вид лица и схема сверху">
+<svg xmlns="http://www.w3.org/2000/svg" width="${n(viewWidth)}" height="${n(viewHeight)}" viewBox="0 0 ${n(viewWidth)} ${n(viewHeight)}" data-panel-mount="${mount.mode}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Двусторонняя панель-кронштейн, ${isPanelCornerMount(mount.mode)?'на углу здания':'перпендикулярно стене'}. Вид лица и схема сверху">
   <defs><clipPath id="panel-face-clip">${geometry("#fff", mount.rim)}</clipPath>
     <filter id="panel-face-light" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="${n(size * 0.025)}" flood-color="${escape(config.faceColor)}" flood-opacity="0.55" /></filter></defs>
 
@@ -62,7 +63,7 @@ function createPanelPlanMarkup(mount: ReturnType<typeof panelMountLayout>, width
   const n=(v:number)=>Number(v.toFixed(2)),depth=mount.depth,size=-(mount.wallX+mount.gap)*2;
   const points=[[-size/2,0,0],[-size/2,0,depth],[size/2,0,depth],[size/2,0,0]].map(p=>panelMountPoint(mount,p as [number,number,number]));
   const reach=Math.max(280,size+mount.gap),wallLength=Math.min(reach,520);
-  const wall=mount.mode==='corner'?[[-wallLength,-100],[-100,-100],[-100,-wallLength],[0,-wallLength],[0,0],[-wallLength,0]]:[[-wallLength,0],[wallLength,0],[wallLength,-100],[-wallLength,-100]];
+  const wall=isPanelCornerMount(mount.mode)?[[-wallLength,-100],[-100,-100],[-100,-wallLength],[0,-wallLength],[0,0],[-wallLength,0]]:[[-wallLength,0],[wallLength,0],[wallLength,-100],[-wallLength,-100]];
   const all=[...points.map(p=>[p[0],p[2]]),...wall],xs=all.map(p=>p[0]),zs=all.map(p=>p[1]);
   const minX=Math.min(...xs),maxX=Math.max(...xs),minZ=Math.min(...zs),maxZ=Math.max(...zs);
   const planFont=Math.max(36,size*.08),captionHeight=planFont*1.5;
@@ -71,5 +72,5 @@ function createPanelPlanMarkup(mount: ReturnType<typeof panelMountLayout>, width
   const polygon=(values:number[][])=>values.map(p=>x(p[0])+','+y(p[1])).join(' ');
   const supports=[...mount.arms,...mount.ties].filter(segment=>Math.abs(segment.start[1]-mount.armYs[0])<.001).map(segment=>{const a=panelMountPoint(mount,segment.start),b=panelMountPoint(mount,segment.end);return `<line x1="${x(a[0])}" y1="${y(a[2])}" x2="${x(b[0])}" y2="${y(b[2])}" stroke="${night?'#a3b0ba':'#45525b'}" stroke-width="${Math.max(2,20*scale)}"/>`;}).join('');
   const plates=mount.plates.filter(p=>Math.abs(p.center[1]-mount.armYs[0])<.001).map(p=>{const tangent:[number,number,number]=[-p.normal[2]*mount.plateWidth/2,0,p.normal[0]*mount.plateWidth/2];const a=panelMountPoint(mount,[p.center[0]-tangent[0],p.center[1],p.center[2]-tangent[2]]),b=panelMountPoint(mount,[p.center[0]+tangent[0],p.center[1],p.center[2]+tangent[2]]);return `<line data-mount-plane="${p.wall}" x1="${x(a[0])}" y1="${y(a[2])}" x2="${x(b[0])}" y2="${y(b[2])}" stroke="${night?'#c8d2da':'#34414a'}" stroke-width="${Math.max(2,5*scale)}"/>`;}).join('');
-  return `<g data-panel-plan="${mount.mode}"><text text-anchor="middle" x="${width/2}" y="${top+planFont}" fill="${night?'#b9c8d1':'#58656b'}" font-family="Arial,sans-serif" font-size="${planFont}">Вид сверху · ${mount.mode==='corner'?'наружный угол':'стена'}</text><polygon points="${polygon(wall)}" fill="${night?'#4a515a':'#b9b1a5'}"/>${supports}${plates}<polygon points="${polygon(points.map(p=>[p[0],p[2]]))}" fill="${night?'#647581':'#8798a3'}" stroke="${night?'#d4e0e5':'#34414a'}" stroke-width="1.5"/></g>`;
+  return `<g data-panel-plan="${mount.mode}"><text text-anchor="middle" x="${width/2}" y="${top+planFont}" fill="${night?'#b9c8d1':'#58656b'}" font-family="Arial,sans-serif" font-size="${planFont}">Вид сверху · ${mount.mode==='corner'?'угол · по диагонали':mount.mode==='corner-front'?'угол · первая стена':mount.mode==='corner-side'?'угол · вторая стена':'стена'}</text><polygon points="${polygon(wall)}" fill="${night?'#4a515a':'#b9b1a5'}"/>${supports}${plates}<polygon points="${polygon(points.map(p=>[p[0],p[2]]))}" fill="${night?'#647581':'#8798a3'}" stroke="${night?'#d4e0e5':'#34414a'}" stroke-width="1.5"/></g>`;
 }

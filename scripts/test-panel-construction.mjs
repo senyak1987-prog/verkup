@@ -18,6 +18,8 @@ const glyphShapes = load('glyphShapes', { three: THREE, libtess: { default: requ
 const scene = load('signSceneGeometry', { three: THREE, './panelConstruction': mount, './letterContours': {}, './neonScene': {}, './glyphShapes': glyphShapes });
 const facade = load('signFacade', { './panelConstruction': mount });
 const facadeScene = load('signFacade3D', { three: THREE, './signFacade': facade, './panelConstruction': mount });
+const mountingModes=['wall','corner','corner-front','corner-side'];
+const contactedWalls=mode=>mode==='corner'?['front','side']:mode==='corner-side'?['side']:['front'];
 const close = (actual, expected, message, tolerance=.01) => assert.ok(Math.abs(actual-expected)<tolerance, `${message}: ${actual} != ${expected}`);
 const named = (object,name) => {const items=[];object.traverse(child=>{if(child.name===name)items.push(child);});return items;};
 function worldVertices(mesh) {
@@ -82,7 +84,7 @@ test('Both support arms meet the real panel outline, including fully rounded sma
 });
 
 test('Wall and corner brackets touch the actual facade planes, retain physical size, and project away from the building', async()=>{
-  for(const mode of ['wall','corner'])for(const shape of ['circle','square','rounded'])for(const size of [200,500,2000])
+  for(const mode of mountingModes)for(const shape of ['circle','square','rounded'])for(const size of [200,500,2000])
     for(const depth of [30,60,160])for(const gap of [60,120,400]) {
       const pose=mount.panelMountLayout(size,shape,gap,300,depth,mode);
       const project={productId:'panel',panelShape:shape,panelSize:size,panelWallGap:gap,panelCornerRadius:300,panelMountMode:mode,
@@ -96,18 +98,22 @@ test('Wall and corner brackets touch the actual facade planes, retain physical s
       const planes=pose.worldPlanes.map(p=>({id:p.id,point:new THREE.Vector3(...p.point),normal:new THREE.Vector3(...p.normal)}));
       assert.equal(planes.length,mode==='wall'?1:2);
       assert.ok(planes.some(p=>p.id==='front'));
-      if(mode==='corner')assert.ok(planes.some(p=>p.id==='side'),'The building corner includes the return wall');
+      if(mode!=='wall')assert.ok(planes.some(p=>p.id==='side'),'The building corner includes the return wall');
       for(const plane of planes)close(plane.normal.length(),1,'Wall normals have unit length');
 
       const body=model.getObjectByName('panel-body');
       const faceNormal=new THREE.Vector3(0,0,1).applyQuaternion(body.getWorldQuaternion(new THREE.Quaternion()));
-      for(const plane of planes)close(Math.abs(faceNormal.dot(plane.normal)),mode==='wall'?0:Math.SQRT1_2,
-        'A wall panel is perpendicular; a corner panel follows the exterior bisector');
+      for(const plane of planes) {
+        const expected=mode==='corner'?Math.SQRT1_2:contactedWalls(mode).includes(plane.id)?0:1;
+        close(Math.abs(faceNormal.dot(plane.normal)),expected,
+          'The panel follows the diagonal bisector or stands perpendicular to its selected attachment wall');
+      }
       body.geometry.computeBoundingBox();
       close(body.geometry.boundingBox.max.z-body.geometry.boundingBox.min.z,depth,'Panel depth is never scaled by facade mounting');
       const bodyVertices=worldVertices(body);
-      const outward=planes.reduce((sum,p)=>sum.add(p.normal),new THREE.Vector3()).normalize();
-      const reference=mode==='corner'?new THREE.Vector3(planes.find(p=>p.id==='side').point.x,0,planes.find(p=>p.id==='front').point.z):planes[0].point;
+      const attachment=planes.find(p=>p.id===contactedWalls(mode)[0]);
+      const outward=mode==='corner'?planes.reduce((sum,p)=>sum.add(p.normal),new THREE.Vector3()).normalize():attachment.normal;
+      const reference=mode==='corner'?new THREE.Vector3(planes.find(p=>p.id==='side').point.x,0,planes.find(p=>p.id==='front').point.z):attachment.point;
       const effectiveGap=mode==='corner'?Math.max(gap,depth/2+20):gap;
       close(pose.gap,effectiveGap,'Corner clearance accounts for both housing thickness and construction clearance');
       close(Math.min(...bodyVertices.map(v=>v.clone().sub(reference).dot(outward))),effectiveGap,
@@ -126,7 +132,7 @@ test('Wall and corner brackets touch the actual facade planes, retain physical s
       assert.equal(walls.length,mode==='wall'?1:2,'Corner mounting has two physical masonry surfaces');
       const contacts=new Set();
       const plates=named(model,'wall-mount-plate');
-      assert.equal(plates.length,mode==='wall'?2:4,'Each horizontal console is anchored to the required wall faces');
+      assert.equal(plates.length,mode==='corner'?4:2,'Each horizontal console is anchored to the required wall faces');
       for(const plate of plates) {
         const vertices=worldVertices(plate);
         const contact=planes.find(p=>{
@@ -137,11 +143,13 @@ test('Wall and corner brackets touch the actual facade planes, retain physical s
         contacts.add(contact.id);
         const backVertices=vertices.filter(v=>Math.abs(v.clone().sub(contact.point).dot(contact.normal))<.01);
         const center=backVertices.reduce((sum,v)=>sum.add(v),new THREE.Vector3()).divideScalar(backVertices.length);
+        if(mode==='corner-front')close(center.x,-180,'The front-wall brackets stand 180 mm from the building edge');
+        if(mode==='corner-side')close(center.z,-180,'The side-wall brackets stand 180 mm from the building edge');
         const hit=new THREE.Raycaster(center.clone().addScaledVector(contact.normal,1000),contact.normal.clone().negate()).intersectObjects(walls,false)[0];
         assert.ok(hit,'The plate contact point must lie on visible masonry');
         close(hit.distance,1000,'The mounting plate contacts the actual wall geometry');
       }
-      assert.deepEqual([...contacts].sort(),mode==='wall'?['front']:['front','side']);
+      assert.deepEqual([...contacts].sort(),contactedWalls(mode));
       for(const point of [pose.arms[0].start,pose.arms[0].end,[0,0,depth/2]]) {
         const expected=new THREE.Vector3(...point).applyMatrix4(model.matrixWorld);
         const shared=new THREE.Vector3(...mount.panelMountPoint(pose,point));
@@ -161,7 +169,7 @@ test('The flat mounting plan shows the same exterior wall faces and keeps plates
     return result;
   };
   const attr=(tag,name)=>tag.match(new RegExp(name+'="([^"]+)"'))?.[1];
-  for(const mode of ['wall','corner'])for(const shape of ['circle','square','rounded'])for(const size of [200,500,2000])
+  for(const mode of mountingModes)for(const shape of ['circle','square','rounded'])for(const size of [200,500,2000])
     for(const depth of [30,160])for(const gap of [60,400]) {
       const markup=svg.createPanelSvgMarkup({shape,size,depth,wallGap:gap,cornerRadius:300,mountMode:mode,
         faceColor:'#ffffff',sideColor:'#172333',image:'',imageScale:82,imageX:0,imageY:0,showDimensions:true});
@@ -173,7 +181,7 @@ test('The flat mounting plan shows the same exterior wall faces and keeps plates
       assert.equal(polygons.length,2,'The top view contains a wall outline and a separate housing outline');
       for(const vertex of polygons[1])assert.ok(!inside(vertex,polygons[0]),'The housing outline cannot enter the top-view wall solid');
       const plates=[...plan.matchAll(/<line\b[^>]*data-mount-plane="([^"]+)"[^>]*>/g)];
-      assert.deepEqual(plates.map(match=>match[1]).sort(),mode==='wall'?['front']:['front','side']);
+      assert.deepEqual(plates.map(match=>match[1]).sort(),contactedWalls(mode));
       for(const [tag] of plates) {
         const center=[(Number(attr(tag,'x1'))+Number(attr(tag,'x2')))/2,(Number(attr(tag,'y1'))+Number(attr(tag,'y2')))/2];
         assert.ok(!inside(center,polygons[0]),'The steel plate lies on the exterior side of the corresponding wall face');
@@ -183,7 +191,7 @@ test('The flat mounting plan shows the same exterior wall faces and keeps plates
 
 test('Facade SVG support endpoints and mounting pose exactly match the 3D construction for every placement',()=>{
   const values=tag=>tag.split(/\s+/).map(Number);
-  for(const mode of ['wall','corner'])for(const shape of ['circle','square','rounded'])for(const size of [200,500,2000])
+  for(const mode of mountingModes)for(const shape of ['circle','square','rounded'])for(const size of [200,500,2000])
     for(const place of ['windows','shop','canopy','entrance']) {
       const pose=mount.panelMountLayout(size,shape,60,300,160,mode);
       const markup=svg.createPanelSvgMarkup({shape,size,depth:160,wallGap:60,cornerRadius:300,mountMode:mode,
@@ -205,7 +213,9 @@ test('Facade SVG support endpoints and mounting pose exactly match the 3D constr
         values(support[2]).forEach((value,i)=>close(value,end[i],'Shared support end',.001));
       });
       const planes=[...composition.matchAll(/data-mount-plane="([^"]+)"/g)].map(match=>match[1]);
-      assert.deepEqual(planes.sort(),mode==='wall'?['front','front']:['front','front','side','side']);
+      assert.deepEqual(planes.sort(),contactedWalls(mode).flatMap(wall=>[wall,wall]));
+      const visibleFace=mode==='wall'||mode==='corner-front'?'back':'front';
+      assert.match(composition,new RegExp('data-panel-face-world="'+visibleFace+'"'),'The logo uses the panel face directed toward the facade-view camera');
       assert.match(composition,/data-panel-housing="true"/);
       assert.doesNotMatch(composition,/sign-mounting-band|sign-band-bottom|canopy-sign-upright/,'Letter-only mounting details cannot be mistaken for the bracket support');
     }

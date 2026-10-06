@@ -12,7 +12,10 @@ export function panelConstruction(size: number, shape: string, wallGap = 120, co
     plateThickness: 5, plateHeight: 30, plateWidth: 100, armProfile: 20, rim: 3 };
 }
 
-export type PanelMountMode = 'wall' | 'corner';
+export type PanelMountMode = 'wall' | 'corner-front' | 'corner-side' | 'corner';
+export function isPanelCornerMount(mode?: string): mode is Exclude<PanelMountMode, 'wall'> {
+  return mode === 'corner' || mode === 'corner-front' || mode === 'corner-side';
+}
 export type PanelPoint = [number, number, number];
 export type PanelMountPlate = { center: PanelPoint; normal: PanelPoint; wall: 'front' | 'side' };
 export type PanelMountSegment = { start: PanelPoint; end: PanelPoint };
@@ -22,15 +25,19 @@ export function panelMountLayout(size: number, shape: string, wallGap = 120, cor
   depth = 100, mode: PanelMountMode = 'wall') {
   // A diagonal housing needs enough clearance for both rear corners, including its thickness.
   const mount = panelConstruction(size, shape, mode === 'corner' ? Math.max(wallGap, depth / 2 + 20) : wallGap, cornerRadius);
-  const rotationY = mode === 'corner' ? -Math.PI / 4 : -Math.PI / 2;
+  const rotationY = mode === 'corner' ? -Math.PI / 4 : mode === 'corner-side' ? 0 : -Math.PI / 2;
   const c = Math.cos(rotationY), s = Math.sin(rotationY);
   const vertex: PanelPoint = [mount.wallX, 0, depth / 2];
-  const position = { x: -c * vertex[0] - s * vertex[2], y: 0, z: s * vertex[0] - c * vertex[2] };
-  const plates: PanelMountPlate[] = [], arms: PanelMountSegment[] = [], ties: PanelMountSegment[] = [];
   const anchorOffset = 180, diagonal = Math.SQRT1_2;
+  const anchor: PanelPoint = mode === 'corner-front' ? [-anchorOffset, 0, 0]
+    : mode === 'corner-side' ? [0, 0, -anchorOffset] : [0, 0, 0];
+  const position = { x: -c * vertex[0] - s * vertex[2] + anchor[0], y: 0,
+    z: s * vertex[0] - c * vertex[2] + anchor[2] };
+  const plates: PanelMountPlate[] = [], arms: PanelMountSegment[] = [], ties: PanelMountSegment[] = [];
   for (const y of mount.armYs) {
-    if (mode === 'wall') {
-      plates.push({ center: [mount.wallX + mount.plateThickness / 2, y, depth / 2], normal: [1, 0, 0], wall: 'front' });
+    if (mode !== 'corner') {
+      plates.push({ center: [mount.wallX + mount.plateThickness / 2, y, depth / 2], normal: [1, 0, 0],
+        wall: mode === 'corner-side' ? 'side' : 'front' });
       arms.push({ start: [mount.armStartX, y, depth / 2], end: [mount.armEndX, y, depth / 2] });
     } else {
       const junction: PanelPoint = [mount.wallX + 30, y, depth / 2];
@@ -49,11 +56,11 @@ export function panelMountLayout(size: number, shape: string, wallGap = 120, cor
       }
     }
   }
-  const worldPlanes = mode === 'corner'
+  const worldPlanes = isPanelCornerMount(mode)
     ? [{ id: 'front' as const, point: [0, 0, 0] as PanelPoint, normal: [0, 0, 1] as PanelPoint },
       { id: 'side' as const, point: [0, 0, 0] as PanelPoint, normal: [1, 0, 0] as PanelPoint }]
     : [{ id: 'front' as const, point: [0, 0, 0] as PanelPoint, normal: [0, 0, 1] as PanelPoint }];
-  return { ...mount, size, shape, cornerRadius: mount.radius, mode, depth, rotationY, position, worldPlanes, plates, arms, ties, anchorOffset };
+  return { ...mount, size, shape, cornerRadius: mount.radius, mode, depth, rotationY, position, worldPlanes, plates, arms, ties, anchorOffset, anchor };
 }
 
 export function panelMountPoint(layout: ReturnType<typeof panelMountLayout>, point: PanelPoint): PanelPoint {

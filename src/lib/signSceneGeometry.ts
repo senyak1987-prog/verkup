@@ -4,6 +4,7 @@ import { loadLetterContours } from "./letterContours";
 import { filledGlyphShapes } from "./glyphShapes";
 import { createNeonModel } from "./neonScene";
 import { panelMountLayout } from "./panelConstruction";
+import type { PanelMountMode } from "./panelConstruction";
 
 type SceneColor = { value: string };
 export type SignSceneBox = { x: number; y: number; width: number; height: number };
@@ -20,7 +21,7 @@ export type SignSceneProject = {
   panelShape: "circle" | "square" | "rounded";
   panelSize: number;
   panelWallGap?: number;
-  panelMountMode?: 'wall' | 'corner';
+  panelMountMode?: PanelMountMode;
   panelCornerRadius?: number;
   panelImage: string;
   panelImageScale: number;

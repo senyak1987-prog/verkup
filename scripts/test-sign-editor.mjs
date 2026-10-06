@@ -40,7 +40,7 @@ test('Saved neon and editor projects restore safely, while old projects receive 
 test('Panel mounting restores a compatible wall default and validates the saved building-corner option',()=>{
   const old=schema.validate({version:1,project:{productId:'panel',panelSize:500}});
   assert.equal(old.panelMountMode,'wall','Existing projects keep the wall installation');
-  for(const mode of ['wall','corner']) {
+  for(const mode of ['wall','corner','corner-front','corner-side']) {
     const saved=schema.validate({version:1,project:{productId:'panel',panelMountMode:mode,panelSize:500,panelDepth:60,panelWallGap:120}});
     assert.equal(saved.panelMountMode,mode);
     assert.equal(saved.panelSize,500);
@@ -51,6 +51,10 @@ test('Panel mounting restores a compatible wall default and validates the saved 
     assert.throws(()=>schema.validate({version:1,project:{productId:'panel',panelMountMode:mode}}),'Unsupported attachment modes must not silently change the mounting geometry');
   const deepCorner=schema.validate({version:1,project:{productId:'panel',panelMountMode:'corner',panelDepth:160,panelWallGap:60}});
   assert.equal(deepCorner.panelWallGap,100,'The restored wall-gap control reports the actual thickness-dependent construction clearance');
+  for(const mode of ['corner-front','corner-side']) {
+    const orthogonal=schema.validate({version:1,project:{productId:'panel',panelMountMode:mode,panelDepth:160,panelWallGap:60}});
+    assert.equal(orthogonal.panelWallGap,60,'Perpendicular corner panels retain the requested gap without diagonal clearance rules');
+  }
 });
 
 test('ACP fabrication limits include both depths and returns at every supported depth',()=>{

@@ -177,10 +177,10 @@ function createPanelFacadeSvg(place:SignPlacement,markup:string,night:boolean,pr
   const rename=(value:string)=>value.replace(/id="([^"]+)"/g,(_a,id:string)=>`id="${prefix}-panel-${id}"`).replace(/url\(#([^\)]+)\)/g,(_a,id:string)=>`url(#${prefix}-panel-${id})`);
   const artwork=rename(markup.match(/<!--panel-face-start-->([\s\S]*?)<!--panel-face-end-->/)?.[1]??'');
   const faceDefs=rename(markup.match(/<defs>[\s\S]*?<\/defs>/)?.[0]??'');
-  const corner=mount.mode==='corner',anchorX=corner?7800:FACADE_SIGN_ANCHOR.x;
+  const corner=isPanelCornerMount(mount.mode),anchorX=corner?7800:FACADE_SIGN_ANCHOR.x;
   const front=`<g data-mount-wall="front" transform="matrix(.94 .041 0 1 ${n(-.94*anchorX)} ${n(-FACADE_SIGN_ANCHOR.y-.041*anchorX)})">${facade}</g>`;
   const side=corner?`<g data-mount-wall="side" transform="matrix(.342 -.113 0 1 0 ${-FACADE_SIGN_ANCHOR.y})">${facade}</g>`:'';
-  const c=Math.cos(mount.rotationY),s=Math.sin(mount.rotationY),back=mount.mode==='wall',z=back?0:mount.depth;
+  const c=Math.cos(mount.rotationY),s=Math.sin(mount.rotationY),back=s*.342+c*.94<0,z=back?0:mount.depth;
   const origin=project(panelMountPoint(mount,[0,0,z]));
   const vector=project([c,0,-s]),centerX=box.x+box.width/2,centerY=box.y+box.height/2;
   // The visible reverse face carries its own artwork, rather than mirrored front artwork.
@@ -213,5 +213,5 @@ function createPanelFacadeSvg(place:SignPlacement,markup:string,night:boolean,pr
   const width=Math.max(...bounds.map(p=>p[0]))-left+180,height=Math.max(...bounds.map(p=>p[1]))-top+160;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${[left,top,width,height].map(n).join(' ')}" data-facade-mm="true" data-panel-mount="${mount.mode}" data-panel-pose="${[mount.rotationY,mount.position.x,mount.position.y,mount.position.z].map(n).join(' ')}" role="img" aria-label="Панель-кронштейн ${corner?'на наружном углу здания':'перпендикулярно стене'}, дверь 1100 на 2100 мм">${defs}${faceDefs}${side}${front}${plates}${supports}${body}${face}</svg>`;
 }
-import { panelMountPoint } from './panelConstruction';
+import { panelMountPoint, isPanelCornerMount } from './panelConstruction';
 import type { panelMountLayout } from './panelConstruction';
