@@ -12,6 +12,10 @@ import { createNeonDesign, neonSvg } from "../lib/neonConstruction";
 import { NeonControls } from "./NeonControls";
 import { SignLayoutEditor } from "./SignLayoutEditor";
 import { SignPlacements } from "./SignPlacements";
+import { createFacadeSvg, SIGN_PLACEMENTS } from "../lib/signFacade";
+import type { SignPlacement } from "../lib/signFacade";
+import { loadNeonFont } from "../lib/neonFonts";
+import { NEON_FONTS } from "../lib/neonConstruction";
 import { SignCart } from "./SignCart";
 
 const SignScene3D = lazy(() => import("./SignScene3D"));
@@ -243,7 +247,7 @@ const DEFAULT_PROJECT = {
   lettersText: "ЦВЕТЫ",
   secondLineText: "",
   logoOffsetX: 0, logoOffsetY: 0, textOffsetX: 0, textOffsetY: 0,
-  neonText: "ГОРОД СВЕТ", neonFont: "rounded", neonHeight: 200, neonDiameter: 6, neonColor: "#ffa658", neonBackerWidth: 1900, neonBackerHeight: 350,
+  neonText: "ГОРОД СВЕТ", neonFont: "rounded", neonHeight: 200, neonDiameter: 6, neonColor: "#ffa658", neonBackerWidth: 1900, neonBackerHeight: 350, neonBackerShape: "rectangle", neonBrightness: 85, neonAlign: "center",
   letterFont: LETTER_FONTS[0].value as string,
   letterHeight: 410,
   letterWidth: 0,
@@ -286,7 +290,7 @@ const SECTION_GROUPS: Record<string, StudioSection> = {
   "Логотип": "logo", "Изображение": "logo",
 };
 const PROJECT_ENUMS: Record<string, readonly unknown[]> = {
-  productId: ["panel", "letters", "neon"], neonFont: ["rounded", "slanted", "narrow"], neonDiameter: [6, 8], sceneMode: ["day", "night"],
+  productId: ["panel", "letters", "neon"], neonFont: NEON_FONTS.map(font=>font.id), neonDiameter: [6, 8], neonBackerShape: ["rectangle","rounded","contour"], neonAlign: ["left","center","right"], sceneMode: ["day", "night"],
   panelShape: ["circle", "square", "rounded"], logoShape: ["circle", "square", "rounded"],
   glowMode: ["face", "faceSide", "faceHalo", "halo"], mountMode: ["wall", "frame", "acp"],
   frameProfile: [15, 20], letterFont: LETTER_FONTS.map(item => item.value),
@@ -294,7 +298,7 @@ const PROJECT_ENUMS: Record<string, readonly unknown[]> = {
 const PROJECT_RANGES: Record<string, [number, number]> = {
   panelImageScale: [45, 130], panelImageX: [-40, 40], panelImageY: [-40, 40],
   logoOffsetX: [-20000, 20000], logoOffsetY: [-10000, 10000], textOffsetX: [-20000, 20000], textOffsetY: [-10000, 10000],
-  neonHeight: [120, 800], neonBackerWidth: [150, 3950], neonBackerHeight: [150, 1450],
+  neonHeight: [120, 800], neonBrightness: [10, 100], neonBackerWidth: [150, 3950], neonBackerHeight: [150, 1450],
   letterHeight: [40, 1200], letterDepth: [40, 60], logoScale: [45, 130],
   letterWidth: [0, 20000],
   panelSize: [200, 2000], panelDepth: [30, 160],
@@ -407,6 +411,10 @@ export function SignProductConfigurator() {
   const setAcpDepth = (value: ProjectState["acpDepth"]) => setProject(previous => ({ ...previous, acpDepth: value }));
   const [activeSection, setActiveSection] = useState<StudioSection>("design");
   const [zoom, setZoom] = useState(100);
+  const [placement,setPlacement] = useState<SignPlacement>("none");
+  const [neonFontReady,setNeonFontReady] = useState("rounded");
+  const [neonFontError,setNeonFontError] = useState("");
+  useEffect(()=>{let active=true;setNeonFontError("");void loadNeonFont(project.neonFont).then(()=>{if(active)setNeonFontReady(project.neonFont);}).catch(error=>{if(active)setNeonFontError(error.message);});return()=>{active=false;};},[project.neonFont]);
   const [fitSignal, setFitSignal] = useState(0);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [showDimensions, setShowDimensions] = useState(true);
@@ -416,6 +424,7 @@ export function SignProductConfigurator() {
   latestProject.current = project;
   const [notice, setNotice] = useState("");
   const workspaceRef = useRef<HTMLElement>(null);
+  useEffect(()=>{const host=workspaceRef.current;if(!host||viewMode!=="2d")return;const wheel=(event:WheelEvent)=>{if(!(event.target as Element).closest(".builder-preview"))return;event.preventDefault();setZoom(value=>Math.max(25,Math.min(400,Math.round(value*Math.exp(-event.deltaY*.0015)))));};host.addEventListener("wheel",wheel,{passive:false});return()=>host.removeEventListener("wheel",wheel);},[viewMode]);
   const [previewHeight, setPreviewHeight] = useState(() => Math.max(220, Math.min(620, window.innerHeight - 340)));
   useEffect(() => {
     let frame = 0;
@@ -544,9 +553,10 @@ export function SignProductConfigurator() {
     ...(frameNeedsApproval ? ["Рама для букв выше 55 см — по согласованию."] : []),
   ];
   const neonResult = useMemo(() => {
-    try { return { design: createNeonDesign(project.neonText, project.neonHeight, project.neonDiameter, project.neonFont), error: "" }; }
+    if(neonFontReady!==project.neonFont) return {design:null,error:neonFontError};
+    try { return { design: createNeonDesign(project.neonText, project.neonHeight, project.neonDiameter, project.neonFont, project.neonAlign), error: "" }; }
     catch(error) { return { design: null, error: error instanceof Error ? error.message : "Проверьте неоновую надпись." }; }
-  }, [project.neonText, project.neonHeight, project.neonDiameter, project.neonFont]);
+  }, [project.neonText, project.neonHeight, project.neonDiameter, project.neonFont, project.neonAlign, neonFontReady, neonFontError]);
   const neonWidth = Math.max(project.neonBackerWidth, (neonResult.design?.width ?? 0) + 60);
   const neonHeight = Math.max(project.neonBackerHeight, (neonResult.design?.height ?? 0) + 60);
   const neonFits = neonWidth <= 3950 && neonHeight <= 1450;
@@ -633,7 +643,7 @@ export function SignProductConfigurator() {
     finally { event.target.value = ""; }
   }
   function createCurrentSvg(withDimensions = showDimensions) {
-    if (productId === "neon") return neonResult.design ? neonSvg(neonResult.design, neonWidth, neonHeight, project.neonDiameter, project.neonColor, sceneMode === "night", withDimensions) : "";
+    if (productId === "neon") return neonResult.design ? neonSvg(neonResult.design, neonWidth, neonHeight, project.neonDiameter, project.neonColor, sceneMode === "night", withDimensions, project.neonBackerShape, project.neonBrightness) : "";
     if (productId === "panel") {
       return createPanelSvgMarkup({ shape: panelShape, size: panelSize, depth: project.panelDepth, wallGap: project.panelWallGap, cornerRadius: project.panelCornerRadius, faceColor: panelFaceColor.value, sideColor: panelSideColor.value, image: panelImage, imageScale: panelImageScale, imageX: panelImageX, imageY: panelImageY, sceneMode, showDimensions: withDimensions, flat: true });
     }
@@ -811,11 +821,12 @@ export function SignProductConfigurator() {
               <span className="celestial-track" aria-hidden="true"><Sun className="celestial-sun" size={19}/><Moon className="celestial-moon" size={19}/></span>
               <button type="button" aria-pressed={sceneMode === "day"} className={sceneMode === "day" ? "active" : ""} onClick={() => setSceneMode("day")}><Sun size={16} />День</button>
               <button type="button" aria-pressed={sceneMode === "night"} className={sceneMode === "night" ? "active" : ""} onClick={() => setSceneMode("night")}><Moon size={16} />Ночь</button>
-            </div><div className="canvas-tools"><button type="button" aria-label="Уменьшить макет" disabled={zoom <= 60} onClick={() => setZoom(value => Math.max(60, value - 10))}><Minus size={16} /></button><span className="zoom-value" title="100% — макет целиком в окне">{zoom}%</span><button type="button" aria-label="Увеличить макет" disabled={zoom >= 100} onClick={() => setZoom(value => Math.min(100, value + 10))}><Plus size={16} /></button><button type="button" aria-label="Подогнать макет" onClick={handleFitPreview}><Maximize size={16} /></button></div>
+            </div><div className="canvas-tools"><button type="button" aria-label="Уменьшить макет" disabled={zoom <= 25} onClick={() => setZoom(value => Math.max(25, value - 10))}><Minus size={16} /></button><span className="zoom-value" title="100% — масштаб после подгонки">{zoom}%</span><button type="button" aria-label="Увеличить макет" disabled={zoom >= 400} onClick={() => setZoom(value => Math.min(400, value + 10))}><Plus size={16} /></button><button type="button" aria-label="Подогнать макет" onClick={handleFitPreview}><Maximize size={16} /></button></div>
           </header>
           <div className="canvas-mode-toolbar">
             <div className="view-switch" role="group" aria-label="Вид макета"><button type="button" aria-pressed={viewMode === "2d"} className={viewMode === "2d" ? "active" : ""} onClick={() => { setViewMode("2d"); setZoom(100); }}>2D</button><button type="button" aria-pressed={viewMode === "3d"} className={viewMode === "3d" ? "active" : ""} onClick={() => { setViewMode("3d"); setZoom(100); }}>3D · вращение</button></div>
-            {productId === "letters" && viewMode === "2d" && <button className={"editor-toggle " + (editing ? "active" : "")} type="button" aria-pressed={editing} onClick={() => setEditing(!editing)}>Редактировать макет</button>}
+            {productId === "letters" && viewMode === "2d" && <button className={"editor-toggle " + (editing ? "active" : "")} type="button" aria-pressed={editing} onClick={() => { setPlacement("none"); setEditing(!editing); }}>Редактировать макет</button>}
+            <label className="placement-select"><span>Размещение</span><select aria-label="Размещение в основном просмотре" value={placement} onChange={e=>{setPlacement(e.target.value as SignPlacement);setEditing(false);}}>{SIGN_PLACEMENTS.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
             <label className="dimensions-toggle"><input type="checkbox" checked={showDimensions} onChange={event => setShowDimensions(event.target.checked)} />Размеры</label>
           </div>
           {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar">
@@ -829,9 +840,9 @@ export function SignProductConfigurator() {
           className={`builder-preview ${sceneMode} glow-${glowMode} view-mode-${viewMode}`}
           aria-label="Визуализация"
         >
-          {fontPending && productId === "letters" && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
-          {viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div className="preview-art" style={{ "--preview-zoom": zoom / 100 } as CSSProperties}>
-            {productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'} /> : productId === "panel" ? (
+          {(fontPending && productId === "letters" || productId === "neon" && neonFontReady!==project.neonFont && !neonFontError) && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
+          {viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div className="preview-art" style={{ "--preview-zoom": zoom / 100 } as CSSProperties}>
+            {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(showDimensions),sceneMode==="night")}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'} /> : productId === "panel" ? (
               <PanelPreview
                 image={panelImage}
                 shape={panelShape}
@@ -880,7 +891,7 @@ export function SignProductConfigurator() {
           <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{productId === "letters" ? `${letterDepth} мм — до передней плоскости рамы` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · прозрачная подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
         </section>
 
-        <SignPlacements markup={createCurrentSvg(false)} night={sceneMode === "night"}/>
+        <SignPlacements markup={createCurrentSvg(false)} night={sceneMode === "night"} selected={placement} onChange={value=>{setPlacement(value);setEditing(false);}}/>
         <aside className="builder-summary" aria-label="Структура проекта"><header className="summary-heading"><h2>Ваш проект</h2><p>Параметры конструкции</p></header>
           <div className="summary-block">
             <span>Продукт</span>

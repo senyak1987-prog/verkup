@@ -6,6 +6,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { applySignLighting, buildSignModel, disposeSignObject } from "../lib/signSceneGeometry";
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { createFacadeModel } from "../lib/signFacade3D";
+import type { SignPlacement } from "../lib/signFacade";
 import "../sign-scene-3d.css";
 
 export type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
@@ -17,6 +19,8 @@ export type SignScene3DProps = {
   depth: number;
   showDimensions: boolean;
   zoom: number;
+  placement?: SignPlacement;
+  onZoomChange?: (value: number) => void;
   resetKey?: number;
   onUnavailable?: () => void;
 };
@@ -38,7 +42,7 @@ type SceneRuntime = {
   bounds: THREE.Box3;
 };
 
-export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, resetKey = 0, onUnavailable }: SignScene3DProps) {
+export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', onZoomChange, resetKey = 0, onUnavailable }: SignScene3DProps) {
   const geometryKey = JSON.stringify({ ...project, sceneMode: undefined });
   const modelProject = useMemo(() => ({ ...project, sceneMode: 'night' as const }), [geometryKey]);
   const lightFraction = useRef(project.sceneMode === 'night' ? 1 : 0);
@@ -52,6 +56,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
   const runtimeRef = useRef<SceneRuntime | null>(null);
   const unavailableRef = useRef(onUnavailable);
   const zoomRef = useRef(zoom);
+  const zoomChangeRef = useRef(onZoomChange);
+  zoomChangeRef.current = onZoomChange;
   const buildRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
@@ -84,15 +90,15 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const scene = new THREE.Scene();
       const camera = new THREE.OrthographicCamera(-500, 500, 500, -500, 1, 100000);
       camera.position.set(400, 180, 1800);
-      camera.zoom = Math.max(0.5, Math.min(1, zoomRef.current / 100));
+      camera.zoom = Math.max(0.25, Math.min(4, zoomRef.current / 100));
       controls = new OrbitControls(camera, renderer.domElement);
       controls.enableDamping = false;
       controls.enablePan = false;
       controls.screenSpacePanning = true;
       controls.rotateSpeed = 0.68;
       controls.zoomSpeed = 0.85;
-      controls.minZoom = 0.35;
-      controls.maxZoom = 1;
+      controls.minZoom = 0.25;
+      controls.maxZoom = 4;
       controls.minPolarAngle = 0.08;
       controls.maxPolarAngle = Math.PI - 0.08;
       const environmentScene = new RoomEnvironment();
@@ -116,7 +122,13 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const render = () => {
         frameId = 0;
         if (disposed || document.visibilityState === "hidden") return;
-        try { runtime.fitToView(); currentRenderer.render(scene, camera); } catch { fail(); }
+        try {
+          currentRenderer.render(scene, camera);
+          host.dataset.cameraZoom = String(camera.zoom);
+          host.dataset.cameraViewHeight = String(camera.top - camera.bottom);
+          const value = Math.round(camera.zoom * 100);
+          if (value !== zoomRef.current) zoomChangeRef.current?.(value);
+        } catch { fail(); }
       };
       const requestRender = () => {
         if (!disposed && !frameId) frameId = requestAnimationFrame(render);
@@ -162,7 +174,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const box = new THREE.Box3();
           for (const child of runtime.model.children) if (child.name !== "dimensions") box.expandByObject(child);
           if (box.isEmpty()) return;
-          const center = panelRef.current ? box.getCenter(new THREE.Vector3()) : new THREE.Vector3(0, 0, box.max.z / 2);
+          const center = panelRef.current || runtime.model.getObjectByName('facade') ? box.getCenter(new THREE.Vector3()) : new THREE.Vector3(0, 0, box.max.z / 2);
           const view = layoutRef.current;
           const aspect = Math.max(0.2, host.clientWidth / Math.max(1, host.clientHeight));
           const viewHeight = Math.max(view.viewHeight, view.viewWidth / aspect);
@@ -247,7 +259,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         disposeSignObject(runtime.model);
       }
       runtime.model = model;
-      if (hostRef.current) { hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId; }
+      if (placement !== 'none') model.add(createFacadeModel(placement, width, height));
+      if (hostRef.current) { hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId; }
       runtime.scene.add(model);
       runtime.bounds.setFromObject(model);
       applySignLighting(model, lightFraction.current);
@@ -270,7 +283,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       unavailableRef.current?.();
     });
     return () => { if (version === buildRef.current) buildRef.current++; };
-  }, [modelProject, layout, width, height, depth, showDimensions, unavailable]);
+  }, [modelProject, layout, width, height, depth, showDimensions, placement, unavailable]);
 
   useEffect(() => {
     const target = project.sceneMode === 'night' ? 1 : 0;
@@ -298,7 +311,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
   useEffect(() => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
-    runtime.camera.zoom = Math.max(0.5, Math.min(1, zoom / 100));
+    runtime.camera.zoom = Math.max(0.25, Math.min(4, zoom / 100));
     runtime.camera.updateProjectionMatrix();
     runtime.requestRender();
   }, [zoom]);
@@ -324,8 +337,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     if (key === "arrowright") sphere.theta += 0.12;
     if (key === "arrowup") sphere.phi = Math.max(0.08, sphere.phi - 0.12);
     if (key === "arrowdown") sphere.phi = Math.min(Math.PI - 0.08, sphere.phi + 0.12);
-    if (key === "+" || key === "=") runtime.camera.zoom = Math.min(1, runtime.camera.zoom / 0.85);
-    if (key === "-") runtime.camera.zoom = Math.max(0.35, runtime.camera.zoom * 0.85);
+    if (key === "+" || key === "=") runtime.camera.zoom = Math.min(4, runtime.camera.zoom / 0.85);
+    if (key === "-") runtime.camera.zoom = Math.max(0.25, runtime.camera.zoom * 0.85);
     runtime.camera.updateProjectionMatrix();
     runtime.camera.position.copy(runtime.controls.target).add(new THREE.Vector3().setFromSpherical(sphere));
     runtime.controls.update(); runtime.requestRender();

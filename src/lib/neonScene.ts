@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createNeonDesign } from './neonConstruction';
+import { createNeonDesign, neonBackerOutline, neonHolderPositions } from './neonConstruction';
 
 class CenterlineCurve extends THREE.Curve<THREE.Vector3> {
   constructor(private points: THREE.Vector3[]) { super(); }
@@ -14,19 +14,24 @@ class CenterlineCurve extends THREE.Curve<THREE.Vector3> {
   }
 }
 
-export function createNeonModel(project: { neonText?: string; neonFont?: string; neonHeight?: number; neonDiameter?: number; neonColor?: string }, width: number, height: number) {
+export function createNeonModel(project: { neonText?: string; neonFont?: string; neonHeight?: number; neonDiameter?: number; neonColor?: string; neonBackerShape?:string; neonBrightness?:number; neonAlign?:string }, width: number, height: number) {
   const group = new THREE.Group();
   const diameter = project.neonDiameter ?? 6, color = project.neonColor ?? '#ff9854';
-  const design = createNeonDesign(project.neonText ?? 'СВЕТ', project.neonHeight ?? 200, diameter, project.neonFont ?? 'rounded');
+  const design = createNeonDesign(project.neonText ?? 'СВЕТ', project.neonHeight ?? 200, diameter, project.neonFont ?? 'rounded',project.neonAlign);
+  const power=(project.neonBrightness??85)/100;
+  const outline=neonBackerOutline(design,width,height,project.neonBackerShape??'rectangle');
+  const shape=new THREE.Shape();outline.forEach(([x,y],i)=>i?shape.lineTo(x-width/2,height/2-y):shape.moveTo(x-width/2,height/2-y));shape.closePath();
   const acrylic = new THREE.MeshPhysicalMaterial({ color:'#e8fffa', transparent:true, opacity:.14, roughness:.08, metalness:0, clearcoat:1, clearcoatRoughness:.05, depthWrite:false, side:THREE.DoubleSide });
-  const backer = new THREE.Mesh(new THREE.BoxGeometry(width,height,3),acrylic); backer.position.z=21.5; backer.name='transparent-acrylic-backer'; group.add(backer);
+  const backer = new THREE.Mesh(new THREE.ExtrudeGeometry(shape,{depth:3,bevelEnabled:false}),acrylic); backer.position.z=20; backer.name='transparent-acrylic-backer'; group.add(backer);
   const steel = new THREE.MeshStandardMaterial({color:'#abbeb7',metalness:.8,roughness:.25});
-  for(const x of [-width/2+22,width/2-22]) for(const y of [-height/2+22,height/2-22]) {
+  for(const [px,py] of neonHolderPositions(outline,width,height)) {
+    const x=px-width/2,y=height/2-py;
     const holder = new THREE.Mesh(new THREE.CylinderGeometry(7,7,20,16),steel); holder.rotation.x=Math.PI/2; holder.position.set(x,y,10); holder.name='neon-standoff-20mm'; holder.castShadow=true; group.add(holder);
     const screw = new THREE.Mesh(new THREE.CylinderGeometry(8,8,3,16),steel); screw.rotation.x=Math.PI/2; screw.position.set(x,y,24); group.add(screw);
   }
-  const tube = new THREE.MeshPhysicalMaterial({color,roughness:.3,clearcoat:1,clearcoatRoughness:.18,emissive:color,emissiveIntensity:1.5});
+  const tube = new THREE.MeshPhysicalMaterial({color,roughness:.3,clearcoat:1,clearcoatRoughness:.18,emissive:color,emissiveIntensity:1.8*power});
   const core = new THREE.MeshBasicMaterial({color:'#fff3e5',transparent:true,opacity:.8,toneMapped:false}); core.userData.neonCore=true;
+  core.userData.neonBrightness=power;
   const aura = new THREE.MeshBasicMaterial({color,transparent:true,opacity:.055,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}); aura.userData.neonAura=true;
   for(const points of design.paths) {
     if(points.length<2) continue;
@@ -46,7 +51,7 @@ export function createNeonModel(project: { neonText?: string; neonFont?: string;
     context.shadowColor=color; context.shadowBlur=diameter*4*scale;
     for(const points of design.paths) { context.beginPath(); points.forEach(([x,y],i)=>i?context.lineTo(x,y):context.moveTo(x,y)); context.stroke(); }
     const texture=new THREE.CanvasTexture(canvas); texture.colorSpace=THREE.SRGBColorSpace;
-    const material=new THREE.MeshBasicMaterial({map:texture,transparent:true,opacity:.8,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}); material.userData.lightOpacity=.8;
+    const material=new THREE.MeshBasicMaterial({map:texture,transparent:true,opacity:.8*power,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}); material.userData.lightOpacity=.8*power;
     const glow=new THREE.Mesh(new THREE.PlaneGeometry(width,height),material); glow.position.z=23.2; glow.name='neon-light-spill'; glow.renderOrder=2; group.add(glow);
   }
   return group;
