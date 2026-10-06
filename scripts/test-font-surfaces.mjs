@@ -54,7 +54,9 @@ function triangleIntervals(triangles, y) {
   const intervals = [];
   for (const triangle of triangles) {
     const crossings = scanIntervals([triangle], y, true);
-    intervals.push(...crossings);
+    // This hot scan runs millions of times; use direct array indexing rather
+    // than argument spread, while retaining every interval and the same audit.
+    for (let index = 0; index < crossings.length; index++) intervals.push(crossings[index]);
   }
   return intervals;
 }

@@ -341,3 +341,43 @@ test('Actual captured Arial Black80 keeps every forward acrylic triangle visible
   }
   original.dispose(); scene.disposeSignObject(model);
 });
+
+test('Actual Arial Black trim follows only its forward outer/counter contours and never runs along the 60mm return', async () => {
+  const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/arial-black-raster-sign.json', import.meta.url), 'utf8'));
+  const pathBox = { x: 140, y: 250, width: fixture.mainBox.width / fixture.mainBox.height * 80, height: 80 };
+  const row = { id: 'line-1', index: 1, text: fixture.text, font: '"Arial Black", sans-serif', box: pathBox, pathBox, inkBox: pathBox,
+    pathData: fixture.pathData, naturalBox: fixture.mainBox, defaultX: pathBox.x, defaultY: pathBox.y };
+  const project = { productId: 'letters', sceneMode: 'day', letterHeight: 201, letterDepth: 60, mountMode: 'frame', glowMode: 'face',
+    letterOutlineEnabled: true, logoEnabled: false, letterFaceColor: { value: '#ffffff' }, letterSideColor: { value: '#ffffff' }, outlineColor: { value: '#ffffff' } };
+  const layout = { textRows: [row], frameSegments: frame([{ id: row.id, box: row.box }]).segments, signBox: pathBox,
+    textX: pathBox.x, textTop: pathBox.y, textWidth: pathBox.width, textHeight: 80, logoBox: { x: 0, y: 0, width: 0, height: 0 } };
+  const model = await scene.buildSignModel(project, layout, pathBox.width, 80, 60, false);
+  const mesh = model.getObjectByName('extruded-letter-row-1'), trim = mesh.getObjectByName('front-trim-contour');
+  assert.ok(trim); assert.equal(trim.material.color.getHexString(), 'ffffff'); assert.equal(trim.material.depthWrite, false);
+  const positions = trim.geometry.getAttribute('position'); let total = 0;
+  for (let offset = 0; offset < positions.count; offset += 2) {
+    assert.equal(positions.getZ(offset), 60); assert.equal(positions.getZ(offset + 1), 60);
+    const a = new THREE.Vector3().fromBufferAttribute(positions, offset), b = new THREE.Vector3().fromBufferAttribute(positions, offset + 1);
+    assert.ok(a.distanceTo(b) > .00001); total += a.distanceTo(b);
+  }
+  assert.ok(total > 100 && positions.count > 100);
+  const previous = new THREE.EdgesGeometry(mesh.geometry, 35), old = previous.getAttribute('position');
+  let oldLongitudinal = 0;
+  for (let offset = 0; offset < old.count; offset += 2) if (Math.abs(old.getZ(offset) - old.getZ(offset + 1)) > 1) oldLongitudinal++;
+  assert.ok(oldLongitudinal > 100, 'The real fixture reproduces the former cage of depth stripes');
+  // Every trim edge must be a boundary (one cap triangle), including internal counters.
+  const sourcePositions = mesh.geometry.getAttribute('position'), index = mesh.geometry.getIndex(), count = new Map();
+  const key = point => point.map(value => value.toFixed(5)).join(':');
+  const edgeKey = (a, b) => [key(a), key(b)].sort().join('/');
+  for (const group of mesh.geometry.groups) if (group.materialIndex === 0) for (let offset = group.start; offset < group.start + group.count; offset += 3) {
+    const triangle = [0, 1, 2].map(i => new THREE.Vector3().fromBufferAttribute(sourcePositions, index.getX(offset + i)).toArray());
+    for (let i = 0; i < 3; i++) { const edge = edgeKey(triangle[i], triangle[(i + 1) % 3]); count.set(edge, (count.get(edge) ?? 0) + 1); }
+  }
+  for (let offset = 0; offset < positions.count; offset += 2) {
+    const a = new THREE.Vector3().fromBufferAttribute(positions, offset).toArray(), b = new THREE.Vector3().fromBufferAttribute(positions, offset + 1).toArray();
+    assert.equal(count.get(edgeKey(a, b)), 1, 'A trim line cannot reveal an internal triangulation edge');
+  }
+  const plain = await scene.buildSignModel({ ...project, letterOutlineEnabled: false }, layout, pathBox.width, 80, 60, false);
+  assert.equal(plain.getObjectByName('front-trim-contour'), undefined, 'Switching trim off removes the whole graphic');
+  previous.dispose(); scene.disposeSignObject(model); scene.disposeSignObject(plain);
+});
