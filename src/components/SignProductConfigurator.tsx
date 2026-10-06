@@ -6,8 +6,11 @@ import { panelMountLayout, isPanelCornerMount } from "../lib/panelConstruction";
 import type { PanelMountMode } from "../lib/panelConstruction";
 import { calculateLetterPrice, hasUnpricedSymbols, requiresFrameApproval, useSignCart } from "../lib/signCommerce";
 import { systemFontAvailable } from "../lib/systemFontContours";
-import { SIGN_FONTS, loadLetterContours, resolveSignFont } from "../lib/letterContours";
+import { SIGN_FONTS, loadLetterContours, resolveSignFont, combineLetterLines } from "../lib/letterContours";
 import type { LetterContours } from "../lib/letterContours";
+import { createLetterRowsLayout } from "../lib/letterRowsLayout";
+import type { LetterRowLayout, LetterRowSetting } from "../lib/letterRowsLayout";
+import type { LetterFrameSegment } from "../lib/letterFrame";
 import { allowedLetterDepths, normalizeLetterDepth, frameRailCenters } from "../lib/letterConstruction";
 import { constrainBacker, containBox, backerLimits } from "../lib/backerConstraints";
 import { createNeonDesign, neonSvg, neonRequiredBacker, neonUnsupportedCharacters } from "../lib/neonConstruction";
@@ -15,6 +18,7 @@ import { fitNeonToWidth } from "../lib/neonSizing";
 import { NeonControls } from "./NeonControls";
 import { NeonStudioEditor } from "./NeonStudioEditor";
 import { SignLayoutEditor } from "./SignLayoutEditor";
+import { LetterLinesControls } from "./LetterLinesControls";
 import { AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, Undo2 } from "lucide-react";
 import { centerLayoutSelection, packLayoutComposition } from "../lib/signLayoutAlignment";
 import type { AlignmentAxis, LayoutObject } from "../lib/signLayoutAlignment";
@@ -69,6 +73,9 @@ type SvgBox = {
 };
 
 type LettersSvgLayout = {
+  textRows?: LetterRowLayout[];
+  frameSegments?: LetterFrameSegment[];
+  letterLineOffsets?: {x:number;y:number}[];
   defaultTextX: number; defaultTextY: number; defaultLogoX: number; defaultLogoY: number;
   viewWidth: number;
   viewHeight: number;
@@ -98,6 +105,7 @@ type LettersSvgLayout = {
 };
 
 type LettersSvgLayoutConfig = {
+  lineSettings?: LetterRowSetting[];
   acpLayout: AcpLayout;
   estimatedWidth: number;
   frameBottomPosition: number;
@@ -261,6 +269,8 @@ const DEFAULT_PROJECT = {
   panelSideColor: ORACAL_641_COLORS[1] as ColorOption,
   lettersText: "ЦВЕТЫ",
   secondLineText: "",
+  thirdLineText: "",
+  letterLineFonts: [] as string[], letterLineHeights: [] as number[], letterLineOffsets: [] as {x:number;y:number}[],
   logoOffsetX: 0, logoOffsetY: 0, textOffsetX: 0, textOffsetY: 0,
   neonText: "ГОРОД СВЕТ", neonFont: "rounded", neonHeight: 200, neonDiameter: 6, neonColor: "#ffa658", neonBackerWidth: 1900, neonBackerHeight: 350, neonBackerShape: "rectangle", neonBrightness: 85, neonAlign: "center",
   neonLineFonts: [] as string[], neonLineColors: [] as string[], neonLineScales: [] as number[], neonLineOffsets: [] as {x:number;y:number}[],
@@ -338,13 +348,16 @@ function validateProject(raw: unknown): ProjectState {
     const initial = output[key];
     if (value === undefined) continue;
     if (Array.isArray(initial)) {
-      if (!Array.isArray(value) || value.length > 3) throw new Error("Некорректные настройки строк неона.");
+      if (!Array.isArray(value) || value.length > 3) throw new Error("Некорректные настройки строк.");
       output[key] = value.map(item => {
+        if (key === "letterLineFonts" && typeof item === "string" && (!item || resolveSignFont(item).value === item)) return item;
+        if (key === "letterLineHeights" && typeof item === "number" && Number.isFinite(item)) return item === 0 ? 0 : Math.max(40,Math.min(1200,item));
+        if (key === "letterLineOffsets" && item && typeof item === "object" && typeof item.x === "number" && typeof item.y === "number" && Number.isFinite(item.x) && Number.isFinite(item.y)) return {x:Math.max(-20000,Math.min(20000,item.x)),y:Math.max(-10000,Math.min(10000,item.y))};
         if (key === "neonLineFonts" && typeof item === "string" && NEON_FONTS.some(font=>font.id===item)) return item;
         if (key === "neonLineColors" && typeof item === "string" && /^#[0-9a-f]{6}$/i.test(item)) return item;
         if (key === "neonLineScales" && typeof item === "number" && Number.isFinite(item)) return Math.max(.5,Math.min(2,item));
         if (key === "neonLineOffsets" && item && typeof item === "object" && typeof item.x === "number" && typeof item.y === "number" && Number.isFinite(item.x) && Number.isFinite(item.y)) return {x:Math.max(-1800,Math.min(1800,item.x)),y:Math.max(-700,Math.min(700,item.y))};
-        throw new Error("Проверьте шрифт, цвет и положение строк неона.");
+        throw new Error("Проверьте шрифт, размеры и положение строк.");
       });
     } else if (PROJECT_ENUMS[key]) {
       if (key === "letterFont" && typeof value === "string") { output[key] = resolveSignFont(value).value; continue; }
@@ -375,7 +388,7 @@ function validateProject(raw: unknown): ProjectState {
   }
   result.frameProfile = 15;
   if(result.panelMountMode==='corner') result.panelWallGap=Math.max(result.panelWallGap,result.panelDepth/2+20);
-  result.letterDepth = normalizeLetterDepth(result.letterHeight, result.letterDepth);
+  result.letterDepth = normalizeLetterDepth([result.lettersText,result.secondLineText,result.thirdLineText].map((text,index)=>text.trim()?result.letterLineHeights[index]||result.letterHeight:0).filter(Boolean), result.letterDepth);
   if (Number(input.frameTopPosition) > 20) result.frameTopPosition = 15;
   if (Number(input.frameBottomPosition) > 20) result.frameBottomPosition = 15;
   if (input.logoEnabled === undefined) result.logoEnabled = Boolean(result.logoImage);
@@ -401,10 +414,15 @@ export function SignProductConfigurator() {
   const [layoutSelection, setLayoutSelection] = useState<LayoutObject>("composition");
   const layoutInteraction = useRef<"idle" | "start" | "active">("idle");
   useEffect(() => { if (!project.logoEnabled && layoutSelection === "logo") setLayoutSelection("composition"); }, [project.logoEnabled, layoutSelection]);
-  const combinedText = project.lettersText + (project.secondLineText.trim() ? "\n" + project.secondLineText : "");
+  const combinedText = [project.lettersText,project.secondLineText,project.thirdLineText].filter(text=>text.trim()).join("\n");
+  const lineSettings = useMemo<LetterRowSetting[]>(() => [project.lettersText,project.secondLineText,project.thirdLineText]
+    .map((text,index)=>({index,text,font:project.letterLineFonts[index]||project.letterFont,height:project.letterLineHeights[index]||project.letterHeight,offset:project.letterLineOffsets[index]||{x:0,y:0}}))
+    .filter((row,_,rows)=>row.text.trim()||!rows.some(item=>item.text.trim())&&row.index===0),
+    [project.lettersText,project.secondLineText,project.thirdLineText,project.letterFont,project.letterHeight,project.letterLineFonts,project.letterLineHeights,project.letterLineOffsets]);
+  const contourKey = JSON.stringify(lineSettings.map(row=>[row.index,row.font,row.text]));
   const patchProject = (patch: Partial<ProjectState>, remember = true) => {
     const layoutEdit = project.productId === "letters" && Object.keys(patch).some(key =>
-      ["logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "letterWidth", "letterHeight", "secondLineText"].includes(key));
+      ["logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "letterWidth", "letterHeight", "lettersText", "letterFont", "secondLineText", "thirdLineText", "letterLineFonts", "letterLineHeights", "letterLineOffsets"].includes(key));
     if (remember && (layoutEdit || project.productId === 'neon' && Object.keys(patch).some(key=>key.startsWith('neon')))) {
       if (layoutInteraction.current === "start" || layoutInteraction.current !== "active" && (Date.now()-lastUndoEdit.current > 800 || !undoHistory.current.length)) {
         undoHistory.current.push(project); if (undoHistory.current.length>30) undoHistory.current.shift(); setCanUndo(true);
@@ -431,7 +449,7 @@ export function SignProductConfigurator() {
     if (next.neonKeepAspect && (patch.neonHeight!==undefined || patch.neonText!==undefined || patch.neonIcon!==undefined || patch.neonLineFonts || patch.neonLineScales || patch.neonLineOffsets || patch.neonAlign!==undefined || patch.neonLetterSpacing!==undefined || patch.neonLineSpacing!==undefined)) next.neonTargetWidth=0;
     const backer = constrainBacker(next.acpWidth, next.acpHeight, next.acpDepth);
     next.acpWidth = backer.width; next.acpHeight = backer.height;
-    next.letterDepth = normalizeLetterDepth(next.letterHeight, next.letterDepth);
+    next.letterDepth = normalizeLetterDepth([next.lettersText,next.secondLineText,next.thirdLineText].map((text,index)=>text.trim()?next.letterLineHeights[index]||next.letterHeight:0).filter(Boolean), next.letterDepth);
     return next;
     });
   };
@@ -457,7 +475,13 @@ export function SignProductConfigurator() {
   const setLetterFont = (value: ProjectState["letterFont"]) => setProject(previous => ({ ...previous, letterFont: value }));
   const setLetterHeight = (value: ProjectState["letterHeight"]) => setProject(previous => ({ ...previous, letterHeight: value, letterDepth: normalizeLetterDepth(value, previous.letterDepth) }));
   const setLetterWidth = (value: number) => setProject(previous => ({ ...previous, letterWidth: value }));
-  const setLetterDepth = (value: ProjectState["letterDepth"]) => setProject(previous => ({ ...previous, letterDepth: normalizeLetterDepth(previous.letterHeight, value) }));
+  const setLetterDepth = (value: ProjectState["letterDepth"]) => patchProject({letterDepth:value});
+  const setLineText = (index:number,text:string) => patchProject(index===0?{lettersText:text}:index===1?{secondLineText:text}:{thirdLineText:text});
+  const setLineFont = (index:number,font:string) => patchProject({...index===0?{letterFont:font}:{},letterLineFonts:Array.from({length:3},(_,i)=>i===index?font:project.letterLineFonts[i]||project.letterFont)});
+  const setLineHeight = (index:number,height:number) => patchProject({...index===0?{letterHeight:height}:{},letterLineHeights:Array.from({length:3},(_,i)=>i===index?height:project.letterLineHeights[i]||project.letterHeight)});
+  const selectLetterLine = (index:number) => { setLayoutSelection(`line-${index}`);setEditing(true);setViewMode("2d");setPlacement("none"); };
+  const addLetterLine = () => { const index=!project.secondLineText.trim()?1:2;patchProject({...index===1?{secondLineText:"НОВАЯ СТРОКА"}:{thirdLineText:"НОВАЯ СТРОКА"},letterLineFonts:Array.from({length:3},(_,i)=>i===index?project.letterLineFonts[0]||project.letterFont:project.letterLineFonts[i]||""),letterLineHeights:Array.from({length:3},(_,i)=>i===index?project.letterLineHeights[0]||project.letterHeight:project.letterLineHeights[i]||0),letterLineOffsets:Array.from({length:3},(_,i)=>i===index?{x:0,y:0}:project.letterLineOffsets[i]||{x:0,y:0})});selectLetterLine(index);setActiveSection("design"); };
+  const removeLetterLine = (index:number) => { setLineText(index,"");setLayoutSelection("composition"); };
   const setLetterFaceColor = (value: ProjectState["letterFaceColor"]) => setProject(previous => ({ ...previous, letterFaceColor: value }));
   const setLetterSideColor = (value: ProjectState["letterSideColor"]) => setProject(previous => ({ ...previous, letterSideColor: value }));
   const setGlowMode = (value: ProjectState["glowMode"]) => setProject(previous => ({ ...previous, glowMode: value }));
@@ -540,8 +564,9 @@ export function SignProductConfigurator() {
   useEffect(() => () => cancelAnimationFrame(revealPreviewFrame.current), []);
   useEffect(()=>{const host=workspaceRef.current;if(!host||viewMode!=="2d")return;const wheel=(event:WheelEvent)=>{if(!(event.target as Element).closest(".builder-preview"))return;event.preventDefault();setZoom(value=>Math.max(25,Math.min(400,Math.round(value*Math.exp(-event.deltaY*.0015)))));};host.addEventListener("wheel",wheel,{passive:false});return()=>host.removeEventListener("wheel",wheel);},[viewMode]);
   const [previewBounds, setPreviewBounds] = useState(() => {
-    const side = Math.max(1, Math.min(400, window.innerWidth - 32, window.innerHeight - 180));
-    return { side, height: side + 180, sticky: true };
+    const width = Math.max(1, Math.min(600, window.innerWidth - 32, (window.innerHeight - 180) * 1.5));
+    const previewHeight = width / 1.5;
+    return { width, previewHeight, height: previewHeight + 180, sticky: true };
   });
   useEffect(() => {
     let frame = 0;
@@ -557,13 +582,14 @@ export function SignProductConfigurator() {
         const rows = Array.from(host.children).filter(child => !child.classList.contains("builder-preview"));
         const chromeHeight = rows.reduce((height, row) => height + row.getBoundingClientRect().height, borders) +
           (parseFloat(style.rowGap) || 0) * rows.length;
-        const side = Math.max(1, Math.floor(Math.min(host.clientWidth, viewportWidth - (mobile ? 28 : 24),
-          viewportHeight - (mobile ? 12 : 24) - chromeHeight)));
-        const height = Math.ceil(side + chromeHeight);
+        const width = Math.max(1, Math.floor(Math.min(host.clientWidth, viewportWidth - (mobile ? 28 : 24),
+          (viewportHeight - (mobile ? 12 : 24) - chromeHeight) * 1.5)));
+        const previewHeight = width / 1.5;
+        const height = Math.ceil(previewHeight + chromeHeight);
         // Short mobile viewports must let the workspace scroll away so settings remain reachable.
         const sticky = !mobile || height <= viewportHeight - 120;
-        setPreviewBounds(previous => previous.side === side && previous.height === height && previous.sticky === sticky
-          ? previous : { side, height, sticky });
+        setPreviewBounds(previous => previous.width === width && previous.previewHeight === previewHeight && previous.height === height && previous.sticky === sticky
+          ? previous : { width, previewHeight, height, sticky });
       });
     };
     const host = workspaceRef.current;
@@ -598,16 +624,15 @@ export function SignProductConfigurator() {
     return () => window.clearTimeout(timer);
   }, [project]);
   const [letterContours, setLetterContours] = useState<LetterContours | null>(null);
-  const lastValidFont = useRef(LETTER_FONTS[0].value as string);
   const [fontPending, setFontPending] = useState(false);
   useEffect(() => {
     let active = true;
     setFontPending(true);
-    void loadLetterContours(letterFont, combinedText).then(contours => {
-      if (active) { lastValidFont.current = letterFont; setLetterContours(contours); setFontPending(false); }
-    }).catch(error => { if (active) { setFontPending(false); setLetterFont(lastValidFont.current); setNotice(error.message); } });
+    void Promise.all(lineSettings.map(row=>loadLetterContours(row.font,row.text).catch(error=>{throw new Error(`Строка ${row.index+1}: ${error.message}`);}))).then(lines => {
+      if (active) { setLetterContours({...combineLetterLines(lines),lines}); setFontPending(false); }
+    }).catch(error => { if (active) { setLetterContours(null); setFontPending(false); setNotice(error.message); } });
     return () => { active = false; };
-  }, [letterFont, combinedText]);
+  }, [contourKey]);
   const letterTextBox = letterContours?.mainBox ?? null;
 
   const activeProduct = PRODUCTS.find((product) => product.id === productId) || PRODUCTS[0];
@@ -630,6 +655,7 @@ export function SignProductConfigurator() {
     acpWidth,
   ]);
   const lettersLayout = useMemo(() => createLettersSvgLayout({
+    lineSettings,
     acpLayout,
     estimatedWidth: lettersWidth,
     frameBottomPosition,
@@ -663,7 +689,7 @@ export function SignProductConfigurator() {
     logoShape,
     mountMode,
     letterWidth,
-    logoEnabled, project.logoOffsetX, project.logoOffsetY, project.textOffsetX, project.textOffsetY,
+    logoEnabled, project.logoOffsetX, project.logoOffsetY, project.textOffsetX, project.textOffsetY, lineSettings,
   ]);
   const alignLayoutSelection = (axis: AlignmentAxis) => {
     lastUndoEdit.current = 0;
@@ -677,7 +703,7 @@ export function SignProductConfigurator() {
     setLayoutSelection("composition");
   };
   useEffect(() => {
-    if (project.mountMode !== 'acp' || !letterContours || fontPending) return;
+    if (project.mountMode !== 'acp' || !letterContours || fontPending || lettersLayout.textRows) return;
     const actualHeight = lettersLayout.textHeight / (letterContours.lineFactor ?? 1);
     const expectedHeight = letterHeight - (letterOutlineEnabled ? Math.max(4, letterHeight * .035) * 2 : 0);
     if (actualHeight < expectedHeight - 1) {
@@ -690,12 +716,15 @@ export function SignProductConfigurator() {
   const glowHasHalo = hasHaloGlow(glowMode);
   const glowLabel = GLOW_MODES.find((item) => item.id === glowMode)?.label || "";
   const mountLabel = MOUNT_MODES.find((item) => item.id === mountMode)?.label || "";
-  const letterPrice = calculateLetterPrice(combinedText, lettersLayout.textHeight / (letterContours?.lineFactor ?? 1) + (letterOutlineEnabled ? Math.max(4, letterHeight * .035) * 2 : 0));
-  const frameNeedsApproval = mountMode === "frame" && requiresFrameApproval(letterHeight);
+  const rowPrices = (lettersLayout.textRows ?? []).filter(row=>row.text.trim()).map(row=>({...calculateLetterPrice(row.text,row.box.height),index:row.index}));
+  const letterPrice = { letterCount:rowPrices.reduce((sum,row)=>sum+row.letterCount,0), total:rowPrices.reduce((sum,row)=>sum+row.total,0) };
+  const maximumRowHeight = Math.max(...lineSettings.map(row=>row.height));
+  const frameNeedsApproval = mountMode === "frame" && requiresFrameApproval(maximumRowHeight);
   const priceNotes = productId === "neon" ? ["Неоновая вывеска — по согласованию."] : productId === "panel" ? ["Панель-кронштейн — по согласованию."] : [
     ...(logoEnabled ? ["Логотип — по согласованию."] : []),
     ...(hasUnpricedSymbols(combinedText) ? ["Специальные символы — по согласованию."] : []),
-    ...(letterHeight > 550 ? ["Глубина букв выше 55 см — по согласованию."] : []),
+    ...(maximumRowHeight > 550 ? ["Глубина букв выше 55 см — по согласованию."] : []),
+    ...(lineSettings.some(row=>row.height<=550&&!allowedLetterDepths(row.height).includes(letterDepth)) ? ["Общая глубина для строк разной высоты — по согласованию."] : []),
     ...(frameNeedsApproval ? ["Рама для букв выше 55 см — по согласованию."] : []),
   ];
   const neonResult = useMemo(() => {
@@ -910,6 +939,8 @@ export function SignProductConfigurator() {
             />
           ) : (
             <LettersControls
+              lineEditor={<LetterLinesControls rows={[project.lettersText,project.secondLineText,project.thirdLineText].map((text,index)=>({index,text,font:project.letterLineFonts[index]||letterFont,height:project.letterLineHeights[index]||letterHeight})).filter(row=>row.index===0||row.text.trim())} onTextChange={setLineText} onFontChange={setLineFont} onHeightChange={setLineHeight} onSelect={selectLetterLine} onAdd={addLetterLine} onRemove={removeLetterLine}/>}
+              rowHeights={lineSettings.map(row=>row.height)}
               acpColor={acpColor}
               acpDepth={acpDepth}
               acpHeight={acpHeight}
@@ -963,7 +994,6 @@ export function SignProductConfigurator() {
             />
           )}
           </SectionContext.Provider>
-          {productId === "letters" && activeSection === "design" && <label className="builder-field"><span>Вторая строка</span><input maxLength={60} placeholder="Добавить надпись ниже" value={project.secondLineText} onChange={event => patchProject({ secondLineText: event.target.value })}/><small className="control-note">Строки центрируются относительно друг друга</small></label>}
           {productId === "neon" && (neonResult.error || !neonFits) && <p className="studio-fit-warning" role="alert">{neonResult.error || "Уменьшите высоту или длину надписи, чтобы она поместилась на подложке."}</p>}
           {activeSection === "logo" && (productId === "letters" ? logoImage : panelImage) && <button className="studio-remove" type="button" onClick={() => productId === "letters" ? setLogoImage("") : setPanelImage("")}><X size={14} />Удалить изображение</button>}
           {productId === "panel" && activeSection === "design" && <p className="control-note">Размер — диаметр круга или сторона квадрата, в миллиметрах.</p>}
@@ -971,7 +1001,7 @@ export function SignProductConfigurator() {
           </div>
           <details className="studio-help"><summary>Как пользоваться студией<ChevronRight size={14} /></summary><p>Выберите тип вывески и настройте параметры по разделам. Переключайте день и ночь, чтобы оценить свечение. Проект сохраняется в этом браузере. Скачайте JSON для переноса на другое устройство.</p><p>Макет дает представление о конструкции. Цвета на экране могут отличаться от физических образцов Oracal; производственную документацию нужно подготовить отдельно.</p></details>
         </aside>
-        <section ref={workspaceRef} style={{ "--preview-side": `${previewBounds.side}px`, "--workspace-position": previewBounds.sticky ? "sticky" : "relative" } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет"
+        <section ref={workspaceRef} style={{ "--preview-width": `${previewBounds.width}px`, "--preview-height": `${previewBounds.previewHeight}px`, "--workspace-position": previewBounds.sticky ? "sticky" : "relative" } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет"
           onFocusCapture={event => { if ((event.target as Element).closest(".canvas-toolbar,.canvas-mode-toolbar,.editor-toolbar,.neon-inline-toolbar,.canvas-footer")) revealPreview(); }}
           onPointerDownCapture={event => { if ((event.target as Element).closest(".canvas-toolbar,.canvas-mode-toolbar,.editor-toolbar,.neon-inline-toolbar,.canvas-footer")) revealPreview(); }}
           onWheelCapture={revealPreview}>
@@ -991,14 +1021,14 @@ export function SignProductConfigurator() {
           </div>
           {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar layout-alignment-toolbar" aria-label="Выбор и выравнивание объектов макета">
             <button className="layout-pack-button" type="button" title="Собрать логотип и надпись в ряд с обычным промежутком и центрировать по обеим осям" disabled={fontPending} onClick={packLayout}>Собрать и центрировать</button>
-            <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => setLayoutSelection(event.target.value as LayoutObject)}><option value="text">Надпись</option><option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
+            <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => setLayoutSelection(event.target.value as LayoutObject)}><option value="text">Все строки</option>{lineSettings.filter(row=>row.text.trim()).map(row=><option key={row.index} value={`line-${row.index}`}>Строка {row.index+1}</option>)}<option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
             <div className="alignment-actions" role="group" aria-label={mountMode === "acp" ? "Центрирование по подложке" : "Центрирование по макету"}>
               <button type="button" title={mountMode === "acp" ? "По центру подложки по горизонтали" : "По центру макета по горизонтали"} disabled={fontPending} onClick={() => alignLayoutSelection("x")}><AlignHorizontalJustifyCenter size={16}/>Центр X</button>
               <button type="button" title={mountMode === "acp" ? "По центру подложки по вертикали" : "По центру макета по вертикали"} disabled={fontPending} onClick={() => alignLayoutSelection("y")}><AlignVerticalJustifyCenter size={16}/>Центр Y</button>
             </div>
             <span className="alignment-reference">{mountMode === "acp" ? "По подложке" : "По макету"}</span>
             <button type="button" aria-label="Отменить изменение макета" title="Отменить изменение макета (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={16}/></button>
-            <button type="button" onClick={() => { patchProject({ secondLineText: project.secondLineText || "НОВАЯ СТРОКА" }); setActiveSection("design"); }}>+ Строка ниже</button>
+            <button type="button" disabled={!!project.secondLineText.trim()&&!!project.thirdLineText.trim()} onClick={addLetterLine}>+ Строка ниже</button>
             <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
           </div>}
           {productId === "neon" && viewMode === "2d" && editing && <div className="editor-toolbar neon-inline-toolbar" aria-label="Настройки выбранной строки на макете">
@@ -1118,8 +1148,8 @@ export function SignProductConfigurator() {
 
           <div className="studio-purchase">
             <div className="price-details"><span>{productId === "letters" ? "Стоимость букв" : "Стоимость вывески"}</span><strong className="price-total">{productId === "letters" && letterPrice.letterCount > 0 ? formatMoney(letterPrice.total) : "По согласованию"}</strong>
-            {productId === "letters" && letterPrice.letterCount > 0 && <p className="price-formula">{letterPrice.letterCount} букв × {letterPrice.heightCm} см × 120 ₽</p>}</div>
-            <button className="studio-add-cart" type="button" onClick={handleAddToCart} disabled={productId === "neon" ? !neonResult.design || !neonFits || !project.neonText.trim() : productId === "letters" && (fontPending || !letterContours || !lettersText.trim() && !logoEnabled)}><ShoppingCart size={18} />В корзину</button>
+            {productId === "letters" && letterPrice.letterCount > 0 && rowPrices.map(row=><p key={row.index} className="price-formula">Строка {row.index+1}: {row.letterCount} букв × {Number(row.heightCm.toFixed(1))} см × 120 ₽</p>)}</div>
+            <button className="studio-add-cart" type="button" onClick={handleAddToCart} disabled={productId === "neon" ? !neonResult.design || !neonFits || !project.neonText.trim() : productId === "letters" && (fontPending || !letterContours || !combinedText.trim() && !logoEnabled)}><ShoppingCart size={18} />В корзину</button>
             {priceNotes.length > 0 && <p className="price-notes">{priceNotes.join(" ")}</p>}
             <p className="purchase-basis">{productId === "letters" ? "120 ₽ за 1 см высоты каждой буквы. Пробелы не считаются. Монтаж, подложка и доставка рассчитываются отдельно." : "Сохраните макет в корзину для согласования стоимости."}</p>
           </div>
@@ -1258,6 +1288,8 @@ function PanelControls({
 }
 
 function LettersControls({
+  lineEditor,
+  rowHeights,
   acpColor,
   acpDepth,
   acpHeight,
@@ -1310,6 +1342,8 @@ function LettersControls({
   onTextChange,
 }: {
   acpColor: ColorOption;
+  lineEditor: ReactNode;
+  rowHeights: number[];
   acpDepth: number;
   acpHeight: number;
   acpWidth: number;
@@ -1361,31 +1395,19 @@ function LettersControls({
   onTextChange: (value: string) => void;
 }) {
   const glowHasHalo = hasHaloGlow(glowMode);
+  const frameHeight = Math.max(...rowHeights);
+  const depthOptions = allowedLetterDepths(rowHeights);
 
   return (
     <>
       <ControlSection title="Надпись">
-        <label className="builder-field">
-          <span>Текст</span>
-          <input maxLength={60} placeholder="Например, ЦВЕТЫ" value={text} onChange={(event) => onTextChange(event.target.value)} /><small className="control-note">До 60 символов · размеры рассчитываются по надписи</small>
-        </label>
-        <label className="builder-field">
-          <span>Шрифт</span>
-          <select value={font} onChange={(event) => onFontChange(event.target.value)}>
-            {LETTER_FONTS.map((fontOption) => (
-              <option key={fontOption.label} value={fontOption.value} disabled={!fontOption.file && !systemFontAvailable(fontOption.value.split(",")[0].replace(/"/g,""),fontOption.weight)}>
-                {fontOption.label}
-              </option>
-            ))}
-          </select>
-          <small className="control-note">14 встроенных шрифтов + системные Arial и Arial Black. Контуры одинаковы в 2D и 3D.</small>
-        </label>
+        {lineEditor}
         <div className="dimension-number-grid">
           <NumberField label="Ширина вывески, мм" min={Math.round(height * (logoEnabled ? Math.min(1.3, Math.max(0.45, logoScale / 100)) + 0.46 : 0.3))} max={20000} onChange={onWidthChange} value={width} />
-          <NumberField label="Высота букв, мм" min={40} max={1200} onChange={onHeightChange} value={height} />
+
         </div>
         <label className={"width-auto-checkbox " + (widthAuto ? "checked" : "")}><input type="checkbox" checked={widthAuto} onChange={event => onWidthChange(event.target.checked ? 0 : width)}/><span><strong>Ширина по пропорциям</strong><small>{widthAuto ? "Сохраняем естественные пропорции шрифта" : "Ширину можно менять вручную"}</small></span></label>
-        <label className="builder-field"><span>Глубина букв до рамы, мм</span><select value={depth} onChange={event => onDepthChange(Number(event.target.value))}>{(allowedLetterDepths(height).length ? allowedLetterDepths(height) : [60]).map(value => <option key={value} value={value}>{value} мм{height > 550 ? " · по согласованию" : ""}</option>)}</select><small className="control-note">40 мм — до 18 см; 50 мм — 12–35 см; 60 мм — 20–55 см. Выносные элементы в высоту не входят.</small></label>
+        <label className="builder-field"><span>Глубина букв до рамы, мм</span><select value={depth} onChange={event => onDepthChange(Number(event.target.value))}>{(depthOptions.length ? depthOptions : [60]).map(value => <option key={value} value={value}>{value} мм{!depthOptions.length ? " · по согласованию" : ""}</option>)}</select><small className="control-note">40 мм — до 18 см; 50 мм — 12–35 см; 60 мм — 20–55 см. Выносные элементы в высоту не входят.</small></label>
       </ControlSection>
 
       <ControlSection title="Свечение">
@@ -1422,10 +1444,10 @@ function LettersControls({
 
       {mountMode === "frame" && (
         <ControlSection title="Рама">
-          <div className={`frame-policy ${height > 550 ? "warning" : ""}`}><strong className="frame-profile">{height > 550 ? "Рама по согласованию" : "Профиль 15 × 15 мм"}</strong><p>{height > 550 ? "Буквы выше 55 см. Сечение и конструкцию рамы согласуем перед изготовлением. В макете показан профиль 15 мм." : "Для букв высотой до 55 см включительно. Две горизонтальные трубы за буквами."}</p></div>
+          <div className={`frame-policy ${frameHeight > 550 ? "warning" : ""}`}><strong className="frame-profile">{frameHeight > 550 ? "Рама по согласованию" : "Профиль 15 × 15 мм"}</strong><p>{frameHeight > 550 ? "Буквы выше 55 см. Сечение и конструкцию рамы согласуем перед изготовлением. В макете показан профиль 15 мм." : "По две горизонтальные трубы на каждую строку, соединённые сварными перемычками."}</p></div>
           <RangeField label="Верхний отступ рамы, мм" max={20} min={10} onChange={onFrameTopPositionChange} value={frameTopPosition} />
           <RangeField label="Нижний отступ рамы, мм" max={20} min={10} onChange={onFrameBottomPositionChange} value={frameBottomPosition} /><p className="control-note">Отступы внутрь от верхнего и нижнего края меньшего элемента: логотипа или надписи. У букв хвосты и надстрочные элементы не учитываются.</p>
-          <small className="control-note">Обе трубы проходят через всю ширину вывески. Положение одинаково в 2D и 3D.</small>
+          <small className="control-note">Длина каждой пары труб ограничена своей строкой. Логотип соединён с внутренними трубами или сварной перемычкой. Положение одинаково в 2D и 3D.</small>
         </ControlSection>
       )}
 
@@ -1788,6 +1810,7 @@ function NumberField({
 }
 
 function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayout {
+  if (config.lineSettings) return createLetterRowsLayout({...config,lineSettings:config.lineSettings});
   const requestedHeight = clamp(config.height, 40, 1200);
   const factor = config.contours?.lineFactor ?? 1;
   const natural = config.contours?.mainBox ?? config.textBox ?? { x: 0, y: -714, width: Math.max(1, config.text.length) * 640, height: 714 };
@@ -1881,6 +1904,12 @@ function createLettersSvgMarkup(
     ? '<circle cx="' + n(layout.logoBox.x + layout.logoBox.width / 2) + '" cy="' + n(layout.logoBox.y + layout.logoBox.height / 2) + '" r="' + n(layout.logoBox.width / 2) + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + n(strokeWidth) + '" />'
     : '<rect x="' + n(layout.logoBox.x) + '" y="' + n(layout.logoBox.y) + '" width="' + n(layout.logoBox.width) + '" height="' + n(layout.logoBox.height) + '" rx="' + (config.logoShape === "rounded" ? n(layout.logoCornerRadius) : 0) + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + n(strokeWidth) + '" />';
   const textGeometry = (fill: string, stroke = "none", strokeWidth = 0, _measure = false) => {
+    if (layout.textRows) return layout.textRows.map(row=>{
+      const sx=row.pathBox.width/row.naturalBox.width,sy=row.pathBox.height/row.naturalBox.height;
+      const transform=`matrix(${sx} 0 0 ${sy} ${n(row.pathBox.x-row.naturalBox.x*sx)} ${n(row.pathBox.y-row.naturalBox.y*sy)})`;
+      const outline=strokeWidth ? Math.max(4,row.box.height*.035) : 0;
+      return `<g data-line-index="${row.index}" data-line-font="${escapeXml(row.font)}" transform="${transform}"><path d="${row.pathData}" fill="${fill}" fill-rule="nonzero" stroke="${stroke}" stroke-width="${n(outline/sy)}" stroke-linejoin="round" paint-order="stroke fill" /></g>`;
+    }).join("");
     const sx = layout.textWidth / layout.textNaturalBox.width;
     const sy = layout.textHeight / layout.textNaturalBox.height;
     const transform = 'translate(' + n(layout.textX - layout.textNaturalBox.x * sx) + ' ' + n(layout.textBaseline) + ') scale(' + sx + ' ' + sy + ')';
@@ -1934,7 +1963,9 @@ function createLettersSvgMarkup(
       '" stroke="' + (night ? "#354253" : "#cbd2db") + '" stroke-width="2" />'
     : "";
   const frameMarkup = config.mountMode === "frame"
-    ? '<g id="frame-rails" filter="url(#letters-cast-shadow)">' +
+    ? layout.frameSegments ? '<g id="frame-rails" filter="url(#letters-cast-shadow)">' + layout.frameSegments.map(segment=>
+      `<rect data-frame-id="${segment.id}" data-frame-kind="${segment.kind}" x="${n(segment.x)}" y="${n(segment.y)}" width="${n(segment.width)}" height="${n(segment.height)}" rx="0" fill="${segment.kind==='rail'?'url(#letters-steel)':night?'#424649':'#606669'}" stroke="${night?'#6e7275':'#82888b'}" stroke-width="0.5" />`).join("")+'</g>'
+    : '<g id="frame-rails" filter="url(#letters-cast-shadow)">' +
       [layout.railTopY, layout.railBottomY].map((railY, index) =>
         '<g id="frame-rail-' + (index + 1) + '"><rect x="' + n(layout.railX) +
         '" y="' + n(railY - layout.railHeight / 2) + '" width="' + n(layout.railWidth) +

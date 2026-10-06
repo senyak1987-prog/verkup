@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent, KeyboardEvent } from "react";
-import { layoutReferenceBox, layoutSelectionBox, moveLayoutSelection } from "../lib/signLayoutAlignment";
+import { layoutReferenceBox, layoutSelectionBox, moveLayoutSelection, resizeLayoutLine } from "../lib/signLayoutAlignment";
 import type { AlignmentLayout, LayoutObject } from "../lib/signLayoutAlignment";
 
 type Layout = AlignmentLayout & { signBox: { x: number; y: number; width: number; height: number } };
-type EditorProject = { logoEnabled: boolean; logoScale: number; letterHeight: number; mountMode: string };
+type EditorProject = { logoEnabled: boolean; logoScale: number; letterHeight: number; mountMode: string;
+  letterLineOffsets?: { x: number; y: number }[]; letterLineHeights?: number[] };
 export type LayoutPatch = Partial<{ logoOffsetX: number; logoOffsetY: number; textOffsetX: number; textOffsetY: number;
-  logoScale: number; letterWidth: number; letterHeight: number }>;
+  logoScale: number; letterWidth: number; letterHeight: number; letterLineOffsets: { x: number; y: number }[];
+  letterLineHeights: number[] }>;
 
 export function SignLayoutEditor({ layout, project, selection, onSelect, onChange, onInteractionStart, onInteractionEnd, onUndo }:
   { layout: Layout; project: EditorProject; selection: LayoutObject; onSelect: (object: LayoutObject) => void;
@@ -40,7 +42,7 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     event.preventDefault(); event.currentTarget.focus();
     const object = handle.getAttribute("data-object") as LayoutObject;
     const resize = handle.hasAttribute("data-resize");
-    const target = !resize && selection === "composition" ? "composition" : object;
+    const target = !resize && selection === "composition" && !object.startsWith("line-") ? "composition" : object;
     onSelect(target); onInteractionStart?.();
     const inverse = matrix.inverse();
     drag.current = { point: new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse), inverse, pointerId: event.pointerId,
@@ -55,6 +57,10 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
       setSnapped({ x: false, y: false });
       if (active.target === "logo") schedule({ logoScale: Math.max(45, Math.min(130, Math.round(active.project.logoScale +
         (Math.abs(dx) > Math.abs(dy) ? dx : dy) / active.project.letterHeight * 100))) });
+      else if (active.target.startsWith("line-")) {
+        const patch = resizeLayoutLine(active.layout, active.target, active.project.letterHeight, active.project.letterLineHeights, dx, dy);
+        if (patch) schedule(patch);
+      }
       else schedule({ letterWidth: Math.max(60, Math.round(active.layout.signBox.width + dx)),
         letterHeight: Math.max(40, Math.min(1200, Math.round(active.project.letterHeight * (1 + dy / active.layout.textHeight)))) });
     } else {
@@ -76,14 +82,17 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     onChange(moveLayoutSelection(layout, selection, project.logoEnabled, dx, dy, { constrainToPanel: project.mountMode === "acp" }).patch);
   };
   const textBox = layoutSelectionBox(layout, "text", project.logoEnabled);
-  const boxes = [{ id: "text" as const, box: textBox }, ...(project.logoEnabled ? [{ id: "logo" as const, box: layout.logoBox }] : [])];
+  const textBoxes: { id: LayoutObject; box: typeof textBox }[] = layout.textRows?.length
+    ? layout.textRows.map(row => ({ id: `line-${row.index}`, box: row.inkBox }))
+    : [{ id: "text", box: textBox }];
+  const boxes = [...textBoxes, ...(project.logoEnabled ? [{ id: "logo" as const, box: layout.logoBox }] : [])];
   const reference = layoutReferenceBox(layout, project.mountMode === "acp");
   const centerX = reference.x + reference.width / 2, centerY = reference.y + reference.height / 2;
   const selectedBox = layoutSelectionBox(layout, selection, project.logoEnabled);
   const alignedX = snapped.x || Math.abs(selectedBox.x + selectedBox.width / 2 - centerX) < .01;
   const alignedY = snapped.y || Math.abs(selectedBox.y + selectedBox.height / 2 - centerY) < .01;
   return <svg ref={svgRef} className="layout-editor-overlay" viewBox={`0 0 ${layout.viewWidth} ${layout.viewHeight}`} tabIndex={0} role="group"
-    aria-label="Редактор макета. Объект выбирается над макетом. Перетащите для перемещения, угловой маркер меняет размер. Стрелки — 1 мм, Shift — 10 мм. Alt отключает привязку к центру. Ctrl или Command Z отменяет изменение."
+    aria-label="Редактор макета. Нажмите на строку или выберите объект над макетом. Перетащите для перемещения, угловой маркер меняет размер. Стрелки — 1 мм, Shift — 10 мм. Alt отключает привязку к центру. Ctrl или Command Z отменяет изменение."
     onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={finish} onKeyDown={keyboard}>
     <g aria-hidden="true" pointerEvents="none" stroke="#65b787" vectorEffect="non-scaling-stroke">
       <line x1={centerX} y1={reference.y} x2={centerX} y2={reference.y + reference.height} strokeWidth={alignedX ? 2 : 1}
