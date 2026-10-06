@@ -7,9 +7,11 @@ export function allowedLetterDepths(heightMm: number | readonly number[]): numbe
   if (height >= 200 && height <= 550) result.push(60);
   return result;
 }
-export function normalizeLetterDepth(heightMm: number | readonly number[], depthMm: number) {
-  const allowed = allowedLetterDepths(heightMm);
-  return allowed.includes(depthMm) ? depthMm : allowed[allowed.length - 1] ?? 60;
+export function normalizeLetterDepth(heightMm: number | readonly number[], depthMm: number, glowMode = "face") {
+  const halo = glowMode === "halo" || glowMode === "faceHalo";
+  const allowed = allowedLetterDepths(heightMm).filter(depth => !halo || depth <= 50);
+  const options = allowed.length ? allowed : halo ? [40,50] : [60];
+  return options.includes(depthMm) ? depthMm : options[options.length - 1];
 }
 export function frameRailCenters(top: number, height: number, topInset: number, bottomInset: number) {
   return { top: top + Math.min(20, Math.max(10, topInset)) + 7.5,
