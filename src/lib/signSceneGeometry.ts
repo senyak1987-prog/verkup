@@ -122,10 +122,41 @@ function solidMaterial(color: string, night: boolean, emissive = false) {
   return material;
 }
 
+export function panelCurveSegments(size: number, shape: string, radius: number) {
+  const r = shape === 'circle' ? size / 2 : radius;
+  if (r <= 0) return 14;
+  const fullCircleSegments = Math.ceil(Math.PI / Math.acos(Math.max(-1, 1 - .025 / r)));
+  // THREE samples each elliptical curve with twice curveSegments, including quarter arcs.
+  return Math.max(64, Math.min(256, Math.ceil(fullCircleSegments / (shape === 'circle' ? 2 : 8))));
+}
+
+/** Smooth only adjacent side faces; cap edges and square corners keep their own normals. */
+function smoothExtrudedSides(geometry: THREE.BufferGeometry) {
+  const positions = geometry.getAttribute('position'), normals = geometry.getAttribute('normal');
+  const vertices = new Map<string, { indices: number[]; normals: Map<string, THREE.Vector3> }>();
+  const coordinate = (value: number) => Math.round(value * 100000);
+  for (const group of geometry.groups) if (group.materialIndex === 1) {
+    for (let index = group.start; index < group.start + group.count; index++) {
+      const key = [positions.getX(index), positions.getY(index), positions.getZ(index)].map(coordinate).join(':');
+      let entry = vertices.get(key);
+      if (!entry) { entry = { indices: [], normals: new Map() }; vertices.set(key, entry); }
+      entry.indices.push(index);
+      const normal = new THREE.Vector3().fromBufferAttribute(normals, index);
+      entry.normals.set([normal.x, normal.y, normal.z].map(coordinate).join(':'), normal);
+    }
+  }
+  for (const { indices, normals: adjacent } of vertices.values()) for (const index of indices) {
+    const original = new THREE.Vector3().fromBufferAttribute(normals, index), sum = new THREE.Vector3();
+    for (const normal of adjacent.values()) if (normal.dot(original) > Math.SQRT1_2) sum.add(normal);
+    sum.normalize(); normals.setXYZ(index, sum.x, sum.y, sum.z);
+  }
+  normals.needsUpdate = true;
+}
+
 function extrude(shapes: THREE.Shape | THREE.Shape[], depth: number, face: THREE.Material, side: THREE.Material,
-  back: THREE.Material = face) {
+  back: THREE.Material = face, surface: { curveSegments?: number; smoothSides?: boolean } = {}) {
   const geometry = new THREE.ExtrudeGeometry(shapes, {
-    depth, bevelEnabled: false, curveSegments: 14, steps: 1,
+    depth, bevelEnabled: false, curveSegments: surface.curveSegments ?? 14, steps: 1,
   });
   const groups = geometry.groups.map((group) => ({ ...group }));
   geometry.clearGroups();
@@ -135,6 +166,7 @@ function extrude(shapes: THREE.Shape | THREE.Shape[], depth: number, face: THREE
       geometry.addGroup(group.start + group.count / 2, group.count / 2, 0);
     } else geometry.addGroup(group.start, group.count, group.materialIndex);
   }
+  if (surface.smoothSides) smoothExtrudedSides(geometry);
   const mesh = new THREE.Mesh(geometry, [face, side, back]);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -167,10 +199,10 @@ async function imageTexture(source: string, scale = 100, x = 0, y = 0) {
 }
 
 async function applyArtwork(mesh: THREE.Mesh, shape: THREE.Shape, source: string, size: number,
-  depth: number, night: boolean, faceLit: boolean, scale = 100, x = 0, y = 0, bothSides = false) {
+  depth: number, night: boolean, faceLit: boolean, scale = 100, x = 0, y = 0, bothSides = false, curveSegments = 24) {
   if (!source) return;
   const texture = await imageTexture(source, scale, x, y);
-  const geometry = new THREE.ShapeGeometry(shape, 24);
+  const geometry = new THREE.ShapeGeometry(shape, curveSegments);
   const positions = geometry.getAttribute("position"), uv = geometry.getAttribute("uv");
   for (let index = 0; index < positions.count; index++)
     uv.setXY(index, positions.getX(index) / size + 0.5, positions.getY(index) / size + 0.5);
@@ -317,18 +349,22 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       const mount = panelMountLayout(size, project.panelShape, project.panelWallGap, project.panelCornerRadius,
         modelDepth, project.panelMountMode ?? 'wall');
       group.userData.panelMount = mount;
+      const curveSegments = panelCurveSegments(size, project.panelShape, mount.radius);
+      const panelSurface = { curveSegments, smoothSides: true };
+      face.roughness = .26; face.metalness = .02; face.envMapIntensity = .5;
+      side.roughness = .36; side.metalness = .22; side.envMapIntensity = .7;
       const shape = project.panelShape === "circle" ? logoShape("circle", size) : roundedShape(size, size, mount.radius, true);
-      const panel = extrude(shape, modelDepth, face, side);
+      const panel = extrude(shape, modelDepth, face, side, face, panelSurface);
       panel.name = "panel-body";
       group.add(panel);
       await applyArtwork(panel, shape, project.panelImage, size, modelDepth, night, faceLit,
-        project.panelImageScale, project.panelImageX, project.panelImageY, true);
+        project.panelImageScale, project.panelImageX, project.panelImageY, true, curveSegments);
       const inner = project.panelShape === "circle" ? logoShape("circle", size - mount.rim * 2)
         : roundedShape(size - mount.rim * 2, size - mount.rim * 2, Math.max(0, mount.radius - mount.rim), true);
       const ring = shape.clone();
-      ring.holes.push(new THREE.Path(inner.getPoints(48)));
+      ring.holes.push(new THREE.Path(inner.getPoints(curveSegments)));
       for (const z of [-0.6, modelDepth - 1]) {
-        const rim = extrude(ring, 1.6, side, side);
+        const rim = extrude(ring, 1.6, side, side, side, panelSurface);
         rim.position.z = z; rim.name = "panel-rim"; group.add(rim);
       }
       const steel = new THREE.MeshStandardMaterial({ color: night ? "#35414a" : "#34414a", metalness: 0.65, roughness: 0.4 });
@@ -508,7 +544,7 @@ export function disposeSignObject(object: THREE.Object3D) {
   object.clear();
 }
 
-export function applySignLighting(group: THREE.Object3D, night: number, lightsOn = true) {
+export function applySignLighting(group: THREE.Object3D, night: number, lightsOn = true, windowLight = night) {
   const on = lightsOn ? 1 : 0;
   group.traverse(child => {
     const mesh = child as THREE.Mesh;
@@ -516,13 +552,25 @@ export function applySignLighting(group: THREE.Object3D, night: number, lightsOn
     for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
       const lit = material as THREE.MeshStandardMaterial;
       if (lit.emissive) {
-        lit.emissiveIntensity = material.userData.facadeEmission
+        const delay = Math.min(material.userData.windowIndex ?? 0, 7) * .035;
+        const localWindowLight = Math.max(0, Math.min(1, (windowLight - delay) / (1 - delay)));
+        lit.emissiveIntensity = material.userData.windowLight
+          ? (material.userData.maxWindowEmission ?? material.userData.maxEmission ?? 0) * localWindowLight
+          : material.userData.facadeEmission
           ? (material.userData.maxEmission ?? 0) * night
           : material.userData.neonEmission !== undefined
             ? material.userData.neonEmission * (.35 + .65 * night) * on
             : (material.userData.maxEmission ?? 0) * (.12 + .88 * night) * on;
       }
-      if (material.userData.dayColor && lit.color) lit.color.copy(material.userData.dayColor).multiplyScalar(1 - night * (material.userData.photoBackdrop ? .7 : .28));
+      if (material.userData.dayColor && lit.color) {
+        lit.color.copy(material.userData.dayColor);
+        if (material.userData.windowLight && material.userData.nightColor) lit.color.lerp(material.userData.nightColor, night);
+        else lit.color.multiplyScalar(1 - night * (material.userData.photoBackdrop ? .7 : .28));
+      }
+      if (material.userData.windowLight) {
+        const day = material.userData.dayEnvIntensity ?? 1, dark = material.userData.nightEnvIntensity ?? .3;
+        lit.envMapIntensity = day + (dark - day) * night;
+      }
       if (material.userData.lightOpacity !== undefined) material.opacity = material.userData.lightOpacity * night * on;
       if (material.userData.neonCore) material.opacity = on * (.25 + night * .55) * (material.userData.neonBrightness??1);
       if (material.userData.neonAura) material.opacity = night * .055 * on;

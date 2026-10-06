@@ -7,6 +7,7 @@ import { applySignLighting, buildSignModel, disposeSignObject } from "../lib/sig
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { createFacadeModel, createPanelMountContext } from "../lib/signFacade3D";
+import { sceneLightingAt, sceneLightingDuration } from "../lib/sceneLighting";
 import { panelMountLayout } from "../lib/panelConstruction";
 import type { SignPlacement } from "../lib/signFacade";
 import "../sign-scene-3d.css";
@@ -41,6 +42,7 @@ type SceneRuntime = {
   resize: () => void;
   fitToView: () => void;
   bounds: THREE.Box3;
+  light: (night: number, windows: number, lightsOn: boolean) => void;
 };
 
 export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', onZoomChange, resetKey = 0, onUnavailable }: SignScene3DProps) {
@@ -49,6 +51,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
   const lightsOnRef=useRef(project.lightsOn!==false);
   lightsOnRef.current=project.lightsOn!==false;
   const lightFraction = useRef(project.sceneMode === 'night' ? 1 : 0);
+  const windowFraction = useRef(lightFraction.current);
   const layoutRef = useRef(layout);
   const panelRef = useRef(project.productId === "panel");
   panelRef.current = project.productId === "panel" || Boolean(project.backdropImage);
@@ -88,7 +91,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.1;
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFShadowMap;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.setClearColor(0, 0);
       const scene = new THREE.Scene();
       const camera = new THREE.OrthographicCamera(-500, 500, 500, -500, 1, 100000);
@@ -108,14 +111,14 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const generator = new THREE.PMREMGenerator(renderer);
       const environment = generator.fromScene(environmentScene, .04);
       scene.environment = environment.texture;
-      scene.environmentIntensity = .18;
+      scene.environmentIntensity = .65;
       generator.dispose(); environmentScene.dispose();
       const ambient = new THREE.HemisphereLight("#ffffff", "#5e6971", .65);
       const key = new THREE.DirectionalLight("#fff5e9", 1.1);
       key.castShadow = true;
-      key.shadow.mapSize.set(1024, 1024);
+      key.shadow.mapSize.set(2048, 2048);
       key.shadow.bias = -0.00015;
-      key.shadow.normalBias = 0.3;
+      key.shadow.normalBias = 0.6;
       key.shadow.radius = 3;
       const fill = new THREE.DirectionalLight("#dce9ef", .3);
       scene.add(ambient, key, key.target, fill, fill.target);
@@ -139,6 +142,18 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const runtime: SceneRuntime = {
         renderer, scene, camera, controls, model: null, ambient, key, fill,
         distance: 1800, requestRender, bounds: new THREE.Box3(),
+        light(night, windows, lightsOn) {
+          ambient.intensity = .65 - night * .55;
+          key.intensity = 1.1 - night * 1.02;
+          fill.intensity = .3 - night * .25;
+          scene.environmentIntensity = .65 - night * .55;
+          currentRenderer.toneMappingExposure = 1.1 - night * .2;
+          if (runtime.model) applySignLighting(runtime.model, night, lightsOn, windows);
+          host.dataset.nightFraction = night.toFixed(3);
+          host.dataset.windowLightFraction = windows.toFixed(3);
+          host.dataset.lightingPhase = night === 0 ? "day" : windows === 1 ? "night" : "dusk";
+          requestRender();
+        },
         fitToView() {
           if (!runtime.model || runtime.bounds.isEmpty()) return;
           camera.updateMatrixWorld();
@@ -303,10 +318,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       if (hostRef.current) { hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId; }
       runtime.scene.add(model);
       runtime.bounds.setFromObject(model);
-      applySignLighting(model, lightFraction.current, lightsOnRef.current);
-      runtime.ambient.intensity = .65 - lightFraction.current * .5;
-      runtime.key.intensity = 1.1 - lightFraction.current * .95;
-      runtime.fill.intensity = .3 - lightFraction.current * .22;
+      runtime.light(lightFraction.current, windowFraction.current, lightsOnRef.current);
       const extent=runtime.bounds.getSize(new THREE.Vector3()), center=runtime.bounds.getCenter(new THREE.Vector3());
       const lightSpan=Math.max(extent.x,extent.y,width,height);
       runtime.key.position.set(center.x-lightSpan*.55,center.y+lightSpan*.9,center.z+lightSpan*1.4);
@@ -329,29 +341,26 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
   }, [modelProject, layout, width, height, depth, showDimensions, placement, unavailable]);
 
   useEffect(() => {
-    const target = project.sceneMode === 'night' ? 1 : 0;
-    const from = lightFraction.current, start = performance.now();
-    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 750;
+    const targetNight = project.sceneMode === "night";
+    const from = { night: lightFraction.current, windows: windowFraction.current };
+    const start = performance.now();
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = sceneLightingDuration(targetNight, reducedMotion);
     let frame = 0;
     const step = (now: number) => {
       const runtime = runtimeRef.current; if (!runtime) return;
-      const t = duration ? Math.min(1, (now - start) / duration) : 1;
-      const eased = t * t * (3 - 2 * t);
-      lightFraction.current = from + (target - from) * eased;
-      const amount = lightFraction.current;
-      runtime.ambient.intensity = .65 - amount * .5;
-      runtime.key.intensity = 1.1 - amount * .95;
-      runtime.fill.intensity = .3 - amount * .22;
-      runtime.renderer.toneMappingExposure = 1.1 - amount * .2;
-      if (runtime.model) applySignLighting(runtime.model, amount, lightsOnRef.current);
-      runtime.requestRender();
-      if (t < 1) frame = requestAnimationFrame(step);
+      const elapsed = now - start;
+      const light = sceneLightingAt(from, targetNight, elapsed, reducedMotion);
+      lightFraction.current = light.night;
+      windowFraction.current = light.windows;
+      runtime.light(light.night, light.windows, lightsOnRef.current);
+      if (elapsed < duration) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
   }, [project.sceneMode]);
 
-  useEffect(()=>{const runtime=runtimeRef.current;if(runtime?.model){applySignLighting(runtime.model,lightFraction.current,project.lightsOn!==false);runtime.requestRender();}},[project.lightsOn]);
+  useEffect(()=>{const runtime=runtimeRef.current;if(runtime?.model){runtime.light(lightFraction.current,windowFraction.current,project.lightsOn!==false);runtime.requestRender();}},[project.lightsOn]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;

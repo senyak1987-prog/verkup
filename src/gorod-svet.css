@@ -365,3 +365,11 @@ main.public-sign-configurator.sign-studio .neon-inline-toolbar label {display:fl
 main.public-sign-configurator.sign-studio .neon-inline-toolbar select {max-width:165px;min-height:32px;border:1px solid #afc2b6;border-radius:4px;background:#fff;color:#194d36;padding:4px;font:inherit;font-size:11px;}
 main.public-sign-configurator.sign-studio .neon-inline-toolbar input[type=color] {width:34px;height:32px;padding:3px;background:#fff;border:1px solid #afc2b6;border-radius:4px;}
 @media(max-width:767px) {main.public-sign-configurator.sign-studio .neon-inline-toolbar {gap:5px;padding:5px;}main.public-sign-configurator.sign-studio .neon-inline-toolbar select {max-width:123px;}main.public-sign-configurator.sign-studio .neon-inline-toolbar label span {display:none;}main.public-sign-configurator.sign-studio .neon-inline-toolbar button {font-size:10px;padding:5px;}}
+
+/* The facade darkens before its interiors wake up; window glass stays reflective. */
+main.public-sign-configurator.sign-studio .facade-svg-render [data-window-light] { transition:opacity 260ms ease; }
+main.public-sign-configurator.sign-studio .facade-svg-render.windows-dark [data-window-light] { opacity:0; }
+main.public-sign-configurator.sign-studio .facade-svg-render.windows-lit [data-window-light] { transition-duration:500ms; transition-delay:calc(var(--window-order,0) * 25ms); }
+@media(prefers-reduced-motion:reduce) {
+  main.public-sign-configurator.sign-studio .facade-svg-render [data-window-light] { transition:none; }
+}

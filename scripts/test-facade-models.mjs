@@ -144,7 +144,9 @@ test('Windows have true apertures, restrained reflections and separated glazing 
         anchor.y - glass.y - glass.h * .25, 5000), new THREE.Vector3(0, 0, -1));
       const hit = ray.intersectObjects(model.children, false)[0];
       assert.equal(hit?.object.userData.facadeKind, 'glass', place.id + ': glazing must be visible through the wall');
-      assert.ok(hit.object.material.roughness >= .4 && hit.object.material.envMapIntensity <= .2, 'Window reflections must remain restrained');
+      assert.ok(hit.object.material.roughness >= .08 && hit.object.material.roughness <= .5
+        && hit.object.material.envMapIntensity >= .2 && hit.object.material.envMapIntensity <= 1.25,
+        'Glazing has readable reflections without becoming a perfect mirror');
       assert.ok(hit.object.material.userData.facadeEmission, 'Interior light is independent of the sign switch');
       const frame = model.children.find(child => child.name === hit.object.name.replace('-glass', '-frame'));
       assert.ok(frame && frame.userData.frontZ >= hit.object.userData.frontZ + 10, 'Window fronts have a real reveal, preventing coplanar shimmer');
@@ -153,6 +155,63 @@ test('Windows have true apertures, restrained reflections and separated glazing 
       const attr = mesh.geometry.getAttribute('position');
       for (let index = 0; index < attr.array.length; index++) assert.ok(Number.isFinite(attr.array[index]));
       assert.ok(mesh.position.toArray().every(Number.isFinite) && mesh.scale.toArray().every(Number.isFinite));
+    }
+    dispose(model);
+  }
+});
+
+test('Facade glass has separate stable light identities and architecture casts real receiving shadows',()=>{
+  const glassMeshes=model=>{const items=[];model.traverse(child=>{if(child.userData.facadeKind==='glass')items.push(child);});return items;};
+  for(const {id:palette} of facade.FACADE_PALETTES)for(const place of places)for(const mode of ['wall','corner','corner-front','corner-side']) {
+    const pose=panelMount.panelMountLayout(550,'circle',120,60,160,mode);
+    const model=scene.createFacadeModel(place.id,550,550,{palette,panelMount:pose}),glass=glassMeshes(model);
+    assert.ok(glass.length>=3,'The facade includes multiple independently lit window/door panes');
+    assert.equal(new Set(glass.map(mesh=>mesh.material)).size,glass.length,'One shared glass material cannot independently animate different windows');
+    const indexes=glass.map(mesh=>mesh.material.userData.windowIndex);
+    assert.ok(indexes.every(Number.isInteger),'Every pane has a stable numeric light identity');
+    assert.deepEqual([...indexes].sort((a,b)=>a-b),Array.from({length:glass.length},(_,i)=>i),'The return wall continues the window sequence without duplicate identities');
+    for(const mesh of glass) {
+      const material=mesh.material;
+      assert.ok(material.isMeshPhysicalMaterial,'Glass uses a physical dielectric material');
+      assert.ok(material.roughness>=.08&&material.roughness<=.5,'Window reflections stay softer than a mirror');
+      assert.equal(material.metalness,0,'Architectural glass remains a dielectric surface');
+      assert.ok(material.envMapIntensity>=.2&&material.envMapIntensity<=1.25,'Scene reflections are present but restrained');
+      assert.ok(material.userData.windowLight&&material.userData.facadeEmission,'The window light is separated from the sign lighting switch');
+      assert.ok(material.userData.maxEmission>0,'Each window has a visible interior light level');
+      assert.ok(mesh.receiveShadow&&!mesh.castShadow,'Glass receives architectural shade without casting an opaque pane shadow');
+    }
+    model.traverse(mesh=>{
+      if(!mesh.geometry)return;
+      if(mesh.userData.facadeKind==='wall')assert.ok(mesh.castShadow&&mesh.receiveShadow,'Masonry participates in real facade shadowing');
+      if(mesh.name==='facade-canopy-roof'||mesh.name.startsWith('facade-canopy-column-')||mesh.name.startsWith('facade-entrance-step-')||mesh.name.endsWith('-frame'))
+        assert.ok(mesh.castShadow&&mesh.receiveShadow,mesh.name+' casts and receives physical shadows');
+      if(mesh.userData.facadeKind==='opening')assert.ok(!mesh.castShadow,'Opening backing cannot become an opaque occluder in front of glass');
+    });
+    const rebuilt=scene.createFacadeModel(place.id,1800,300,{palette,panelMount:pose});
+    assert.deepEqual(glassMeshes(rebuilt).map(mesh=>[mesh.name,mesh.material.userData.windowIndex]),glass.map(mesh=>[mesh.name,mesh.material.userData.windowIndex]),'Light identities persist when the sign changes');
+    dispose(model);dispose(rebuilt);
+  }
+});
+
+test('SVG windows retain independent warm interiors and reflections with matching 3D light indices',()=>{
+  const marker=(markup,name)=>[...markup.matchAll(new RegExp('<g\\b[^>]*data-'+name+'="true"[^>]*>','g'))].map(match=>{
+    const attrs=Object.fromEntries([...match[0].matchAll(/([\w-]+)="([^"]*)"/g)].map(item=>[item[1],item[2]]));
+    return attrs;
+  });
+  for(const place of places)for(const mode of ['wall','corner','corner-front','corner-side']) {
+    const pose=panelMount.panelMountLayout(550,'circle',120,60,160,mode),options={panelMount:pose,signBox:{x:0,y:0,width:550,height:550}};
+    const model=scene.createFacadeModel(place.id,550,550,options),indexes=[];
+    model.traverse(child=>{if(child.userData.facadeKind==='glass')indexes.push(child.material.userData.windowIndex);});
+    for(const [night,on,level] of [[false,true,1],[true,false,1],[true,true,.4],[true,true,1]]) {
+      const markup=facade.createFacadeSvg(place.id,'<svg viewBox="0 0 550 550"/>',night,'windows-audit',{...options,windowLights:on,windowLightLevel:level});
+      const lights=marker(markup,'window-light'),reflections=marker(markup,'window-reflection');
+      assert.equal(lights.length,indexes.length,'Every glazed opening has an independent interior group');
+      assert.deepEqual(lights.map(item=>Number(item['data-window-index'])).sort((a,b)=>a-b),[...indexes].sort((a,b)=>a-b));
+      assert.deepEqual(reflections.map(item=>Number(item['data-window-index'])).sort((a,b)=>a-b),[...indexes].sort((a,b)=>a-b),'Reflections persist independently of interior light');
+      for(const light of lights)assert.ok(Math.abs(Number(light.opacity)-(night&&on?level:0))<.001,'Warm interior level follows the window control rather than only a palette change');
+      const ids=[...markup.matchAll(/\bid="([^"]+)"/g)].map(match=>match[1]);
+      assert.equal(new Set(ids).size,ids.length,'Corner facade clipping and reflection definitions have no duplicate IDs');
+      assert.doesNotMatch(markup,/NaN|Infinity|undefined/);
     }
     dispose(model);
   }

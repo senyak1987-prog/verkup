@@ -68,9 +68,18 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
       const side = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, true);
       side.name = 'facade-side'; side.rotation.y = Math.PI / 2;
       side.position.set(wallShift, 0, -3900);
+      const offset = front.userData.windowCount ?? 0;
+      side.traverse(child => {
+        const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+        if (material?.userData.windowLight) {
+          material.userData.windowIndex += offset;
+          child.userData.windowIndex = material.userData.windowIndex;
+        }
+      });
       group.add(front, side);
     } else group.add(front);
     group.userData.signMountZ = 0;
+    group.userData.windowCount = group.children.reduce((count, child) => count + (child.userData.windowCount ?? 0), 0);
     return group;
   }
   if (place === 'none') return group;
@@ -84,22 +93,36 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
   const leafGeometry = new THREE.SphereGeometry(.5, 10, 7);
   const masonry = palette === 'brick' ? masonryTexture() : undefined;
   group.userData.palette = palette; group.userData.signMountZ = anchorZ;
+  let windowCount = 0;
 
   for (const [index, r] of dayRects.entries()) {
     const kind = r.kind ?? 'detail';
-    const materialKey = kind + ':' + r.color;
+    const windowIndex = kind === 'glass' ? windowCount++ : undefined;
+    const materialKey = kind + ':' + (kind === 'glass' ? r.name : r.color);
     let material = materials.get(materialKey);
     if (!material) {
-      material = new THREE.MeshStandardMaterial({ color: r.color,
-        roughness: kind === 'glass' ? .47 : kind === 'foliage' ? .86 : kind === 'wall' ? .98 : .77,
-        metalness: kind === 'glass' ? 0 : r.name?.includes('frame') || r.name?.includes('canopy') ? .12 : 0,
-        envMapIntensity: kind === 'glass' ? .12 : .3 });
+      material = kind === 'glass'
+        ? new THREE.MeshPhysicalMaterial({ color: r.color, roughness: .13, metalness: 0,
+          ior: 1.5, clearcoat: 1, clearcoatRoughness: .075, specularIntensity: 1, envMapIntensity: 1.05 })
+        : new THREE.MeshStandardMaterial({ color: r.color,
+          roughness: kind === 'foliage' ? .86 : kind === 'wall' ? .98 : .77,
+          metalness: r.name?.includes('frame') || r.name?.includes('canopy') ? .12 : 0, envMapIntensity: .3 });
       material.userData.dayColor = material.color.clone();
+      material.userData.nightColor = new THREE.Color(nightRects[index].color);
       // Interior light remains independent of the sign's lighting switch.
-      if (kind === 'glass') { material.emissive.set('#cfaa72'); material.userData.maxEmission = .3; material.userData.facadeEmission = true; }
+      if (kind === 'glass') {
+        material.emissive.set('#ffd8a1');
+        material.userData.maxWindowEmission = .42 + (windowIndex! % 4) * .035;
+        material.userData.maxEmission = material.userData.maxWindowEmission;
+        material.userData.facadeEmission = true;
+        material.userData.windowLight = true; material.userData.windowIndex = windowIndex;
+        material.userData.nightColor = new THREE.Color('#324653');
+        material.userData.dayEnvIntensity = 1.05; material.userData.nightEnvIntensity = .32;
+      }
       if (kind === 'lamp') { material.emissive.set(nightRects[index].color); material.userData.maxEmission = .65; material.userData.facadeEmission = true; }
       if (kind === 'wall' && masonry) {
         material.color.set('#ffffff'); material.userData.dayColor = material.color.clone();
+        material.userData.nightColor = material.color.clone().multiplyScalar(.58);
         material.map = masonry.color; material.bumpMap = masonry.bump; material.bumpScale = 1.3;
       }
       materials.set(materialKey, material);
@@ -117,12 +140,14 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
       if (r.rotation) mesh.rotation.z = -r.rotation * Math.PI / 180;
     }
     mesh.name = kind === 'wall' ? 'facade-wall' : 'facade-' + (r.name ?? 'detail');
-    mesh.receiveShadow = kind !== 'glass' && kind !== 'lamp';
-    mesh.castShadow = kind !== 'wall' && kind !== 'glass' && kind !== 'opening' && kind !== 'lamp';
+    mesh.receiveShadow = kind !== 'lamp';
+    mesh.castShadow = kind !== 'glass' && kind !== 'opening' && kind !== 'lamp';
     mesh.userData.facadeKind = kind;
     mesh.userData.frontZ = anchorZ + (r.z ?? 0);
+    if (windowIndex !== undefined) mesh.userData.windowIndex = windowIndex;
     group.add(mesh);
   }
+  group.userData.windowCount = windowCount;
   return group;
 }
 
@@ -137,7 +162,7 @@ export function createPanelMountContext(panel: PanelFacadeMount, palette: Facade
   if (masonry) { material.map = masonry.color; material.bumpMap = masonry.bump; material.bumpScale = 1.3; }
   const addWall = (name: string, width: number, depth: number, x: number, z: number) => {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
-    wall.position.set(x, 0, z); wall.name = name; wall.receiveShadow = true;
+    wall.position.set(x, 0, z); wall.name = name; wall.receiveShadow = true; wall.castShadow = true;
     wall.userData.facadeKind = 'wall'; group.add(wall);
   };
   if (isPanelCornerMount(panel.mode)) {
