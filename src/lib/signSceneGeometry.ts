@@ -402,7 +402,9 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
   const group = new THREE.Group();
   group.userData.productId = project.productId;
   const night = project.sceneMode === "night";
-  const modelDepth = Math.max(1, project.productId === "letters" ? project.letterDepth : depth);
+  const requestedDepth = project.productId === "letters" ? project.letterDepth : depth;
+  const modelDepth = project.productId === "letters" && ["halo","faceHalo"].includes(project.glowMode)
+    ? (requestedDepth === 40 ? 40 : 50) : Math.max(1, requestedDepth);
   const faceLit = night && (project.productId === "panel" || project.glowMode !== "halo");
   const sideLit = night && project.productId === "letters" && project.glowMode === "faceSide";
   const haloLit = night && (project.glowMode === "faceHalo" || project.glowMode === "halo");
@@ -504,18 +506,40 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       const haloMode = project.glowMode === "faceHalo" || project.glowMode === "halo";
       const frameReferenceRear = project.mountMode === "frame" ? 15 : haloMode ? 30 : 0;
       const contourOnFrame = project.mountMode === "frame" && haloMode && project.haloBackerEnabled && Boolean(layout.haloBackerPath);
-      // Front of the tube: 15 mm. The 3 mm plate sits on it, with 10 mm halo spacers.
-      // The configured face-to-frame depth includes these layers; the face remains at 15 + depth.
-      const rear = frameReferenceRear + (contourOnFrame ? 13 : 0);
-      const bodyDepth = modelDepth - (contourOnFrame ? 13 : 0);
+      // The 3 mm plate rests on the frame; 20 mm standoffs separate it from the full-depth letter body.
+      const rear = frameReferenceRear + (contourOnFrame ? 23 : 0);
+      const bodyDepth = modelDepth;
       if (contourOnFrame && layout.haloBackerPath) {
         const shapes=glyphFromPath(layout.haloBackerPath,layout.signBox,6).shapes;
         const material=solidMaterial(project.haloBackerColor.value,night);material.roughness=.65;
         const plate=extrude(shapes,3,material,material,material,{curveSegments:24,smoothSides:true});
         plate.geometry.rotateX(Math.PI);plate.geometry.translate(-centerX,centerY,18);
         plate.name='halo-contour-backer';plate.userData.thicknessMm=3;
-        plate.userData.mount='frame';plate.userData.frontZ=18;plate.userData.haloGapMm=10;group.add(plate);
+        plate.userData.mount='frame';plate.userData.frontZ=18;plate.userData.haloGapMm=20;group.add(plate);
       }
+      const spacerMaterial = new THREE.MeshStandardMaterial({color:'#7d858b',metalness:.75,roughness:.35});
+      const addSpacers = (shapes: THREE.Shape[], map: (x:number,y:number)=>THREE.Vector2) => {
+        if (!contourOnFrame) return;
+        for (const shape of shapes) {
+          const cap = new THREE.ShapeGeometry(shape, 24), points = cap.getAttribute('position'), indices = cap.getIndex();
+          const anchors: THREE.Vector2[] = [];
+          for(let i=0;i<(indices?.count??0);i+=3){
+            const a=map(points.getX(indices!.getX(i)),points.getY(indices!.getX(i)));
+            const b=map(points.getX(indices!.getX(i+1)),points.getY(indices!.getX(i+1)));
+            const c=map(points.getX(indices!.getX(i+2)),points.getY(indices!.getX(i+2)));
+            if(Math.abs(b.clone().sub(a).cross(c.clone().sub(a)))>50)anchors.push(a.add(b).add(c).multiplyScalar(1/3));
+          }
+          cap.dispose();
+          if(!anchors.length)continue;
+          const first=anchors.reduce((a,b)=>a.y>b.y?a:b);
+          const second=anchors.reduce((a,b)=>a.distanceToSquared(first)>b.distanceToSquared(first)?a:b);
+          for(const anchor of first.distanceTo(second)>12?[first,second]:[first]){
+            const spacer=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,20,16),spacerMaterial);
+            spacer.rotation.x=Math.PI/2;spacer.position.set(anchor.x,anchor.y,28);
+            spacer.name='halo-distance-spacer';spacer.userData.lengthMm=20;spacer.castShadow=true;group.add(spacer);
+          }
+        }
+      };
       const backMaterial = solidMaterial(haloLit ? faceColor : sideColor, night, haloLit);
       // Trimless letters have an acrylic face and painted metal return, not a
       // continuous metallic block. Their tiny front joint remains inside the body.
@@ -553,6 +577,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         if (part.row) { text.userData.lineIndex = part.row.index; text.userData.font = part.row.font; text.userData.rowId = part.row.id; }
         if (project.letterOutlineEnabled) contour(text, project.outlineColor.value);
         group.add(text);
+        addSpacers(part.glyph.shapes,(x,y)=>new THREE.Vector2(text.position.x+x*sx,text.position.y-y*sy));
       }
       if (project.logoEnabled !== false && layout.logoBox.width > 0) {
         const shape = logoShape(project.logoShape, layout.logoBox.width);
@@ -568,6 +593,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         await applyArtwork(logo, shape, project.logoImage, layout.logoBox.width, bodyDepth, night, faceLit,
           100, 0, 0, false, curveSegments);
       }
+      if (!contourOnFrame) spacerMaterial.dispose();
       if (!seamUsed) frontSeam.dispose();
       if (project.mountMode === "frame") {
         const steel = new THREE.MeshStandardMaterial({ color: night ? "#919da5" : "#727e85",
