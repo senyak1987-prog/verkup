@@ -13,7 +13,7 @@ import { createLetterRowsLayout } from "../lib/letterRowsLayout";
 import type { LetterRowLayout, LetterRowSetting } from "../lib/letterRowsLayout";
 import type { LetterFrameSegment } from "../lib/letterFrame";
 import { allowedLetterDepths, normalizeLetterDepth, frameRailCenters } from "../lib/letterConstruction";
-import { constrainBacker, containBox, backerLimits } from "../lib/backerConstraints";
+import { constrainBacker, containBox, backerLimits, backerSeams } from "../lib/backerConstraints";
 import { createNeonDesign, neonSvg, neonRequiredBacker, neonUnsupportedCharacters } from "../lib/neonConstruction";
 import { fitNeonToWidth } from "../lib/neonSizing";
 import { NeonControls } from "./NeonControls";
@@ -289,7 +289,7 @@ const DEFAULT_PROJECT = {
   logoImage: "",
   logoEnabled: false,
   logoScale: 86,
-  logoSizeMm: 90,
+  logoSizeMm: 100,
   letterOutlineEnabled: false,
   logoOutlineEnabled: false,
   outlineColor: ORACAL_641_COLORS[1] as ColorOption,
@@ -333,7 +333,7 @@ const PROJECT_RANGES: Record<string, [number, number]> = {
   logoOffsetX: [-20000, 20000], logoOffsetY: [-10000, 10000], textOffsetX: [-20000, 20000], textOffsetY: [-10000, 10000],
   neonHeight: [40, 800], neonBrightness: [10, 100], neonBackerWidth: [150, 3950], neonBackerHeight: [150, 1450],
   neonLetterSpacing: [0, 100], neonLineSpacing: [0, 300], neonTargetWidth: [0, 3800], backdropWidth:[500,20000],
-  letterHeight: [40, 1200], letterDepth: [40, 60], logoScale: [45, 130], logoSizeMm: [20,900], haloBackerOffsetMm: [15,25],
+  letterHeight: [100, 700], letterDepth: [40, 60], logoScale: [45, 130], logoSizeMm: [100,700], haloBackerOffsetMm: [15,25],
   letterWidth: [0, 20000],
   panelSize: [350, 700], panelDepth: [130, 150],
   panelWallGap: [60, 400], panelCornerRadius: [0, 300],
@@ -355,7 +355,7 @@ function validateProject(raw: unknown): ProjectState {
       if (!Array.isArray(value) || value.length > 3) throw new Error("Некорректные настройки строк.");
       output[key] = value.map(item => {
         if (key === "letterLineFonts" && typeof item === "string" && (!item || resolveSignFont(item).value === item)) return item;
-        if (key === "letterLineHeights" && typeof item === "number" && Number.isFinite(item)) return item === 0 ? 0 : Math.max(40,Math.min(1200,item));
+        if (key === "letterLineHeights" && typeof item === "number" && Number.isFinite(item)) return item === 0 ? 0 : Math.max(100,Math.min(700,item));
         if (key === "letterLineOffsets" && item && typeof item === "object" && typeof item.x === "number" && typeof item.y === "number" && Number.isFinite(item.x) && Number.isFinite(item.y)) return {x:Math.max(-20000,Math.min(20000,item.x)),y:Math.max(-10000,Math.min(10000,item.y))};
         if (key === "neonLineFonts" && typeof item === "string" && NEON_FONTS.some(font=>font.id===item)) return item;
         if (key === "neonLineColors" && typeof item === "string" && /^#[0-9a-f]{6}$/i.test(item)) return item;
@@ -393,7 +393,7 @@ function validateProject(raw: unknown): ProjectState {
   result.frameProfile = 15;
   if(result.haloBackerEnabled && ["halo","faceHalo"].includes(result.glowMode))result.mountMode="frame";
   result.panelSize=normalizePanelSize(result.panelSize);result.panelDepth=normalizePanelDepth(result.panelDepth);
-  if(input.logoSizeMm===undefined)result.logoSizeMm=Math.max(20,Math.min(900,result.letterHeight*result.logoScale/100));
+  if(input.logoSizeMm===undefined)result.logoSizeMm=Math.max(100,Math.min(700,result.letterHeight*result.logoScale/100));
   if(result.panelMountMode==='corner') result.panelWallGap=Math.max(result.panelWallGap,result.panelDepth/2+20);
   result.letterDepth = normalizeLetterDepth([result.lettersText,result.secondLineText,result.thirdLineText].map((text,index)=>text.trim()?result.letterLineHeights[index]||result.letterHeight:0).filter(Boolean), result.letterDepth, result.glowMode);
   if (Number(input.frameTopPosition) > 20) result.frameTopPosition = 15;
@@ -523,7 +523,7 @@ export function SignProductConfigurator() {
   const setLogoShape = (value: ProjectState["logoShape"]) => setProject(previous => ({ ...previous, logoShape: value }));
   const setLogoImage = (value: ProjectState["logoImage"]) => setProject(previous => ({ ...previous, logoImage: value }));
   const setLogoEnabled = (value: boolean) => setProject(previous => ({ ...previous, logoEnabled: value }));
-  const setLogoSize = (value:number) => setProject(previous => ({ ...previous, logoSizeMm: Math.max(20,Math.min(900,value)) }));
+  const setLogoSize = (value:number) => setProject(previous => ({ ...previous, logoSizeMm: Math.max(100,Math.min(700,value)) }));
   const setLetterOutlineEnabled = (value: ProjectState["letterOutlineEnabled"]) => setProject(previous => ({ ...previous, letterOutlineEnabled: value }));
   const setLogoOutlineEnabled = (value: ProjectState["logoOutlineEnabled"]) => setProject(previous => ({ ...previous, logoOutlineEnabled: value }));
   const setOutlineColor = (value: ProjectState["outlineColor"]) => setProject(previous => ({ ...previous, outlineColor: value }));
@@ -762,7 +762,7 @@ export function SignProductConfigurator() {
     const actualHeight = lettersLayout.textHeight / (letterContours.lineFactor ?? 1);
     const expectedHeight = letterHeight - (letterOutlineEnabled ? Math.max(4, letterHeight * .035) * 2 : 0);
     if (actualHeight < expectedHeight - 1) {
-      const nextHeight = Math.max(40, Math.floor(letterHeight * actualHeight / expectedHeight));
+      const nextHeight = Math.max(100, Math.floor(letterHeight * actualHeight / expectedHeight));
       patchProject({ letterHeight: nextHeight, letterWidth: letterWidth ? Math.floor(lettersLayout.signBox.width) : 0 });
     }
   }, [lettersLayout, letterContours, fontPending, project.mountMode, letterHeight, letterOutlineEnabled, letterWidth]);
@@ -797,7 +797,8 @@ export function SignProductConfigurator() {
   const neonFits = neonWidth <= 3950 && neonHeight <= 1450;
   const visibleObjectDimensions=productId==='neon'?(neonResult.design?.lines??[]).map(row=>({id:`neon-line-${row.index}`,label:`Строка ${row.index+1}`,width:row.width,height:row.height})):objectDimensions;
   const blankSign = isProjectBlank(project);
-  const canOutputSign = !blankSign && (productId === "letters" ? !fontPending && Boolean(letterContours)
+  const lettersFit = mountMode !== "acp" || [...(lettersLayout.textRows??[]).map(row=>row.inkBox),...(logoEnabled?[lettersLayout.logoBox]:[])].every(box=>box.x>=lettersLayout.panelBox.x+6-.01&&box.y>=lettersLayout.panelBox.y+6-.01&&box.x+box.width<=lettersLayout.panelBox.x+lettersLayout.panelBox.width-6+.01&&box.y+box.height<=lettersLayout.panelBox.y+lettersLayout.panelBox.height-6+.01);
+  const canOutputSign = !blankSign && (productId === "letters" ? !fontPending && Boolean(letterContours) && lettersFit
     : productId === "neon" ? Boolean(neonResult.design) && neonFits : true);
   useEffect(() => {
     if (neonFits && productId === 'neon' && (project.neonBackerWidth < neonWidth || project.neonBackerHeight < neonHeight))
@@ -1080,7 +1081,7 @@ export function SignProductConfigurator() {
           {productId === "neon" && (neonResult.error || !neonFits) && <p className="studio-fit-warning" role="alert">{neonResult.error || "Уменьшите высоту или длину надписи, чтобы она поместилась на подложке."}</p>}
           {activeSection === "logo" && (productId === "letters" ? logoImage : panelImage) && <button className="studio-remove" type="button" onClick={() => productId === "letters" ? setLogoImage("") : setPanelImage("")}><X size={14} />Удалить изображение</button>}
           {productId === "panel" && activeSection === "design" && <p className="control-note">Размер — диаметр круга или сторона квадрата, в миллиметрах.</p>}
-          {productId === "letters" && activeSection === "mount" && mountMode === "acp" && (measuredLettersWidth > acpWidth || letterHeight > acpHeight) && <p className="studio-fit-warning" role="status">Надпись выходит за подложку. Увеличьте АКП минимум до {measuredLettersWidth} × {letterHeight} мм или уменьшите высоту букв.</p>}
+          {productId === "letters" && activeSection === "mount" && mountMode === "acp" && !lettersFit && <p className="studio-fit-warning" role="status">Макет не помещается на подложке при минимальной высоте 100 мм. Увеличьте подложку или измените надпись и размеры элементов.</p>}
           </div>
           <details className="studio-help"><summary>Как пользоваться студией<ChevronRight size={14} /></summary><p>Выберите тип вывески и настройте параметры по разделам. Переключайте день и ночь, чтобы оценить свечение. Проект сохраняется в этом браузере. Скачайте JSON для переноса на другое устройство.</p><p>Макет дает представление о конструкции. Цвета на экране могут отличаться от физических образцов Oracal; производственную документацию нужно подготовить отдельно.</p></details>
         </aside>
@@ -1556,7 +1557,7 @@ function LettersControls({
       {mountMode === "acp" && (
         <ControlSection title="Подложка АКП">
           <div className="sign-size-grid">
-            <NumberField label="Ширина, мм" min={400} max={backerLimits(acpDepth).width} onChange={onAcpWidthChange} value={acpWidth} />
+            <NumberField label="Ширина, мм" min={400} max={20000} onChange={onAcpWidthChange} value={acpWidth} />
             <NumberField label="Высота, мм" min={250} max={backerLimits(acpDepth).height} onChange={onAcpHeightChange} value={acpHeight} />
           </div>
           <RangeField label="Глубина подложки, мм" max={100} min={30} onChange={onAcpDepthChange} step={5} value={acpDepth} />
@@ -1607,8 +1608,8 @@ function LettersControls({
           <input accept="image/png,image/jpeg,image/webp" onChange={onLogoChange} type="file" />
         </label>
         <small className="control-note">PNG, JPG или WebP · до 2 МБ</small>
-        {logoEnabled && <NumberField label="Размер логотипа, мм" max={900} min={20} onChange={onLogoSizeChange} value={logoSizeMm} />}
-        <small className="control-note">Логотип: 180 ₽ за сантиметр высоты. Максимум 900 мм.</small>
+        {logoEnabled && <NumberField label="Размер логотипа, мм" max={700} min={100} onChange={onLogoSizeChange} value={logoSizeMm} />}
+        <small className="control-note">Логотип: 180 ₽ за сантиметр высоты. Размер — от 100 до 700 мм.</small>
       </ControlSection>
 
       <ControlSection title="Лицо Oracal 8500">
@@ -1896,11 +1897,11 @@ function NumberField({
 
 function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayout {
   if (config.lineSettings) return createLetterRowsLayout({...config,lineSettings:config.lineSettings});
-  const requestedHeight = clamp(config.height, 40, 1200);
+  const requestedHeight = clamp(config.height, 100, 700);
   const factor = config.contours?.lineFactor ?? 1;
   const natural = config.contours?.mainBox ?? config.textBox ?? { x: 0, y: -714, width: Math.max(1, config.text.length) * 640, height: 714 };
   const logoEnabled = Boolean(config.logoEnabled);
-  const requestedLogo = logoEnabled ? (config.logoSizeMm===undefined ? requestedHeight * clamp(config.logoScale,45,130)/100 : clamp(config.logoSizeMm,20,900)) : 0;
+  const requestedLogo = logoEnabled ? (config.logoSizeMm===undefined ? clamp(requestedHeight * clamp(config.logoScale,45,130)/100,100,700) : clamp(config.logoSizeMm,100,700)) : 0;
   const requestedGap = logoEnabled ? requestedHeight * LETTER_GAP_FACTOR : 0;
   const outline = config.letterOutlineEnabled ? Math.max(4, requestedHeight * .035) : 0;
   const requestedTextHeight = (requestedHeight - outline * 2) * factor;
@@ -1910,8 +1911,9 @@ function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayou
   const overTop = Math.max(0, natural.y - ink.y) / natural.height * requestedTextHeight;
   const overBottom = Math.max(0, ink.y + ink.height - natural.y - natural.height) / natural.height * requestedTextHeight;
   const panelRequired = config.mountMode === 'acp';
-  const fit = panelRequired ? Math.min(1, (config.acpLayout.faceWidth - 12) / requestedWidth,
-    (config.acpLayout.faceHeight - 12) / (Math.max(requestedTextHeight + outline * 2, requestedLogo) + overTop + overBottom)) : 1;
+  const minimumFit = Math.max(100/requestedHeight,requestedLogo?100/requestedLogo:0);
+  const fit = panelRequired ? Math.max(minimumFit,Math.min(1, (config.acpLayout.faceWidth - 12) / requestedWidth,
+    (config.acpLayout.faceHeight - 12) / (Math.max(requestedTextHeight + outline * 2, requestedLogo) + overTop + overBottom))) : 1;
   const height = requestedHeight * fit, logoSize = requestedLogo * fit, gap = requestedGap * fit;
   const textHeight = requestedTextHeight * fit, signWidth = requestedWidth * fit;
   const textWidth = Math.max(1, signWidth - logoSize - gap - outline * 2 * fit);
@@ -1950,7 +1952,7 @@ function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayou
   const haloBackerBox={x:signBox.x-height*.16,y:signBox.y-height*.11,width:signBox.width+height*.32,height:signBox.height+height*.22};
   return {defaultTextX,defaultTextY,defaultLogoX,defaultLogoY,viewWidth,viewHeight,signBox,logoBox,logoCornerRadius:logoSize*.16,textX,textTop,textBaseline,textWidth,textHeight,textInkBox,fontSize,
     textPathData:config.contours?.pathData,textNaturalBox:natural,railX,railWidth,railHeight,railTopY,railBottomY,panelBox,panelCornerRadius:0,
-    haloBackerBox,haloBackerRadius:Math.min(height*.28,haloBackerBox.height/2),seamXs:[],seamYs:[]};
+    haloBackerBox,haloBackerRadius:Math.min(height*.28,haloBackerBox.height/2),seamXs:panelRequired?backerSeams(panelBox.width,config.acpLayout.depth??50).map(x=>panelBox.x+x):[],seamYs:[]};
 }
 
 function createLettersSvgMarkup(
@@ -2034,11 +2036,11 @@ function createLettersSvgMarkup(
       layout.seamXs.filter((x) => x < layout.panelBox.x + layout.panelBox.width).map((x) =>
         '<line x1="' + n(x) + '" x2="' + n(x) + '" y1="' + n(layout.panelBox.y) +
         '" y2="' + n(layout.panelBox.y + layout.panelBox.height) +
-        '" stroke="#8793a1" stroke-width="2" stroke-dasharray="12 9" opacity="0.5" />').join("") +
+        '" stroke="#8793a1" stroke-width="1.5" opacity="0.4" />').join("") +
       layout.seamYs.filter((y) => y < layout.panelBox.y + layout.panelBox.height).map((y) =>
         '<line x1="' + n(layout.panelBox.x) + '" x2="' + n(layout.panelBox.x + layout.panelBox.width) +
         '" y1="' + n(y) + '" y2="' + n(y) +
-        '" stroke="#8793a1" stroke-width="2" stroke-dasharray="12 9" opacity="0.5" />').join("") + "</g>"
+        '" stroke="#8793a1" stroke-width="1.5" opacity="0.4" />').join("") + "</g>"
     : "";
   const frameMarkup = config.mountMode === "frame"
     ? layout.frameSegments ? '<g id="frame-rails" filter="url(#letters-cast-shadow)">' + layout.frameSegments.map(segment=>
@@ -2124,7 +2126,8 @@ function createSvgDimensions(box: SvgBox, margin: number, color: string) {
 }
 
 function createAcpLayout(faceWidth: number, faceHeight: number, depth: number): AcpLayout {
-  const unfoldedWidth = faceWidth + (depth + ACP_SECOND_RETURN_MM) * 2;
+  const moduleCount = Math.ceil(faceWidth / backerLimits(depth).width);
+  const unfoldedWidth = faceWidth / moduleCount + (depth + ACP_SECOND_RETURN_MM) * 2;
   const unfoldedHeight = faceHeight + (depth + ACP_SECOND_RETURN_MM) * 2;
 
   return {
@@ -2134,9 +2137,9 @@ function createAcpLayout(faceWidth: number, faceHeight: number, depth: number): 
     secondReturn: ACP_SECOND_RETURN_MM,
     unfoldedWidth,
     unfoldedHeight,
-    sheetsX: Math.max(1, Math.ceil(unfoldedWidth / ACP_SHEET_WIDTH_MM)),
+    sheetsX: moduleCount,
     sheetsY: Math.max(1, Math.ceil(unfoldedHeight / ACP_SHEET_HEIGHT_MM)),
-    sheetCount: Math.max(1, Math.ceil(unfoldedWidth / ACP_SHEET_WIDTH_MM)) *
+    sheetCount: moduleCount *
       Math.max(1, Math.ceil(unfoldedHeight / ACP_SHEET_HEIGHT_MM)),
   };
 }

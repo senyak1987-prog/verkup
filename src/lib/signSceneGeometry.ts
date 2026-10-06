@@ -80,6 +80,7 @@ export type SignSceneLayout = {
   haloBackerBox: SignSceneBox;
   haloBackerRadius: number;
   haloBackerPath?: string;
+  seamXs?: number[];
 };
 export type SignSceneTextRow = {
   id: string; index: number; text: string; font: string;
@@ -616,6 +617,10 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         backer.position.set(toX(layout.panelBox.x + layout.panelBox.width / 2),
           toY(layout.panelBox.y + layout.panelBox.height / 2), -project.acpDepth);
         backer.name = "acp-box"; group.add(backer);
+        for(const x of layout.seamXs??[]){
+          const seam=new THREE.Mesh(new THREE.BoxGeometry(1.5,layout.panelBox.height,.5),new THREE.MeshStandardMaterial({color:'#667078',roughness:.8}));
+          seam.position.set(toX(x),toY(layout.panelBox.y+layout.panelBox.height/2),.15);seam.name='acp-panel-joint';group.add(seam);
+        }
       }
       if (haloLit) {
         const halo = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.10);

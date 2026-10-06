@@ -64,15 +64,15 @@ function RowHeightField({ number, value, onChange }: { number: number; value: nu
   useEffect(() => setDraft(String(value)), [value]);
   const commit = () => {
     const parsed = draft.trim() ? Number(draft) : value;
-    const next = Math.max(40, Math.min(1200, Math.round(Number.isFinite(parsed) ? parsed : value)));
+    const next = Math.max(100, Math.min(700, Math.round(Number.isFinite(parsed) ? parsed : value)));
     setDraft(String(next)); onChange(next);
   };
   return <label className="builder-field"><span>Высота, мм</span>
-    <input type="number" aria-label={`Высота строки ${number}, мм`} min={40} max={1200} step={1} value={draft}
+    <input type="number" aria-label={`Высота строки ${number}, мм`} min={100} max={700} step={1} value={draft}
       onChange={event => {
         const raw = event.target.value; setDraft(raw);
         const next = Number(raw);
-        if (raw && Number.isFinite(next) && next >= 40 && next <= 1200) onChange(Math.round(next));
+        if (raw && Number.isFinite(next) && next >= 100 && next <= 700) onChange(Math.round(next));
       }}
       onBlur={commit}
       onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); commit(); } }} />

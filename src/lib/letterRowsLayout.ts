@@ -1,5 +1,5 @@
 import type { LetterContours } from './letterContours';
-import { containBox } from './backerConstraints';
+import { containBox, backerSeams } from './backerConstraints';
 import { letterFrameLayout } from './letterFrame';
 
 type Box = { x:number; y:number; width:number; height:number };
@@ -12,7 +12,7 @@ export type LetterRowsLayoutConfig = {
   height:number; contours?:LetterContours|null; lineSettings:LetterRowSetting[];
   logoEnabled?:boolean; logoScale:number; logoSizeMm?:number; logoShape:string; letterOutlineEnabled:boolean;
   widthOverride?:number; logoOffsetX?:number; logoOffsetY?:number; textOffsetX?:number; textOffsetY?:number;
-  mountMode:string; acpLayout:{faceWidth:number;faceHeight:number}; frameTopPosition:number;frameBottomPosition:number;
+  mountMode:string; acpLayout:{faceWidth:number;faceHeight:number;depth?:number}; frameTopPosition:number;frameBottomPosition:number;
 };
 const clamp=(n:number,a:number,b:number)=>Math.max(a,Math.min(b,n));
 const validBox=(box:Box|undefined):box is Box=>!!box&&[box.x,box.y,box.width,box.height].every(Number.isFinite)&&box.width>0&&box.height>0;
@@ -26,11 +26,11 @@ const union=(boxes:Box[]):Box=>{
 /** Independent contours are placed in physical millimetres before either renderer consumes them. */
 export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   const records=config.contours?.lines??(config.contours?[config.contours]:[]);
-  const baseHeight=clamp(config.height,40,1200);
+  const baseHeight=clamp(config.height,100,700);
   const draft=config.lineSettings.map((setting,i)=>{
     const fallback={pathData:'',mainBox:{x:0,y:-714,width:Math.max(1,setting.text.length)*640,height:714},inkBox:{x:0,y:-714,width:Math.max(1,setting.text.length)*640,height:714}};
     const record=records[i],data=record&&validBox(record.mainBox)&&validBox(record.inkBox)?record:fallback;
-    const height=clamp(setting.height||baseHeight,40,1200),outline=config.letterOutlineEnabled?Math.max(4,height*.035):0;
+    const height=clamp(setting.height||baseHeight,100,700),outline=config.letterOutlineEnabled?Math.max(4,height*.035):0;
     const coreHeight=Math.max(1,height-outline*2),width=data.mainBox.width/data.mainBox.height*coreHeight;
     const overTop=Math.max(0,data.mainBox.y-data.inkBox.y)/data.mainBox.height*coreHeight;
     const overBottom=Math.max(0,data.inkBox.y+data.inkBox.height-data.mainBox.y-data.mainBox.height)/data.mainBox.height*coreHeight;
@@ -40,7 +40,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   for(const row of draft){row.y=previous?previous.y+previous.height+Math.max(Math.max(previous.height,row.height)*.35,previous.overBottom+row.overTop+15):0;previous=row;}
   const textNaturalWidth=Math.max(1,...draft.map(r=>r.width));
   const textNaturalHeight=draft.length?Math.max(...draft.map(r=>r.y+r.height)):0;
-  const logoSize=config.logoEnabled?(config.logoSizeMm===undefined?baseHeight*clamp(config.logoScale,45,130)/100:clamp(config.logoSizeMm,20,900)):0;
+  const logoSize=config.logoEnabled?(config.logoSizeMm===undefined?clamp(baseHeight*clamp(config.logoScale,45,130)/100,100,700):clamp(config.logoSizeMm,100,700)):0;
   const gap=config.logoEnabled&&draft.length?baseHeight*.16:0;
   const widthRequested=draft.length?(config.widthOverride?Math.max(logoSize+gap+20,config.widthOverride):logoSize+gap+textNaturalWidth):Math.max(1,logoSize);
   const stretch=Math.max(1,widthRequested-logoSize-gap)/textNaturalWidth;
@@ -48,8 +48,9 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   const overBottom=Math.max(0,...draft.map(r=>r.y+r.height+r.overBottom-textNaturalHeight));
   const signHeight=Math.max(textNaturalHeight,logoSize);
   const panelRequired=config.mountMode==='acp';
-  const fit=panelRequired?Math.min(1,(config.acpLayout.faceWidth-12)/widthRequested,
-    (config.acpLayout.faceHeight-12)/(signHeight+overTop+overBottom)):1;
+  const minimumFit=Math.max(0,...draft.map(row=>100/row.height),...(logoSize?[100/logoSize]:[]));
+  const fit=panelRequired?Math.max(minimumFit,Math.min(1,(config.acpLayout.faceWidth-12)/widthRequested,
+    (config.acpLayout.faceHeight-12)/(signHeight+overTop+overBottom))):1;
   const textWidth=draft.length?(widthRequested-logoSize-gap)*fit:0,textHeight=textNaturalHeight*fit;
   const offsets=config.lineSettings.map(s=>({x:coordinate(s.offset?.x),y:coordinate(s.offset?.y)}));
   const extraX=panelRequired?0:Math.max(Math.abs(config.logoOffsetX??0),Math.abs(config.textOffsetX??0)+Math.max(0,...offsets.map(o=>Math.abs(o.x))));
@@ -96,5 +97,5 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
     textPathData:config.contours?.pathData??'',textNaturalBox:validBox(config.contours?.mainBox)?config.contours!.mainBox:
       textRows[0]?.naturalBox??{x:0,y:-714,width:714,height:714},
     railX:firstRails?.x??signBox.x,railWidth:firstRails?.width??signBox.width,railHeight:15,railTopY:firstRails?.top??signBox.y+22.5,railBottomY:firstRails?.bottom??signBox.y+signBox.height-22.5,
-    panelBox,panelCornerRadius:0,haloBackerBox,haloBackerRadius:Math.min(baseHeight*fit*.28,haloBackerBox.height/2),seamXs:[] as number[],seamYs:[] as number[],fit};
+    panelBox,panelCornerRadius:0,haloBackerBox,haloBackerRadius:Math.min(baseHeight*fit*.28,haloBackerBox.height/2),seamXs:panelRequired?backerSeams(panelBox.width,config.acpLayout.depth??50).map(x=>panelBox.x+x):[] as number[],seamYs:[] as number[],fit};
 }

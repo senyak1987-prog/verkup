@@ -21,10 +21,10 @@ const fonts = new Map(contourApi.SIGN_FONTS.filter(entry => entry.file).map(entr
 }));
 const selected = ['Manrope, sans-serif', '"Playfair Display", serif', '"Russo One", sans-serif'];
 const near = (actual, expected, message, tolerance = .001) => assert.ok(Math.abs(actual - expected) < tolerance, `${message}: ${actual} vs ${expected}`);
-test('Физический размер логотипа независим от строк и ограничен 900 мм',()=>{
+test('Физический размер логотипа независим от строк и ограничен 100–700 мм',()=>{
   for(const requested of [20,65,90,900,1200]){
     const result=layout(fixture({logoSizeMm:requested}));
-    near(result.logoBox.height,Math.min(900,requested),'Logo height');
+    near(result.logoBox.height,Math.max(100,Math.min(700,requested)),'Logo height');
     near(result.logoBox.width,result.logoBox.height,'Square artwork proportions');
   }
 });
@@ -116,7 +116,7 @@ test('All font rows including outlines, tails, accents and extreme dragged offse
       { index: 0, text: 'ДЦЩЙ', font: entry.value, height: 550, offset: { x: offset, y: -offset } },
       { index: 2, text: 'СВЕТ', font: selected[1], height: 300, offset: { x: -offset, y: offset } },
     ];
-    const result = layout(fixture({ mountMode: 'acp', acpLayout: { faceWidth: 800, faceHeight: 400 }, letterOutlineEnabled: outline,
+    const result = layout(fixture({ mountMode: 'acp', acpLayout: { faceWidth: 4000, faceHeight: 800 }, letterOutlineEnabled: outline,
       logoOffsetX: offset, logoOffsetY: offset, textOffsetX: offset, textOffsetY: -offset }, settings));
     for (const row of result.textRows) inside(row.inkBox, result.panelBox, entry.label + ' ' + offset);
     inside(result.logoBox, result.panelBox, entry.label + ': logo'); assert.ok(result.fit > 0 && result.fit < 1);
@@ -157,4 +157,22 @@ test('The production 3D rows project to exactly the SVG millimetre ink box with 
     assert.equal(box.min.z, 15); assert.equal(box.max.z, 65);
   }
   scene.disposeSignObject(model);
+});
+
+test('ACP joins share physical seam locations and fitting never makes rows or a logo smaller than 100 mm',()=>{
+ const joined=layout(fixture({mountMode:'acp',acpLayout:{faceWidth:9000,faceHeight:1200,depth:100}}));
+ assert.deepEqual(joined.seamXs.map(x=>x-joined.panelBox.x),[3000,6000]);
+ const small=layout(fixture({mountMode:'acp',logoSizeMm:100,acpLayout:{faceWidth:400,faceHeight:250}}));
+ for(const row of small.textRows)assert.ok(row.box.height>=100);
+ assert.ok(small.logoBox.height>=100);
+ assert.ok(small.textRows.some(row=>row.inkBox.width>small.panelBox.width-12),'An impossible fit remains visible for correction rather than producing undersized lettering');
+});
+
+test('3D ACP joints match the balanced physical sections used in 2D',async()=>{
+ const result=layout(fixture({mountMode:'acp',acpLayout:{faceWidth:9000,faceHeight:1200,depth:100},logoEnabled:false}));
+ const project={productId:'letters',sceneMode:'day',letterHeight:210,letterDepth:50,mountMode:'acp',glowMode:'face',logoEnabled:false,acpDepth:100,acpColor:{value:'#ffffff'},letterFaceColor:{value:'#ff0000'},letterSideColor:{value:'#222222'}};
+ const model=await scene.buildSignModel(project,result,9000,1200,50,false);
+ const joints=model.children.filter(x=>x.name==='acp-panel-joint');
+ assert.deepEqual(joints.map(x=>x.position.x),[-1500,1500]);
+ scene.disposeSignObject(model);
 });
