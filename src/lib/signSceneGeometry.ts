@@ -3,7 +3,7 @@ import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { loadLetterContours } from "./letterContours";
 import { filledGlyphShapes } from "./glyphShapes";
 import { createNeonModel } from "./neonScene";
-import { panelConstruction } from "./panelConstruction";
+import { panelMountLayout } from "./panelConstruction";
 
 type SceneColor = { value: string };
 export type SignSceneBox = { x: number; y: number; width: number; height: number };
@@ -20,6 +20,7 @@ export type SignSceneProject = {
   panelShape: "circle" | "square" | "rounded";
   panelSize: number;
   panelWallGap?: number;
+  panelMountMode?: 'wall' | 'corner';
   panelCornerRadius?: number;
   panelImage: string;
   panelImageScale: number;
@@ -75,12 +76,22 @@ export type SignSceneLayout = {
   haloBackerRadius: number;
 };
 
-function roundedShape(width: number, height: number, radius = 0) {
+function roundedShape(width: number, height: number, radius = 0, circular = false) {
   const left = -width / 2, right = width / 2, bottom = -height / 2, top = height / 2;
   const r = Math.max(0, Math.min(radius, width / 2, height / 2));
   const shape = new THREE.Shape();
   shape.moveTo(left + r, bottom);
   shape.lineTo(right - r, bottom);
+  if (circular && r > 0) {
+    shape.absarc(right - r, bottom + r, r, -Math.PI / 2, 0, false);
+    shape.lineTo(right, top - r);
+    shape.absarc(right - r, top - r, r, 0, Math.PI / 2, false);
+    shape.lineTo(left + r, top);
+    shape.absarc(left + r, top - r, r, Math.PI / 2, Math.PI, false);
+    shape.lineTo(left, bottom + r);
+    shape.absarc(left + r, bottom + r, r, Math.PI, Math.PI * 1.5, false);
+    return shape;
+  }
   shape.quadraticCurveTo(right, bottom, right, bottom + r);
   shape.lineTo(right, top - r);
   shape.quadraticCurveTo(right, top, right - r, top);
@@ -302,15 +313,17 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       face.dispose(); side.dispose();
     } else if (project.productId === "panel") {
       const size = project.panelSize;
-      const mount = panelConstruction(size, project.panelShape, project.panelWallGap, project.panelCornerRadius);
-      const shape = project.panelShape === "circle" ? logoShape("circle", size) : roundedShape(size, size, mount.radius);
+      const mount = panelMountLayout(size, project.panelShape, project.panelWallGap, project.panelCornerRadius,
+        modelDepth, project.panelMountMode ?? 'wall');
+      group.userData.panelMount = mount;
+      const shape = project.panelShape === "circle" ? logoShape("circle", size) : roundedShape(size, size, mount.radius, true);
       const panel = extrude(shape, modelDepth, face, side);
       panel.name = "panel-body";
       group.add(panel);
       await applyArtwork(panel, shape, project.panelImage, size, modelDepth, night, faceLit,
         project.panelImageScale, project.panelImageX, project.panelImageY, true);
       const inner = project.panelShape === "circle" ? logoShape("circle", size - mount.rim * 2)
-        : roundedShape(size - mount.rim * 2, size - mount.rim * 2, Math.max(0, mount.radius - mount.rim));
+        : roundedShape(size - mount.rim * 2, size - mount.rim * 2, Math.max(0, mount.radius - mount.rim), true);
       const ring = shape.clone();
       ring.holes.push(new THREE.Path(inner.getPoints(48)));
       for (const z of [-0.6, modelDepth - 1]) {
@@ -318,18 +331,27 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         rim.position.z = z; rim.name = "panel-rim"; group.add(rim);
       }
       const steel = new THREE.MeshStandardMaterial({ color: night ? "#35414a" : "#34414a", metalness: 0.65, roughness: 0.4 });
-      for (const y of mount.armYs) {
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(mount.armEndX - mount.armStartX, 20, 20), steel);
-        arm.position.set((mount.armStartX + mount.armEndX) / 2, y, modelDepth / 2);
-        arm.name = "bracket-arm";
-        arm.castShadow = true; group.add(arm);
-        const plate = new THREE.Mesh(new THREE.BoxGeometry(5, 30, 100), steel);
-        plate.position.set(mount.wallX + 2.5, y, modelDepth / 2);
-        plate.name = "wall-mount-plate"; plate.castShadow = true; group.add(plate);
+      const addBar = (start: number[], end: number[], name: string) => {
+        const from = new THREE.Vector3().fromArray(start), to = new THREE.Vector3().fromArray(end), direction = to.clone().sub(from);
+        const bar = new THREE.Mesh(new THREE.BoxGeometry(direction.length(), mount.armProfile, mount.armProfile), steel);
+        bar.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), direction.normalize());
+        bar.position.copy(from.add(to).multiplyScalar(.5));
+        bar.name = name; bar.castShadow = true; group.add(bar);
+      };
+      for (const arm of mount.arms) addBar(arm.start, arm.end, 'bracket-arm');
+      for (const tie of mount.ties) addBar(tie.start, tie.end, 'corner-bracket-tie');
+      for (const mountingPlate of mount.plates) {
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(mount.plateThickness, mount.plateHeight, mount.plateWidth), steel);
+        const normal = new THREE.Vector3(...mountingPlate.normal);
+        plate.rotation.y = Math.atan2(-normal.z, normal.x);
+        plate.position.set(...mountingPlate.center);
+        plate.name = "wall-mount-plate"; plate.userData.mountWall = mountingPlate.wall;
+        plate.castShadow = true; group.add(plate);
+        const across = new THREE.Vector3(-normal.z, 0, normal.x);
         for (const offset of [-34, 34]) {
           const bolt = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 3, 6), steel);
-          bolt.rotation.z = Math.PI / 2;
-          bolt.position.set(mount.wallX + 6.5, y, modelDepth / 2 + offset);
+          bolt.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+          bolt.position.copy(plate.position).addScaledVector(normal, mount.plateThickness / 2 + 1.5).addScaledVector(across, offset);
           bolt.name = "wall-anchor"; group.add(bolt);
         }
       }
@@ -345,7 +367,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
           new THREE.Vector3(size / 2 + size * 0.16, size / 2, modelDepth), Math.round(modelDepth) + " мм",
           new THREE.Vector3(size / 2 + size * 0.28, size / 2, modelDepth / 2), size * 0.65, night);
         addDimension(dimensionGroup, new THREE.Vector3(mount.wallX, size / 2 + 35, modelDepth / 2),
-          new THREE.Vector3(-size / 2, size / 2 + 35, modelDepth / 2), mount.gap + " мм до стены",
+          new THREE.Vector3(-size / 2, size / 2 + 35, modelDepth / 2), mount.gap + (mount.mode === 'corner' ? " мм до угла" : " мм до стены"),
           new THREE.Vector3(mount.wallX + mount.gap / 2, size / 2 + 65, modelDepth / 2), size * 0.7, night);
       }
     } else {

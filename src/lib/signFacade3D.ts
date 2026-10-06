@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { facadeRects, FACADE_SIGN_ANCHOR } from './signFacade';
 import type { FacadeOptions, FacadeRect, SignPlacement } from './signFacade';
+import { panelMountLayout } from './panelConstruction';
+import type { PanelMountMode } from './panelConstruction';
+
+type PanelFacadeMount = { mode: PanelMountMode; size: number; depth: number; gap: number; shape?: string; cornerRadius?: number };
 
 /** Restrained masonry colour and shallow joints, with no high frequency glass texture. */
 function masonryTexture(): { color: THREE.CanvasTexture; bump: THREE.CanvasTexture } | undefined {
@@ -50,13 +54,31 @@ function wallGeometry(rects: FacadeRect[]) {
   return geometry;
 }
 
-export function createFacadeModel(place: SignPlacement, _signWidth: number, _signHeight: number, options: FacadeOptions = {}) {
+export function createFacadeModel(place: SignPlacement, _signWidth: number, _signHeight: number,
+  options: FacadeOptions & { panelMount?: PanelFacadeMount } = {}, panelWallSurface = false) {
   const group = new THREE.Group(); group.name = 'facade';
+  if (options.panelMount) {
+    const panel = options.panelMount;
+    group.userData.panelMountMode = panel.mode;
+    const wallShift = 4 + (place === 'canopy' ? 1500 : 0);
+    const front = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, true);
+    front.position.z = wallShift;
+    if (panel.mode === 'corner') {
+      front.name = 'facade-front'; front.position.x = -3900;
+      const side = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, true);
+      side.name = 'facade-side'; side.rotation.y = Math.PI / 2;
+      side.position.set(wallShift, 0, -3900);
+      group.add(front, side);
+    } else group.add(front);
+    group.userData.signMountZ = 0;
+    return group;
+  }
   if (place === 'none') return group;
   const { x: anchorX, y: anchorY } = FACADE_SIGN_ANCHOR;
   const anchorZ = -Math.max(0, options.signBackMm ?? 20) - 4;
   const palette = options.palette ?? 'stone';
-  const dayRects = facadeRects(place, false, options), nightRects = facadeRects(place, true, options);
+  const mountSurface = (r: FacadeRect) => !panelWallSurface || !['sign-mounting-band', 'sign-band-bottom', 'canopy-sign-upright'].includes(r.name ?? '');
+  const dayRects = facadeRects(place, false, options).filter(mountSurface), nightRects = facadeRects(place, true, options).filter(mountSurface);
   const materials = new Map<string, THREE.MeshStandardMaterial>();
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const leafGeometry = new THREE.SphereGeometry(.5, 10, 7);
@@ -101,5 +123,27 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     mesh.userData.frontZ = anchorZ + (r.z ?? 0);
     group.add(mesh);
   }
+  return group;
+}
+
+/** A cropped wall sample makes the same anchoring visible when no architectural scene is selected. */
+export function createPanelMountContext(panel: PanelFacadeMount, palette: FacadeOptions['palette'] = 'stone') {
+  const group = new THREE.Group(); group.name = 'panel-mount-context';
+  const span = Math.max(750, panel.size * 1.2), height = Math.max(700, panel.size * 1.4), thickness = 90;
+  const colors = { stone: '#d8d2c8', brick: '#bc8062', charcoal: '#68747d' };
+  const material = new THREE.MeshStandardMaterial({ color: colors[palette ?? 'stone'], roughness: .96 });
+  material.userData.dayColor = material.color.clone();
+  const masonry = palette === 'brick' ? masonryTexture() : undefined;
+  if (masonry) { material.map = masonry.color; material.bumpMap = masonry.bump; material.bumpScale = 1.3; }
+  const addWall = (name: string, width: number, depth: number, x: number, z: number) => {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+    wall.position.set(x, 0, z); wall.name = name; wall.receiveShadow = true;
+    wall.userData.facadeKind = 'wall'; group.add(wall);
+  };
+  if (panel.mode === 'corner') {
+    addWall('panel-context-front-wall', span, thickness, -span / 2, -thickness / 2);
+    addWall('panel-context-side-wall', thickness, span, -thickness / 2, -span / 2);
+  } else addWall('panel-context-front-wall', span, thickness, 0, -thickness / 2);
+  group.userData.panelMount = panelMountLayout(panel.size, panel.shape ?? 'square', panel.gap, panel.cornerRadius, panel.depth, panel.mode);
   return group;
 }
