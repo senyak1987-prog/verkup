@@ -33,6 +33,13 @@ test('Импорт ограничивает логотип, отступ кон�
   const legacy=schema.validate({version:1,project:{letterHeight:400,logoScale:100}});assert.equal(legacy.logoSizeMm,90);
 });
 
+test('An imported contour backer selects the supporting frame only in halo modes',()=>{
+  for(const glowMode of ['face','faceSide','halo','faceHalo']){
+    const imported=schema.validate({version:1,project:{haloBackerEnabled:true,mountMode:'wall',glowMode}});
+    assert.equal(imported.mountMode,['halo','faceHalo'].includes(glowMode)?'frame':'wall');
+  }
+});
+
 const near=(actual,expected,message)=>assert.ok(Math.abs(actual-expected)<.002,message+': '+actual+' / '+expected);
 const frameFontBytes=fs.readFileSync(new URL('../public/fonts/Manrope-Variable.ttf',import.meta.url));
 const frameFont=opentype.parse(frameFontBytes.buffer.slice(frameFontBytes.byteOffset,frameFontBytes.byteOffset+frameFontBytes.byteLength));

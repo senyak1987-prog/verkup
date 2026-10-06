@@ -241,110 +241,44 @@ export async function loadScalePersonBrand(baseUrl: string) {
   print.anisotropy = 4; return print;
 }
 
-/** A detailed clothed observer, in millimetres, with a smooth silhouette and no polygon edges. */
-export function createScalePerson(facade: THREE.Group, target: THREE.Vector3, brand?: THREE.Texture) {
-  const pavement = facade.getObjectByName('facade-pavement');
-  if (!pavement) return null;
-  facade.updateWorldMatrix(true, true);
-  const ground = new THREE.Box3().setFromObject(pavement);
-  const person = new THREE.Group(); person.name = 'scale-person';
-  person.userData.heightMm = SCALE_PERSON_HEIGHT_MM;
-  const cloth = (color: string, roughness = .9) => {
-    const material = new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: .3 });
-    material.userData.dayColor = material.color.clone(); return material;
+/** Ready-made Quaternius superhero, with an original flowing cape, at an exact 1750 mm scale. */
+export function createScalePerson(facade: THREE.Group, target: THREE.Vector3, brand?: THREE.Texture, asset?: THREE.Group) {
+  const pavement=facade.getObjectByName('facade-pavement');if(!pavement || !asset)return null;
+  facade.updateWorldMatrix(true,true);const ground=new THREE.Box3().setFromObject(pavement);
+  const person=new THREE.Group();person.name='scale-person';person.userData.heightMm=SCALE_PERSON_HEIGHT_MM;
+  person.userData.assetSource='Quaternius Universal Base Characters / Superhero Male';person.userData.assetLicense='CC0 1.0';
+  const body=asset.clone(true);body.name='quaternius-superhero';
+  body.traverse(child=>{const mesh=child as THREE.Mesh;if(!mesh.isMesh)return;
+    mesh.geometry=mesh.geometry.clone();
+    const copy=(original:THREE.Material)=>{const material=original.clone() as THREE.MeshStandardMaterial;
+      material.userData.dayColor=material.color.clone();material.roughness=.72;material.metalness=0;material.envMapIntensity=.35;return material;};
+    mesh.material=Array.isArray(mesh.material)?mesh.material.map(copy):copy(mesh.material);
+    mesh.castShadow=mesh.receiveShadow=true;
+  });person.add(body);
+  const capePoint=(u:number,v:number)=>{
+    const width=THREE.MathUtils.lerp(195,350,v),x=(u-.5)*width*2;
+    const y=1490-v*1160-12*Math.sin(Math.PI*u)*v;
+    const z=-108-150*v-24*Math.cos((u-.5)*Math.PI*6)*Math.sin(Math.PI*v/2)-28*Math.sin(Math.PI*v);
+    return new THREE.Vector3(x,y,z);
   };
-  const sweatshirt = cloth('#184d3e'), ribbing = cloth('#123a30'), trousers = cloth('#30343a'), skin = cloth('#b98a6e', .72);
-  const hair = cloth('#332a26'), shoes = cloth('#1b2025', .68), sole = cloth('#7b7e77');
-  const sphere = new THREE.SphereGeometry(1, 96, 64);
-  const add = (geometry: THREE.BufferGeometry, name: string, position: THREE.Vector3, material: THREE.Material = sweatshirt) => {
-    const mesh = new THREE.Mesh(geometry, material); mesh.name = name;
-    mesh.position.copy(position); mesh.castShadow = true; mesh.receiveShadow = true; person.add(mesh); return mesh;
+  const clothGeometry=(print:boolean)=>{
+    const geometry=new THREE.PlaneGeometry(1,1,64,80),positions=geometry.getAttribute('position'),uv=geometry.getAttribute('uv');
+    for(let i=0;i<positions.count;i++){
+      const u=uv.getX(i),v=1-uv.getY(i);
+      // Reversing U makes the print readable from behind the wearer.
+      const point=print?capePoint(.16+(1-u)*.68,.24+v*.26):capePoint(u,v);
+      positions.setXYZ(i,point.x,point.y,point.z-(print?1:0));
+    }geometry.computeVertexNormals();return geometry;
   };
-  const oval = (name: string, x: number, y: number, z: number, width: number, height: number, depth: number, material: THREE.Material = sweatshirt) => {
-    const mesh = add(sphere, name, new THREE.Vector3(x, y, z), material); mesh.scale.set(width, height, depth); return mesh;
-  };
-  const limb = (name: string, start: THREE.Vector3, end: THREE.Vector3, radius: number, material: THREE.Material = sweatshirt) => {
-    const axis = end.clone().sub(start), length = axis.length();
-    const taper = name.includes('forearm') ? .68 : name.includes('calf') ? .72 : name.includes('upper-arm') ? .78 : .86;
-    const profile = new THREE.SplineCurve([
-      new THREE.Vector2(0, -radius * .8), new THREE.Vector2(radius * .75, -radius * .4),
-      new THREE.Vector2(radius, length * .16), new THREE.Vector2(radius * .94, length * .48),
-      new THREE.Vector2(radius * taper, length * .87), new THREE.Vector2(radius * taper * .7, length + radius * .3),
-      new THREE.Vector2(0, length + radius * .6),
-    ]).getPoints(name.includes('finger') ? 24 : 48);
-    const mesh = add(new THREE.LatheGeometry(profile, name.includes('finger') || radius < 5 ? 32 : 80), name, start.clone(), material);
-    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.normalize()); return mesh;
-  };
-  const profile = new THREE.SplineCurve([
-    new THREE.Vector2(0, 912), new THREE.Vector2(142, 920), new THREE.Vector2(157, 980),
-    new THREE.Vector2(145, 1100), new THREE.Vector2(175, 1260), new THREE.Vector2(203, 1380),
-    new THREE.Vector2(187, 1450), new THREE.Vector2(104, 1492), new THREE.Vector2(58, 1510), new THREE.Vector2(0, 1510),
-  ]).getPoints(160);
-  const torso = add(new THREE.LatheGeometry(profile, 144), 'person-torso', new THREE.Vector3()); torso.scale.z = .61;
-  oval('person-waist-rib', 0, 938, 0, 153, 31, 98, ribbing);
-  oval('person-trouser-rise',0,903,0,140,86,76,trousers);
-  oval('person-neck', 0, 1515, 0, 42, 63, 43, skin);
-  oval('person-head', 0, 1635, 0, 97, 115, 94, skin);
-  const hairCap = add(new THREE.SphereGeometry(1, 96, 48, 0, Math.PI * 2, 0, Math.PI * .56), 'person-hair', new THREE.Vector3(0, 1635, 0), hair);
-  hairCap.scale.set(98, 115, 95);
-  oval('person-hood', 0, 1488, -37, 111, 70, 86, ribbing);
-  // A rounded hood opening and neckline, rather than a disconnected black head and torso.
-  const collar = add(new THREE.TorusGeometry(55, 12, 20, 72), 'person-collar', new THREE.Vector3(0, 1512, 0), ribbing); collar.rotation.x = Math.PI / 2;
-  for (const side of [-1, 1]) {
-    oval('person-ear', side * 96, 1630, 0, 16, 31, 16, skin);
-    limb('person-thigh', new THREE.Vector3(side * 75, 957, 0), new THREE.Vector3(side * 83, 520, 8), 78, trousers);
-    limb('person-calf', new THREE.Vector3(side * 83, 545, 8), new THREE.Vector3(side * 88, 85, 0), 58, trousers);
-    oval('person-knee', side * 83, 528, 14, 61, 78, 61, trousers);
-    oval('person-shoe-sole', side * 88, 15, 50, 69, 15, 142, sole);
-    oval('person-shoe', side * 88, 45, 45, 67, 31, 137, shoes);
-    oval('person-shoe-upper', side * 88, 66, 22, 58, 27, 80, shoes);
-    limb('person-upper-arm', new THREE.Vector3(side * 185, 1415, 0), new THREE.Vector3(side * 231, 1115, 0), 72);
-    oval('person-shoulder',side*179,1394,0,70,95,70);
-    oval('person-elbow',side*231,1123,0,54,64,52);
-    limb('person-forearm', new THREE.Vector3(side * 231, 1120, 0), new THREE.Vector3(side * 248, 867, 20), 52);
-    oval('person-cuff', side * 248, 891, 18, 48, 26, 46, ribbing);
-    oval('person-hand', side * 248, 836, 20, 35, 52, 26, skin);
-    for (let finger = 0; finger < 4; finger++) limb('person-finger', new THREE.Vector3(side * (229 + finger * 12), 818, 20), new THREE.Vector3(side * (229 + finger * 12), 777 + Math.abs(1.5 - finger) * 7, 24), 7, skin);
-    limb('person-thumb', new THREE.Vector3(side * 220, 848, 31), new THREE.Vector3(side * 208, 812, 38), 10, skin);
-    for (let lace = 0; lace < 4; lace++) limb('person-shoelace', new THREE.Vector3(side * 88 - 26, 87 - lace * 3, 16 + lace * 17), new THREE.Vector3(side * 88 + 26, 87 - lace * 3, 16 + lace * 17), 1.6, sole);
-  }
-  const stitch = (name: string, points: THREE.Vector3[], radius: number, material: THREE.Material = ribbing) =>
-    add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 48, radius, 12, false), name, new THREE.Vector3(), material);
-  for (const side of [-1, 1]) {
-    stitch('person-pocket-seam', [new THREE.Vector3(side * 14, 1040, 88), new THREE.Vector3(side * 80, 1052, 78), new THREE.Vector3(side * 121, 1130, 66)], 2.4);
-    stitch('person-hood-cord', [new THREE.Vector3(side * 40, 1480, 55), new THREE.Vector3(side * 44, 1400, 105), new THREE.Vector3(side * 37, 1330, 106)], 2, sole);
-  }
-  const textileProfile = profile.filter(point => point.x > 50).sort((a, b) => a.y - b.y);
-  const radiusAt = (y: number) => {
-    const index = textileProfile.findIndex(point => point.y >= y);
-    if (index <= 0) return textileProfile[Math.max(0, index)].x;
-    const a = textileProfile[index - 1], b = textileProfile[index];
-    return THREE.MathUtils.lerp(a.x, b.x, (y - a.y) / Math.max(.001, b.y - a.y));
-  };
-  const print = (name: string, y: number, w: number, h: number, back: boolean) => {
-    const geometry = new THREE.PlaneGeometry(w, h, 48, 24), positions = geometry.getAttribute('position');
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i), height = positions.getY(i) + y, radius = radiusAt(height);
-      positions.setZ(i, (back ? -1 : 1) * (Math.sqrt(Math.max(1, radius * radius - x * x)) * .61 + 1));
-      if (back) positions.setX(i, -x); // Readable from the back, not mirrored through the body.
-    }
-    geometry.computeVertexNormals();
-    const material = new THREE.MeshStandardMaterial({ map: brand ?? null, color: '#ffffff', transparent: true, alphaTest: .04, roughness: .94,
-      metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1 });
-    material.userData.dayColor = material.color.clone(); material.userData.textileBrand = true;
-    const decal = add(geometry, name, new THREE.Vector3(0, y, 0), material); decal.userData.brand = 'Город Свет';
-    // Do not draw an opaque placeholder if brand images have not loaded.
-    decal.visible = Boolean(brand);
-  };
-  print('person-gorod-svet-back', 1320, 320, 175, true);
-  print('person-gorod-svet-chest', 1355, 170, 90, false);
-  person.position.set(THREE.MathUtils.clamp(target.x + 1100, ground.min.x + 350, ground.max.x - 350), ground.max.y, ground.max.z - 400);
-  const direction = target.clone().sub(person.position);
-  person.rotation.y = Math.atan2(direction.x, direction.z);
-  const eyeAngle = Math.atan2(target.y - person.position.y - 1635, Math.hypot(direction.x, direction.z));
-  oval('person-nose', 0, 1627 + 92 * Math.sin(eyeAngle), 92 * Math.cos(eyeAngle), 14, 18, 24, skin);
-  oval('person-chin', 0, 1565, 57, 42, 26, 35, skin);
-  for (const side of [-1, 1]) oval('person-eye', side * 33, 1650, 86, 8, 4, 5, hair);
-  person.userData.lookTarget = target.toArray(); person.userData.groundY = ground.max.y;
-  return person;
+  const capeMaterial=new THREE.MeshStandardMaterial({color:'#164d3d',roughness:.9,metalness:0,side:THREE.DoubleSide,envMapIntensity:.3});
+  capeMaterial.userData.dayColor=capeMaterial.color.clone();
+  const cape=new THREE.Mesh(clothGeometry(false),capeMaterial);cape.name='person-cape';cape.castShadow=cape.receiveShadow=true;person.add(cape);
+  const printMaterial=new THREE.MeshStandardMaterial({map:brand??null,color:'#ffffff',transparent:true,alphaTest:.04,roughness:.95,
+    metalness:0,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1});
+  printMaterial.userData.dayColor=printMaterial.color.clone();printMaterial.userData.textileBrand=true;
+  const print=new THREE.Mesh(clothGeometry(true),printMaterial);print.name='person-gorod-svet-cape';print.userData.brand='Город Свет';
+  print.visible=Boolean(brand);print.castShadow=false;print.receiveShadow=true;person.add(print);
+  person.position.set(THREE.MathUtils.clamp(target.x+1100,ground.min.x+400,ground.max.x-400),ground.max.y,ground.max.z-600);
+  const direction=target.clone().sub(person.position);person.rotation.y=Math.atan2(direction.x,direction.z);
+  person.userData.lookTarget=target.toArray();person.userData.groundY=ground.max.y;return person;
 }

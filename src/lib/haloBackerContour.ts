@@ -25,9 +25,7 @@ export function haloBackerContour(rows:Row[], requestedOffset:number):string {
     for(const subpath of row.pathData.match(/M[^M]*/gi)??[]){
       const path=new Path2D();path.addPath(new Path2D(subpath),transform);ctx.fill(path);ctx.stroke(path);
     }
-    // A narrow web joins the letters into one manufacturable plate per line.
-    ctx.beginPath();ctx.moveTo(row.pathBox.x+offset,row.pathBox.y+row.pathBox.height/2);
-    ctx.lineTo(row.pathBox.x+row.pathBox.width-offset,row.pathBox.y+row.pathBox.height/2);ctx.stroke();
+    // Separate contours attach to the steel frame; do not bridge counters or word spaces.
   }
   const traced=traceAlpha(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height,Math.max(.7,scale*.8));
   const n=(value:number)=>Number(value.toFixed(3));

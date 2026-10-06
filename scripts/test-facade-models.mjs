@@ -3,6 +3,9 @@ import fs from 'node:fs';
 import test from 'node:test';
 import ts from 'typescript';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const assetBytes=fs.readFileSync(new URL('../public/models/gorod-svet-hero.glb',import.meta.url));
+const asset=(await new GLTFLoader().parseAsync(assetBytes.buffer.slice(assetBytes.byteOffset,assetBytes.byteOffset+assetBytes.byteLength),'')).scene;
 
 function load(name, dependencies = {}) {
   const source = fs.readFileSync(new URL('../src/lib/' + name + '.ts', import.meta.url), 'utf8');
@@ -21,24 +24,22 @@ const scene = load('signFacade3D', { three: THREE, './signFacade': facade, './pa
 const places = facade.SIGN_PLACEMENTS.filter(place => place.id !== 'none');
 const dimensions = [[600, 180], [1800, 300], [5000, 300], [1200, 800]];
 
-test('Detailed observer has smooth high-density clothing and the real brand on both sides of the sweatshirt', () => {
-  const building = scene.createFacadeModel('windows', 2000, 400), brand = new THREE.Texture();
-  const person = scene.createScalePerson(building, new THREE.Vector3(0, 0, 200), brand);
-  let vertices = 0;
-  person.traverse(child => { if (child.isMesh) {
-    vertices += child.geometry.getAttribute('position').count;
-    assert.ok(child.geometry.getAttribute('normal'));
-    assert.equal(child.material.flatShading, false);
-  } });
-  assert.ok(vertices > 100000 && vertices < 400000, `Detailed but bounded geometry: ${vertices}`);
-  for (const name of ['person-gorod-svet-back', 'person-gorod-svet-chest']) {
-    const print = person.getObjectByName(name);
-    assert.equal(print.material.map, brand); assert.equal(print.userData.brand, 'Город Свет');
-    assert.equal(print.visible, true); assert.equal(print.material.transparent, true);
-    assert.ok(print.geometry.getAttribute('position').count > 1000, 'The printed logo follows the curved textile');
-  }
-  for (const name of ['person-hood', 'person-shoe-sole', 'person-finger', 'person-eye', 'person-pocket-seam']) assert.ok(person.getObjectByName(name));
-  building.add(person); dispose(building);
+test('The real CC0 superhero uses authored subdivided anatomy and a curved Gorod Svet cape print', () => {
+  const building=scene.createFacadeModel('windows',2000,400),brand=new THREE.Texture();
+  const person=scene.createScalePerson(building,new THREE.Vector3(0,0,200),brand,asset);
+  let vertices=0;person.traverse(child=>{if(child.isMesh){
+    vertices+=child.geometry.getAttribute('position').count;assert.ok(child.geometry.getAttribute('normal'));assert.equal(child.material.flatShading,false);
+  }});
+  assert.ok(vertices>100000 && vertices<160000,`Smooth authored anatomy within the facade budget: ${vertices}`);
+  assert.equal(person.userData.assetLicense,'CC0 1.0');assert.match(person.userData.assetSource,/Quaternius/);
+  const body=person.getObjectByName('superhero-authored-body'),source=asset.getObjectByName('superhero-authored-body');
+  assert.ok(body);assert.notEqual(body.geometry,source.geometry);assert.notEqual(body.material,source.material);
+  assert.deepEqual(body.geometry.getAttribute('position').array,source.geometry.getAttribute('position').array);
+  assert.ok(person.getObjectByName('Eyebrows'));assert.ok(person.getObjectByName('Eyes'));assert.ok(person.getObjectByName('person-cape'));
+  const print=person.getObjectByName('person-gorod-svet-cape');assert.equal(print.material.map,brand);assert.equal(print.userData.brand,'Город Свет');
+  assert.equal(print.visible,true);assert.equal(print.castShadow,false);assert.ok(print.geometry.getAttribute('position').count>1000);
+  building.add(person);dispose(building);
+  assert.ok(source.geometry.getAttribute('position').count>100000,'Disposing one facade cannot damage the cached source model');
 });
 
 test('Facade product switches independently support all four combinations without moving either product', () => {
@@ -66,7 +67,7 @@ test('A 1750mm observer stands on the pavement and faces the sign in every facad
     const pose = panelMount.panelMountLayout(550, 'circle', 120, 60, 160, mode);
     const model = scene.createFacadeModel(place.id, 2000, 400, { panelMount: pose, frontSign: true });
     const target = new THREE.Vector3(0, 0, 200);
-    const person = scene.createScalePerson(model, target);
+    const person = scene.createScalePerson(model, target, undefined, asset);
     assert.ok(person); model.add(person); model.updateWorldMatrix(true, true);
     const actual = new THREE.Box3().setFromObject(person), pavement = new THREE.Box3().setFromObject(model.getObjectByName('facade-pavement'));
     close(actual.max.y - actual.min.y, 1750, 'Actual crown-to-ground height');
@@ -75,10 +76,10 @@ test('A 1750mm observer stands on the pavement and faces the sign in every facad
     assert.ok(person.position.z > pavement.min.z && person.position.z < pavement.max.z);
     const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(person.quaternion), direction = target.clone().sub(person.position); direction.y = 0; direction.normalize();
     close(forward.dot(direction), 1, 'The observer faces the sign');
-    person.traverse(child => { if (child.isMesh) { assert.equal(child.castShadow, true); const positions=child.geometry.getAttribute('position'); for(let i=0;i<positions.count;i++) assert.ok(Number.isFinite(positions.getX(i)) && Number.isFinite(positions.getY(i)) && Number.isFinite(positions.getZ(i))); } });
+    person.traverse(child => { if (child.isMesh) { assert.equal(child.castShadow, !child.material.userData.textileBrand); const positions=child.geometry.getAttribute('position'); for(let i=0;i<positions.count;i++) assert.ok(Number.isFinite(positions.getX(i)) && Number.isFinite(positions.getY(i)) && Number.isFinite(positions.getZ(i))); } });
     dispose(model);
   }
-  assert.equal(scene.createScalePerson(new THREE.Group(), new THREE.Vector3()), null, 'A cropped wall without ground cannot invent a standing height');
+  assert.equal(scene.createScalePerson(new THREE.Group(), new THREE.Vector3(), undefined, asset), null, 'A cropped wall without ground cannot invent a standing height');
 });
 
 test('Paired signs retain their sizes and share real wall planes, including the canopy frieze and corners', () => {

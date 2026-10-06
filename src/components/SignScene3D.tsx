@@ -7,6 +7,7 @@ import { applySignLighting, buildSignModel, disposeSignObject } from "../lib/sig
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { attachFacadePair, createFacadeModel, createPanelMountContext, createScalePerson, loadScalePersonBrand, setFacadeProductVisibility } from "../lib/signFacade3D";
+import { loadScalePersonModel } from "../lib/scalePersonAsset";
 import { DAYLIGHT_LEVELS, daylightSource } from "../lib/signDaylight";
 import { signFocusBounds, zoomFocusWeight } from "../lib/signCameraFocus";
 import type { DaylightMarker } from "../lib/signDaylight";
@@ -404,10 +405,14 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const facade = model.getObjectByName('facade') as THREE.Group | undefined;
       if (facade) {
         setFacadeProductVisibility(model, visibilityRef.current.showSign, visibilityRef.current.showPanel);
-        const brand = await loadScalePersonBrand(import.meta.env.BASE_URL).catch(() => undefined);
+        const [brand, asset] = await Promise.all([
+          loadScalePersonBrand(import.meta.env.BASE_URL).catch(() => undefined),
+          loadScalePersonModel(import.meta.env.BASE_URL).catch(() => undefined),
+        ]);
         if (version !== buildRef.current || runtime !== runtimeRef.current) { brand?.dispose(); disposeSignObject(model); return; }
-        const person = createScalePerson(facade, signFocusBounds(model).getCenter(new THREE.Vector3()), brand);
+        const person = createScalePerson(facade, signFocusBounds(model).getCenter(new THREE.Vector3()), brand, asset);
         if (person) { person.visible = showPersonRef.current; facade.add(person); }
+        else brand?.dispose();
       }
       runtime.model = model;
       if (hostRef.current) {
@@ -415,6 +420,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         hostRef.current.dataset.contextProducts = (model.userData.contextProducts ?? [project.productId]).join(',');
         hostRef.current.dataset.visibleProducts = (model.userData.visibleProducts ?? [project.productId]).join(',');
         hostRef.current.dataset.scalePersonHeight = facade?.getObjectByName('scale-person') ? '1750' : '';
+        hostRef.current.dataset.scalePersonSource = facade?.getObjectByName('scale-person')?.userData.assetSource ?? '';
       }
       runtime.scene.add(model);
       runtime.bounds.setFromObject(model);
