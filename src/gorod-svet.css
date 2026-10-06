@@ -136,7 +136,7 @@ main.public-sign-configurator.sign-studio .width-auto-checkbox small { font-size
 main.public-sign-configurator.sign-studio .layout-editor-overlay { position:absolute; inset:0; width:100%; height:100%; touch-action:none; z-index:2; }
 main.public-sign-configurator.sign-studio .editor-selection { fill:transparent; stroke:#337f57; stroke-width:1; stroke-dasharray:5 4; cursor:move; }
 main.public-sign-configurator.sign-studio .editor-selection.selected { stroke:#15834b; stroke-width:2; }
-main.public-sign-configurator.sign-studio .editor-resize { fill:#fff; stroke:#16803d; stroke-width:2; cursor:nwse-resize; }
+main.public-sign-configurator.sign-studio .editor-resize { fill:#fff; stroke:#16803d; stroke-width:2; cursor:nesw-resize; }
 main.public-sign-configurator.sign-studio .editor-toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:7px 12px; border-bottom:1px solid #39624e; background:#184833; }
 main.public-sign-configurator.sign-studio :is(.editor-toolbar button,.editor-toggle) { padding:6px 9px; min-height:30px; font-size:11px; border:1px solid #688774; color:#e8eee8; background:transparent; border-radius:4px; }
 main.public-sign-configurator.sign-studio .editor-toggle.active { background:#d3bc84; color:#233c2d; }
