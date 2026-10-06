@@ -79,6 +79,7 @@ export type SignSceneLayout = {
   panelCornerRadius: number;
   haloBackerBox: SignSceneBox;
   haloBackerRadius: number;
+  haloBackerPath?: string;
 };
 export type SignSceneTextRow = {
   id: string; index: number; text: string; font: string;
@@ -319,12 +320,12 @@ function addDimension(group: THREE.Group, start: THREE.Vector3, end: THREE.Vecto
 
 type GlyphData = { pathData: string; box: { x1: number; y1: number; x2: number; y2: number }; shapes: THREE.Shape[] };
 const glyphCache = new Map<string, GlyphData>();
-function glyphFromPath(pathData: string, box: SignSceneBox): GlyphData {
-  const key = pathData + JSON.stringify(box);
+function glyphFromPath(pathData: string, box: SignSceneBox,curveSamples=24): GlyphData {
+  const key = pathData + JSON.stringify(box)+curveSamples;
   const cached = glyphCache.get(key); if (cached) return cached;
   const data = new SVGLoader().parse('<svg xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="' + pathData + '" /></svg>');
   const result = { pathData, box: { x1: box.x, y1: box.y, x2: box.x + box.width, y2: box.y + box.height },
-    shapes: filledGlyphShapes(data.paths) };
+    shapes: filledGlyphShapes(data.paths,curveSamples) };
   if (glyphCache.size >= 24) glyphCache.delete(glyphCache.keys().next().value!);
   glyphCache.set(key, result);
   return result;
@@ -502,6 +503,13 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       const textTop = layout.textTop ?? layout.textBaseline - textHeight;
       const haloMode = project.glowMode === "faceHalo" || project.glowMode === "halo";
       const rear = project.mountMode === "frame" ? 15 : haloMode ? 30 : 0;
+      if (haloMode && project.haloBackerEnabled && layout.haloBackerPath) {
+        const shapes=glyphFromPath(layout.haloBackerPath,layout.signBox,6).shapes;
+        const material=solidMaterial(project.haloBackerColor.value,night);material.roughness=.65;
+        const plate=extrude(shapes,3,material,material,material,{curveSegments:24,smoothSides:true});
+        plate.geometry.rotateX(Math.PI);plate.geometry.translate(-centerX,centerY,0);
+        plate.name='halo-contour-backer';plate.userData.thicknessMm=3;group.add(plate);
+      }
       const backMaterial = solidMaterial(haloLit ? faceColor : sideColor, night, haloLit);
       // Trimless letters have an acrylic face and painted metal return, not a
       // continuous metallic block. Their tiny front joint remains inside the body.
@@ -595,6 +603,18 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         const halfWidth = width / 2, halfHeight = height / 2;
         const offset = Math.max(55, height * 0.2);
         const z = rear + modelDepth + 2;
+        for(const row of layout.textRows??[]){
+          const box=row.box,y=toY(box.y)-box.height-12;
+          addDimension(dimensionGroup,new THREE.Vector3(toX(box.x),y,z),new THREE.Vector3(toX(box.x+box.width),y,z),
+            `Строка ${row.index+1}: ${Math.round(box.width)} × ${Math.round(box.height)} мм`,
+            new THREE.Vector3(toX(box.x+box.width/2),y-22,z),Math.min(dimensionScale*.7,350),night);
+        }
+        if(project.logoEnabled!==false&&layout.logoBox.width>0){
+          const box=layout.logoBox,y=toY(box.y)+20;
+          addDimension(dimensionGroup,new THREE.Vector3(toX(box.x),y,z),new THREE.Vector3(toX(box.x+box.width),y,z),
+            `Логотип: ${Math.round(box.width)} × ${Math.round(box.height)} мм`,
+            new THREE.Vector3(toX(box.x+box.width/2),y+22,z),Math.min(dimensionScale*.6,300),night);
+        }
         addDimension(dimensionGroup, new THREE.Vector3(-halfWidth, -halfHeight - offset, z),
           new THREE.Vector3(halfWidth, -halfHeight - offset, z), Math.round(width) + " мм",
           new THREE.Vector3(0, -halfHeight - offset * 1.35, z), dimensionScale, night);

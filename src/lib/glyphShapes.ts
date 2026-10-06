@@ -4,7 +4,7 @@ import libtess from "libtess";
 // Font outlines can overlap or cross themselves (notably Playfair Display М).
 // Earcut expects simple boundaries. Resolve the same nonzero fill used by SVG
 // before extrusion, so internal strokes cannot create spurious solid triangles.
-export function filledGlyphShapes(paths: THREE.ShapePath[]): THREE.Shape[] {
+export function filledGlyphShapes(paths: THREE.ShapePath[],curveSamples=24): THREE.Shape[] {
   const tess = new libtess.GluTesselator();
   const loops: number[][][] = [];
   let loop: number[][] = [];
@@ -19,7 +19,7 @@ export function filledGlyphShapes(paths: THREE.ShapePath[]): THREE.Shape[] {
   try {
     tess.gluTessBeginPolygon(null);
     for (const path of paths) for (const subpath of path.subPaths) {
-      const points = subpath.getPoints(24);
+      const points = subpath.getPoints(curveSamples);
       if (points.length < 3) continue;
       tess.gluTessBeginContour();
       for (const point of points) {

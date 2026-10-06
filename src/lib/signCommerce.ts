@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
 export const LETTER_CENTIMETRE_PRICE = 120;
+export const LOGO_CENTIMETRE_PRICE = 180;
+export function calculateLogoPrice(heightMm: number, enabled = true) {
+  const heightCm = enabled && Number.isFinite(heightMm) ? Math.max(0, heightMm) / 10 : 0;
+  return { heightCm, total: roundMoney(heightCm * LOGO_CENTIMETRE_PRICE) };
+}
 export const SIGN_CART_STORAGE_KEY = "verkup-sign-cart-v1";
 export const SIGN_CART_MAX_ITEMS = 20;
 export const SIGN_CART_MAX_QUANTITY = 99;

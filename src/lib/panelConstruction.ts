@@ -1,3 +1,8 @@
+export const PANEL_SIZES = Array.from({ length: 8 }, (_, index) => 350 + index * 50);
+export const PANEL_DEPTHS = [130, 150] as const;
+export function normalizePanelSize(value: number) { return Math.max(350, Math.min(700, Math.round((Number.isFinite(value) ? value : 500) / 50) * 50)); }
+export function normalizePanelDepth(value: number) { return Number.isFinite(value) && value >= 140 ? 150 : 130; }
+
 /** Millimetres, shared by the elevation drawing and the wall-mounted 3D model. */
 export function panelConstruction(size: number, shape: string, wallGap = 120, cornerRadius = 60) {
   const gap = Math.max(60, Math.min(400, wallGap));
