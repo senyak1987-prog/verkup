@@ -36,22 +36,27 @@ main.public-sign-configurator.sign-studio input[type="range"] { accent-color: #1
 main.public-sign-configurator.sign-studio :focus-visible { outline-color: #167c3e; }
 main.public-sign-configurator.sign-studio ::selection { background: #d3bc84; color: #073c2d; }
 
-/* The preview is one bounded viewport; SVG intrinsic height must not grow its grid. */
+/* Only the drawing area is square; full-width toolbars keep every control reachable. */
 main.public-sign-configurator.sign-studio .studio-workspace,
 main.public-sign-configurator.sign-studio .studio-workspace.is-3d {
-  position: sticky;
+  position: var(--workspace-position, sticky);
   top: 12px;
   z-index: 5;
-  height: var(--workspace-height, min(620px, calc(100svh - 24px)));
-  grid-template-rows: 58px 49px minmax(0, 1fr) 38px;
+  min-height: 0;
+  height: auto;
+  grid-template-rows: none;
+  grid-auto-rows: max-content;
   align-self: start;
 }
-main.public-sign-configurator.sign-studio .studio-workspace .builder-preview,
-main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.day,
-main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.night {
+main.public-sign-configurator.sign-studio .studio-workspace :is(.builder-preview, .builder-preview.day, .builder-preview.night),
+main.public-sign-configurator.sign-studio .studio-workspace.is-3d :is(.builder-preview, .builder-preview.day, .builder-preview.night) {
   min-height: 0;
-  height: 100%;
-  background: #e9eee8;
+  width: var(--preview-side, min(400px, calc(100vw - 32px)));
+  max-width: 100%;
+  height: var(--preview-side, min(400px, calc(100vw - 32px)));
+  aspect-ratio: 1;
+  justify-self: center;
+  padding: 0;
 }
 main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.night { background: #142b28; }
 main.public-sign-configurator.sign-studio :is(.preview-art, .letters-scene, .letters-svg-render, .panel-svg-render) {
@@ -82,26 +87,21 @@ main.public-sign-configurator.sign-studio .studio-svg-layer [data-dimensions] te
 main.public-sign-configurator.sign-studio .studio-measure-labels > span { position: absolute; font: 600 12px/1.2 Manrope, Arial, sans-serif; color: #41505e; white-space: nowrap; font-variant-numeric: tabular-nums; }
 main.public-sign-configurator.sign-studio .builder-preview.night .studio-measure-labels > span { color: #d7e4dc; }
 main.public-sign-configurator.sign-studio .studio-section-tabs:has(button:nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-main.public-sign-configurator.sign-studio .sign-scene-3d-viewport { inset: 52px 12px 40px; }
+main.public-sign-configurator.sign-studio .sign-scene-3d-viewport { inset: 0; }
 main.public-sign-configurator.sign-studio .builder-preview .preview-wall,
-main.public-sign-configurator.sign-studio .builder-preview.night .preview-wall { inset: 52px 12px 40px; width: auto; height: auto; background: transparent; }
+main.public-sign-configurator.sign-studio .builder-preview.night .preview-wall { inset: 0; width: 100%; height: 100%; background: transparent; }
 main.public-sign-configurator.sign-studio .sign-scene-3d-hint { bottom: 24px; }
 @media (max-width: 767px) {
   main.public-sign-configurator.sign-studio .studio-workspace,
   main.public-sign-configurator.sign-studio .studio-workspace.is-3d {
     top: 0;
-    height: min(390px, 46svh);
-    grid-template-rows: 46px 49px minmax(0, 1fr) 28px;
   }
   main.public-sign-configurator.sign-studio .canvas-mode-toolbar { min-height: 49px; }
   main.public-sign-configurator.sign-studio .canvas-footer { min-height: 0; padding: 0 8px; font-size: 9px; }
   main.public-sign-configurator.sign-studio .canvas-footer > span { max-width: 45%; line-height: 1.3; }
   main.public-sign-configurator.sign-studio .canvas-footer button { font-size: 9px; }
-  main.public-sign-configurator.sign-studio .builder-controls { scroll-margin-top: min(402px, calc(46svh + 12px)); }
+  main.public-sign-configurator.sign-studio .builder-controls { scroll-margin-top: calc(var(--workspace-sticky-offset, 400px) + 12px); }
   main.public-sign-configurator.sign-studio .sign-scene-3d-hint { display: none; }
-  main.public-sign-configurator.sign-studio .sign-scene-3d-viewport { inset: 48px 8px 24px; }
-  main.public-sign-configurator.sign-studio .builder-preview .preview-wall,
-  main.public-sign-configurator.sign-studio .builder-preview.night .preview-wall { inset: 48px 8px 24px; }
 }
 
 /* Official GorodSvet palette: evergreen, leaf green and warm gold. */
@@ -141,7 +141,6 @@ main.public-sign-configurator.sign-studio .editor-toolbar { display:flex; flex-w
 main.public-sign-configurator.sign-studio :is(.editor-toolbar button,.editor-toggle) { padding:6px 9px; min-height:30px; font-size:11px; border:1px solid #688774; color:#e8eee8; background:transparent; border-radius:4px; }
 main.public-sign-configurator.sign-studio .editor-toggle.active { background:#d3bc84; color:#233c2d; }
 main.public-sign-configurator.sign-studio .editor-toolbar label { display:flex; align-items:center; gap:6px; font-size:11px; }
-main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toolbar) { grid-template-rows:58px 49px auto minmax(0,1fr) 38px; }
 main.public-sign-configurator.sign-studio .neon-controls { display:grid; gap:18px; }
 main.public-sign-configurator.sign-studio .neon-controls textarea { resize:vertical; min-height:80px; }
 main.public-sign-configurator.sign-studio .neon-controls input[type=color] { min-height:44px; padding:5px; width:100%; }
@@ -165,8 +164,6 @@ main.public-sign-configurator.sign-studio .studio-svg-previous { position:absolu
 @media(max-width:1000px) { main.public-sign-configurator.sign-studio .placements-grid {grid-template-columns:repeat(2,minmax(0,1fr));} }
 @media(max-width:767px) {
   main.public-sign-configurator.sign-studio .studio-header { margin-inline:-14px; padding-inline:14px; }
-  main.public-sign-configurator.sign-studio .studio-workspace, main.public-sign-configurator.sign-studio .studio-workspace.is-3d { height:min(46svh,390px); min-height:280px; grid-template-rows:46px 50px minmax(0,1fr) 32px; }
-  main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toolbar) { height:min(56svh,460px); grid-template-rows:46px auto auto minmax(0,1fr) 32px; }
   main.public-sign-configurator.sign-studio .builder-controls { grid-row:2; }
   main.public-sign-configurator.sign-studio .sign-placements { grid-column:1; grid-row:3; }
   main.public-sign-configurator.sign-studio .builder-summary { grid-row:4; }
@@ -188,18 +185,13 @@ main.public-sign-configurator.sign-studio .studio-svg-previous { position:absolu
 }
 
 main.public-sign-configurator.sign-studio .product-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); width:100%; }
-main.public-sign-configurator.sign-studio .builder-preview.view-mode-2d .preview-wall { inset:12px 12px 26px; width:auto; height:auto; }
 main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.day,
 main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.night { background:linear-gradient(145deg,#fafbf5,#d3ded4); }
 @media(max-width:767px) {
  main.public-sign-configurator.sign-studio .product-tabs button { grid-template-columns:1fr; min-height:58px; text-align:center; }
  main.public-sign-configurator.sign-studio .product-tabs .product-check { position:absolute; right:5px; top:5px; }
- main.public-sign-configurator.sign-studio .builder-preview.view-mode-2d .preview-wall { inset:8px 8px 24px; }
 }
 
-main.public-sign-configurator.sign-studio .studio-workspace.is-3d .builder-preview,
-main.public-sign-configurator.sign-studio .studio-workspace.is-3d .builder-preview.day,
-main.public-sign-configurator.sign-studio .studio-workspace.is-3d .builder-preview.night { min-height:0; height:100%; }
 main.public-sign-configurator.sign-studio .placement-dialog { width:min(900px,calc(100vw - 32px)); padding:18px; border:1px solid #8aa38f; border-radius:10px; background:#f6f8f5; color:#194d36; max-height:90svh; }
 main.public-sign-configurator.sign-studio .placement-dialog::backdrop { background:#001b14b8; }
 main.public-sign-configurator.sign-studio .placement-dialog header { display:flex; justify-content:space-between; gap:12px; margin-bottom:15px; align-items:center; }
@@ -210,10 +202,6 @@ main.public-sign-configurator.sign-studio .placement-dialog p { margin-top:12px;
 @media(max-width:767px) {
  main.public-sign-configurator.sign-studio .canvas-footer { min-height:32px; padding:0 8px; }
  main.public-sign-configurator.sign-studio .canvas-footer button {font-size:9px; max-width:112px; padding:2px;}
-}
-
-@media(max-width:767px) {
- main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toggle):not(:has(.editor-toolbar)) { grid-template-rows:46px auto minmax(0,1fr) 32px; }
 }
 
 @media(min-width:768px) {
@@ -233,7 +221,6 @@ main.public-sign-configurator.sign-studio :is(.option-grid,.size-grid,.toggle-gr
 
 /* Facade selection is part of the main viewport in both projections. */
 main.public-sign-configurator.sign-studio .canvas-mode-toolbar {flex-wrap:wrap;gap:8px;}
-main.public-sign-configurator.sign-studio .studio-workspace {grid-template-rows:58px auto minmax(0,1fr) 38px;}
 main.public-sign-configurator.sign-studio .placement-select {display:flex;align-items:center;gap:7px;font-size:11px;color:#d7e4dc;margin-left:auto;}
 main.public-sign-configurator.sign-studio .placement-select select {max-width:145px;min-height:32px;padding:5px 24px 5px 8px;border:1px solid #52745f;border-radius:4px;background:#0c3026;color:#e5eee6;font:inherit;}
 main.public-sign-configurator.sign-studio .facade-svg-render {position:absolute;inset:0;}
@@ -256,7 +243,6 @@ main.public-sign-configurator.sign-studio .neon-color-palette legend {font-size:
 main.public-sign-configurator.sign-studio .neon-color-palette button {width:29px;height:29px;border:1px solid #516c60;border-radius:50%;cursor:pointer;}
 main.public-sign-configurator.sign-studio .neon-color-palette button[aria-pressed=true] {outline:2px solid #16803d;outline-offset:3px;}
 @media(max-width:767px){
- main.public-sign-configurator.sign-studio .studio-workspace,main.public-sign-configurator.sign-studio .studio-workspace.is-3d {grid-template-rows:46px auto minmax(0,1fr) 32px;}
  main.public-sign-configurator.sign-studio .placement-select {margin-left:0;}
  main.public-sign-configurator.sign-studio .placement-select span {display:none;}
  main.public-sign-configurator.sign-studio .placement-select select {max-width:130px;min-height:30px;font-size:10px;}
@@ -297,7 +283,6 @@ main.public-sign-configurator.sign-studio .photo-backdrop-controls summary {font
 main.public-sign-configurator.sign-studio .photo-upload {cursor:pointer;display:inline-flex;color:#194d36;background:#fff;}
 main.public-sign-configurator.sign-studio .photo-upload input {position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;}
 main.public-sign-configurator.sign-studio .photo-backdrop-controls p {font-size:12px;line-height:1.5;color:#52695a;}
-main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toolbar) {grid-template-rows:58px auto auto minmax(0,1fr) 38px;}
 @media(max-width:767px) {
  main.public-sign-configurator.sign-studio .sign-power-switch {min-height:32px;padding:5px;gap:5px;}
  main.public-sign-configurator.sign-studio .power-caption,main.public-sign-configurator.sign-studio .power-state {display:none;}
@@ -305,7 +290,6 @@ main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toolbar)
  main.public-sign-configurator.sign-studio .canvas-tools {gap:1px;padding-left:3px;}
  main.public-sign-configurator.sign-studio .canvas-tools button {width:25px;min-width:25px;}
  main.public-sign-configurator.sign-studio .zoom-value {min-width:30px;font-size:10px;}
- main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toolbar) {grid-template-rows:46px auto auto minmax(0,1fr) 32px;}
 }
 @media(prefers-reduced-motion:reduce) {main.public-sign-configurator.sign-studio .power-lever::after {transition:none;}}
 
@@ -357,8 +341,7 @@ main.public-sign-configurator.sign-studio .neon-reference-upload input {position
 main.public-sign-configurator.sign-studio .neon-reference-upload:focus-within {outline:2px solid #16803d;outline-offset:3px;}
 main.public-sign-configurator.sign-studio .neon-reference-image {display:block;width:100%;max-height:280px;object-fit:contain;background:#edf1ed;border-radius:5px;}
 @media(max-width:767px) {
- main.public-sign-configurator.sign-studio .neon-sections {position:sticky;top:max(280px,min(46svh,390px));z-index:6;align-self:start;background:#fff;padding-top:6px;box-shadow:0 5px 8px -8px #073c2d;}
- main.public-sign-configurator.sign-studio:has(.studio-workspace .editor-toolbar) .neon-sections {top:max(280px,min(56svh,460px));}
+ main.public-sign-configurator.sign-studio .neon-sections {position:sticky;top:var(--workspace-sticky-offset,400px);z-index:6;align-self:start;background:#fff;padding-top:6px;box-shadow:0 5px 8px -8px #073c2d;}
 }
 main.public-sign-configurator.sign-studio .neon-inline-toolbar {display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 main.public-sign-configurator.sign-studio .neon-inline-toolbar label {display:flex;align-items:center;gap:5px;font-size:11px;color:#194d36;}

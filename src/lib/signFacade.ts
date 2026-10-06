@@ -300,7 +300,8 @@ function createPanelFacadeSvg(place:SignPlacement,markup:string,night:boolean,pr
   const left=Math.min(...bounds.map(p=>p[0]))-180,top=Math.min(...bounds.map(p=>p[1]))-120;
   const width=Math.max(...bounds.map(p=>p[0]))-left+180,height=Math.max(...bounds.map(p=>p[1]))-top+160;
   const windowsOn=night&&(options.windowLights??night),windowLevel=windowsOn?Math.max(0,Math.min(1,Number.isFinite(options.windowLightLevel)?options.windowLightLevel!:1)):0;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${[left,top,width,height].map(n).join(' ')}" data-facade-mm="true" data-facade-night="${night}" data-window-lights="${windowsOn}" data-window-light-level="${windowLevel}" data-panel-mount="${mount.mode}" data-panel-pose="${[mount.rotationY,mount.position.x,mount.position.y,mount.position.z].map(n).join(' ')}" role="img" aria-label="Панель-кронштейн ${corner?'на наружном углу здания':'перпендикулярно стене'}, дверь 1100 на 2100 мм">${defs}<defs>${shadowDefs}</defs>${faceDefs}${side}${front}${shadows}${plates}${supports}${body}${face}</svg>`;
+  const signAnchor=project(panelMountPoint(mount,[0,0,mount.depth/2]));
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${[left,top,width,height].map(n).join(' ')}" data-facade-mm="true" data-facade-night="${night}" data-window-lights="${windowsOn}" data-window-light-level="${windowLevel}" data-panel-mount="${mount.mode}" data-panel-pose="${[mount.rotationY,mount.position.x,mount.position.y,mount.position.z].map(n).join(' ')}" data-sign-anchor="${signAnchor.map(n).join(' ')}" role="img" aria-label="Панель-кронштейн ${corner?'на наружном углу здания':'перпендикулярно стене'}, дверь 1100 на 2100 мм">${defs}<defs>${shadowDefs}</defs>${faceDefs}${side}${front}${shadows}${plates}${supports}${body}${face}</svg>`;
 }
 import { panelMountPoint, isPanelCornerMount } from './panelConstruction';
 import type { panelMountLayout } from './panelConstruction';
