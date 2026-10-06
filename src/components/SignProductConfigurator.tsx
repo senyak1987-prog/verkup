@@ -25,6 +25,7 @@ import type { FacadeSignBox, SignPlacement } from "../lib/signFacade";
 import { loadNeonFont } from "../lib/neonFonts";
 import { NEON_FONTS } from "../lib/neonConstruction";
 import { SCENE_LIGHTING_TIMING } from "../lib/sceneLighting";
+import { signZoomTranslation } from "../lib/signZoomFocus";
 import { SignCart } from "./SignCart";
 
 const SignScene3D = lazy(() => import("./SignScene3D"));
@@ -479,6 +480,8 @@ export function SignProductConfigurator() {
   const setAcpDepth = (value: ProjectState["acpDepth"]) => setProject(previous => ({ ...previous, acpDepth: value }));
   const [activeSection, setActiveSection] = useState<StudioSection>("design");
   const [zoom, setZoom] = useState(100);
+  const previewArtRef = useRef<HTMLDivElement>(null);
+  const [previewFocus, setPreviewFocus] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [placement,setPlacement] = useState<SignPlacement>("none");
   const [neonFontReady,setNeonFontReady] = useState("rounded");
   const [neonFontError,setNeonFontError] = useState("");
@@ -493,23 +496,89 @@ export function SignProductConfigurator() {
   latestProject.current = project;
   const [notice, setNotice] = useState("");
   const workspaceRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const art = previewArtRef.current;
+    if (!art || viewMode !== "2d") return;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const width = art.clientWidth, height = art.clientHeight;
+        let x = width / 2, y = height / 2;
+        const svg = art.querySelector<SVGSVGElement>("svg[data-sign-anchor]");
+        const coordinates = svg?.getAttribute("data-sign-anchor")?.trim().split(/\s+/).map(Number);
+        const matrix = svg?.getScreenCTM();
+        if (svg && matrix && coordinates?.length === 2 && coordinates.every(Number.isFinite)) {
+          const point = svg.createSVGPoint(); point.x = coordinates[0]; point.y = coordinates[1];
+          const screen = point.matrixTransform(matrix), rect = art.getBoundingClientRect();
+          const scale = rect.width / Math.max(1, width);
+          // Remove this wrapper's current transform; getScreenCTM includes SVG contain/letterboxing.
+          x = (screen.x - rect.left) / scale; y = (screen.y - rect.top) / scale;
+        }
+        setPreviewFocus(previous => Math.abs(previous.x-x)+Math.abs(previous.y-y)+Math.abs(previous.width-width)+Math.abs(previous.height-height) < .1
+          ? previous : { x, y, width, height });
+      });
+    };
+    const observer = new ResizeObserver(update); observer.observe(art);
+    const changes = new MutationObserver(update); changes.observe(art, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-sign-anchor", "viewBox"] });
+    update();
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); changes.disconnect(); };
+  }, [viewMode, placement, productId]);
+  const previewTranslation = signZoomTranslation(previewFocus, previewFocus, zoom / 100);
+  const revealPreviewFrame = useRef(0);
+  const revealPreview = () => {
+    cancelAnimationFrame(revealPreviewFrame.current);
+    revealPreviewFrame.current = requestAnimationFrame(() => {
+      revealPreviewFrame.current = requestAnimationFrame(() => {
+        const host = workspaceRef.current; if (!host) return;
+        const bounds = host.getBoundingClientRect(), height = window.visualViewport?.height ?? window.innerHeight;
+        const edge = window.matchMedia("(max-width: 767px)").matches ? 0 : 12;
+        if (bounds.height <= height - edge * 2 && (bounds.top < edge || bounds.bottom > height - edge))
+          host.scrollIntoView({ block: "start", behavior: "instant" });
+      });
+    });
+  };
+  useEffect(() => () => cancelAnimationFrame(revealPreviewFrame.current), []);
   useEffect(()=>{const host=workspaceRef.current;if(!host||viewMode!=="2d")return;const wheel=(event:WheelEvent)=>{if(!(event.target as Element).closest(".builder-preview"))return;event.preventDefault();setZoom(value=>Math.max(25,Math.min(400,Math.round(value*Math.exp(-event.deltaY*.0015)))));};host.addEventListener("wheel",wheel,{passive:false});return()=>host.removeEventListener("wheel",wheel);},[viewMode]);
-  const [previewHeight, setPreviewHeight] = useState(() => Math.max(220, Math.min(620, window.innerHeight - 340)));
+  const [previewBounds, setPreviewBounds] = useState(() => {
+    const side = Math.max(1, Math.min(400, window.innerWidth - 32, window.innerHeight - 180));
+    return { side, height: side + 180, sticky: true };
+  });
   useEffect(() => {
     let frame = 0;
     const update = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        if (!workspaceRef.current || window.matchMedia("(max-width: 767px)").matches) return;
-        const top = workspaceRef.current.getBoundingClientRect().top;
-        setPreviewHeight(Math.max(220, Math.min(620, Math.floor(window.innerHeight - Math.max(12, top) - 12))));
+        const host = workspaceRef.current; if (!host) return;
+        const mobile = window.matchMedia("(max-width: 767px)").matches;
+        const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+        const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+        const style = getComputedStyle(host);
+        const borders = (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+        const rows = Array.from(host.children).filter(child => !child.classList.contains("builder-preview"));
+        const chromeHeight = rows.reduce((height, row) => height + row.getBoundingClientRect().height, borders) +
+          (parseFloat(style.rowGap) || 0) * rows.length;
+        const side = Math.max(1, Math.floor(Math.min(host.clientWidth, viewportWidth - (mobile ? 28 : 24),
+          viewportHeight - (mobile ? 12 : 24) - chromeHeight)));
+        const height = Math.ceil(side + chromeHeight);
+        // Short mobile viewports must let the workspace scroll away so settings remain reachable.
+        const sticky = !mobile || height <= viewportHeight - 120;
+        setPreviewBounds(previous => previous.side === side && previous.height === height && previous.sticky === sticky
+          ? previous : { side, height, sticky });
       });
     };
+    const host = workspaceRef.current;
+    const observer = new ResizeObserver(update);
+    if (host) {
+      observer.observe(host);
+      if (host.parentElement) observer.observe(host.parentElement);
+      for (const row of Array.from(host.children)) if (!row.classList.contains("builder-preview")) observer.observe(row);
+    }
     update();
-    window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
-    return () => { cancelAnimationFrame(frame); window.removeEventListener("scroll", update); window.removeEventListener("resize", update); };
-  }, [notice]);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener("resize", update); window.visualViewport?.removeEventListener("resize", update); };
+  }, [editing, viewMode, project.productId]);
   const [saveStatus, setSaveStatus] = useState("Сохранено на устройстве");
   const projectFileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -668,6 +737,8 @@ export function SignProductConfigurator() {
   }
 
   const visualStyle = {
+    "--workspace-height": `${previewBounds.height}px`,
+    "--workspace-sticky-offset": previewBounds.sticky ? `${previewBounds.height}px` : "0px",
     "--face-color": currentFaceColor.value,
     "--side-color": currentSideColor.value,
     "--outline-color": outlineColor.value,
@@ -905,7 +976,10 @@ export function SignProductConfigurator() {
           </div>
           <details className="studio-help"><summary>Как пользоваться студией<ChevronRight size={14} /></summary><p>Выберите тип вывески и настройте параметры по разделам. Переключайте день и ночь, чтобы оценить свечение. Проект сохраняется в этом браузере. Скачайте JSON для переноса на другое устройство.</p><p>Макет дает представление о конструкции. Цвета на экране могут отличаться от физических образцов Oracal; производственную документацию нужно подготовить отдельно.</p></details>
         </aside>
-        <section ref={workspaceRef} style={{ "--workspace-height": `${previewHeight}px` } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет">
+        <section ref={workspaceRef} style={{ "--preview-side": `${previewBounds.side}px`, "--workspace-position": previewBounds.sticky ? "sticky" : "relative" } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет"
+          onFocusCapture={event => { if ((event.target as Element).closest(".canvas-toolbar,.canvas-mode-toolbar,.editor-toolbar,.neon-inline-toolbar,.canvas-footer")) revealPreview(); }}
+          onPointerDownCapture={event => { if ((event.target as Element).closest(".canvas-toolbar,.canvas-mode-toolbar,.editor-toolbar,.neon-inline-toolbar,.canvas-footer")) revealPreview(); }}
+          onWheelCapture={revealPreview}>
           <header className="canvas-toolbar"><div className="canvas-title"><strong>Предпросмотр</strong><span>{sceneMode === "day" ? "Дневное освещение" : "Ночное освещение"}</span></div>
             <button type="button" className={"sign-power-switch "+(project.lightsOn?'on':'off')} role="switch" aria-checked={project.lightsOn} aria-label="Свет вывески" title={project.lightsOn?'Выключить свет вывески':'Включить свет вывески'} onClick={()=>patchProject({lightsOn:!project.lightsOn})}><Power size={15}/><span className="power-caption">Свет</span><span className="power-lever" aria-hidden="true"/><span className="power-state">{project.lightsOn?'Вкл':'Выкл'}</span></button>
             <div className={"scene-switch " + sceneMode} role="group" aria-label="Режим визуализации">
@@ -943,8 +1017,8 @@ export function SignProductConfigurator() {
           aria-label="Визуализация"
         >
           {(fontPending && productId === "letters" || productId === "neon" && neonFontReady!==neonFontKey && !neonFontError) && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
-          {viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div className="preview-art" style={{ "--preview-zoom": zoom / 100 } as CSSProperties}>
-            {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
+          {viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
+            {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
               <PanelPreview
                 lightsOn={project.lightsOn}
                 image={panelImage}

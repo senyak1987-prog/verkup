@@ -8,6 +8,7 @@ import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { createFacadeModel, createPanelMountContext } from "../lib/signFacade3D";
 import { DAYLIGHT_LEVELS, daylightSource } from "../lib/signDaylight";
+import { signFocusBounds, zoomFocusWeight } from "../lib/signCameraFocus";
 import type { DaylightMarker } from "../lib/signDaylight";
 import { sceneLightingAt, sceneLightingDuration } from "../lib/sceneLighting";
 import { panelMountLayout } from "../lib/panelConstruction";
@@ -44,6 +45,9 @@ type SceneRuntime = {
   resize: () => void;
   fitToView: () => void;
   bounds: THREE.Box3;
+  fitCenter: THREE.Vector3;
+  signAnchor: THREE.Vector3;
+  focusZoom: () => void;
   light: (night: number, windows: number, lightsOn: boolean) => void;
   source: (marker: DaylightMarker) => void;
 };
@@ -140,6 +144,10 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           currentRenderer.render(scene, camera);
           host.dataset.cameraZoom = String(camera.zoom);
           host.dataset.cameraViewHeight = String(camera.top - camera.bottom);
+          host.dataset.cameraTarget = currentControls.target.toArray().map(value => value.toFixed(3)).join(",");
+          host.dataset.signAnchor = runtime.signAnchor.toArray().map(value => value.toFixed(3)).join(",");
+          const signScreen = runtime.signAnchor.clone().project(camera);
+          host.dataset.signScreen = `${signScreen.x.toFixed(4)},${signScreen.y.toFixed(4)}`;
           const value = Math.round(camera.zoom * 100);
           if (value !== zoomRef.current) zoomChangeRef.current?.(value);
         } catch { fail(); }
@@ -151,6 +159,15 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const runtime: SceneRuntime = {
         renderer, scene, camera, controls, model: null, ambient, key, fill,
         distance: 1800, requestRender, bounds: new THREE.Box3(),
+        fitCenter: new THREE.Vector3(), signAnchor: new THREE.Vector3(),
+        focusZoom() {
+          const target = runtime.fitCenter.clone().lerp(runtime.signAnchor, zoomFocusWeight(camera.zoom));
+          const delta = target.sub(currentControls.target);
+          if (delta.lengthSq() < 1e-10) return;
+          // Translate both together: focusing must preserve the user's rotation and distance.
+          camera.position.add(delta); currentControls.target.add(delta);
+          currentControls.update();
+        },
         source(marker) {
           if (runtime.bounds.isEmpty()) return;
           const center = runtime.bounds.getCenter(new THREE.Vector3());
@@ -185,7 +202,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           camera.updateMatrixWorld();
           const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
           const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
-          const center = currentControls.target;
+          const center = runtime.fitCenter;
           let halfWidth = 0, halfHeight = 0;
           const box = runtime.bounds;
           for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
@@ -243,8 +260,10 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const direction = preserveOrbit
             ? camera.position.clone().sub(currentControls.target).normalize()
             : front ? panelFront : (panelPose ? panelDefault : new THREE.Vector3(panelRef.current ? 0.68 : canopyView ? 0.55 : 0.3, canopyView ? 0.3 : 0.12, 1)).normalize();
-          currentControls.target.copy(center);
-          camera.position.copy(center).addScaledVector(direction, runtime.distance);
+          runtime.fitCenter.copy(center);
+          const focus = center.clone().lerp(runtime.signAnchor, zoomFocusWeight(camera.zoom));
+          currentControls.target.copy(focus);
+          camera.position.copy(focus).addScaledVector(direction, runtime.distance);
           currentControls.minDistance = Math.max(100, runtime.distance * 0.22);
           currentControls.maxDistance = runtime.distance * 4;
           currentControls.update();
@@ -258,12 +277,13 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const canvasHeight = Math.max(1, Math.round(box.height));
           currentRenderer.setSize(canvasWidth, canvasHeight, false);
           camera.updateProjectionMatrix();
-          if (runtime.model) runtime.frame(false, true);
+          if (runtime.model) runtime.fitToView();
           requestRender();
         },
       };
       runtimeRef.current = runtime;
-      currentControls.addEventListener("change", requestRender);
+      const controlsChanged = () => { runtime.focusZoom(); requestRender(); };
+      currentControls.addEventListener("change", controlsChanged);
       const contextLost = (event: Event) => { event.preventDefault(); fail(); };
       renderer.domElement.addEventListener("webglcontextlost", contextLost);
       const visible = () => { if (document.visibilityState === "visible") requestRender(); };
@@ -278,7 +298,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         observer?.disconnect();
         document.removeEventListener("visibilitychange", visible);
         currentRenderer.domElement.removeEventListener("webglcontextlost", contextLost);
-        currentControls.removeEventListener("change", requestRender);
+        currentControls.removeEventListener("change", controlsChanged);
         currentControls.dispose();
         if (runtime.model) disposeSignObject(runtime.model);
         environment.dispose();
@@ -347,6 +367,9 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       if (hostRef.current) { hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId; }
       runtime.scene.add(model);
       runtime.bounds.setFromObject(model);
+      const focusBounds = signFocusBounds(model);
+      if (focusBounds.isEmpty()) runtime.signAnchor.set(0, 0, 0);
+      else focusBounds.getCenter(runtime.signAnchor);
       runtime.source(sunMarkerRef.current);
       runtime.light(lightFraction.current, windowFraction.current, lightsOnRef.current);
       runtime.frame(project.productId !== "panel" && placement !== 'canopy', preserveOrbit);
@@ -387,6 +410,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     if (!runtime) return;
     runtime.camera.zoom = Math.max(0.25, Math.min(4, zoom / 100));
     runtime.camera.updateProjectionMatrix();
+    runtime.focusZoom();
     runtime.requestRender();
   }, [zoom]);
 
