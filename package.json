@@ -26,7 +26,9 @@
     "test:neon-curves": "node scripts/test-neon-curves.mjs",
     "test:facade-models": "node scripts/test-facade-models.mjs",
     "test:scene-lighting": "node scripts/test-scene-lighting.mjs",
-    "test:daylight": "node scripts/test-daylight.mjs"
+    "test:daylight": "node scripts/test-daylight.mjs",
+    "test:letter-frame": "node scripts/test-letter-frame.mjs",
+    "test:letter-rows": "node scripts/test-letter-rows.mjs"
   },
   "dependencies": {
     "framer-motion": "^12.41.0",
