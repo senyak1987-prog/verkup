@@ -55,14 +55,14 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     const dx = point.x - active.point.x, dy = point.y - active.point.y;
     if (active.resize) {
       setSnapped({ x: false, y: false });
-      if (active.target === "logo") schedule({ logoSizeMm: Math.max(20, Math.min(900, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
+      if (active.target === "logo") schedule({ logoSizeMm: Math.max(100, Math.min(700, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
         (Math.abs(dx) > Math.abs(dy) ? dx : dy)))) });
       else if (active.target.startsWith("line-")) {
         const patch = resizeLayoutLine(active.layout, active.target, active.project.letterHeight, active.project.letterLineHeights, dx, dy);
         if (patch) schedule(patch);
       }
       else schedule({ letterWidth: Math.max(60, Math.round(active.layout.signBox.width + dx)),
-        letterHeight: Math.max(40, Math.min(1200, Math.round(active.project.letterHeight * (1 + dy / active.layout.textHeight)))) });
+        letterHeight: Math.max(100, Math.min(700, Math.round(active.project.letterHeight * (1 + dy / active.layout.textHeight)))) });
     } else {
       const result = moveLayoutSelection(active.layout, active.target, active.project.logoEnabled, dx, dy,
         { constrainToPanel: active.project.mountMode === "acp", snapTolerance: event.altKey ? 0 : active.tolerance });
