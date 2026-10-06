@@ -4,10 +4,10 @@ import { layoutReferenceBox, layoutSelectionBox, moveLayoutSelection, resizeLayo
 import type { AlignmentLayout, LayoutObject } from "../lib/signLayoutAlignment";
 
 type Layout = AlignmentLayout & { signBox: { x: number; y: number; width: number; height: number } };
-type EditorProject = { logoEnabled: boolean; logoScale: number; letterHeight: number; mountMode: string;
+type EditorProject = { logoEnabled: boolean; logoScale: number; logoSizeMm?:number; letterHeight: number; mountMode: string;
   letterLineOffsets?: { x: number; y: number }[]; letterLineHeights?: number[] };
 export type LayoutPatch = Partial<{ logoOffsetX: number; logoOffsetY: number; textOffsetX: number; textOffsetY: number;
-  logoScale: number; letterWidth: number; letterHeight: number; letterLineOffsets: { x: number; y: number }[];
+  logoScale: number; logoSizeMm:number; letterWidth: number; letterHeight: number; letterLineOffsets: { x: number; y: number }[];
   letterLineHeights: number[] }>;
 
 export function SignLayoutEditor({ layout, project, selection, onSelect, onChange, onInteractionStart, onInteractionEnd, onUndo }:
@@ -55,8 +55,8 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     const dx = point.x - active.point.x, dy = point.y - active.point.y;
     if (active.resize) {
       setSnapped({ x: false, y: false });
-      if (active.target === "logo") schedule({ logoScale: Math.max(45, Math.min(130, Math.round(active.project.logoScale +
-        (Math.abs(dx) > Math.abs(dy) ? dx : dy) / active.project.letterHeight * 100))) });
+      if (active.target === "logo") schedule({ logoSizeMm: Math.max(20, Math.min(90, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
+        (Math.abs(dx) > Math.abs(dy) ? dx : dy)))) });
       else if (active.target.startsWith("line-")) {
         const patch = resizeLayoutLine(active.layout, active.target, active.project.letterHeight, active.project.letterLineHeights, dx, dy);
         if (patch) schedule(patch);
