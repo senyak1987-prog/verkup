@@ -9,6 +9,7 @@ export type SignSceneBox = { x: number; y: number; width: number; height: number
 export type SignSceneProject = {
   productId: "panel" | "letters" | "neon";
   neonText?: string; neonFont?: string; neonHeight?: number; neonDiameter?: number; neonColor?: string;
+  neonBackerShape?: string; neonBrightness?: number; neonAlign?: string;
   sceneMode: "day" | "night";
   panelShape: "circle" | "square" | "rounded";
   panelSize: number;
@@ -489,7 +490,7 @@ export function applySignLighting(group: THREE.Object3D, night: number) {
         if (material.userData.dayColor) lit.color.copy(material.userData.dayColor).multiplyScalar(1 - night * .28);
       }
       if (material.userData.lightOpacity !== undefined) material.opacity = material.userData.lightOpacity * night;
-      if (material.userData.neonCore) material.opacity = .25 + night * .55;
+      if (material.userData.neonCore) material.opacity = .25 + night * .55 * (material.userData.neonBrightness??1);
       if (material.userData.neonAura) material.opacity = night * .055;
       if (child instanceof THREE.Sprite) (material as THREE.SpriteMaterial).color.set('#1b4635').lerp(new THREE.Color('#ffffff'), night);
     }
