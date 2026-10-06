@@ -308,3 +308,60 @@ main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toolbar)
  main.public-sign-configurator.sign-studio .studio-workspace:has(.editor-toolbar) {grid-template-rows:46px auto auto minmax(0,1fr) 32px;}
 }
 @media(prefers-reduced-motion:reduce) {main.public-sign-configurator.sign-studio .power-lever::after {transition:none;}}
+
+/* Neon uses the same task navigation as the letter studio. */
+main.public-sign-configurator.sign-studio .neon-controls {gap:16px;min-width:0;}
+main.public-sign-configurator.sign-studio .neon-sections {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;margin:-2px -4px 4px;padding-bottom:10px;border-bottom:1px solid #dbe3dd;}
+main.public-sign-configurator.sign-studio .neon-sections button {display:grid;place-items:center;gap:7px;min-height:58px;min-width:0;padding:8px 1px;border:0;border-radius:4px;background:transparent;color:#496153;font:inherit;font-size:10px;cursor:pointer;}
+main.public-sign-configurator.sign-studio .neon-sections button[aria-pressed=true] {color:#0f5210;background:#edf5ec;box-shadow:inset 0 -2px #16803d;}
+main.public-sign-configurator.sign-studio .neon-row-selector {display:flex;flex-wrap:wrap;gap:6px;}
+main.public-sign-configurator.sign-studio :is(.neon-row-selector,.neon-choice-row) button {display:flex;align-items:center;justify-content:center;gap:4px;min-height:38px;padding:8px 10px;border:1px solid #afc2b6;border-radius:4px;background:#fff;color:#194d36;font:inherit;font-size:12px;cursor:pointer;}
+main.public-sign-configurator.sign-studio :is(.neon-row-selector,.neon-choice-row) button[aria-pressed=true] {border-color:#16803d;background:#edf5ec;color:#0f5210;}
+main.public-sign-configurator.sign-studio .neon-controls :is(button,input,select,textarea):focus-visible {outline:2px solid #16803d;outline-offset:3px;}
+main.public-sign-configurator.sign-studio .neon-controls button:disabled {opacity:.45;cursor:default;}
+main.public-sign-configurator.sign-studio .neon-controls button:enabled:hover {border-color:#16803d;}
+main.public-sign-configurator.sign-studio .neon-font-search {display:flex;align-items:center;gap:8px;border:1px solid #afc2b6;border-radius:5px;color:#496153;padding:0 10px;}
+main.public-sign-configurator.sign-studio .neon-font-search input {width:100%;min-width:0;min-height:40px;padding:8px 0;border:0;background:transparent;color:#1f392c;font:inherit;font-size:13px;}
+main.public-sign-configurator.sign-studio .neon-font-search input::placeholder {color:#596f60;}
+main.public-sign-configurator.sign-studio .neon-font-filters {gap:5px;margin:0;}
+main.public-sign-configurator.sign-studio .neon-font-filters button {min-height:34px;}
+main.public-sign-configurator.sign-studio .neon-font-gallery {margin:0;max-height:360px;}
+main.public-sign-configurator.sign-studio .neon-font-gallery strong {display:flex;align-items:center;justify-content:space-between;gap:4px;}
+main.public-sign-configurator.sign-studio .neon-color-palette {margin:6px 0 0;gap:10px;}
+main.public-sign-configurator.sign-studio .neon-color-palette button {width:38px;height:38px;}
+main.public-sign-configurator.sign-studio .neon-choice-row {display:flex;gap:8px;}
+main.public-sign-configurator.sign-studio .neon-choice-row button {flex:1;min-height:44px;}
+main.public-sign-configurator.sign-studio .neon-advanced {padding-top:12px;border-top:1px solid #dbe3dd;}
+main.public-sign-configurator.sign-studio .neon-advanced summary {cursor:pointer;color:#194d36;font-size:13px;min-height:30px;}
+main.public-sign-configurator.sign-studio .neon-advanced > div {display:grid;gap:14px;padding-top:12px;}
+main.public-sign-configurator.sign-studio :is(.neon-next,.neon-remove-line,.neon-link-action) {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:8px 10px;border:1px solid #afc2b6;border-radius:4px;background:#fff;color:#194d36;font:inherit;font-size:12px;cursor:pointer;}
+main.public-sign-configurator.sign-studio .neon-link-action {justify-self:start;text-align:left;}
+main.public-sign-configurator.sign-studio .neon-next {background:#073c2d;border-color:#073c2d;color:#f5f4e7;}
+main.public-sign-configurator.sign-studio .neon-text-actions {display:flex;flex-wrap:wrap;gap:8px;}
+main.public-sign-configurator.sign-studio .neon-size-presets {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+main.public-sign-configurator.sign-studio .neon-size-presets button {display:grid;gap:7px;min-height:72px;min-width:0;padding:10px 6px;border:1px solid #afc2b6;border-radius:5px;background:#fff;color:#194d36;font:inherit;text-align:center;cursor:pointer;}
+main.public-sign-configurator.sign-studio .neon-size-presets strong {font-size:11px;font-weight:600;}
+main.public-sign-configurator.sign-studio .neon-size-presets span {font-size:10px;font-variant-numeric:tabular-nums;}
+main.public-sign-configurator.sign-studio .neon-size-presets button[aria-pressed=true] {border-color:#16803d;background:#edf5ec;}
+main.public-sign-configurator.sign-studio .neon-choice-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}
+main.public-sign-configurator.sign-studio .neon-choice-grid.mount-examples {grid-template-columns:repeat(2,minmax(0,1fr));margin-top:6px;}
+main.public-sign-configurator.sign-studio .neon-choice-grid button {display:grid;justify-items:center;gap:6px;min-width:0;padding:9px 5px;border:1px solid #afc2b6;border-radius:5px;background:#fff;color:#194d36;font:inherit;font-size:10px;cursor:pointer;}
+main.public-sign-configurator.sign-studio .neon-choice-grid button[aria-pressed=true] {border-color:#16803d;background:#edf5ec;}
+main.public-sign-configurator.sign-studio .neon-choice-grid svg {width:100%;height:54px;}
+main.public-sign-configurator.sign-studio .backer-example-sheet {fill:#e3edf0;stroke:#80958a;stroke-width:1.5;}
+main.public-sign-configurator.sign-studio .neon-choice-grid small {font-size:10px;line-height:1.4;color:#496153;text-align:center;}
+main.public-sign-configurator.sign-studio .neon-reference-upload {position:relative;display:flex;align-items:center;justify-content:center;gap:10px;min-height:100px;padding:16px;border:1px dashed #7b9b89;border-radius:6px;background:#f5f8f4;color:#194d36;cursor:pointer;}
+main.public-sign-configurator.sign-studio .neon-reference-upload span {display:grid;gap:6px;font-size:13px;font-weight:600;}
+main.public-sign-configurator.sign-studio .neon-reference-upload small {font-size:11px;font-weight:400;color:#496153;}
+main.public-sign-configurator.sign-studio .neon-reference-upload input {position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;}
+main.public-sign-configurator.sign-studio .neon-reference-upload:focus-within {outline:2px solid #16803d;outline-offset:3px;}
+main.public-sign-configurator.sign-studio .neon-reference-image {display:block;width:100%;max-height:280px;object-fit:contain;background:#edf1ed;border-radius:5px;}
+@media(max-width:767px) {
+ main.public-sign-configurator.sign-studio .neon-sections {position:sticky;top:max(280px,min(46svh,390px));z-index:6;align-self:start;background:#fff;padding-top:6px;box-shadow:0 5px 8px -8px #073c2d;}
+ main.public-sign-configurator.sign-studio:has(.studio-workspace .editor-toolbar) .neon-sections {top:max(280px,min(56svh,460px));}
+}
+main.public-sign-configurator.sign-studio .neon-inline-toolbar {display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+main.public-sign-configurator.sign-studio .neon-inline-toolbar label {display:flex;align-items:center;gap:5px;font-size:11px;color:#194d36;}
+main.public-sign-configurator.sign-studio .neon-inline-toolbar select {max-width:165px;min-height:32px;border:1px solid #afc2b6;border-radius:4px;background:#fff;color:#194d36;padding:4px;font:inherit;font-size:11px;}
+main.public-sign-configurator.sign-studio .neon-inline-toolbar input[type=color] {width:34px;height:32px;padding:3px;background:#fff;border:1px solid #afc2b6;border-radius:4px;}
+@media(max-width:767px) {main.public-sign-configurator.sign-studio .neon-inline-toolbar {gap:5px;padding:5px;}main.public-sign-configurator.sign-studio .neon-inline-toolbar select {max-width:123px;}main.public-sign-configurator.sign-studio .neon-inline-toolbar label span {display:none;}main.public-sign-configurator.sign-studio .neon-inline-toolbar button {font-size:10px;padding:5px;}}
