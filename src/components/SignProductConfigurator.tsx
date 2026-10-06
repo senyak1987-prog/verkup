@@ -132,6 +132,8 @@ type LettersSvgMarkupConfig = LettersSvgLayoutConfig & {
   logoFaceColor?: string;
   logoSideColor?: string;
   haloLightColor?: string;
+  faceNoFilm?: boolean;
+  logoNoFilm?: boolean;
   lightsOn?: boolean;
   showDimensions?: boolean;
   acpColor: string;
@@ -198,48 +200,149 @@ const LETTER_TEXT_WIDTH_FACTOR = 0.64;
 
 const LETTER_FONTS = SIGN_FONTS;
 
+// Codes, names and screen swatches sampled from the two supplied palette charts.
 const ORACAL_8500_COLORS: ColorOption[] = [
-  { code: "010", name: "Белый", value: "#f8f8f2" },
-  { code: "025", name: "Серно-желтый", value: "#f2d336" },
-  { code: "020", name: "Золотисто-желтый", value: "#f4b326" },
-  { code: "034", name: "Оранжевый", value: "#f47a2a" },
-  { code: "032", name: "Светло-красный", value: "#e73432" },
-  { code: "031", name: "Красный", value: "#d8242a" },
-  { code: "030", name: "Темно-красный", value: "#9f1f2d" },
-  { code: "041", name: "Розовый", value: "#e86a9a" },
-  { code: "404", name: "Фиолетовый", value: "#65428c" },
-  { code: "052", name: "Лазурный", value: "#0068b5" },
-  { code: "049", name: "Королевский синий", value: "#004f9e" },
-  { code: "086", name: "Ярко-синий", value: "#007ac3" },
-  { code: "053", name: "Светло-синий", value: "#5ca8d7" },
-  { code: "054", name: "Бирюзовый", value: "#009ba5" },
-  { code: "063", name: "Лайм", value: "#85bc43" },
-  { code: "061", name: "Зеленый", value: "#008647" },
-  { code: "060", name: "Темно-зеленый", value: "#006246" },
-  { code: "082", name: "Бежевый", value: "#d2bd95" },
-  { code: "081", name: "Светло-коричневый", value: "#a6774a" },
-  { code: "070", name: "Черный", value: "#111318" },
-  { code: "090", name: "Серебро", value: "#b9c1cc" },
+  { code: "010", name: "Белый", value: "#e8e8e8" },
+  { code: "025", name: "Серно-жёлтый", value: "#d1c901" },
+  { code: "021", name: "Жёлтый", value: "#fed000" },
+  { code: "013", name: "Цинково-жёлтый", value: "#f4c501" },
+  { code: "020", name: "Золотисто-жёлтый", value: "#f9af00" },
+  { code: "207", name: "Жёлтая охра", value: "#e0a314" },
+  { code: "034", name: "Оранжевый", value: "#e45c01" },
+  { code: "330", name: "Красная лиса", value: "#d1280d" },
+  { code: "323", name: "Красный коралл", value: "#d30c2d" },
+  { code: "032", name: "Светло-красный", value: "#d42d0a" },
+  { code: "329", name: "Красно-алый", value: "#cc070c" },
+  { code: "016", name: "Алый", value: "#db210c" },
+  { code: "031", name: "Красный", value: "#c81e0d" },
+  { code: "017", name: "Вишнёвый", value: "#ae0b07" },
+  { code: "030", name: "Тёмно-красный", value: "#770c0e" },
+  { code: "085", name: "Розовый", value: "#dd8d8f" },
+  { code: "413", name: "Светло-малиновый", value: "#c45ba3" },
+  { code: "041", name: "Малиновый", value: "#b30163" },
+  { code: "008", name: "Вересковый", value: "#75032e" },
+  { code: "040", name: "Фиолетовый", value: "#67135d" },
+  { code: "403", name: "Светло-фиолетовый", value: "#5a2282" },
+  { code: "012", name: "Лиловый", value: "#4b175d" },
+  { code: "527", name: "Пастельно-голубой", value: "#528fae" },
+  { code: "053", name: "Светло-голубой", value: "#0987c8" },
+  { code: "052", name: "Лазурный", value: "#025ca8" },
+  { code: "051", name: "Цвета генцианы", value: "#05549f" },
+  { code: "528", name: "Серо-синий", value: "#025e9c" },
+  { code: "005", name: "Средне-синий", value: "#29318e" },
+  { code: "006", name: "Интенсивно-голубой", value: "#1e2b74" },
+  { code: "049", name: "Королевский синий", value: "#3c2480" },
+  { code: "542", name: "Карибский синий", value: "#2d237a" },
+  { code: "065", name: "Кобальтовый", value: "#3a2177" },
+  { code: "007", name: "Тёмно-синий", value: "#23185b" },
+  { code: "541", name: "Тёмно-бирюзовый", value: "#024c6f" },
+  { code: "066", name: "Бирюзово-синий", value: "#038a95" },
+  { code: "054", name: "Бирюзовый", value: "#0aac8e" },
+  { code: "062", name: "Светло-зелёный", value: "#039d35" },
+  { code: "063", name: "Липово-зелёный", value: "#5fb230" },
+  { code: "009", name: "Средне-зелёный", value: "#019c68" },
+  { code: "614", name: "Зелёный камыш", value: "#05722b" },
+  { code: "068", name: "Травянисто-зелёный", value: "#036a31" },
+  { code: "618", name: "Зелёный дракон", value: "#03373a" },
+  { code: "087", name: "Изумрудный", value: "#047729" },
+  { code: "060", name: "Тёмно-зелёный", value: "#02331e" },
+  { code: "070", name: "Чёрный", value: "#000004" },
+  { code: "074", name: "Средне-серый", value: "#868c8f" },
+  { code: "076", name: "Серый", value: "#9da3a8" },
+  { code: "072", name: "Светло-серый", value: "#c7cccb" },
+  { code: "805", name: "Слоновая кость", value: "#e5d6b4" },
+  { code: "011", name: "Бледно-коричневый", value: "#e4bf89" },
+  { code: "081", name: "Светло-коричневый", value: "#b78856" },
+  { code: "088", name: "Шоколадный", value: "#3c1701" },
+  { code: "090", name: "Серебристый", value: "#c3c5c9" },
+  { code: "091", name: "Золотистый", value: "#bf9f4e" },
 ];
 
 const ORACAL_641_COLORS: ColorOption[] = [
-  { code: "010", name: "Белый", value: "#ffffff" },
-  { code: "070", name: "Черный", value: "#101318" },
-  { code: "031", name: "Красный", value: "#d92227" },
-  { code: "312", name: "Бургунди", value: "#7f1f31" },
-  { code: "021", name: "Желтый", value: "#f5cf25" },
-  { code: "020", name: "Золотистый", value: "#edae21" },
-  { code: "034", name: "Оранжевый", value: "#ee6b26" },
-  { code: "049", name: "Синий", value: "#004f9f" },
-  { code: "056", name: "Ледяной синий", value: "#68a9d0" },
-  { code: "040", name: "Фиолетовый", value: "#5b3c8c" },
-  { code: "063", name: "Лайм", value: "#78b943" },
-  { code: "061", name: "Зеленый", value: "#008342" },
-  { code: "080", name: "Коричневый", value: "#734c35" },
-  { code: "072", name: "Светло-серый", value: "#c8cdd2" },
-  { code: "090", name: "Серебро", value: "#b7bec8" },
-  { code: "091", name: "Золото", value: "#b99a51" },
+  { code: "000", name: "Прозрачный", value: "#fdfdfd" },
+  { code: "010", name: "Белый", value: "#e6eaed" },
+  { code: "020", name: "Золотисто-жёлтый", value: "#faa802" },
+  { code: "019", name: "Ярко-жёлтый", value: "#e9a700" },
+  { code: "021", name: "Жёлтый", value: "#ffc702" },
+  { code: "022", name: "Светло-жёлтый", value: "#f4cc02" },
+  { code: "025", name: "Серно-жёлтый", value: "#f1e10e" },
+  { code: "312", name: "Бургунди", value: "#750310" },
+  { code: "030", name: "Тёмно-красный", value: "#930817" },
+  { code: "031", name: "Красный", value: "#af0009" },
+  { code: "032", name: "Светло-красный", value: "#c80d01" },
+  { code: "047", name: "Оранжево-красный", value: "#d13002" },
+  { code: "034", name: "Оранжевый", value: "#db4500" },
+  { code: "036", name: "Светло-оранжевый", value: "#ef6602" },
+  { code: "035", name: "Пастельно-оранжевый", value: "#fe6e02" },
+  { code: "404", name: "Пурпурный", value: "#3e2974" },
+  { code: "040", name: "Фиолетовый", value: "#5f2d67" },
+  { code: "043", name: "Лавандовый", value: "#7a5fa1" },
+  { code: "042", name: "Сиреневый", value: "#b993b9" },
+  { code: "041", name: "Малиновый", value: "#c2276b" },
+  { code: "045", name: "Светло-розовый", value: "#ef89bc" },
+  { code: "562", name: "Глубоководный синий", value: "#111c38" },
+  { code: "518", name: "Синий со стальным отливом", value: "#0f113b" },
+  { code: "050", name: "Тёмно-синий", value: "#1e305e" },
+  { code: "065", name: "Кобальтовый синий", value: "#0a1d6b" },
+  { code: "049", name: "Королевский синий", value: "#182b79" },
+  { code: "086", name: "Ярко-синий", value: "#1b30ad" },
+  { code: "067", name: "Синий", value: "#003a7a" },
+  { code: "057", name: "Дорожный синий", value: "#00408e" },
+  { code: "051", name: "Генциановый синий", value: "#024583" },
+  { code: "098", name: "Генциановый синий", value: "#004f9d" },
+  { code: "052", name: "Лазурный", value: "#025ead" },
+  { code: "084", name: "Небесно-голубой", value: "#0172b9" },
+  { code: "053", name: "Голубой", value: "#0189c6" },
+  { code: "056", name: "Светло-голубой", value: "#439fd4" },
+  { code: "066", name: "Бирюзово-синий", value: "#018292" },
+  { code: "054", name: "Бирюзовый", value: "#019b97" },
+  { code: "055", name: "Цвет мяты", value: "#5fcfb9" },
+  { code: "060", name: "Тёмно-зелёный", value: "#003c20" },
+  { code: "613", name: "Лесной зелёный", value: "#005136" },
+  { code: "061", name: "Зелёный", value: "#007b4c" },
+  { code: "068", name: "Травянисто-зелёный", value: "#017840" },
+  { code: "062", name: "Светло-зелёный", value: "#008a3b" },
+  { code: "064", name: "Жёлто-зелёный", value: "#219d0f" },
+  { code: "063", name: "Липово-зелёный", value: "#6ca82f" },
+  { code: "800", name: "Коричневая нуга", value: "#54331e" },
+  { code: "083", name: "Ореховый", value: "#ae5b1c" },
+  { code: "081", name: "Светло-коричневый", value: "#aa885a" },
+  { code: "082", name: "Бежевый", value: "#ccc2a1" },
+  { code: "023", name: "Кремовый", value: "#e7d096" },
+  { code: "070", name: "Чёрный", value: "#060606" },
+  { code: "073", name: "Тёмно-серый", value: "#4c4c4c" },
+  { code: "071", name: "Серый", value: "#757f7b" },
+  { code: "076", name: "Серый телеком", value: "#80868b" },
+  { code: "074", name: "Средне-серый", value: "#8a8f8d" },
+  { code: "072", name: "Светло-серый", value: "#bdc4c1" },
+  { code: "090", name: "Серебристо-серый", value: "#9d9e99" },
+  { code: "091", name: "Золотистый", value: "#a58a33" },
+  { code: "092", name: "Медный", value: "#845611" },
 ];
+
+type WhiteLightTone = "cool" | "neutral" | "warm";
+const WHITE_LIGHT_TONES = [
+  { id: "cool" as const, label: "Холодное", kelvin: "6000 К", value: "#e6f3ff" },
+  { id: "neutral" as const, label: "Нейтральное", kelvin: "4000 К", value: "#fff4e6" },
+  { id: "warm" as const, label: "Тёплое", kelvin: "3000 К", value: "#ffdcb1" },
+];
+const LIGHT_FACE_FILMS = ORACAL_8500_COLORS.filter(color => !["010", "070"].includes(color.code));
+function bareFaceColor(tone: WhiteLightTone): ColorOption {
+  return { code: "none", name: "Без плёнки", value: WHITE_LIGHT_TONES.find(item => item.id === tone)!.value };
+}
+function closestFilm(color:ColorOption, palette:ColorOption[]):ColorOption {
+  const distance=(candidate:ColorOption)=>[1,3,5].reduce((sum,offset)=>sum+(parseInt(candidate.value.slice(offset,offset+2),16)-parseInt(color.value.slice(offset,offset+2),16))**2,0);
+  return palette.reduce((best,item)=>distance(item)<distance(best)?item:best);
+}
+function normalizeFaceFilms(project:ProjectState):ProjectState {
+  const palette=project.glowMode === "halo" ? ORACAL_641_COLORS : LIGHT_FACE_FILMS;
+  for(const [faceKey,toneKey] of [["letterFaceColor","letterWhiteTone"],["logoFaceColor","logoWhiteTone"]] as const) {
+    const color=project[faceKey];
+    if(project.glowMode !== "halo" && ["none","000","010","070"].includes(color.code)) project[faceKey]=bareFaceColor(project[toneKey]);
+    else project[faceKey]=palette.find(item=>item.code===(color.code==="none"?"010":color.code)) ?? closestFilm(color,palette);
+  }
+  return project;
+}
 
 const ACP_COLORS: ColorOption[] = [
   { code: "ACP-W", name: "Белый АКП", value: "#f8fafc" },
@@ -270,8 +373,8 @@ const DEFAULT_PROJECT = {
   panelImageScale: 82,
   panelImageX: 0,
   panelImageY: 0,
-  panelFaceColor: ORACAL_8500_COLORS[1] as ColorOption,
-  panelSideColor: ORACAL_641_COLORS[1] as ColorOption,
+  panelFaceColor: ORACAL_8500_COLORS.find(color=>color.code==="025")! as ColorOption,
+  panelSideColor: ORACAL_641_COLORS.find(color=>color.code==="070")! as ColorOption,
   lettersText: "ЦВЕТЫ",
   secondLineText: "",
   thirdLineText: "",
@@ -285,11 +388,13 @@ const DEFAULT_PROJECT = {
   letterHeight: 410,
   letterWidth: 0,
   letterDepth: 50,
-  letterFaceColor: ORACAL_8500_COLORS[4] as ColorOption,
-  letterSideColor: ORACAL_641_COLORS[1] as ColorOption,
-  logoFaceColor: ORACAL_8500_COLORS[0] as ColorOption,
-  logoSideColor: ORACAL_641_COLORS[1] as ColorOption,
+  letterFaceColor: ORACAL_8500_COLORS.find(color=>color.code==="032")! as ColorOption,
+  letterSideColor: ORACAL_641_COLORS.find(color=>color.code==="070")! as ColorOption,
+  logoFaceColor: bareFaceColor("neutral") as ColorOption,
+  logoSideColor: ORACAL_641_COLORS.find(color=>color.code==="070")! as ColorOption,
   haloLightColor: ORACAL_8500_COLORS[0] as ColorOption,
+  letterWhiteTone: "neutral" as WhiteLightTone,
+  logoWhiteTone: "neutral" as WhiteLightTone,
   glowMode: "faceHalo" as GlowMode,
   logoShape: "circle" as LogoShape,
   logoImage: "",
@@ -298,16 +403,16 @@ const DEFAULT_PROJECT = {
   logoSizeMm: 100,
   letterOutlineEnabled: false,
   logoOutlineEnabled: false,
-  outlineColor: ORACAL_641_COLORS[1] as ColorOption,
+  outlineColor: ORACAL_641_COLORS.find(color=>color.code==="070")! as ColorOption,
   haloBackerEnabled: false,
   haloBackerOffsetMm: 20,
-  haloBackerColor: ORACAL_641_COLORS[0] as ColorOption,
+  haloBackerColor: ORACAL_641_COLORS.find(color=>color.code==="010")! as ColorOption,
   mountMode: "frame" as MountMode,
   frameProfile: 15 as FrameProfile,
   frameEdgeInset: 0,
   frameTopPosition: 15,
   frameBottomPosition: 15,
-  acpColor: ORACAL_641_COLORS[0] as ColorOption,
+  acpColor: ORACAL_641_COLORS.find(color=>color.code==="010")! as ColorOption,
   acpWidth: 2500,
   acpHeight: 830,
   acpDepth: 50
@@ -328,6 +433,7 @@ const SECTION_GROUPS: Record<string, StudioSection> = {
   "Логотип": "design", "Изображение": "logo",
 };
 const PROJECT_ENUMS: Record<string, readonly unknown[]> = {
+  letterWhiteTone: ["cool","neutral","warm"], logoWhiteTone: ["cool","neutral","warm"],
   facadePalette: ["stone","brick","charcoal"], neonIcon: ["none","heart","star","bolt","cup","music","infinity"], neonBackerColor:["clear","white","black"], neonInstallMode:["standoffs","hanging"], neonUse:["indoor","outdoor"],
   productId: ["panel", "letters", "neon"], neonFont: NEON_FONTS.map(font=>font.id), neonDiameter: [6, 8], neonBackerShape: ["rectangle","rounded","contour"], neonAlign: ["left","center","right"], sceneMode: ["day", "night"],
   panelShape: ["circle", "square", "rounded"], panelMountMode: ["wall", "corner", "corner-front", "corner-side"], logoShape: ["circle", "square", "rounded"],
@@ -390,10 +496,11 @@ function validateProject(raw: unknown): ProjectState {
         output[key] = value;
       } else output[key] = value.slice(0, 60);
     } else {
-      const palette = key.includes("Face") || key === "haloLightColor" ? [...ORACAL_8500_COLORS,...ORACAL_641_COLORS] : ORACAL_641_COLORS;
+      const palette = key.includes("Face") || key === "haloLightColor" ? [...ORACAL_8500_COLORS,...ORACAL_641_COLORS,...(["letterFaceColor","logoFaceColor"].includes(key)?[bareFaceColor("neutral")]:[])] : ORACAL_641_COLORS;
       const legacy = ACP_COLORS.find(color=>color.code === (value as ColorOption)?.code);
       const match = palette.find(color => color.code === (value as ColorOption)?.code && color.value === (value as ColorOption)?.value)
         ?? palette.find(color=>color.code === (value as ColorOption)?.code)
+        ?? ((value as ColorOption)?.code === "080" ? ORACAL_641_COLORS.find(color=>color.code==="800") : undefined)
         ?? (legacy && (key === "acpColor" || key === "haloBackerColor") ? ORACAL_641_COLORS.reduce((best,color)=>{
           const distance=(hex:string)=>[1,3,5].reduce((sum,offset)=>sum+(parseInt(hex.slice(offset,offset+2),16)-parseInt(legacy.value.slice(offset,offset+2),16))**2,0);
           return distance(color.value)<distance(best.value)?color:best;
@@ -416,7 +523,7 @@ function validateProject(raw: unknown): ProjectState {
   if (input.logoEnabled === undefined) result.logoEnabled = Boolean(result.logoImage);
   const bounded = constrainBacker(result.acpWidth,result.acpHeight,result.acpDepth); result.acpWidth=bounded.width; result.acpHeight=bounded.height;
   result.neonText=result.neonText.split("\n").slice(0,3).join("\n");
-  return result;
+  return normalizeFaceFilms(result);
 }
 function loadSavedProject(): ProjectState {
   try {
@@ -491,7 +598,7 @@ export function SignProductConfigurator() {
     const backer = constrainBacker(next.acpWidth, next.acpHeight, next.acpDepth);
     next.acpWidth = backer.width; next.acpHeight = backer.height;
     next.letterDepth = normalizeLetterDepth([next.lettersText,next.secondLineText,next.thirdLineText].map((text,index)=>text.trim()?next.letterLineHeights[index]||next.letterHeight:0).filter(Boolean), next.letterDepth, next.glowMode);
-    return next;
+    return normalizeFaceFilms(next);
     });
   };
   const undoNeon = () => { const previous=undoHistory.current.pop(); if(previous) setProject(previous); lastUndoEdit.current=0; setCanUndo(undoHistory.current.length>0); };
@@ -931,7 +1038,7 @@ export function SignProductConfigurator() {
       acpLayout,
       depth: letterDepth,
       estimatedWidth: lettersWidth,
-      logoFaceColor: project.logoFaceColor.value, logoSideColor: project.logoSideColor.value, haloLightColor: project.haloLightColor.value,
+      logoFaceColor: project.logoFaceColor.value, logoSideColor: project.logoSideColor.value, haloLightColor: project.haloLightColor.value, faceNoFilm:letterFaceColor.code==="none", logoNoFilm:project.logoFaceColor.code==="none",
       faceColor: letterFaceColor.value,
       font: letterFont,
       frameBottomPosition,
@@ -1038,7 +1145,8 @@ export function SignProductConfigurator() {
             />
           ) : (
             <LettersControls
-              logoColors={<><h3>Лицо логотипа · Oracal {glowMode === "halo" ? "641" : "8500"}</h3><ColorGrid colors={glowMode === "halo" ? ORACAL_641_COLORS : ORACAL_8500_COLORS} selected={project.logoFaceColor} onSelect={value=>patchProject({logoFaceColor:value})} compact /><h3>Борт логотипа · Oracal 641</h3><ColorGrid colors={ORACAL_641_COLORS} selected={project.logoSideColor} onSelect={value=>patchProject({logoSideColor:value})} compact /></>}
+              faceColors={<FaceFilmControl luminous={glowMode!=="halo"} selected={letterFaceColor} tone={project.letterWhiteTone} label="Тип свечения букв" onSelect={setLetterFaceColor} onToneChange={value=>patchProject({letterWhiteTone:value})} />}
+              logoColors={<><h3>Лицо логотипа · Oracal {glowMode === "halo" ? "641" : "8500"}</h3><FaceFilmControl luminous={glowMode!=="halo"} selected={project.logoFaceColor} tone={project.logoWhiteTone} label="Тип свечения логотипа" onSelect={value=>patchProject({logoFaceColor:value})} onToneChange={value=>patchProject({logoWhiteTone:value})} /><h3>Борт логотипа · Oracal 641</h3><ColorGrid colors={ORACAL_641_COLORS} selected={project.logoSideColor} onSelect={value=>patchProject({logoSideColor:value})} compact /></>}
               haloColors={glowHasHalo && <><h3>Цвет контражура</h3><ColorGrid colors={ORACAL_8500_COLORS} selected={project.haloLightColor} onSelect={value=>patchProject({haloLightColor:value})} compact /><p className="control-note">Цвет подсветки выбирается независимо от лица букв и логотипа.</p></>}
               lineEditor={<LetterLinesControls rows={[project.lettersText,project.secondLineText,project.thirdLineText].map((text,index)=>({index,text,font:project.letterLineFonts[index]||letterFont,height:project.letterLineHeights[index]||letterHeight})).filter(row=>row.index===0||row.text.trim())} onTextChange={setLineText} onFontChange={setLineFont} onHeightChange={setLineHeight} onSelect={selectLetterLine} onAdd={addLetterLine} onRemove={removeLetterLine}/>}
               rowHeights={lineSettings.map(row=>row.height)}
@@ -1175,7 +1283,7 @@ export function SignProductConfigurator() {
               />
             ) : (
               <LettersPreview
-                objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value}}
+                objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value,faceNoFilm:letterFaceColor.code==="none",logoNoFilm:project.logoFaceColor.code==="none"}}
                 lightsOn={project.lightsOn}
                 editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={project} selection={layoutSelection} onSelect={setLayoutSelection} onChange={patchProject} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
                 sceneMode={sceneMode}
@@ -1239,7 +1347,7 @@ export function SignProductConfigurator() {
           </div>
           <div className="summary-block">
             <span>{productId === "neon" ? "Цвет неона" : "Лицевая пленка"}</span>
-            <strong>{productId === "neon" ? [...new Set(project.neonText.split('\n').flatMap((text,index)=>text.trim()?[project.neonLineColors[index]||project.neonColor]:[]))].join(' · ') : currentFaceColor.code + " " + currentFaceColor.name}</strong>
+            <strong>{productId === "neon" ? [...new Set(project.neonText.split('\n').flatMap((text,index)=>text.trim()?[project.neonLineColors[index]||project.neonColor]:[]))].join(' · ') : currentFaceColor.code === "none" ? currentFaceColor.name + " · " + WHITE_LIGHT_TONES.find(item=>item.id===project.letterWhiteTone)!.label.toLowerCase() : currentFaceColor.code + " " + currentFaceColor.name}</strong>
           </div>
           <div className="summary-block">
             <span>{productId === "neon" ? "Подложка" : "Борт"}</span>
@@ -1403,7 +1511,7 @@ function PanelControls({
 }
 
 function LettersControls({
-  logoColors,haloColors,
+  logoColors,haloColors,faceColors,
   lineEditor,
   rowHeights,
   acpColor,
@@ -1458,7 +1566,7 @@ function LettersControls({
   onSideColorChange,
   onTextChange,
 }: {
-  logoColors: ReactNode; haloColors: ReactNode;
+  logoColors: ReactNode; haloColors: ReactNode; faceColors: ReactNode;
   acpColor: ColorOption;
   lineEditor: ReactNode;
   rowHeights: number[];
@@ -1638,7 +1746,7 @@ function LettersControls({
       </ControlSection>
 
       <ControlSection title={glowMode === "halo" ? "Лицо Oracal 641" : "Лицо Oracal 8500"}>
-        <ColorGrid colors={glowMode === "halo" ? ORACAL_641_COLORS : ORACAL_8500_COLORS} selected={faceColor} onSelect={onFaceColorChange} />
+        {faceColors}
       </ControlSection>
 
       <ControlSection title="Борт Oracal 641">
@@ -1770,7 +1878,7 @@ function LettersPreview({
   sideColor,
   text,
 }: {
-  objectColors: Pick<LettersSvgMarkupConfig,"logoFaceColor"|"logoSideColor"|"haloLightColor">;
+  objectColors: Pick<LettersSvgMarkupConfig,"logoFaceColor"|"logoSideColor"|"haloLightColor"|"faceNoFilm"|"logoNoFilm">;
   lightsOn?:boolean;
   acpColor: string;
   acpDepth?: number;
@@ -1826,6 +1934,20 @@ function ControlSection({ children, title }: { children: ReactNode; title: strin
   );
 }
 
+function FaceFilmControl({luminous,selected,tone,label,onSelect,onToneChange}: {
+  luminous:boolean;selected:ColorOption;tone:WhiteLightTone;label:string;
+  onSelect:(color:ColorOption)=>void;onToneChange:(tone:WhiteLightTone)=>void;
+}) {
+  if(!luminous)return <ColorGrid colors={ORACAL_641_COLORS} selected={selected} onSelect={onSelect} />;
+  return <div className="face-film-control">
+    <button type="button" className="face-no-film" aria-pressed={selected.code==="none"} onClick={()=>onSelect(bareFaceColor(tone))}>Без плёнки</button>
+    {selected.code==="none" && <div className="white-light-control"><h3>{label}</h3><div className="white-light-options" role="group" aria-label={label}>
+      {WHITE_LIGHT_TONES.map(item=><button key={item.id} type="button" aria-pressed={tone===item.id} onClick={()=>onToneChange(item.id)}><i style={{background:item.value}} aria-hidden="true"/><span>{item.label}</span><small>{item.kelvin}</small></button>)}
+    </div></div>}
+    <ColorGrid colors={LIGHT_FACE_FILMS} selected={selected} onSelect={onSelect}/>
+  </div>;
+}
+
 function ColorGrid({
   colors,
   compact = false,
@@ -1849,7 +1971,7 @@ function ColorGrid({
           title={`${color.code} ${color.name}`}
           type="button"
         >
-          <i style={{ background: color.value }} />
+          <i style={{ background: color.code === "000" ? "repeating-conic-gradient(#ffffff 0% 25%, #d4d9d5 0% 50%) 0 / 10px 10px" : color.value }} />
           <span>{color.code}</span>
           <strong>{color.name}</strong>
         </button>
@@ -2011,8 +2133,10 @@ function createLettersSvgMarkup(
       Math.round(channel + (destination[index] - channel) * amount).toString(16).padStart(2, "0"),
     ).join("");
   };
-  const face = night && !faceLit ? mix(config.faceColor, "#18212d", 0.6) : faceLit&&!night?mix(config.faceColor,'#ffffff',.06):config.faceColor;
-  const logoFace = night && !faceLit ? mix(config.logoFaceColor ?? config.faceColor,"#18212d",.6) : config.logoFaceColor ?? config.faceColor;
+  const surfaceFace = config.faceNoFilm && !faceLit ? "#f5f5f3" : config.faceColor;
+  const surfaceLogo = config.logoNoFilm && !faceLit ? "#f5f5f3" : config.logoFaceColor ?? config.faceColor;
+  const face = night && !faceLit ? mix(surfaceFace, "#18212d", 0.6) : faceLit&&!night?mix(surfaceFace,'#ffffff',.06):surfaceFace;
+  const logoFace = night && !faceLit ? mix(surfaceLogo,"#18212d",.6) : surfaceLogo;
   const side = sideLit ? mix(config.sideColor, "#ffffff", night?.32:.06)
     : night ? mix(config.sideColor, "#08101c", 0.6) : config.sideColor;
   const logoGeometry = (fill: string, stroke = "none", strokeWidth = 0) => !config.logoEnabled ? "" : config.logoShape === "circle"
