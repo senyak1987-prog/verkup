@@ -144,6 +144,20 @@ const svgLoader = { SVGLoader: class {
 const contourApi = load('letterContours', { './glyphPath': load('glyphPath'), './systemFontContours': load('systemFontContours') });
 const scene = load('signSceneGeometry', { three: THREE, './letterContours': contourApi, './glyphShapes': load('glyphShapes', { three: THREE }),
   './neonScene': {}, './panelConstruction': load('panelConstruction'), 'three/examples/jsm/loaders/SVGLoader.js': svgLoader });
+
+test('Wall-mounted letters never gain the old automatic plate, including saved projects with halo backer enabled', async () => {
+  const box = {x:0,y:0,width:1000,height:300};
+  const row = {id:'line-0',index:0,font:'test',text:'A',box,pathBox:box,pathData:'M0 0L1000 0L1000 300L0 300Z',naturalBox:box};
+  const project = {productId:'letters',sceneMode:'day',letterHeight:300,letterDepth:50,mountMode:'wall',glowMode:'faceHalo',
+    logoEnabled:false,letterFaceColor:{value:'#ffffff'},letterSideColor:{value:'#222222'},haloBackerColor:{value:'#888888'},haloBackerEnabled:true};
+  const layout = {textRows:[row],signBox:box,textX:0,textTop:0,textWidth:1000,textHeight:300,haloBackerBox:{x:-100,y:-100,width:1200,height:500},haloBackerRadius:80};
+  const model = await scene.buildSignModel(project,layout,1000,300,50,false);
+  assert.deepEqual(model.children.filter(child=>child.isMesh).map(child=>child.name),['extruded-letter-row-0']);
+  const bounds = new THREE.Box3().setFromObject(model.getObjectByName('extruded-letter-row-0'));
+  assert.equal(bounds.min.z,30,'Actual wall spacers remain for rear illumination');
+  assert.equal(bounds.max.z,80,'The letter body retains its requested depth');
+  scene.disposeSignObject(model);
+});
 test('3D builds each independently fonted row and the exact shared welded-frame rectangles', async () => {
   const configurations = [
     { file: 'Manrope-Variable.ttf', weight: 800, text: 'ШАУРМА', x: 350, y: 0, width: 1000, height: 210 },

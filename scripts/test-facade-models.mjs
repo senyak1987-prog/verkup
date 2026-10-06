@@ -21,6 +21,46 @@ const scene = load('signFacade3D', { three: THREE, './signFacade': facade, './pa
 const places = facade.SIGN_PLACEMENTS.filter(place => place.id !== 'none');
 const dimensions = [[600, 180], [1800, 300], [5000, 300], [1200, 800]];
 
+test('Detailed observer has smooth high-density clothing and the real brand on both sides of the sweatshirt', () => {
+  const building = scene.createFacadeModel('windows', 2000, 400), brand = new THREE.Texture();
+  const person = scene.createScalePerson(building, new THREE.Vector3(0, 0, 200), brand);
+  let vertices = 0;
+  person.traverse(child => { if (child.isMesh) {
+    vertices += child.geometry.getAttribute('position').count;
+    assert.ok(child.geometry.getAttribute('normal'));
+    assert.equal(child.material.flatShading, false);
+  } });
+  assert.ok(vertices > 100000 && vertices < 400000, `Detailed but bounded geometry: ${vertices}`);
+  for (const name of ['person-gorod-svet-back', 'person-gorod-svet-chest']) {
+    const print = person.getObjectByName(name);
+    assert.equal(print.material.map, brand); assert.equal(print.userData.brand, 'Город Свет');
+    assert.equal(print.visible, true); assert.equal(print.material.transparent, true);
+    assert.ok(print.geometry.getAttribute('position').count > 1000, 'The printed logo follows the curved textile');
+  }
+  for (const name of ['person-hood', 'person-shoe-sole', 'person-finger', 'person-eye', 'person-pocket-seam']) assert.ok(person.getObjectByName(name));
+  building.add(person); dispose(building);
+});
+
+test('Facade product switches independently support all four combinations without moving either product', () => {
+  for (const primaryKind of ['letters', 'panel']) {
+    const model = new THREE.Group(), companion = new THREE.Group(); model.userData.productId = primaryKind;
+    model.add(new THREE.Mesh(new THREE.BoxGeometry(2000, 400, 60)));
+    companion.add(new THREE.Mesh(new THREE.BoxGeometry(550, 550, 80)));
+    scene.attachFacadePair(model, companion, primaryKind, 'windows', {mode:'wall',size:550,depth:80,gap:120}, 2000, 400);
+    const primary = model.getObjectByName('primary-sign'), secondary = model.getObjectByName('companion-sign');
+    const transforms = [primary.matrix.clone(), secondary.matrix.clone()];
+    for (const [sign, panel] of [[true,true],[false,true],[true,false],[false,false]]) {
+      scene.setFacadeProductVisibility(model, sign, panel);
+      assert.equal(primary.visible, primaryKind === 'panel' ? panel : sign);
+      assert.equal(secondary.visible, primaryKind === 'panel' ? sign : panel);
+      assert.equal(model.getObjectByName('facade').visible, true);
+      assert.deepEqual(primary.matrix, transforms[0]); assert.deepEqual(secondary.matrix, transforms[1]);
+      assert.equal(model.userData.visibleProducts.length, Number(sign) + Number(panel));
+    }
+    dispose(model);
+  }
+});
+
 test('A 1750mm observer stands on the pavement and faces the sign in every facade and mounting mode', () => {
   for (const place of places) for (const mode of ['wall', 'corner-front', 'corner-side', 'corner']) {
     const pose = panelMount.panelMountLayout(550, 'circle', 120, 60, 160, mode);
