@@ -1,14 +1,28 @@
-import { NEON_FONTS } from '../lib/neonConstruction';
-export type NeonSettings = { neonText: string; neonFont: string; neonHeight: number; neonDiameter: number; neonColor: string; neonBackerWidth: number; neonBackerHeight: number };
-export function NeonControls({ project, onChange }: { project: NeonSettings; onChange: (patch: Partial<NeonSettings>) => void }) {
-  return <div className="neon-controls">
-    <label className="builder-field"><span>Неоновая надпись</span><textarea rows={2} maxLength={60} value={project.neonText} onChange={e=>onChange({neonText:e.target.value.split("\n").slice(0,2).join("\n")})}/><small>До двух строк · русские и латинские буквы, цифры</small></label>
-    <label className="builder-field"><span>Неоновый шрифт</span><select value={project.neonFont} onChange={e=>onChange({neonFont:e.target.value})}>{NEON_FONTS.map(font=><option key={font.id} value={font.id}>{font.label}</option>)}</select><small>Линейные шрифты под трубку · прописные буквы</small></label>
+import { useEffect, useState } from 'react';
+import { createNeonDesign, NEON_FONTS } from '../lib/neonConstruction';
+import { EXTERNAL_NEON_FONTS, loadNeonFont } from '../lib/neonFonts';
+export type NeonSettings = { neonText:string; neonFont:string; neonHeight:number; neonDiameter:number; neonColor:string; neonBackerWidth:number; neonBackerHeight:number; neonBackerShape:string; neonBrightness:number; neonAlign:string };
+const COLORS=[['#ff5eae','Розовый'],['#ff4b3e','Красный'],['#ffa658','Оранжевый'],['#ffd45f','Желтый'],['#6cfa96','Зеленый'],['#61d6ff','Голубой'],['#687dff','Синий'],['#bf85ff','Фиолетовый'],['#ffe6bb','Теплый белый'],['#f1faff','Белый']];
+export function NeonControls({project,onChange}:{project:NeonSettings;onChange:(patch:Partial<NeonSettings>)=>void}) {
+  const [category,setCategory]=useState('Все'),[version,refresh]=useState(0);
+  useEffect(()=>{let active=true;void Promise.allSettled(EXTERNAL_NEON_FONTS.map(font=>loadNeonFont(font.id))).then(()=>{if(active)refresh(v=>v+1);});return()=>{active=false;};},[]);
+  const sample=(font:typeof NEON_FONTS[number])=>{try{return createNeonDesign(font.cyrillic?'Свет':'Neon',300,6,font.id);}catch{return null;}};
+  return <div className="neon-controls" data-font-catalog-version={version}>
+    <label className="builder-field"><span>Неоновая надпись</span><textarea rows={2} maxLength={60} value={project.neonText} onChange={e=>onChange({neonText:e.target.value.split('\n').slice(0,2).join('\n')})}/><small>До двух строк · регистр сохраняется в латинских шрифтах. Пропись и Автограф используют строчные формы.</small></label>
+    <div className="neon-alignment" role="group" aria-label="Выравнивание строк">{[['left','Слева'],['center','По центру'],['right','Справа']].map(([value,label])=><button type="button" key={value} aria-pressed={project.neonAlign===value} onClick={()=>onChange({neonAlign:value})}>{label}</button>)}</div>
+    <label className="builder-field"><span>Неоновый шрифт</span><select value={project.neonFont} onChange={e=>onChange({neonFont:e.target.value})}>{['Современные','Рукописные'].map(group=><optgroup key={group} label={group}>{NEON_FONTS.filter(f=>f.group===group).map(font=><option key={font.id} value={font.id}>{font.label}{font.cyrillic?' · RU / EN':' · EN'}</option>)}</optgroup>)}</select></label>
+    <div className="neon-font-filters" role="group" aria-label="Группа неоновых шрифтов">{['Все','Кириллица','Рукописные','Современные'].map(label=><button type="button" key={label} aria-pressed={category===label} onClick={()=>setCategory(label)}>{label}</button>)}</div>
+    <div className="neon-font-gallery">{NEON_FONTS.filter(f=>category==='Все'||category==='Кириллица'&&f.cyrillic||f.group===category).map(font=>{const design=sample(font),unsupported=!font.cyrillic&&/[А-Яа-яЁё]/.test(project.neonText);return <button type="button" key={font.id} aria-label={'Шрифт '+font.label} aria-pressed={project.neonFont===font.id} disabled={unsupported} title={unsupported?'Этот шрифт поддерживает латиницу. Измените текст или выберите шрифт RU / EN.':font.label} onClick={()=>onChange({neonFont:font.id})}>
+      {design?<svg viewBox={`-15 -15 ${design.width+30} ${design.height+30}`} aria-hidden="true"><g fill="none" stroke="#ffd3ad" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round">{design.paths.map((path,i)=><polyline key={i} points={path.map(p=>p.join(',')).join(' ')}/>)}</g></svg>:<span className="neon-font-placeholder">{font.label}</span>}<strong>{font.label}</strong><small>{font.cyrillic?'RU / EN':'EN · латиница'}</small>
+    </button>;})}</div>
     <label className="builder-field"><span>Толщина неона</span><select value={project.neonDiameter} onChange={e=>onChange({neonDiameter:Number(e.target.value)})}><option value={6}>6 мм</option><option value={8}>8 мм</option></select></label>
     <label className="builder-field"><span>Высота букв, мм</span><input type="number" min={120} max={800} step={10} value={project.neonHeight} onChange={e=>onChange({neonHeight:Math.max(120,Math.min(800,Number(e.target.value)||120))})}/></label>
-    <label className="builder-field"><span>Цвет свечения</span><input type="color" value={project.neonColor} onChange={e=>onChange({neonColor:e.target.value})}/></label>
+    <fieldset className="neon-color-palette"><legend>Цвет свечения</legend>{COLORS.map(([color,label])=><button type="button" key={color} aria-label={label} aria-pressed={project.neonColor===color} title={label} style={{background:color}} onClick={()=>onChange({neonColor:color})}/>)}</fieldset>
+    <label className="builder-field"><span>Свой цвет</span><input type="color" value={project.neonColor} onChange={e=>onChange({neonColor:e.target.value})}/></label>
+    <label className="builder-field"><span>Яркость свечения · {project.neonBrightness}%</span><input aria-label="Яркость свечения" type="range" min={10} max={100} value={project.neonBrightness} onChange={e=>onChange({neonBrightness:Number(e.target.value)})}/></label>
     <h3>Прозрачная подложка</h3><p className="control-note">Прозрачный акрил · дистанционные держатели 20 мм</p>
+    <label className="builder-field"><span>Форма подложки</span><select value={project.neonBackerShape} onChange={e=>onChange({neonBackerShape:e.target.value})}><option value="rectangle">Прямоугольная</option><option value="rounded">Скругленные углы</option><option value="contour">По внешнему контуру</option></select></label>
     <div className="dimension-number-grid">{(['neonBackerWidth','neonBackerHeight'] as const).map((key,i)=><label key={key} className="builder-field"><span>{i?'Высота':'Ширина'}, мм</span><input type="number" min={150} max={i?1450:3950} step={10} value={project[key]} onChange={e=>onChange({[key]:Math.max(150,Math.min(i?1450:3950,Number(e.target.value)||150))})}/></label>)}</div>
-    <p className="control-note">Подложка автоматически увеличивается под надпись. Изменения видны в 2D и 3D.</p>
+    <p className="control-note">Подложка увеличивается, если надпись не помещается. Размеры и свечение одинаково обновляются в 2D и 3D.</p>
   </div>;
 }
