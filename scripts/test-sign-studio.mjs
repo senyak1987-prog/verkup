@@ -35,6 +35,12 @@ function loadTypeScript(relativePath, overrides = {}) {
 
 const commerce = loadTypeScript("../src/lib/signCommerce.ts");
 const { calculateLetterPrice, hasUnpricedSymbols, requiresFrameApproval, snapshotProject, validateStoredCart } = commerce;
+test('Логотип рассчитывается по фактической высоте по 180 рублей за сантиметр',()=>{
+  assert.deepEqual(commerce.calculateLogoPrice(90),{heightCm:9,total:1620});
+  assert.deepEqual(commerce.calculateLogoPrice(42.5),{heightCm:4.25,total:765});
+  for(const size of [90,NaN,-10])assert.equal(commerce.calculateLogoPrice(size,false).total,0);
+  assert.equal(commerce.calculateLogoPrice(NaN).total,0);
+});
 const { SignCart } = loadTypeScript("../src/components/SignCart.tsx", { "../lib/signCommerce": commerce });
 
 function makeItem(overrides = {}) {

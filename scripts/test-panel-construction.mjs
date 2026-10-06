@@ -13,6 +13,12 @@ function load(name, dependencies = {}) {
   return exports;
 }
 const mount = load('panelConstruction');
+test('Каталог панели ограничен шагом 50 мм и двумя глубинами, включая старые размеры',()=>{
+  assert.deepEqual(mount.PANEL_SIZES,[350,400,450,500,550,600,650,700]);
+  assert.deepEqual(mount.PANEL_DEPTHS,[130,150]);
+  for(const [input,expected] of [[200,350],[376,400],[649,650],[2000,700],[NaN,500]])assert.equal(mount.normalizePanelSize(input),expected);
+  for(const [input,expected] of [[60,130],[130,130],[140,150],[160,150],[NaN,130]])assert.equal(mount.normalizePanelDepth(input),expected);
+});
 const svg = load('signPanelExport', { './panelConstruction': mount });
 const glyphShapes = load('glyphShapes', { three: THREE, libtess: { default: require('libtess') } });
 const scene = load('signSceneGeometry', { three: THREE, './panelConstruction': mount, './letterContours': {}, './neonScene': {}, './glyphShapes': glyphShapes });
