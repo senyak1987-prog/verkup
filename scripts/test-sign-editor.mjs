@@ -20,7 +20,7 @@ const alignment=load('signLayoutAlignment');
 const source=fs.readFileSync(new URL('../src/components/SignProductConfigurator.tsx',import.meta.url),'utf8');
 const start=source.indexOf('function createLettersSvgLayout('),end=source.indexOf('\nfunction createLettersSvgMarkup',start);
 const compiled=ts.transpileModule(source.slice(start,end),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
-const layout=new Function('containBox','frameRailCenters','clamp','LETTER_GAP_FACTOR',compiled+';return createLettersSvgLayout;')(backer.containBox,construction.frameRailCenters,(v,min,max)=>Math.max(min,Math.min(max,v)),.16);
+const layout=new Function('backerSeams','containBox','frameRailCenters','clamp','LETTER_GAP_FACTOR',compiled+';return createLettersSvgLayout;')(backer.backerSeams,backer.containBox,construction.frameRailCenters,(v,min,max)=>Math.max(min,Math.min(max,v)),.16);
 const schemaSource=source.slice(source.indexOf('const ORACAL_8500_COLORS'),source.indexOf('type StudioSection'))+
   source.slice(source.indexOf('const DEFAULT_PROJECT'),source.indexOf('type ProjectState'))+
   source.slice(source.indexOf('const PROJECT_ENUMS'),source.indexOf('function loadSavedProject'));
@@ -29,7 +29,7 @@ const panel=load('panelConstruction');
 const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS','normalizePanelSize','normalizePanelDepth',schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker,neon.NEON_FONTS,panel.normalizePanelSize,panel.normalizePanelDepth);
 test('Импорт ограничивает логотип, отступ контура и дискретные размеры панели',()=>{
   const imported=schema.validate({version:1,project:{logoSizeMm:9000,panelSize:621,panelDepth:80,haloBackerOffsetMm:100}});
-  assert.equal(imported.logoSizeMm,900);assert.equal(imported.panelSize,600);assert.equal(imported.panelDepth,130);assert.equal(imported.haloBackerOffsetMm,25);
+  assert.equal(imported.logoSizeMm,700);assert.equal(imported.panelSize,600);assert.equal(imported.panelDepth,130);assert.equal(imported.haloBackerOffsetMm,25);
   const legacy=schema.validate({version:1,project:{letterHeight:400,logoScale:100}});assert.equal(legacy.logoSizeMm,400);
 });
 
@@ -164,19 +164,19 @@ test('Center commands recover clamped saved offsets and center the full real Cyr
   const font=opentype.parse(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
   const data=contours.combineLetterLines(['ДЦЩЙ','СВЕТ'].map(text=>contours.contoursFromFont(font,text,800)));
   const config={height:110,logoEnabled:true,logoScale:90,logoShape:'circle',mountMode:'acp',letterOutlineEnabled:false,
-    text:'ДЦЩЙ\nСВЕТ',contours:data,textBox:data.mainBox,acpLayout:{faceWidth:2000,faceHeight:300},widthOverride:1000,
+    text:'ДЦЩЙ\nСВЕТ',contours:data,textBox:data.mainBox,acpLayout:{faceWidth:2000,faceHeight:400},widthOverride:1000,
     textOffsetX:5000,textOffsetY:-5000,logoOffsetX:-5000,logoOffsetY:5000,frameTopPosition:15,frameBottomPosition:15,frameEdgeInset:0};
   const before=layout(config),xPatch=alignment.centerLayoutSelection(before,'text',true,'x',true);
   const horizontal=layout({...config,...xPatch}),yPatch=alignment.centerLayoutSelection(horizontal,'text',true,'y',true);
   const centered=layout({...config,...xPatch,...yPatch});
   near(centered.textInkBox.x+centered.textInkBox.width/2,centered.panelBox.x+1000,'Real ink X');
-  near(centered.textInkBox.y+centered.textInkBox.height/2,centered.panelBox.y+150,'Real ink Y');
+  near(centered.textInkBox.y+centered.textInkBox.height/2,centered.panelBox.y+200,'Real ink Y');
   assert.deepEqual(centered.logoBox,before.logoBox,'Centering lettering does not move the logo');
   const step=alignment.moveLayoutSelection(before,'text',true,-10,10,{constrainToPanel:true}).patch;
   const dragged=layout({...config,...step});near(dragged.textX,before.textX-10,'Dragging starts from the visible constrained location');
   const packed=layout({...config,...alignment.packLayoutComposition(before,true,true)});
-  near(packed.textInkBox.y+packed.textInkBox.height/2,packed.panelBox.y+150,'Packed Cyrillic ink Y');
-  near(packed.logoBox.y+packed.logoBox.height/2,packed.panelBox.y+150,'Packed logo Y');
+  near(packed.textInkBox.y+packed.textInkBox.height/2,packed.panelBox.y+200,'Packed Cyrillic ink Y');
+  near(packed.logoBox.y+packed.logoBox.height/2,packed.panelBox.y+200,'Packed logo Y');
   near(packed.textInkBox.x-packed.logoBox.x-packed.logoBox.width,before.defaultTextX-before.defaultLogoX-before.logoBox.width,'Packed construction gap');
   const packedBox=alignment.layoutSelectionBox(packed,'composition',true);near(packedBox.x+packedBox.width/2,packed.panelBox.x+1000,'Packed real composition X');
   const restored=schema.validate({version:1,project:{logoOffsetX:75.123,textOffsetY:-35.456}});
@@ -209,7 +209,7 @@ test('Saved neon and editor projects restore safely, while old projects receive 
   const imported=schema.validate({version:1,project:{productId:'neon',neonText:'СВЕТ\nКОФЕ\nEXTRA\nHIDDEN',neonDiameter:8,neonFont:'slanted',neonColor:'#ad459f',acpDepth:100,acpWidth:20000,acpHeight:10000,logoOffsetX:75,lightsOn:false,neonLineFonts:['rounded','soft','slanted'],neonLineColors:['#ff0044','#00bbcc','#ffd966'],neonLineOffsets:[{x:15,y:-30}],neonLineScales:[.7,1.5]}});
   assert.equal(imported.neonText,'СВЕТ\nКОФЕ\nEXTRA'); assert.equal(imported.neonDiameter,8); assert.equal(imported.logoOffsetX,75);
   assert.equal(old.lightsOn,true); assert.equal(old.facadePalette,'stone'); assert.equal(imported.lightsOn,false); assert.deepEqual(imported.neonLineOffsets,[{x:15,y:-30}]); assert.deepEqual(imported.neonLineScales,[.7,1.5]);
-  assert.equal(imported.acpWidth,3750); assert.equal(imported.acpHeight,1250);
+  assert.equal(imported.acpWidth,20000); assert.equal(imported.acpHeight,1250);
   for(const project of [{neonColor:'url(javascript:alert(1))'},{neonDiameter:7},{neonFont:'missing'},{neonLineFonts:['missing']},{neonLineColors:['url(#x)']},{neonLineOffsets:[{x:NaN,y:0}]},{backdropImage:'https://example.com/img.jpg'}])
     assert.throws(()=>schema.validate({version:1,project}));
 });
@@ -237,7 +237,9 @@ test('Panel mounting restores a compatible wall default and validates the saved 
 test('ACP fabrication limits include both depths and returns at every supported depth',()=>{
   for(const depth of [30,50,100]) {
     const bounded=backer.constrainBacker(20000,10000,depth);
-    assert.equal(bounded.width+2*depth+50,4000); assert.equal(bounded.height+2*depth+50,1500);
+    assert.equal(bounded.width,20000);
+    const joins=[0,...backer.backerSeams(bounded.width,depth),bounded.width];
+    for(let i=1;i<joins.length;i++)assert.ok(joins[i]-joins[i-1]+2*depth+50<=4000+.001); assert.equal(bounded.height+2*depth+50,1500);
     assert.deepEqual(backer.constrainBacker(900,400,depth),{width:900,height:400});
   }
 });
@@ -249,13 +251,13 @@ test('All embedded fonts: two centered rows and protruding glyphs remain inside 
     assert.equal(data.lineFactor,2.35); assert.doesNotMatch(data.pathData,/NaN|Infinity/);
     for(const offset of [-5000,0,5000]) {
       const result=layout({height:550,logoEnabled:true,logoScale:130,logoShape:'circle',mountMode:'acp',letterOutlineEnabled:false,
-        text:'ДЦЩЙ\nСВЕТ',contours:data,textBox:data.mainBox,acpLayout:{faceWidth:800,faceHeight:400},widthOverride:0,
+        text:'ДЦЩЙ\nСВЕТ',contours:data,textBox:data.mainBox,acpLayout:{faceWidth:12000,faceHeight:1300},widthOverride:0,
         textOffsetX:offset,textOffsetY:offset,logoOffsetX:-offset,logoOffsetY:-offset,frameTopPosition:15,frameBottomPosition:15,frameEdgeInset:0});
       const scale=result.textHeight/data.mainBox.height;
       const ink={x:result.textX,y:result.textBaseline+data.inkBox.y*scale,width:result.textWidth,height:data.inkBox.height*scale};
       for(const box of [ink,result.logoBox]) {
         assert.ok(box.x>=result.panelBox.x-.01 && box.y>=result.panelBox.y-.01,fontEntry.label);
-        assert.ok(box.x+box.width<=result.panelBox.x+800+.01 && box.y+box.height<=result.panelBox.y+400+.01,fontEntry.label);
+        assert.ok(box.x+box.width<=result.panelBox.x+result.panelBox.width+.01 && box.y+box.height<=result.panelBox.y+result.panelBox.height+.01,fontEntry.label);
       }
     }
   }
@@ -329,4 +331,12 @@ test('The same four facade compositions render in 2D and as a separate rotatable
     assert.ok(model.getObjectByName('facade-wall').receiveShadow);
     model.traverse(child=>{child.geometry?.dispose();child.material?.dispose();});
   }
+});
+
+test('Imported rows and logos clamp to 100–700 mm, retaining zero as an unused row marker',()=>{
+ for(const value of [1,99,100,700,701,900,1200]){
+  const p=schema.validate({version:1,project:{letterHeight:value,letterLineHeights:[value,0,value],logoSizeMm:value}});
+  const expected=Math.max(100,Math.min(700,value));
+  assert.equal(p.letterHeight,expected);assert.equal(p.logoSizeMm,expected);assert.deepEqual(p.letterLineHeights,[expected,0,expected]);
+ }
 });
