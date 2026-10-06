@@ -281,7 +281,7 @@ const DEFAULT_PROJECT = {
   letterFont: LETTER_FONTS[0].value as string,
   letterHeight: 410,
   letterWidth: 0,
-  letterDepth: 60,
+  letterDepth: 50,
   letterFaceColor: ORACAL_8500_COLORS[4] as ColorOption,
   letterSideColor: ORACAL_641_COLORS[1] as ColorOption,
   glowMode: "faceHalo" as GlowMode,
@@ -395,7 +395,7 @@ function validateProject(raw: unknown): ProjectState {
   result.panelSize=normalizePanelSize(result.panelSize);result.panelDepth=normalizePanelDepth(result.panelDepth);
   if(input.logoSizeMm===undefined)result.logoSizeMm=Math.max(20,Math.min(900,result.letterHeight*result.logoScale/100));
   if(result.panelMountMode==='corner') result.panelWallGap=Math.max(result.panelWallGap,result.panelDepth/2+20);
-  result.letterDepth = normalizeLetterDepth([result.lettersText,result.secondLineText,result.thirdLineText].map((text,index)=>text.trim()?result.letterLineHeights[index]||result.letterHeight:0).filter(Boolean), result.letterDepth);
+  result.letterDepth = normalizeLetterDepth([result.lettersText,result.secondLineText,result.thirdLineText].map((text,index)=>text.trim()?result.letterLineHeights[index]||result.letterHeight:0).filter(Boolean), result.letterDepth, result.glowMode);
   if (Number(input.frameTopPosition) > 20) result.frameTopPosition = 15;
   if (Number(input.frameBottomPosition) > 20) result.frameBottomPosition = 15;
   if (input.logoEnabled === undefined) result.logoEnabled = Boolean(result.logoImage);
@@ -475,7 +475,7 @@ export function SignProductConfigurator() {
     if (next.neonKeepAspect && (patch.neonHeight!==undefined || patch.neonText!==undefined || patch.neonIcon!==undefined || patch.neonLineFonts || patch.neonLineScales || patch.neonLineOffsets || patch.neonAlign!==undefined || patch.neonLetterSpacing!==undefined || patch.neonLineSpacing!==undefined)) next.neonTargetWidth=0;
     const backer = constrainBacker(next.acpWidth, next.acpHeight, next.acpDepth);
     next.acpWidth = backer.width; next.acpHeight = backer.height;
-    next.letterDepth = normalizeLetterDepth([next.lettersText,next.secondLineText,next.thirdLineText].map((text,index)=>text.trim()?next.letterLineHeights[index]||next.letterHeight:0).filter(Boolean), next.letterDepth);
+    next.letterDepth = normalizeLetterDepth([next.lettersText,next.secondLineText,next.thirdLineText].map((text,index)=>text.trim()?next.letterLineHeights[index]||next.letterHeight:0).filter(Boolean), next.letterDepth, next.glowMode);
     return next;
     });
   };
@@ -508,7 +508,7 @@ export function SignProductConfigurator() {
   const setPanelSideColor = (value: ProjectState["panelSideColor"]) => setProject(previous => ({ ...previous, panelSideColor: value }));
   const setLettersText = (value: ProjectState["lettersText"]) => setProject(previous => ({ ...previous, lettersText: value }));
   const setLetterFont = (value: ProjectState["letterFont"]) => setProject(previous => ({ ...previous, letterFont: value }));
-  const setLetterHeight = (value: ProjectState["letterHeight"]) => setProject(previous => ({ ...previous, letterHeight: value, letterDepth: normalizeLetterDepth(value, previous.letterDepth) }));
+  const setLetterHeight = (value: ProjectState["letterHeight"]) => setProject(previous => ({ ...previous, letterHeight: value, letterDepth: normalizeLetterDepth(value, previous.letterDepth, previous.glowMode) }));
   const setLetterWidth = (value: number) => setProject(previous => ({ ...previous, letterWidth: value }));
   const setLetterDepth = (value: ProjectState["letterDepth"]) => patchProject({letterDepth:value});
   const setLineText = (index:number,text:string) => patchProject(index===0?{lettersText:text}:index===1?{secondLineText:text}:{thirdLineText:text});
@@ -519,7 +519,7 @@ export function SignProductConfigurator() {
   const removeLetterLine = (index:number) => { setLineText(index,"");setLayoutSelection("composition"); };
   const setLetterFaceColor = (value: ProjectState["letterFaceColor"]) => setProject(previous => ({ ...previous, letterFaceColor: value }));
   const setLetterSideColor = (value: ProjectState["letterSideColor"]) => setProject(previous => ({ ...previous, letterSideColor: value }));
-  const setGlowMode = (value: ProjectState["glowMode"]) => setProject(previous => ({ ...previous, glowMode: value }));
+  const setGlowMode = (value: ProjectState["glowMode"]) => patchProject({glowMode:value});
   const setLogoShape = (value: ProjectState["logoShape"]) => setProject(previous => ({ ...previous, logoShape: value }));
   const setLogoImage = (value: ProjectState["logoImage"]) => setProject(previous => ({ ...previous, logoImage: value }));
   const setLogoEnabled = (value: boolean) => setProject(previous => ({ ...previous, logoEnabled: value }));
@@ -810,11 +810,11 @@ export function SignProductConfigurator() {
     ? { x: neonSvgPad, y: neonSvgPad, width: neonWidth, height: neonHeight }
     : productId === "panel" ? panelSvgFaceBox(panelSize,clamp(project.panelWallGap,60,400),project.panelMountMode)
     : mountMode === "acp" ? lettersLayout.panelBox : lettersLayout.signBox;
-  const signDepth = productId === "neon" ? (project.neonInstallMode==='hanging'?3:23) + project.neonDiameter : productId === "panel" ? project.panelDepth : letterDepth;
+  const signDepth = productId === "neon" ? (project.neonInstallMode==='hanging'?3:23) + project.neonDiameter : productId === "panel" ? project.panelDepth : letterDepth + (glowHasHalo && haloBackerEnabled && mountMode === "frame" ? 23 : 0);
   const companionScene = placement === 'none' ? undefined : productId === 'panel'
     ? !fontPending && letterContours && !isProjectBlank({ ...project, productId: 'letters' })
       ? { project: { ...project, productId: 'letters' as const }, width: mountMode === 'acp' ? acpWidth : measuredLettersWidth,
-          height: mountMode === 'acp' ? acpHeight : Math.round(lettersLayout.signBox.height), depth: letterDepth } : undefined
+          height: mountMode === 'acp' ? acpHeight : Math.round(lettersLayout.signBox.height), depth: letterDepth + (glowHasHalo && haloBackerEnabled && mountMode === "frame" ? 23 : 0) } : undefined
     : { project: { ...project, productId: 'panel' as const }, width: panelSize, height: panelSize, depth: project.panelDepth };
   const panelMount=productId==='panel'?panelMountLayout(panelSize,panelShape,project.panelWallGap,project.panelCornerRadius,project.panelDepth,project.panelMountMode):undefined;
   const cartQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -1185,7 +1185,7 @@ export function SignProductConfigurator() {
           {showDimensions && !blankSign && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
         </section>
           {showDimensions && !blankSign && (productId!=="panel" || viewMode==="3d"&&placement!=="none"&&showFacadeSign) && <div className="canvas-object-dimensions" aria-label="Размеры элементов вывески">{visibleObjectDimensions.map(item=><span key={item.id}><strong>{item.label}</strong> {Math.round(item.width)} × {Math.round(item.height)} мм</span>)}</div>}
-          <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `${letterDepth} мм — до передней плоскости рамы` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
+          <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `Борт ${letterDepth} мм${glowHasHalo && haloBackerEnabled && mountMode === "frame" ? " · проставки 20 мм · подложка 3 мм" : ""}` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
         </section>
 
         <SignPlacements panelMount={panelMount} markup={createCurrentSvg(false)} signBox={facadeSignBox} night={sceneMode === "night"} selected={placement} palette={project.facadePalette} onPaletteChange={value=>patchProject({facadePalette:value})} onChange={value=>{setPlacement(value);setEditing(false);}}>
@@ -1492,7 +1492,8 @@ function LettersControls({
 }) {
   const glowHasHalo = hasHaloGlow(glowMode);
   const frameHeight = Math.max(...rowHeights);
-  const depthOptions = allowedLetterDepths(rowHeights);
+  const depthOptions = allowedLetterDepths(rowHeights).filter(value => !hasHaloGlow(glowMode) || value <= 50);
+  const selectableDepths = depthOptions.length ? depthOptions : hasHaloGlow(glowMode) ? [40,50] : [60];
 
   return (
     <>
@@ -1503,7 +1504,7 @@ function LettersControls({
 
         </div>
         <label className={"width-auto-checkbox " + (widthAuto ? "checked" : "")}><input type="checkbox" checked={widthAuto} onChange={event => onWidthChange(event.target.checked ? 0 : width)}/><span><strong>Ширина по пропорциям</strong><small>{widthAuto ? "Сохраняем естественные пропорции шрифта" : "Ширину можно менять вручную"}</small></span></label>
-        <label className="builder-field"><span>Глубина букв до рамы, мм</span><select value={depth} onChange={event => onDepthChange(Number(event.target.value))}>{(depthOptions.length ? depthOptions : [60]).map(value => <option key={value} value={value}>{value} мм{!depthOptions.length ? " · по согласованию" : ""}</option>)}</select><small className="control-note">40 мм — до 18 см; 50 мм — 12–35 см; 60 мм — 20–55 см. Выносные элементы в высоту не входят.</small></label>
+        <label className="builder-field"><span>Глубина борта букв, мм</span><select value={depth} onChange={event => onDepthChange(Number(event.target.value))}>{selectableDepths.map(value => <option key={value} value={value}>{value} мм{!depthOptions.length ? " · по согласованию" : ""}</option>)}</select><small className="control-note">40 мм — до 18 см; 50 мм — 12–35 см; 60 мм — 20–55 см. Для контражура — 40 или 50 мм.</small></label>
       </ControlSection>
 
       <ControlSection title="Свечение">
@@ -1524,7 +1525,7 @@ function LettersControls({
 
       {hasHaloGlow(glowMode) && <ControlSection title="Контражурная подложка">
         <label className="dimensions-toggle"><input type="checkbox" checked={haloBackerEnabled} onChange={event=>onHaloBackerEnabledChange(event.target.checked)} />Контурная подложка на раме</label>
-        {haloBackerEnabled && <><RangeField label="Отступ от букв, мм" min={15} max={25} step={5} value={haloBackerOffsetMm} onChange={onHaloBackerOffsetChange} /><ColorGrid colors={ACP_COLORS} selected={haloBackerColor} onSelect={onHaloBackerColorChange} compact /><p className="control-note">Плоская подложка крепится перед рамой и повторяет контур букв. Монтаж — на раму.</p></>}
+        {haloBackerEnabled && <><RangeField label="Отступ от букв, мм" min={15} max={25} step={5} value={haloBackerOffsetMm} onChange={onHaloBackerOffsetChange} /><ColorGrid colors={ACP_COLORS} selected={haloBackerColor} onSelect={onHaloBackerColorChange} compact /><p className="control-note">Плоская подложка крепится на раме. Борт — 40 или 50 мм; зазор от задней части букв до подложки — 20 мм на дистанционных проставках.</p></>}
       </ControlSection>}
 
       <ControlSection title="Размещение">
@@ -1779,7 +1780,7 @@ function LettersPreview({
     <div className={"letters-scene mount-" + mountMode + (haloBackerEnabled ? " with-halo-backer" : "")}>
       <SvgMarkupPreview className="letters-svg-render" markup={svg}>{editor}</SvgMarkupPreview>
       <div className="preview-dimension">
-        h {height} мм · глубина до рамы {depth} мм
+        h {height} мм · борт {depth} мм
         {mountMode === "frame" ? " · профиль " + frameProfile + "x" + frameProfile + " · рама " + Math.round(layout.railWidth) + " мм" : ""}
       </div>
     </div>
