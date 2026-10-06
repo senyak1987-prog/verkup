@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, ChevronRight, Download, FolderOpen, ImagePlus, Lightbulb, Maximize, Minus, Moon, Plus, Power, RotateCcw, Save, Settings2, ShoppingCart, Sun, Type, Upload, X } from "lucide-react";
+import { ArrowUpRight, Check, ChevronRight, Download, Eraser, FolderOpen, ImagePlus, Lightbulb, Maximize, Minus, Moon, Plus, Power, RotateCcw, Save, Settings2, ShoppingCart, Sun, Type, Upload, X } from "lucide-react";
 import { Component, createContext, lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 import { createPanelSvgMarkup, panelSvgFaceBox } from "../lib/signPanelExport";
@@ -403,6 +403,25 @@ function loadSavedProject(): ProjectState {
   } catch { return { ...DEFAULT_PROJECT }; }
 }
 
+function resetProjectSettings(current: ProjectState): ProjectState {
+  return { ...DEFAULT_PROJECT, productId: current.productId };
+}
+
+function clearProjectArtwork(current: ProjectState): ProjectState {
+  return {
+    ...current, lettersText: "", secondLineText: "", thirdLineText: "", neonText: "",
+    logoEnabled: false, logoImage: "", panelImage: "", backdropImage: "", neonReferenceImage: "", neonIcon: "none",
+    logoOffsetX: 0, logoOffsetY: 0, textOffsetX: 0, textOffsetY: 0, panelImageX: 0, panelImageY: 0,
+    letterLineOffsets: [], neonLineOffsets: [],
+  };
+}
+
+function isProjectBlank(project: ProjectState) {
+  return project.productId === "letters"
+    ? ![project.lettersText, project.secondLineText, project.thirdLineText].some(text => text.trim()) && !project.logoEnabled
+    : project.productId === "neon" && !project.neonText.trim() && project.neonIcon === "none";
+}
+
 export function SignProductConfigurator() {
   const [project, setProject] = useState<ProjectState>(loadSavedProject);
   const undoHistory = useRef<ProjectState[]>([]);
@@ -454,6 +473,15 @@ export function SignProductConfigurator() {
     });
   };
   const undoNeon = () => { const previous=undoHistory.current.pop(); if(previous) setProject(previous); lastUndoEdit.current=0; setCanUndo(undoHistory.current.length>0); };
+  useEffect(() => {
+    const keyboardUndo = (event: globalThis.KeyboardEvent) => {
+      if (!canUndo || event.defaultPrevented || !(event.ctrlKey || event.metaKey) || event.shiftKey || event.key.toLowerCase() !== "z") return;
+      if (event.target instanceof Element && event.target.closest('input,textarea,select,[contenteditable="true"]')) return;
+      event.preventDefault(); undoNeon();
+    };
+    document.addEventListener("keydown", keyboardUndo);
+    return () => document.removeEventListener("keydown", keyboardUndo);
+  }, [canUndo]);
   const beginLayoutInteraction = () => { layoutInteraction.current = "start"; };
   const endLayoutInteraction = () => { layoutInteraction.current = "idle"; lastUndoEdit.current = 0; };
   useEffect(() => { const bounded = constrainBacker(project.acpWidth, project.acpHeight, project.acpDepth);
@@ -518,7 +546,19 @@ export function SignProductConfigurator() {
   const latestProject = useRef(project);
   latestProject.current = project;
   const [notice, setNotice] = useState("");
+  const pendingFileVersion = useRef(0);
   const workspaceRef = useRef<HTMLElement>(null);
+  const replaceProjectWithUndo = (next: ProjectState, message: string) => {
+    undoHistory.current.push(project);
+    if (undoHistory.current.length > 30) undoHistory.current.shift();
+    setCanUndo(true); lastUndoEdit.current = 0; layoutInteraction.current = "idle";
+    pendingFileVersion.current++;
+    setProject(next); setZoom(100); setViewMode("2d"); setEditing(false); setPlacement("none");
+    setLayoutSelection("composition"); setSelectedNeonLine(0); setActiveSection("design");
+    setFitSignal(value => value + 1); setNotice(message);
+  };
+  const handleResetSettings = () => replaceProjectWithUndo(resetProjectSettings(project), "Настройки сброшены. Действие можно отменить.");
+  const handleClearLayout = () => replaceProjectWithUndo(clearProjectArtwork(project), "Макет очищен. Действие можно отменить.");
   useEffect(() => {
     const art = previewArtRef.current;
     if (!art || viewMode !== "2d") return;
@@ -736,6 +776,9 @@ export function SignProductConfigurator() {
   const neonWidth = Math.max(project.neonBackerWidth, requiredNeonBacker.width);
   const neonHeight = Math.max(project.neonBackerHeight, requiredNeonBacker.height);
   const neonFits = neonWidth <= 3950 && neonHeight <= 1450;
+  const blankSign = isProjectBlank(project);
+  const canOutputSign = !blankSign && (productId === "letters" ? !fontPending && Boolean(letterContours)
+    : productId === "neon" ? Boolean(neonResult.design) && neonFits : true);
   useEffect(() => {
     if (neonFits && productId === 'neon' && (project.neonBackerWidth < neonWidth || project.neonBackerHeight < neonHeight))
       patchProject({neonBackerWidth:Math.ceil(neonWidth),neonBackerHeight:Math.ceil(neonHeight)},false);
@@ -751,6 +794,7 @@ export function SignProductConfigurator() {
   const panelMount=productId==='panel'?panelMountLayout(panelSize,panelShape,project.panelWallGap,project.panelCornerRadius,project.panelDepth,project.panelMountMode):undefined;
   const cartQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
   function handleAddToCart() {
+    if (!canOutputSign) return;
     const added = cart.addItem({
       project, label: productId === "neon" ? "Неон · " + project.neonText : productId === "letters" ? lettersText.trim() || "Объемные буквы" : "Панель-кронштейн",
       widthMm: signWidth, heightMm: signHeight, depthMm: signDepth,
@@ -789,17 +833,20 @@ export function SignProductConfigurator() {
   async function handleImageUpload(event: ChangeEvent<HTMLInputElement>, onReady: (dataUrl: string) => void) {
     const file = event.target.files?.[0];
     if (!file) return;
+    const fileVersion = pendingFileVersion.current;
     try {
       if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Выберите PNG, JPG или WebP.");
       if (file.size > 2_000_000) throw new Error("Изображение больше 2 МБ. Уменьшите файл и загрузите снова.");
       const dataUrl = await readImageFile(file);
+      if (fileVersion !== pendingFileVersion.current) return;
       setNotice("Загружаем изображение…");
       const image = new Image();
       image.src = dataUrl;
       await image.decode();
+      if (fileVersion !== pendingFileVersion.current) return;
       onReady(dataUrl);
       setNotice("Изображение загружено.");
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Не удалось открыть изображение. Попробуйте другой файл."); }
+    } catch (error) { if (fileVersion === pendingFileVersion.current) setNotice(error instanceof Error ? error.message : "Не удалось открыть изображение. Попробуйте другой файл."); }
     finally { event.target.value = ""; }
   }
   function handleSaveProject() {
@@ -809,6 +856,7 @@ export function SignProductConfigurator() {
   async function handleOpenProject(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    const fileVersion = pendingFileVersion.current;
     try {
       if (file.size > 9_500_000) throw new Error("Файл проекта слишком большой.");
       const nextProject = validateProject(JSON.parse((await file.text()).replace(/^\uFEFF/, "")));
@@ -819,14 +867,16 @@ export function SignProductConfigurator() {
           await image.decode();
         }));
       } catch { throw new Error("В проекте есть поврежденное изображение. Сохраните его заново."); }
+      if (fileVersion !== pendingFileVersion.current) return;
       setProject(nextProject);
       setActiveSection("design");
       setZoom(100);
       setNotice("Проект открыт.");
-    } catch (error) { setNotice(error instanceof Error && !(error instanceof SyntaxError) ? error.message : "Не удалось открыть проект. Выберите сохраненный файл JSON."); }
+    } catch (error) { if (fileVersion === pendingFileVersion.current) setNotice(error instanceof Error && !(error instanceof SyntaxError) ? error.message : "Не удалось открыть проект. Выберите сохраненный файл JSON."); }
     finally { event.target.value = ""; }
   }
   function createCurrentSvg(withDimensions = showDimensions) {
+    if (blankSign) return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><title>Пустой макет</title></svg>';
     if (productId === "neon") return neonResult.design ? neonSvg(neonResult.design, neonWidth, neonHeight, project.neonDiameter, project.neonColor, sceneMode === "night", withDimensions, project.neonBackerShape, project.neonBrightness,{lightsOn:project.lightsOn,backerColor:project.neonBackerColor,installMode:project.neonInstallMode}) : "";
     if (productId === "panel") {
       return createPanelSvgMarkup({ shape: panelShape, size: panelSize, depth: project.panelDepth, wallGap: project.panelWallGap, mountMode: project.panelMountMode, cornerRadius: project.panelCornerRadius, faceColor: panelFaceColor.value, sideColor: panelSideColor.value, image: panelImage, imageScale: panelImageScale, imageX: panelImageX, imageY: panelImageY, sceneMode, lightsOn:project.lightsOn, showDimensions: withDimensions, flat: true });
@@ -868,6 +918,7 @@ export function SignProductConfigurator() {
   function handle3DUnavailable() { setViewMode("2d"); setNotice("3D недоступен в этом браузере. Макет и размеры доступны в 2D."); }
   function handleFitPreview() { setZoom(100); setFitSignal(value => value + 1); }
   function handleExportVector() {
+    if (!canOutputSign) return;
     downloadTextFile(`gorod-svet-${productId}-${Date.now()}.svg`, createCurrentSvg(), "image/svg+xml;charset=utf-8");
     setNotice(`SVG макета${showDimensions ? " с размерами" : ""} скачан. Буквы сохранены контурами и не требуют установки шрифтов.`);
   }
@@ -885,7 +936,7 @@ export function SignProductConfigurator() {
           <input hidden ref={projectFileRef} type="file" accept=".json,application/json" onChange={event => void handleOpenProject(event)} />
           <button className="studio-button" type="button" onClick={() => projectFileRef.current?.click()}><FolderOpen size={16} /><span>Открыть</span></button>
           <button className="studio-button" type="button" onClick={handleSaveProject}><Save size={16} /><span>Сохранить проект</span></button>
-          <button className="studio-button primary" type="button" onClick={handleExportVector} disabled={productId === "neon" ? !neonResult.design || !neonFits : productId === "letters" && (fontPending || !letterContours)}><Download size={16} /><span>Скачать SVG</span></button>
+          <button className="studio-button primary" type="button" onClick={handleExportVector} disabled={!canOutputSign}><Download size={16} /><span>Скачать SVG</span></button>
           <button className="studio-button studio-cart-toggle" type="button" aria-expanded={cartOpen} aria-controls="sign-cart" onClick={() => setCartOpen(value => !value)}><ShoppingCart size={17} /><span>Корзина</span><span className="cart-count">{cartQuantity}</span></button>
         </div>
       </header>
@@ -906,6 +957,11 @@ export function SignProductConfigurator() {
 
         <aside className="builder-controls" id="studio-controls" aria-label="Настройки вывески">
           <header className="controls-heading"><h2>Настройте вывеску</h2><span>Все изменения — на макете</span></header>
+          <div className="studio-project-actions" role="group" aria-label="Действия с макетом">
+            <button type="button" onClick={handleResetSettings}><RotateCcw size={14} />Сбросить настройки</button>
+            <button type="button" onClick={handleClearLayout}><Eraser size={14} />Очистить макет</button>
+            <button type="button" title="Отменить последнее изменение (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={14} />Отменить</button>
+          </div>
           {productId !== "neon" && <nav className="studio-section-tabs" aria-label="Разделы настроек">
             {SECTION_ITEMS.filter(item => productId === "letters" || ["design", "colors", "mount", "logo"].includes(item.id)).map(item => <button type="button" key={item.id} aria-pressed={activeSection === item.id} className={activeSection === item.id ? "active" : ""} onClick={() => setActiveSection(item.id)}><item.icon size={18} /><span>{productId === "panel" && item.id === "design" ? "Форма" : item.label}</span></button>)}
           </nav>}
@@ -1041,8 +1097,11 @@ export function SignProductConfigurator() {
           className={`builder-preview ${sceneMode} glow-${glowMode} view-mode-${viewMode}`}
           aria-label="Визуализация"
         >
-          {(fontPending && productId === "letters" || productId === "neon" && neonFontReady!==neonFontKey && !neonFontError) && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
-          {viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
+          {!blankSign && (fontPending && productId === "letters" || productId === "neon" && neonFontReady!==neonFontKey && !neonFontError) && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
+          {blankSign ? <div className="studio-empty-preview" role="status"><Type size={34} aria-hidden="true" /><strong>Макет пуст</strong>
+            <p>{productId === "neon" ? "Добавьте надпись или фигуру в настройках." : "Добавьте надпись или логотип в настройках."}</p>
+            <a className="studio-button" href="#studio-controls" onClick={() => setActiveSection("design")}>Добавить надпись</a>
+          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
             {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
               <PanelPreview
                 lightsOn={project.lightsOn}
@@ -1090,7 +1149,7 @@ export function SignProductConfigurator() {
               />
             )}
           </div></div>}
-          {showDimensions && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
+          {showDimensions && !blankSign && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
         </section>
           <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `${letterDepth} мм — до передней плоскости рамы` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
         </section>
@@ -1106,7 +1165,7 @@ export function SignProductConfigurator() {
           <div className="summary-block">
             <span>Габарит</span>
             <strong>
-              {`${signWidth} × ${signHeight} × ${signDepth} мм`}
+              {blankSign ? "Пока не задан" : `${signWidth} × ${signHeight} × ${signDepth} мм`}
             </strong>
           </div>
           <div className="summary-block">
@@ -1133,7 +1192,7 @@ export function SignProductConfigurator() {
           </div>
           <div className="summary-block">
             <span>{productId === "letters" ? "Габаритная площадь" : "Площадь лица"}</span>
-            <strong>{formatArea(productId === "neon" ? neonWidth * neonHeight / 1_000_000 : productId === "panel" ? panelAreaM2 : lettersAreaM2)} м²</strong>
+            <strong>{blankSign ? "—" : `${formatArea(productId === "neon" ? neonWidth * neonHeight / 1_000_000 : productId === "panel" ? panelAreaM2 : lettersAreaM2)} м²`}</strong>
           </div>
           {productId === "letters" && (
             <div className="summary-block">
@@ -1147,9 +1206,9 @@ export function SignProductConfigurator() {
           )}
 
           <div className="studio-purchase">
-            <div className="price-details"><span>{productId === "letters" ? "Стоимость букв" : "Стоимость вывески"}</span><strong className="price-total">{productId === "letters" && letterPrice.letterCount > 0 ? formatMoney(letterPrice.total) : "По согласованию"}</strong>
+            <div className="price-details"><span>{productId === "letters" ? "Стоимость букв" : "Стоимость вывески"}</span><strong className="price-total">{blankSign ? "—" : productId === "letters" && letterPrice.letterCount > 0 ? formatMoney(letterPrice.total) : "По согласованию"}</strong>
             {productId === "letters" && letterPrice.letterCount > 0 && rowPrices.map(row=><p key={row.index} className="price-formula">Строка {row.index+1}: {row.letterCount} букв × {Number(row.heightCm.toFixed(1))} см × 120 ₽</p>)}</div>
-            <button className="studio-add-cart" type="button" onClick={handleAddToCart} disabled={productId === "neon" ? !neonResult.design || !neonFits || !project.neonText.trim() : productId === "letters" && (fontPending || !letterContours || !combinedText.trim() && !logoEnabled)}><ShoppingCart size={18} />В корзину</button>
+            <button className="studio-add-cart" type="button" onClick={handleAddToCart} disabled={!canOutputSign}><ShoppingCart size={18} />В корзину</button>
             {priceNotes.length > 0 && <p className="price-notes">{priceNotes.join(" ")}</p>}
             <p className="purchase-basis">{productId === "letters" ? "120 ₽ за 1 см высоты каждой буквы. Пробелы не считаются. Монтаж, подложка и доставка рассчитываются отдельно." : "Сохраните макет в корзину для согласования стоимости."}</p>
           </div>

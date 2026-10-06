@@ -216,9 +216,29 @@ function extrude(shapes: THREE.Shape | THREE.Shape[], depth: number, face: THREE
 }
 
 function contour(mesh: THREE.Mesh, color: string) {
-  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry, 35),
-    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.86 }));
-  mesh.add(edges);
+  const geometry = mesh.geometry, positions = geometry.getAttribute('position'), indices = geometry.getIndex();
+  const edges = new Map<string, { count: number; a: THREE.Vector3; b: THREE.Vector3 }>();
+  const pointKey = (point: THREE.Vector3) => [point.x, point.y, point.z].map(value => Math.round(value * 100000)).join(':');
+  // The client-selected trim belongs to the acrylic face. A wireframe of every
+  // extruded edge turns raster-font pixel steps into hundreds of stripes on the return.
+  for (const group of geometry.groups) if (group.materialIndex === 0) {
+    for (let offset = group.start; offset < group.start + group.count; offset += 3) {
+      const triangle = [0, 1, 2].map(index => new THREE.Vector3().fromBufferAttribute(positions, indices ? indices.getX(offset + index) : offset + index));
+      for (let index = 0; index < 3; index++) {
+        const a = triangle[index], b = triangle[(index + 1) % 3], aKey = pointKey(a), bKey = pointKey(b);
+        if (aKey === bKey) continue;
+        const key = aKey < bKey ? `${aKey}/${bKey}` : `${bKey}/${aKey}`;
+        const edge = edges.get(key);
+        if (edge) edge.count++; else edges.set(key, { count: 1, a, b });
+      }
+    }
+  }
+  const points = [...edges.values()].filter(edge => edge.count === 1).flatMap(edge => [edge.a, edge.b]);
+  if (!points.length) return;
+  const trim = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: .86, depthWrite: false }));
+  trim.name = 'front-trim-contour'; trim.renderOrder = 1;
+  mesh.add(trim);
 }
 
 async function imageTexture(source: string, scale = 100, x = 0, y = 0) {
