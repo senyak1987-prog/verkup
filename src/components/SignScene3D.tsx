@@ -185,10 +185,12 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           camera.top = viewHeight / 2;
           camera.bottom = -viewHeight / 2;
           camera.updateProjectionMatrix();
-          runtime.distance = Math.max(view.viewWidth, view.viewHeight) * 3;
+          const sceneSize = box.getSize(new THREE.Vector3());
+          runtime.distance = Math.max(view.viewWidth, view.viewHeight, sceneSize.x, sceneSize.y, sceneSize.z) * 3;
+          const canopyView = runtime.model.userData.placement === 'canopy';
           const direction = preserveOrbit
             ? camera.position.clone().sub(currentControls.target).normalize()
-            : front ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(panelRef.current ? 0.68 : 0.3, 0.12, 1).normalize();
+            : front ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(panelRef.current ? 0.68 : canopyView ? 0.55 : 0.3, canopyView ? 0.3 : 0.12, 1).normalize();
           currentControls.target.copy(center);
           camera.position.copy(center).addScaledVector(direction, runtime.distance);
           currentControls.minDistance = Math.max(100, runtime.distance * 0.22);
@@ -251,7 +253,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     const version = ++buildRef.current;
     if (hostRef.current) delete hostRef.current.dataset.renderedFont;
     setLoading(true);
-    void buildSignModel(modelProject, layout, width, height, depth, showDimensions).then(async(model) => {
+    // The facade keeps its physical scale; construction labels stay in the screen-pinned size bar.
+    void buildSignModel(modelProject, layout, width, height, depth, showDimensions && placement === 'none').then(async(model) => {
       if(placement==='none'&&project.backdropImage&&/^data:image\/(png|jpeg|webp);base64,/.test(project.backdropImage)) {
         try {
           const texture=await new THREE.TextureLoader().loadAsync(project.backdropImage);
@@ -267,7 +270,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       if (version !== buildRef.current || runtime !== runtimeRef.current) {
         disposeSignObject(model); return;
       }
-      const preserveOrbit = runtime.model?.userData.productId === project.productId;
+      const preserveOrbit = runtime.model?.userData.productId === project.productId && runtime.model?.userData.placement === placement;
+      model.userData.placement = placement;
       if (runtime.model) {
         runtime.scene.remove(runtime.model);
         disposeSignObject(runtime.model);
@@ -291,7 +295,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       shadow.top = lightSpan*.8; shadow.bottom = -lightSpan*.8;
       shadow.near = 1; shadow.far = lightSpan * 6 + 1000;
       shadow.updateProjectionMatrix();
-      runtime.frame(project.productId !== "panel", preserveOrbit);
+      runtime.frame(project.productId !== "panel" && placement !== 'canopy', preserveOrbit);
       runtime.requestRender();
       setLoading(false);
     }).catch(() => {
