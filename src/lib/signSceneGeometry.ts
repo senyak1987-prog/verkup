@@ -37,6 +37,9 @@ export type SignSceneProject = {
   letterDepth: number;
   letterFaceColor: SceneColor;
   letterSideColor: SceneColor;
+  logoFaceColor?: SceneColor;
+  logoSideColor?: SceneColor;
+  haloLightColor?: SceneColor;
   glowMode: "face" | "faceSide" | "faceHalo" | "halo";
   logoEnabled?: boolean;
   logoShape: "circle" | "square" | "rounded";
@@ -352,7 +355,7 @@ async function glyphData(project: SignSceneProject, layout: SignSceneLayout): Pr
 }
 
 function lightProjection(project: SignSceneProject, layout: SignSceneLayout,
-  glyph: GlyphData, textWidth: number, textHeight: number, textTop: number, color: string, blur: number) {
+  glyph: GlyphData, textWidth: number, textHeight: number, textTop: number, color: string, blur: number, logoColor=color) {
   const padding = project.letterHeight * 0.25;
   const worldWidth = layout.signBox.width + padding * 2;
   const worldHeight = layout.signBox.height + padding * 2;
@@ -379,6 +382,7 @@ function lightProjection(project: SignSceneProject, layout: SignSceneLayout,
     context.restore();
   }
   if (project.logoEnabled !== false && layout.logoBox.width > 0) {
+    context.fillStyle=logoColor;context.shadowColor=logoColor;
     const logo = layout.logoBox;
     const x = (logo.x - layout.signBox.x + padding) * xScale;
     const y = (logo.y - layout.signBox.y + padding) * yScale;
@@ -411,6 +415,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
   const haloLit = night && (project.glowMode === "faceHalo" || project.glowMode === "halo");
   const faceColor = project.productId === "panel" ? project.panelFaceColor.value : project.letterFaceColor.value;
   const sideColor = project.productId === "panel" ? project.panelSideColor.value : project.letterSideColor.value;
+  const haloColor = project.haloLightColor?.value ?? faceColor;
   const face = solidMaterial(faceColor, night, faceLit);
   const side = solidMaterial(sideColor, night, sideLit);
   if (sideLit) {
@@ -508,7 +513,8 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       const frameReferenceRear = project.mountMode === "frame" ? 15 : haloMode ? 30 : 0;
       const contourOnFrame = project.mountMode === "frame" && haloMode && project.haloBackerEnabled && Boolean(layout.haloBackerPath);
       // The 3 mm plate rests on the frame; 20 mm standoffs separate it from the full-depth letter body.
-      const rear = frameReferenceRear + (contourOnFrame ? 23 : 0);
+      const spacedBacker = contourOnFrame || (haloMode && project.mountMode === "acp");
+      const rear = project.mountMode === "acp" ? (haloMode ? 20 : 0) : frameReferenceRear + (contourOnFrame ? 23 : 0);
       const bodyDepth = modelDepth;
       if (contourOnFrame && layout.haloBackerPath) {
         const shapes=glyphFromPath(layout.haloBackerPath,layout.signBox,6).shapes;
@@ -520,7 +526,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       }
       const spacerMaterial = new THREE.MeshStandardMaterial({color:'#7d858b',metalness:.75,roughness:.35});
       const addSpacers = (shapes: THREE.Shape[], map: (x:number,y:number)=>THREE.Vector2) => {
-        if (!contourOnFrame) return;
+        if (!spacedBacker) return;
         for (const shape of shapes) {
           const cap = new THREE.ShapeGeometry(shape, 24), points = cap.getAttribute('position'), indices = cap.getIndex();
           const anchors: THREE.Vector2[] = [];
@@ -536,12 +542,12 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
           const second=anchors.reduce((a,b)=>a.distanceToSquared(first)>b.distanceToSquared(first)?a:b);
           for(const anchor of first.distanceTo(second)>12?[first,second]:[first]){
             const spacer=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,20,16),spacerMaterial);
-            spacer.rotation.x=Math.PI/2;spacer.position.set(anchor.x,anchor.y,28);
+            spacer.rotation.x=Math.PI/2;spacer.position.set(anchor.x,anchor.y,rear-10);
             spacer.name='halo-distance-spacer';spacer.userData.lengthMm=20;spacer.castShadow=true;group.add(spacer);
           }
         }
       };
-      const backMaterial = solidMaterial(haloLit ? faceColor : sideColor, night, haloLit);
+      const backMaterial = solidMaterial(haloLit ? haloColor : sideColor, night, haloLit);
       // Trimless letters have an acrylic face and painted metal return, not a
       // continuous metallic block. Their tiny front joint remains inside the body.
       face.metalness = 0; face.roughness = .32; face.envMapIntensity = .45;
@@ -584,17 +590,22 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         const shape = logoShape(project.logoShape, layout.logoBox.width);
         // An even sample count also includes the circle's four cardinal points exactly.
         const curveSegments = Math.ceil(panelCurveSegments(layout.logoBox.width, project.logoShape, layout.logoCornerRadius) / 2) * 2;
-        const logo = extrude(shape, bodyDepth, face, side, backMaterial, { curveSegments, smoothSides: true, frontSeam });
+        const logoFace = solidMaterial(project.logoFaceColor?.value ?? faceColor, night, faceLit);
+        const logoSide = solidMaterial(project.logoSideColor?.value ?? sideColor, night, sideLit);
+        logoFace.roughness=.32;logoFace.metalness=0;logoSide.roughness=.42;logoSide.metalness=.06;
+        const logoSeam = solidMaterial(project.logoSideColor?.value ?? sideColor, night, sideLit);
+        const logo = extrude(shape, bodyDepth, logoFace, logoSide, backMaterial, { curveSegments, smoothSides: true, frontSeam:logoSeam });
         seamUsed = true;
         logo.position.set(toX(layout.logoBox.x + layout.logoBox.width / 2),
           toY(layout.logoBox.y + layout.logoBox.height / 2), rear);
         logo.name = "extruded-logo";
         if (project.logoOutlineEnabled) contour(logo, project.outlineColor.value);
         group.add(logo);
+        addSpacers([shape],(x,y)=>new THREE.Vector2(logo.position.x+x,logo.position.y+y));
         await applyArtwork(logo, shape, project.logoImage, layout.logoBox.width, bodyDepth, night, faceLit,
           100, 0, 0, false, curveSegments);
       }
-      if (!contourOnFrame) spacerMaterial.dispose();
+      if (!spacedBacker) spacerMaterial.dispose();
       if (!seamUsed) frontSeam.dispose();
       if (project.mountMode === "frame") {
         const steel = new THREE.MeshStandardMaterial({ color: night ? "#919da5" : "#727e85",
@@ -623,14 +634,14 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         }
       }
       if (haloLit) {
-        const halo = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.10);
+        const halo = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, haloColor, height * 0.10);
         halo.position.x = toX(layout.signBox.x + layout.signBox.width / 2); halo.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
         halo.position.z = contourOnFrame ? 18.4 : 0.4;
         (halo.material as THREE.MeshBasicMaterial).opacity = 1;
         halo.name = "rear-halo-projection"; group.add(halo);
       }
       if (faceLit) {
-        const aura = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.02);
+        const aura = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.02,project.logoFaceColor?.value??faceColor);
         aura.position.x = toX(layout.signBox.x + layout.signBox.width / 2); aura.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
         aura.position.z = rear + bodyDepth + 0.75;
         (aura.material as THREE.MeshBasicMaterial).opacity = 0.22;
@@ -705,6 +716,10 @@ export function disposeSignObject(object: THREE.Object3D) {
 export function applySignLighting(group: THREE.Object3D, night: number, lightsOn = true, windowLight = night) {
   const on = lightsOn ? 1 : 0;
   group.traverse(child => {
+    if(child instanceof THREE.PointLight && child.userData.windowIntensity){
+      const delay=Math.min(child.userData.windowIndex??0,7)*.035;
+      child.intensity=child.userData.windowIntensity*((1-night)*.25+Math.max(0,Math.min(1,(windowLight-delay)/(1-delay))));
+    }
     const mesh = child as THREE.Mesh;
     if (!mesh.material) return;
     for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
