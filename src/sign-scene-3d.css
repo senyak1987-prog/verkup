@@ -44,6 +44,8 @@
   color: #667362; font-size: 10px; line-height: 1.5; pointer-events: none;
 }
 .sign-scene-3d.night { color: #d3dfd5; }
+.scale-person-note { align-self:flex-start; padding:5px 8px; border:1px solid #a7b1ab; border-radius:4px; background:#f7f8f3e8; color:#435348; }
+.sign-scene-3d.night .scale-person-note { background:#25352fe8; border-color:#526256; color:#d7e3d7; }
 .sign-scene-3d.night .sign-scene-3d-actions button { background: #25352f; border-color: #47584e; color: #d7e3d7; }
 .sign-scene-3d.night .sign-scene-3d-status { background: #25352f; color: #d7e3d7; }
 .sign-scene-3d.night .sign-scene-3d-hint, .sign-scene-3d.night .sign-scene-3d-notices { color: #9caea1; }
