@@ -36,13 +36,15 @@ main.public-sign-configurator.sign-studio input[type="range"] { accent-color: #1
 main.public-sign-configurator.sign-studio :focus-visible { outline-color: #167c3e; }
 main.public-sign-configurator.sign-studio ::selection { background: #d3bc84; color: #073c2d; }
 
-/* The 3:2 drawing area fits the browser; full-width toolbars keep controls reachable. */
+/* Keep the drawing area at 3:2; toolbar wrapping must not compress the scene. */
 main.public-sign-configurator.sign-studio .studio-workspace,
 main.public-sign-configurator.sign-studio .studio-workspace.is-3d {
   position: var(--workspace-position, sticky);
   top: 12px;
   z-index: 5;
   min-height: 0;
+  width: min(100%, calc(var(--preview-width, 600px) + 2px));
+  justify-self: center;
   height: auto;
   grid-template-rows: none;
   grid-auto-rows: max-content;

@@ -55,21 +55,23 @@ function wallGeometry(rects: FacadeRect[], anchor: { x: number; y: number }) {
 }
 
 export function createFacadeModel(place: SignPlacement, _signWidth: number, _signHeight: number,
-  options: FacadeOptions & { panelMount?: PanelFacadeMount; frontSign?: boolean } = {}, panelWallSurface = false) {
+  options: FacadeOptions & { panelMount?: PanelFacadeMount; frontSign?: boolean; shell?: boolean; shellDepth?: number; openRight?: boolean } = {}, panelWallSurface = false) {
   const group = new THREE.Group(); group.name = 'facade';
   if (options.panelMount) {
     const panel = options.panelMount;
     group.userData.panelMountMode = panel.mode;
     const wallShift = 4 + (place === 'canopy' ? 1500 : 0);
-    const front = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, !options.frontSign);
+    const corner = isPanelCornerMount(panel.mode);
+    const front = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0, shellDepth:corner?7800:5000, openRight:corner }, !options.frontSign);
     front.position.z = wallShift;
     if (isPanelCornerMount(panel.mode)) {
       front.name = 'facade-front'; front.position.x = -3900;
-      const side = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, !options.frontSign);
+      const side = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0, shell:false }, !options.frontSign);
       side.name = 'facade-side'; side.rotation.y = Math.PI / 2;
       side.position.set(wallShift, 0, -3900);
       const offset = front.userData.windowCount ?? 0;
       side.traverse(child => {
+        if(child instanceof THREE.PointLight)child.userData.windowIndex+=offset;
         const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
         if (material?.userData.windowLight) {
           material.userData.windowIndex += offset;
@@ -107,7 +109,8 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     if (!material) {
       material = kind === 'glass'
         ? new THREE.MeshPhysicalMaterial({ color: r.color, roughness: .13, metalness: 0,
-          ior: 1.5, clearcoat: 1, clearcoatRoughness: .075, specularIntensity: 1, envMapIntensity: 1.05 })
+          ior: 1.5, clearcoat: 1, clearcoatRoughness: .075, specularIntensity: 1, envMapIntensity: 1.2,
+          transparent:true, opacity:.24, depthWrite:false, side:THREE.DoubleSide })
         : new THREE.MeshStandardMaterial({ color: r.color,
           roughness: kind === 'foliage' ? .86 : kind === 'wall' ? .98 : .77,
           metalness: r.name?.includes('frame') || r.name?.includes('canopy') ? .12 : 0, envMapIntensity: .3 });
@@ -116,12 +119,12 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
       // Interior light remains independent of the sign's lighting switch.
       if (kind === 'glass') {
         material.emissive.set('#ffd8a1');
-        material.userData.maxWindowEmission = .42 + (windowIndex! % 4) * .035;
+        material.userData.maxWindowEmission = .08 + (windowIndex! % 4) * .012;
         material.userData.maxEmission = material.userData.maxWindowEmission;
         material.userData.facadeEmission = true;
         material.userData.windowLight = true; material.userData.windowIndex = windowIndex;
         material.userData.nightColor = new THREE.Color('#324653');
-        material.userData.dayEnvIntensity = 1.05; material.userData.nightEnvIntensity = .32;
+        material.userData.dayEnvIntensity = 1.2; material.userData.nightEnvIntensity = .45;
       }
       if (kind === 'lamp') { material.emissive.set(nightRects[index].color); material.userData.maxEmission = .65; material.userData.facadeEmission = true; }
       if (kind === 'wall' && masonry) {
@@ -144,6 +147,8 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
       if (r.rotation) mesh.rotation.z = -r.rotation * Math.PI / 180;
     }
     mesh.name = kind === 'wall' ? 'facade-wall' : 'facade-' + (r.name ?? 'detail');
+    // An opaque cap 65 mm behind the glass used to hide the room.
+    if(kind==='opening') {mesh.position.z=anchorZ+(r.z??0)-2450;material.color.set('#bdb4a4');material.userData.dayColor=material.color.clone();}
     mesh.receiveShadow = kind !== 'lamp';
     mesh.castShadow = kind !== 'glass' && kind !== 'opening' && kind !== 'lamp';
     mesh.userData.facadeKind = kind;
@@ -151,8 +156,61 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     if (windowIndex !== undefined) mesh.userData.windowIndex = windowIndex;
     group.add(mesh);
   }
+  addBuildingInterior(group,dayRects,{x:anchorX,y:anchorY,z:anchorZ},options,boxGeometry);
   group.userData.windowCount = windowCount;
   return group;
+}
+
+/** Four physical walls, a pitched roof, and a furnished shop behind real glazing apertures. */
+function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:number;y:number;z:number},
+  options:{shell?:boolean;shellDepth?:number;openRight?:boolean},boxGeometry:THREE.BoxGeometry){
+  const wall=rects.find(r=>r.kind==='wall')!,frontZ=anchor.z+(wall.z??0),depth=options.shellDepth??5000;
+  const left=wall.x-anchor.x,right=left+wall.w,top=anchor.y-wall.y,bottom=top-wall.h;
+  const material=(color:string,roughness=.8)=>{const m=new THREE.MeshStandardMaterial({color,roughness});m.userData.dayColor=m.color.clone();return m;};
+  const stone=material(wall.color),floor=material('#9e8b71'),wood=material('#a87b50'),dark=material('#40494d'),cream=material('#ded3bf');
+  const add=(name:string,w:number,h:number,d:number,x:number,y:number,z:number,m:THREE.MeshStandardMaterial)=>{
+    const mesh=new THREE.Mesh(boxGeometry,m);mesh.name=name;mesh.scale.set(w,h,d);mesh.position.set(x,y,z);
+    mesh.castShadow=mesh.receiveShadow=true;mesh.userData.facadeKind='interior';group.add(mesh);return mesh;
+  };
+  if(options.shell!==false){
+    add('building-left-wall',200,wall.h,depth,left+100,(top+bottom)/2,frontZ-depth/2,stone);
+    if(!options.openRight)add('building-right-wall',200,wall.h,depth,right-100,(top+bottom)/2,frontZ-depth/2,stone);
+    add('building-back-wall',wall.w,wall.h,200,(left+right)/2,(top+bottom)/2,frontZ-depth+100,stone);
+    add('interior-floor',wall.w-400,70,depth-400,(left+right)/2,bottom+485,frontZ-depth/2,floor);
+    add('interior-ceiling',wall.w-400,80,depth-400,(left+right)/2,top-100,frontZ-depth/2,cream);
+    const roof=material('#565a5c',.65),rise=750,half=depth/2+160,roofSlope=Math.hypot(half,rise);
+    for(const direction of [-1,1]){
+      const mesh=add('building-roof-'+(direction===1?'rear':'front'),wall.w+320,80,roofSlope,
+        (left+right)/2,top+rise/2+45,frontZ-depth/2+direction*half/2,roof);
+      mesh.rotation.x=direction*Math.atan2(rise,half);
+    }
+    const shape=new THREE.Shape();shape.moveTo(-depth/2,0);shape.lineTo(depth/2,0);shape.lineTo(0,rise);shape.closePath();
+    for(const x of [left+100,right-100]){
+      const geometry=new THREE.ExtrudeGeometry(shape,{depth:200,bevelEnabled:false});geometry.rotateY(Math.PI/2);
+      const mesh=new THREE.Mesh(geometry,stone);mesh.position.set(x-100,top,frontZ-depth/2);mesh.name='building-roof-gable';mesh.castShadow=mesh.receiveShadow=true;group.add(mesh);
+    }
+    group.userData.buildingDepthMm=depth;group.userData.closedBuilding=true;
+  }
+  for(const [index,r]of rects.filter(r=>r.kind==='glass').entries()){
+    const cx=r.x+r.w/2-anchor.x,base=anchor.y-r.y-r.h,behind=frontZ-1050;
+    if(!r.name?.startsWith('door')){
+      add('interior-counter-'+index,r.w*.75,650,520,cx,base+325,behind,wood);
+      add('interior-counter-top-'+index,r.w*.8,35,570,cx,base+665,behind,cream);
+      for(const level of [0,1,2]){
+        add('interior-shelf-'+index+'-'+level,r.w*.78,35,300,cx,base+950+level*320,frontZ-2150,dark);
+        for(let item=0;item<4;item++){
+          const color=['#aa624a','#b9a064','#789278','#b7a89b'][(item+level)%4],product=material(color);
+          add('interior-display-'+index+'-'+level+'-'+item,95,145+item%2*45,115,cx+(item-1.5)*r.w*.16,base+1040+level*320,frontZ-2080,product);
+        }
+      }
+    }
+    const lamp=material('#f2ddae');lamp.emissive.set('#ffe0a0');
+    lamp.userData.windowLight=true;lamp.userData.windowIndex=index;lamp.userData.facadeEmission=true;lamp.userData.maxWindowEmission=1.8;
+    add('interior-pendant-'+index,170,90,170,cx,anchor.y-r.y+100,behind,lamp);
+    add('interior-pendant-wire-'+index,8,350,8,cx,anchor.y-r.y+300,behind,dark);
+    const light=new THREE.PointLight('#ffd6a0',0,2600,2);light.name='interior-light-'+index;
+    light.position.set(cx,base+r.h*.75,frontZ-950);light.userData.windowIndex=index;light.userData.windowIntensity=700000;group.add(light);
+  }
 }
 
 /** A cropped wall sample makes the same anchoring visible when no architectural scene is selected. */
@@ -247,10 +305,10 @@ export async function loadScalePersonBrand(baseUrl: string) {
 /** A pinned collar and restrained wind, shared by every point of the printed cloth. */
 function capePoint(u:number,v:number,time=0) {
   const width=THREE.MathUtils.lerp(195,330,v),x=(u-.5)*width*2;
-  const wind=v*v*(9*Math.sin(time*1.15-v*3.2+u*2)+4*Math.sin(time*.73+u*5));
+  const wind=v*v*(30*Math.sin(time*1.45-v*3.2+u*2)+12*Math.sin(time*.93+u*5));
   const y=1475-v*1145-12*Math.sin(Math.PI*u)*v;
   const z=-165-145*v-18*Math.cos((u-.5)*Math.PI*6)*Math.sin(Math.PI*v/2)-24*Math.sin(Math.PI*v)+wind;
-  return new THREE.Vector3(x+v*v*3*Math.sin(time*.8),y,z);
+  return new THREE.Vector3(x+v*v*12*Math.sin(time*.95),y+v*v*4*Math.sin(time*1.45+u*2),z);
 }
 
 function addStandingMotion(material:THREE.MeshStandardMaterial,time:{value:number}) {
@@ -260,6 +318,8 @@ function addStandingMotion(material:THREE.MeshStandardMaterial,time:{value:numbe
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
       float upper = smoothstep(650.0, 1380.0, position.y);
       float chest = sin(clamp((position.y-800.0)/700.0,0.0,1.0)*3.14159265);
+      float stance = 1.0-smoothstep(350.0, 850.0, position.y);
+      transformed.z += stance * (position.x > 0.0 ? 35.0 : -20.0);
       transformed.x += upper * 1.7 * sin(personTime * 0.72);
       transformed.y += upper * 0.8 * sin(personTime * 1.35);
       transformed.z += chest * 1.5 * sin(personTime * 1.35);
@@ -298,7 +358,7 @@ export function createScalePerson(facade: THREE.Group, target: THREE.Vector3, br
   addStandingMotion(capeMaterial,time);
   const cape=new THREE.Mesh(geometry,capeMaterial);cape.name='person-cape';cape.userData.brand='Город Свет';
   cape.castShadow=cape.receiveShadow=true;person.add(cape);
-  person.position.set(THREE.MathUtils.clamp(target.x+1100,ground.min.x+400,ground.max.x-400),ground.max.y,ground.max.z-600);
+  person.position.set(THREE.MathUtils.clamp(target.x-1800,ground.min.x+500,ground.max.x-500),ground.max.y,ground.max.z-450);
   const direction=target.clone().sub(person.position);person.rotation.y=Math.atan2(direction.x,direction.z);
   person.userData.lookTarget=target.toArray();person.userData.groundY=ground.max.y;return person;
 }

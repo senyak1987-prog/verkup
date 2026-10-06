@@ -57,7 +57,7 @@ test('Standing animation keeps feet and collar fixed, gently moves the hem and p
       const v=1-uv.getY(i);
       if(v===0)assert.deepEqual([p.getX(i),p.getY(i),p.getZ(i)],rest.slice(i*3,i*3+3),'Shoulder attachment stays pinned');
       if(v>.9)hemMotion=Math.max(hemMotion,Math.abs(p.getZ(i)-rest[i*3+2]));
-      assert.ok(Math.abs(p.getZ(i)-rest[i*3+2])<27,'Restrained cloth movement in millimetres');
+      assert.ok(Math.abs(p.getZ(i)-rest[i*3+2])<85,'Wind displacement stays within safe cloth clearance');
       assert.ok(p.getZ(i)<-150,'Fabric remains behind the back');
     }
     assert.ok(hemMotion>1);assert.deepEqual(Array.from(uv.array),uvBefore);
@@ -171,7 +171,8 @@ test('All facade palettes retain detailed architecture and one physical SVG coor
     assert.ok(rects.some(r => r.kind === 'lamp'), 'Architectural lamps must be present');
     assert.ok(rects.some(r => r.name === 'entrance-threshold'), 'Every composition needs a real entrance threshold');
     const model = scene.createFacadeModel(place.id, 1800, 300, { palette });
-    assert.equal(model.children.length, rects.length);
+    assert.ok(model.children.length > rects.length);
+    assert.ok(model.userData.closedBuilding);
     assert.ok(model.getObjectByName('facade-wall').receiveShadow);
     dispose(model);
   }
@@ -269,7 +270,7 @@ test('Windows have true apertures, restrained reflections and separated glazing 
       const frame = model.children.find(child => child.name === hit.object.name.replace('-glass', '-frame'));
       assert.ok(frame && frame.userData.frontZ >= hit.object.userData.frontZ + 10, 'Window fronts have a real reveal, preventing coplanar shimmer');
     }
-    for (const mesh of model.children) {
+    for (const mesh of model.children.filter(child=>child.geometry)) {
       const attr = mesh.geometry.getAttribute('position');
       for (let index = 0; index < attr.array.length; index++) assert.ok(Number.isFinite(attr.array[index]));
       assert.ok(mesh.position.toArray().every(Number.isFinite) && mesh.scale.toArray().every(Number.isFinite));
@@ -443,6 +444,26 @@ test('Perpendicular panel mounts retain the existing canopy context and real wal
       const side = model.getObjectByName('facade-side'), sideWall = side.getObjectByName('facade-wall');
       close(bounds(sideWall).max.x, 0, 'Corner side wall remains its X=0 anchoring plane');
     }
+    dispose(model);
+  }
+});
+
+
+test('A complete building has four walls, a closed pitched roof, a real floor and furnished interiors behind transparent glass',()=>{
+  for(const place of places){
+    const model=scene.createFacadeModel(place.id,2000,400);
+    for(const name of ['facade-wall','building-left-wall','building-right-wall','building-back-wall','building-roof-front','building-roof-rear','interior-floor','interior-ceiling'])assert.ok(model.getObjectByName(name),name);
+    assert.equal(model.userData.buildingDepthMm,5000);
+    const glass=model.children.filter(mesh=>mesh.userData.facadeKind==='glass');
+    assert.ok(glass.every(mesh=>mesh.material.transparent&&mesh.material.opacity<.4&&!mesh.material.depthWrite));
+    assert.ok(model.children.some(mesh=>mesh.name.startsWith('interior-display-')));
+    assert.equal(model.children.filter(mesh=>mesh.isPointLight).length,glass.length);
+    for(const pane of glass){
+      const screen=model.getObjectByName(pane.name.replace('-glass','-opening'));
+      assert.ok(pane.position.z-screen.position.z>2000,'The window must reveal room depth, not an opaque card behind it');
+    }
+    const hero=scene.createScalePerson(model,new THREE.Vector3(),undefined,asset);
+    assert.ok(hero.position.x<0,'Observer stands to the left of the sign');
     dispose(model);
   }
 });

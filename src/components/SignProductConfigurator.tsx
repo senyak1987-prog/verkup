@@ -129,6 +129,9 @@ type LettersSvgLayoutConfig = {
 };
 
 type LettersSvgMarkupConfig = LettersSvgLayoutConfig & {
+  logoFaceColor?: string;
+  logoSideColor?: string;
+  haloLightColor?: string;
   lightsOn?: boolean;
   showDimensions?: boolean;
   acpColor: string;
@@ -284,6 +287,9 @@ const DEFAULT_PROJECT = {
   letterDepth: 50,
   letterFaceColor: ORACAL_8500_COLORS[4] as ColorOption,
   letterSideColor: ORACAL_641_COLORS[1] as ColorOption,
+  logoFaceColor: ORACAL_8500_COLORS[0] as ColorOption,
+  logoSideColor: ORACAL_641_COLORS[1] as ColorOption,
+  haloLightColor: ORACAL_8500_COLORS[0] as ColorOption,
   glowMode: "faceHalo" as GlowMode,
   logoShape: "circle" as LogoShape,
   logoImage: "",
@@ -295,13 +301,13 @@ const DEFAULT_PROJECT = {
   outlineColor: ORACAL_641_COLORS[1] as ColorOption,
   haloBackerEnabled: false,
   haloBackerOffsetMm: 20,
-  haloBackerColor: ACP_COLORS[0] as ColorOption,
+  haloBackerColor: ORACAL_641_COLORS[0] as ColorOption,
   mountMode: "frame" as MountMode,
   frameProfile: 15 as FrameProfile,
   frameEdgeInset: 0,
   frameTopPosition: 15,
   frameBottomPosition: 15,
-  acpColor: ACP_COLORS[0] as ColorOption,
+  acpColor: ORACAL_641_COLORS[0] as ColorOption,
   acpWidth: 2500,
   acpHeight: 830,
   acpDepth: 50
@@ -316,10 +322,10 @@ const SECTION_ITEMS = [
 ];
 const SECTION_GROUPS: Record<string, StudioSection> = {
   "Надпись": "design", "Форма": "design", "Размер": "design",
-  "Лицо Oracal 8500": "colors", "Борт Oracal 641": "colors", "Кантик": "colors",
+  "Лицо Oracal 8500": "colors", "Лицо Oracal 641": "colors", "Борт Oracal 641": "colors", "Кантик": "colors",
   "Свечение": "light", "Контражурная подложка": "light",
   "Размещение": "mount", "Рама": "mount", "Подложка АКП": "mount", "Крепление к стене": "mount",
-  "Логотип": "logo", "Изображение": "logo",
+  "Логотип": "design", "Изображение": "logo",
 };
 const PROJECT_ENUMS: Record<string, readonly unknown[]> = {
   facadePalette: ["stone","brick","charcoal"], neonIcon: ["none","heart","star","bolt","cup","music","infinity"], neonBackerColor:["clear","white","black"], neonInstallMode:["standoffs","hanging"], neonUse:["indoor","outdoor"],
@@ -384,13 +390,22 @@ function validateProject(raw: unknown): ProjectState {
         output[key] = value;
       } else output[key] = value.slice(0, 60);
     } else {
-      const palette = key.includes("Face") ? ORACAL_8500_COLORS : key === "acpColor" || key === "haloBackerColor" ? ACP_COLORS : ORACAL_641_COLORS;
-      const match = palette.find(color => color.code === (value as ColorOption)?.code);
+      const palette = key.includes("Face") || key === "haloLightColor" ? [...ORACAL_8500_COLORS,...ORACAL_641_COLORS] : ORACAL_641_COLORS;
+      const legacy = ACP_COLORS.find(color=>color.code === (value as ColorOption)?.code);
+      const match = palette.find(color => color.code === (value as ColorOption)?.code && color.value === (value as ColorOption)?.value)
+        ?? palette.find(color=>color.code === (value as ColorOption)?.code)
+        ?? (legacy && (key === "acpColor" || key === "haloBackerColor") ? ORACAL_641_COLORS.reduce((best,color)=>{
+          const distance=(hex:string)=>[1,3,5].reduce((sum,offset)=>sum+(parseInt(hex.slice(offset,offset+2),16)-parseInt(legacy.value.slice(offset,offset+2),16))**2,0);
+          return distance(color.value)<distance(best.value)?color:best;
+        }) : undefined);
       if (!match) throw new Error("Цвет в проекте отсутствует в палитре.");
       output[key] = match;
     }
   }
   result.frameProfile = 15;
+  if(input.logoFaceColor===undefined)result.logoFaceColor=result.letterFaceColor;
+  if(input.logoSideColor===undefined)result.logoSideColor=result.letterSideColor;
+  if(input.haloLightColor===undefined)result.haloLightColor=result.letterFaceColor;
   if(result.haloBackerEnabled && ["halo","faceHalo"].includes(result.glowMode))result.mountMode="frame";
   result.panelSize=normalizePanelSize(result.panelSize);result.panelDepth=normalizePanelDepth(result.panelDepth);
   if(input.logoSizeMm===undefined)result.logoSizeMm=Math.max(100,Math.min(700,result.letterHeight*result.logoScale/100));
@@ -635,10 +650,11 @@ export function SignProductConfigurator() {
         const rows = Array.from(host.children).filter(child => !child.classList.contains("builder-preview"));
         const chromeHeight = rows.reduce((height, row) => height + row.getBoundingClientRect().height, borders) +
           (parseFloat(style.rowGap) || 0) * rows.length;
-        const width = Math.max(1, Math.floor(Math.min(host.clientWidth, viewportWidth - (mobile ? 28 : 24),
-          (viewportHeight - (mobile ? 12 : 24) - chromeHeight) * 1.5)));
+        const availableWidth=parseFloat(getComputedStyle(host.parentElement!).gridTemplateColumns) || host.parentElement!.clientWidth;
+        const width = Math.max(1, Math.floor(Math.min(availableWidth-2, viewportWidth - (mobile ? 28 : 24),
+          mobile ? Infinity : Math.max(180, viewportHeight - chromeHeight - 24) * 1.5)));
         const previewHeight = width / 1.5;
-        const height = Math.ceil(previewHeight + chromeHeight);
+        const height = previewHeight + chromeHeight;
         // Short mobile viewports must let the workspace scroll away so settings remain reachable.
         const sticky = !mobile || height <= viewportHeight - 120;
         setPreviewBounds(previous => previous.width === width && previous.previewHeight === previewHeight && previous.height === height && previous.sticky === sticky
@@ -811,11 +827,11 @@ export function SignProductConfigurator() {
     ? { x: neonSvgPad, y: neonSvgPad, width: neonWidth, height: neonHeight }
     : productId === "panel" ? panelSvgFaceBox(panelSize,clamp(project.panelWallGap,60,400),project.panelMountMode)
     : mountMode === "acp" ? lettersLayout.panelBox : lettersLayout.signBox;
-  const signDepth = productId === "neon" ? (project.neonInstallMode==='hanging'?3:23) + project.neonDiameter : productId === "panel" ? project.panelDepth : letterDepth + (glowHasHalo && haloBackerEnabled && mountMode === "frame" ? 23 : 0);
+  const signDepth = productId === "neon" ? (project.neonInstallMode==='hanging'?3:23) + project.neonDiameter : productId === "panel" ? project.panelDepth : letterDepth + (glowHasHalo ? mountMode === "acp" ? 20 : haloBackerEnabled && mountMode === "frame" ? 23 : 0 : 0);
   const companionScene = placement === 'none' ? undefined : productId === 'panel'
     ? !fontPending && letterContours && !isProjectBlank({ ...project, productId: 'letters' })
       ? { project: { ...project, productId: 'letters' as const }, width: mountMode === 'acp' ? acpWidth : measuredLettersWidth,
-          height: mountMode === 'acp' ? acpHeight : Math.round(lettersLayout.signBox.height), depth: letterDepth + (glowHasHalo && haloBackerEnabled && mountMode === "frame" ? 23 : 0) } : undefined
+          height: mountMode === 'acp' ? acpHeight : Math.round(lettersLayout.signBox.height), depth: letterDepth + (glowHasHalo ? mountMode === "acp" ? 20 : haloBackerEnabled && mountMode === "frame" ? 23 : 0 : 0) } : undefined
     : { project: { ...project, productId: 'panel' as const }, width: panelSize, height: panelSize, depth: project.panelDepth };
   const panelMount=productId==='panel'?panelMountLayout(panelSize,panelShape,project.panelWallGap,project.panelCornerRadius,project.panelDepth,project.panelMountMode):undefined;
   const cartQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -915,6 +931,7 @@ export function SignProductConfigurator() {
       acpLayout,
       depth: letterDepth,
       estimatedWidth: lettersWidth,
+      logoFaceColor: project.logoFaceColor.value, logoSideColor: project.logoSideColor.value, haloLightColor: project.haloLightColor.value,
       faceColor: letterFaceColor.value,
       font: letterFont,
       frameBottomPosition,
@@ -989,7 +1006,7 @@ export function SignProductConfigurator() {
             <button type="button" title="Отменить последнее изменение (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={14} />Отменить</button>
           </div>
           {productId !== "neon" && <nav className="studio-section-tabs" aria-label="Разделы настроек">
-            {SECTION_ITEMS.filter(item => productId === "letters" || ["design", "colors", "mount", "logo"].includes(item.id)).map(item => <button type="button" key={item.id} aria-pressed={activeSection === item.id} className={activeSection === item.id ? "active" : ""} onClick={() => setActiveSection(item.id)}><item.icon size={18} /><span>{productId === "panel" && item.id === "design" ? "Форма" : item.label}</span></button>)}
+            {SECTION_ITEMS.filter(item => productId === "letters" ? item.id !== "logo" : ["design", "colors", "mount", "logo"].includes(item.id)).map(item => <button type="button" key={item.id} aria-pressed={activeSection === item.id} className={activeSection === item.id ? "active" : ""} onClick={() => setActiveSection(item.id)}><item.icon size={18} /><span>{productId === "panel" && item.id === "design" ? "Форма" : item.label}</span></button>)}
           </nav>}
           <div className="controls-body"><SectionContext.Provider value={activeSection}>
           {productId === "neon" ? <NeonControls project={project} measuredWidth={neonResult.design?.width} requiredBacker={requiredNeonBacker} onReferenceChange={event=>void handleImageUpload(event,value=>patchProject({neonReferenceImage:value}))} onChange={patchProject} onUndo={undoNeon} canUndo={canUndo} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/> : productId === "panel" ? (
@@ -1021,6 +1038,8 @@ export function SignProductConfigurator() {
             />
           ) : (
             <LettersControls
+              logoColors={<><h3>Лицо логотипа · Oracal {glowMode === "halo" ? "641" : "8500"}</h3><ColorGrid colors={glowMode === "halo" ? ORACAL_641_COLORS : ORACAL_8500_COLORS} selected={project.logoFaceColor} onSelect={value=>patchProject({logoFaceColor:value})} compact /><h3>Борт логотипа · Oracal 641</h3><ColorGrid colors={ORACAL_641_COLORS} selected={project.logoSideColor} onSelect={value=>patchProject({logoSideColor:value})} compact /></>}
+              haloColors={glowHasHalo && <><h3>Цвет контражура</h3><ColorGrid colors={ORACAL_8500_COLORS} selected={project.haloLightColor} onSelect={value=>patchProject({haloLightColor:value})} compact /><p className="control-note">Цвет подсветки выбирается независимо от лица букв и логотипа.</p></>}
               lineEditor={<LetterLinesControls rows={[project.lettersText,project.secondLineText,project.thirdLineText].map((text,index)=>({index,text,font:project.letterLineFonts[index]||letterFont,height:project.letterLineHeights[index]||letterHeight})).filter(row=>row.index===0||row.text.trim())} onTextChange={setLineText} onFontChange={setLineFont} onHeightChange={setLineHeight} onSelect={selectLetterLine} onAdd={addLetterLine} onRemove={removeLetterLine}/>}
               rowHeights={lineSettings.map(row=>row.height)}
               acpColor={acpColor}
@@ -1079,7 +1098,7 @@ export function SignProductConfigurator() {
           )}
           </SectionContext.Provider>
           {productId === "neon" && (neonResult.error || !neonFits) && <p className="studio-fit-warning" role="alert">{neonResult.error || "Уменьшите высоту или длину надписи, чтобы она поместилась на подложке."}</p>}
-          {activeSection === "logo" && (productId === "letters" ? logoImage : panelImage) && <button className="studio-remove" type="button" onClick={() => productId === "letters" ? setLogoImage("") : setPanelImage("")}><X size={14} />Удалить изображение</button>}
+          {activeSection === (productId === "letters" ? "design" : "logo") && (productId === "letters" ? logoImage : panelImage) && <button className="studio-remove" type="button" onClick={() => productId === "letters" ? setLogoImage("") : setPanelImage("")}><X size={14} />Удалить изображение</button>}
           {productId === "panel" && activeSection === "design" && <p className="control-note">Размер — диаметр круга или сторона квадрата, в миллиметрах.</p>}
           {productId === "letters" && activeSection === "mount" && mountMode === "acp" && !lettersFit && <p className="studio-fit-warning" role="status">Макет не помещается на подложке при минимальной высоте 100 мм. Увеличьте подложку или измените надпись и размеры элементов.</p>}
           </div>
@@ -1156,6 +1175,7 @@ export function SignProductConfigurator() {
               />
             ) : (
               <LettersPreview
+                objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value}}
                 lightsOn={project.lightsOn}
                 editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={project} selection={layoutSelection} onSelect={setLayoutSelection} onChange={patchProject} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
                 sceneMode={sceneMode}
@@ -1186,7 +1206,7 @@ export function SignProductConfigurator() {
           {showDimensions && !blankSign && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
         </section>
           {showDimensions && !blankSign && (productId!=="panel" || viewMode==="3d"&&placement!=="none"&&showFacadeSign) && <div className="canvas-object-dimensions" aria-label="Размеры элементов вывески">{visibleObjectDimensions.map(item=><span key={item.id}><strong>{item.label}</strong> {Math.round(item.width)} × {Math.round(item.height)} мм</span>)}</div>}
-          <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `Борт ${letterDepth} мм${glowHasHalo && haloBackerEnabled && mountMode === "frame" ? " · проставки 20 мм · подложка 3 мм" : ""}` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
+          <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `Борт ${letterDepth} мм${glowHasHalo && mountMode === "acp" ? " · проставки 20 мм" : glowHasHalo && haloBackerEnabled && mountMode === "frame" ? " · проставки 20 мм · подложка 3 мм" : ""}` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
         </section>
 
         <SignPlacements panelMount={panelMount} markup={createCurrentSvg(false)} signBox={facadeSignBox} night={sceneMode === "night"} selected={placement} palette={project.facadePalette} onPaletteChange={value=>patchProject({facadePalette:value})} onChange={value=>{setPlacement(value);setEditing(false);}}>
@@ -1383,6 +1403,7 @@ function PanelControls({
 }
 
 function LettersControls({
+  logoColors,haloColors,
   lineEditor,
   rowHeights,
   acpColor,
@@ -1437,6 +1458,7 @@ function LettersControls({
   onSideColorChange,
   onTextChange,
 }: {
+  logoColors: ReactNode; haloColors: ReactNode;
   acpColor: ColorOption;
   lineEditor: ReactNode;
   rowHeights: number[];
@@ -1522,11 +1544,12 @@ function LettersControls({
             </button>
           ))}
         </div>
+        {haloColors}
       </ControlSection>
 
       {hasHaloGlow(glowMode) && <ControlSection title="Контражурная подложка">
         <label className="dimensions-toggle"><input type="checkbox" checked={haloBackerEnabled} onChange={event=>onHaloBackerEnabledChange(event.target.checked)} />Контурная подложка на раме</label>
-        {haloBackerEnabled && <><RangeField label="Отступ от букв, мм" min={15} max={25} step={5} value={haloBackerOffsetMm} onChange={onHaloBackerOffsetChange} /><ColorGrid colors={ACP_COLORS} selected={haloBackerColor} onSelect={onHaloBackerColorChange} compact /><p className="control-note">Плоская подложка крепится на раме. Борт — 40 или 50 мм; зазор от задней части букв до подложки — 20 мм на дистанционных проставках.</p></>}
+        {haloBackerEnabled && <><RangeField label="Отступ от букв, мм" min={15} max={25} step={5} value={haloBackerOffsetMm} onChange={onHaloBackerOffsetChange} /><ColorGrid colors={ORACAL_641_COLORS} selected={haloBackerColor} onSelect={onHaloBackerColorChange} compact /><p className="control-note">Плоская подложка крепится на раме. Борт — 40 или 50 мм; зазор от задней части букв до подложки — 20 мм на дистанционных проставках.</p></>}
       </ControlSection>}
 
       <ControlSection title="Размещение">
@@ -1556,13 +1579,14 @@ function LettersControls({
 
       {mountMode === "acp" && (
         <ControlSection title="Подложка АКП">
+        <p className="control-note">Цвет подложки · Oracal 641</p>
           <div className="sign-size-grid">
             <NumberField label="Ширина, мм" min={400} max={20000} onChange={onAcpWidthChange} value={acpWidth} />
             <NumberField label="Высота, мм" min={250} max={backerLimits(acpDepth).height} onChange={onAcpHeightChange} value={acpHeight} />
           </div>
           <RangeField label="Глубина подложки, мм" max={100} min={30} onChange={onAcpDepthChange} step={5} value={acpDepth} />
           <small className="control-note">Допустимые размеры рассчитываются автоматически.</small>
-          <ColorGrid colors={ACP_COLORS} selected={acpColor} onSelect={onAcpColorChange} compact />
+          <ColorGrid colors={ORACAL_641_COLORS} selected={acpColor} onSelect={onAcpColorChange} compact />
         </ControlSection>
       )}
 
@@ -1609,11 +1633,12 @@ function LettersControls({
         </label>
         <small className="control-note">PNG, JPG или WebP · до 2 МБ</small>
         {logoEnabled && <NumberField label="Размер логотипа, мм" max={700} min={100} onChange={onLogoSizeChange} value={logoSizeMm} />}
+        {logoEnabled && logoColors}
         <small className="control-note">Логотип: 180 ₽ за сантиметр высоты. Размер — от 100 до 700 мм.</small>
       </ControlSection>
 
-      <ControlSection title="Лицо Oracal 8500">
-        <ColorGrid colors={ORACAL_8500_COLORS} selected={faceColor} onSelect={onFaceColorChange} />
+      <ControlSection title={glowMode === "halo" ? "Лицо Oracal 641" : "Лицо Oracal 8500"}>
+        <ColorGrid colors={glowMode === "halo" ? ORACAL_641_COLORS : ORACAL_8500_COLORS} selected={faceColor} onSelect={onFaceColorChange} />
       </ControlSection>
 
       <ControlSection title="Борт Oracal 641">
@@ -1719,6 +1744,7 @@ function SvgMarkupPreview({ className, markup, children }: { className: string; 
 }
 
 function LettersPreview({
+  objectColors,
   lightsOn,
   editor,
   acpColor,
@@ -1744,6 +1770,7 @@ function LettersPreview({
   sideColor,
   text,
 }: {
+  objectColors: Pick<LettersSvgMarkupConfig,"logoFaceColor"|"logoSideColor"|"haloLightColor">;
   lightsOn?:boolean;
   acpColor: string;
   acpDepth?: number;
@@ -1770,7 +1797,7 @@ function LettersPreview({
   text: string;
 }) {
   const svg = createLettersSvgMarkup({
-    lightsOn,
+    lightsOn, ...objectColors,
     acpColor, acpDepth, depth, faceColor, font, glowMode, haloBackerColor,
     haloBackerEnabled, height, layout, letterOutlineEnabled,
     logoImage, logoOutlineEnabled, logoShape, mountMode, outlineColor,
@@ -1960,7 +1987,7 @@ function createLettersSvgMarkup(
     "layout" | "height" | "depth" | "faceColor" | "sideColor" | "font" |
     "text" | "glowMode" | "mountMode" | "acpColor" | "haloBackerEnabled" |
     "haloBackerColor" | "letterOutlineEnabled" | "logoOutlineEnabled" |
-    "outlineColor" | "logoShape" | "logoImage"
+    "outlineColor" | "logoShape" | "logoImage" | "logoFaceColor" | "logoSideColor" | "haloLightColor"
   > & { sceneMode?: SceneMode; acpDepth?: number },
 ) {
   const layout = config.layout;
@@ -1985,6 +2012,7 @@ function createLettersSvgMarkup(
     ).join("");
   };
   const face = night && !faceLit ? mix(config.faceColor, "#18212d", 0.6) : faceLit&&!night?mix(config.faceColor,'#ffffff',.06):config.faceColor;
+  const logoFace = night && !faceLit ? mix(config.logoFaceColor ?? config.faceColor,"#18212d",.6) : config.logoFaceColor ?? config.faceColor;
   const side = sideLit ? mix(config.sideColor, "#ffffff", night?.32:.06)
     : night ? mix(config.sideColor, "#08101c", 0.6) : config.sideColor;
   const logoGeometry = (fill: string, stroke = "none", strokeWidth = 0) => !config.logoEnabled ? "" : config.logoShape === "circle"
@@ -2059,7 +2087,7 @@ function createLettersSvgMarkup(
   const haloMarkup = haloLit
     ? '<g id="sign-halo" transform="translate(' + n(extrusionX * 0.8) + " " +
       n(extrusionY * 0.8) + ')" filter="url(#letters-halo)" opacity="' + (night?'0.78':'0.08') + '">' +
-      silhouette(escapeXml(config.faceColor)) + "</g>"
+      silhouette(escapeXml(config.haloLightColor ?? config.faceColor)) + "</g>"
     : "";
 
   return '<?xml version="1.0" encoding="UTF-8"?>\n' +
@@ -2089,6 +2117,11 @@ function createLettersSvgMarkup(
     '" flood-color="' + escapeXml(config.faceColor) + '" flood-opacity="' + (night?'0.85':'0.1') + '" />' +
     '<feDropShadow dx="0" dy="0" stdDeviation="' + n(config.height * 0.045) +
     '" flood-color="' + escapeXml(config.faceColor) + '" flood-opacity="' + (night?'0.38':'0.035') + '" /></filter>' +
+    '<filter id="logo-face-light" x="-40%" y="-60%" width="180%" height="220%">' +
+    '<feDropShadow dx="0" dy="0" stdDeviation="' + n(config.height * 0.014) +
+    '" flood-color="' + escapeXml(config.logoFaceColor ?? config.faceColor) + '" flood-opacity="' + (night?'0.85':'0.1') + '" />' +
+    '<feDropShadow dx="0" dy="0" stdDeviation="' + n(config.height * 0.045) +
+    '" flood-color="' + escapeXml(config.logoFaceColor ?? config.faceColor) + '" flood-opacity="' + (night?'0.38':'0.035') + '" /></filter>' +
     '<filter id="letters-side-light" x="-40%" y="-60%" width="180%" height="220%">' +
     '<feDropShadow dx="' + n(extrusionX * 0.15) + '" dy="' + n(extrusionY * 0.15) +
     '" stdDeviation="' + n(config.height * 0.035) + '" flood-color="' +
@@ -2099,9 +2132,9 @@ function createLettersSvgMarkup(
     '<g id="sign-side"' + (sideLit ? ' filter="url(#letters-side-light)"' : ' filter="url(#letters-cast-shadow)"') +
     ">" + sideMarkup + "</g>\n" +
     '<g id="sign-face"' + (faceLit ? ' filter="url(#letters-face-light)"' : "") + ">" +
-    logoGeometry("url(#letters-face-material)", config.logoOutlineEnabled ? escapeXml(config.outlineColor) : "none", logoStrokeWidth) +
-    imageMarkup +
     textGeometry("url(#letters-face-material)", config.letterOutlineEnabled ? escapeXml(config.outlineColor) : "none", textStrokeWidth, true) +
+    '</g><g id="logo-face"' + (faceLit ? ' filter="url(#logo-face-light)"' : "") + ">" +
+    logoGeometry(logoFace, config.logoOutlineEnabled ? escapeXml(config.outlineColor) : "none", logoStrokeWidth) + imageMarkup +
     "</g>\n" + (config.showDimensions ? createSvgDimensions(config.mountMode === "acp" ? layout.panelBox : layout.signBox, Math.max(120, Math.min(550, layout.viewHeight * 0.12)), night ? "#dce5e0" : "#1b322b") + createSvgObjectDimensions(layout,config.logoEnabled!==false,night ? "#dce5e0" : "#1b322b") : "") + "</svg>";
 }
 

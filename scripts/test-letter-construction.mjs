@@ -128,3 +128,12 @@ test('Контражур сохраняет борт 40/50 мм, исправл�
     for(const invalid of [41,45,55,NaN,Infinity])assert.ok([40,50].includes(construction.normalizeLetterDepth(150,invalid,mode)));
   }
 });
+
+
+test('Old ACP palettes migrate to Oracal 641 without losing independent logo and halo colours',()=>{
+ const saved=validateProject({version:1,project:{acpColor:{code:'ACP-R',value:'#c9282d'},haloBackerColor:{code:'ACP-S',value:'#c8ced8'},letterFaceColor:{code:'031',value:'#d8242a'},logoFaceColor:{code:'053',value:'#5ca8d7'},logoSideColor:{code:'091',value:'#b99a51'},haloLightColor:{code:'010',value:'#f8f8f2'}}});
+ assert.equal(saved.acpColor.code,'031');assert.equal(saved.haloBackerColor.code,'072');
+ assert.equal(saved.letterFaceColor.value,'#d8242a');assert.equal(saved.logoFaceColor.value,'#5ca8d7');assert.equal(saved.logoSideColor.code,'091');assert.equal(saved.haloLightColor.code,'010');
+ const old=validateProject({version:1,project:{letterFaceColor:{code:'031',value:'#d8242a'},letterSideColor:{code:'049',value:'#004f9f'}}});
+ assert.deepEqual(old.logoFaceColor,old.letterFaceColor);assert.deepEqual(old.logoSideColor,old.letterSideColor);assert.deepEqual(old.haloLightColor,old.letterFaceColor);
+});
