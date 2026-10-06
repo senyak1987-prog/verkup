@@ -28,6 +28,78 @@ const schemaCompiled=ts.transpileModule(schemaSource,{compilerOptions:{target:ts
 const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS',schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker,neon.NEON_FONTS);
 
 const near=(actual,expected,message)=>assert.ok(Math.abs(actual-expected)<.002,message+': '+actual+' / '+expected);
+const frameFontBytes=fs.readFileSync(new URL('../public/fonts/Manrope-Variable.ttf',import.meta.url));
+const frameFont=opentype.parse(frameFontBytes.buffer.slice(frameFontBytes.byteOffset,frameFontBytes.byteOffset+frameFontBytes.byteLength));
+const frameContours=contours.contoursFromFont(frameFont,'ЦВЕТЫ',800);
+const frameFixture=(patch={})=>layout({height:300,logoEnabled:true,logoScale:60,logoShape:'circle',mountMode:'frame',
+  letterOutlineEnabled:false,text:'ЦВЕТЫ',contours:frameContours,textBox:frameContours.mainBox,
+  acpLayout:{faceWidth:2000,faceHeight:400},widthOverride:0,textOffsetX:0,textOffsetY:0,logoOffsetX:0,logoOffsetY:0,
+  frameTopPosition:15,frameBottomPosition:15,frameEdgeInset:0,...patch});
+const expectFrameMargins=(result,reference,topInset=15,bottomInset=15)=>{
+  near(result.railTopY-result.railHeight/2-reference.y,topInset,'Top pipe outer edge follows the smaller object');
+  near(reference.y+reference.height-result.railBottomY-result.railHeight/2,bottomInset,'Bottom pipe outer edge follows the smaller object');
+  assert.ok(result.railTopY<result.railBottomY,'Both support pipes remain ordered for standard sign dimensions');
+};
+
+test('A smaller logo sets both frame margins for every logo silhouette, including its dragged vertical position',()=>{
+  for(const logoShape of ['circle','square','rounded'])for(const logoOffsetY of [-65,0,85]) {
+    const result=frameFixture({logoShape,logoOffsetY,textOffsetY:-30,frameTopPosition:10,frameBottomPosition:20});
+    near(result.logoBox.height,180,'Logo physical height');near(result.textHeight,300,'Letter nominal height');
+    expectFrameMargins(result,result.logoBox,10,20);
+  }
+});
+
+test('Smaller letters set the frame line instead of the larger logo; ties consistently use the lettering',()=>{
+  for(const logoScale of [100,130]) {
+    const result=frameFixture({logoScale,logoOffsetY:80,textOffsetY:-45});
+    expectFrameMargins(result,{y:result.textTop,height:300});
+    assert.ok(result.logoBox.y!==result.textTop,'Moving the logo must not move a frame referenced to the letters');
+  }
+});
+
+test('Hidden logos and protruding Cyrillic glyphs cannot move either frame margin away from the nominal lettering line',()=>{
+  for(const entry of contours.SIGN_FONTS.filter(item=>item.file)) {
+    const bytes=fs.readFileSync(new URL('../public/fonts/'+entry.file,import.meta.url));
+    const font=opentype.parse(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+    const data=contours.contoursFromFont(font,'ДЦЩЙ',entry.weight);
+    const result=frameFixture({logoEnabled:false,logoScale:45,logoOffsetY:900,text:'ДЦЩЙ',contours:data,textBox:data.mainBox});
+    assert.ok(result.textInkBox.height>result.textHeight,entry.label+' has real descenders or accents');
+    expectFrameMargins(result,{y:result.textTop,height:300});
+    near(result.railX,result.textX,'No hidden logo extends the left end');
+    near(result.railWidth,result.textWidth,'No hidden logo extends the support length');
+  }
+});
+
+test('Two text rows form one nominal object, so the shorter logo remains the shared frame reference',()=>{
+  const data=contours.combineLetterLines(['ДЦЩЙ','СВЕТ'].map(text=>contours.contoursFromFont(frameFont,text,800)));
+  const result=frameFixture({height:200,logoScale:130,text:'ДЦЩЙ\nСВЕТ',contours:data,textBox:data.mainBox,
+    logoOffsetY:55,textOffsetY:-35});
+  near(result.textHeight,470,'Both 200 mm rows and their interline spacing are included');
+  near(result.logoBox.height,260,'Logo stays shorter than the two-row lettering object');
+  assert.ok(result.textInkBox.height>result.textHeight,'The row object still distinguishes real Cyrillic ink from its nominal line');
+  expectFrameMargins(result,result.logoBox);
+});
+
+test('The visible letter outline belongs to the nominal body while accents remain excluded',()=>{
+  const data=contours.contoursFromFont(frameFont,'ДЦЩЙ',800),outline=300*.035;
+  const result=frameFixture({logoScale:130,letterOutlineEnabled:true,text:'ДЦЩЙ',contours:data,textBox:data.mainBox,
+    textOffsetY:55,logoOffsetY:-40});
+  near(result.textHeight,300-2*outline,'Contours leave room for the outline');
+  expectFrameMargins(result,{y:result.textTop-outline,height:300});
+  assert.ok(result.textInkBox.height>result.textHeight,'Actual tails remain distinct from the nominal outlined body');
+});
+
+test('Support pipes always span the full placed composition, including separated objects and old saved edge insets',()=>{
+  for(const frameEdgeInset of [0,60,120])for(const offset of [-400,0,600]) {
+    const result=frameFixture({frameEdgeInset,logoOffsetX:offset,textOffsetX:-offset});
+    const left=Math.min(result.logoBox.x,result.textX);
+    const right=Math.max(result.logoBox.x+result.logoBox.width,result.textX+result.textWidth);
+    near(result.railX,left,'Left support end follows the true composition');
+    near(result.railX+result.railWidth,right,'Right support end follows the true composition');
+    near(result.railWidth,right-left,'Saved edge-inset values do not shorten the pipes');
+  }
+});
+
 const alignmentFixture=()=>({viewWidth:2300,viewHeight:550,panelBox:{x:100,y:110,width:2000,height:300},
   defaultTextX:800,defaultTextY:180,defaultLogoX:600,defaultLogoY:160,
   textX:1400,textTop:118,textWidth:500,textHeight:150,textInkBox:{x:1400,y:116,width:500,height:168},

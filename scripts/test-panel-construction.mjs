@@ -143,6 +143,73 @@ test('Square panels keep their hard side corners when curved panels receive smoo
   scene.disposeSignObject(model);
 });
 
+// Logo-only fixtures do not need a DOM parser for the separate lettering contours.
+const logoScene = load('signSceneGeometry', { three: THREE, './panelConstruction': mount,
+  './letterContours': {}, './neonScene': {}, './glyphShapes': { filledGlyphShapes: () => [] },
+  'three/examples/jsm/loaders/SVGLoader.js': { SVGLoader: class { parse() { return { paths: [] }; } } } });
+async function logoModel(shape, size, depth) {
+  const project = { productId:'letters', sceneMode:'day', letterDepth:depth, letterHeight:300,
+    letterFaceColor:{value:'#ffffff'}, letterSideColor:{value:'#cccccc'}, glowMode:'face', mountMode:'wall',
+    logoEnabled:true, logoShape:shape, logoImage:'', logoOutlineEnabled:false };
+  const layout = { viewWidth:2500, viewHeight:500, logoBox:{x:40,y:70,width:size,height:size}, logoCornerRadius:size*.16,
+    textPathData:'M0 0Z', textNaturalBox:{x:0,y:0,width:1,height:1}, textX:400, textTop:50,
+    textBaseline:350, textWidth:1900, textHeight:300, signBox:{x:40,y:50,width:2300,height:300} };
+  return logoScene.buildSignModel(project, layout, 2300, 300, depth, false);
+}
+for (const shape of ['circle','rounded']) test(`${shape}: logos have continuous side normals and retain flat face edges`, async()=>{
+  for (const size of [80,242,550,2000]) for (const depth of [40,50,60]) {
+    const model=await logoModel(shape,size,depth),body=model.getObjectByName('extruded-logo');
+    const geometry=body.geometry,positions=geometry.getAttribute('position'),normals=geometry.getAttribute('normal');
+    geometry.computeBoundingBox();
+    const bounds=geometry.boundingBox;
+    close(bounds.max.x-bounds.min.x,size,'The smooth logo retains its requested width',.001);
+    close(bounds.max.y-bounds.min.y,size,'The smooth logo retains its requested height',.001);
+    close(bounds.max.z-bounds.min.z,depth,'The logo depth does not change when its sides are smoothed',.001);
+    assert.ok(positions.count<30000,'Smooth logo geometry remains within a practical vertex budget');
+    const sideNormals=new Map(); let maxSagitta=0,curvedNormals=0;
+    for (const group of geometry.groups) for (let i=group.start;i<group.start+group.count;i++) {
+      const x=positions.getX(i),y=positions.getY(i),z=positions.getZ(i),normal=new THREE.Vector3().fromBufferAttribute(normals,i);
+      if (group.materialIndex!==1) {
+        assert.ok(Math.abs(normal.x)<.000001&&Math.abs(normal.y)<.000001,'Logo face normals remain separate from the smooth side');
+        close(normal.z,z<depth/2?-1:1,'The logo front and back retain flat physical face normals',.000001);
+        continue;
+      }
+      assert.ok(Math.abs(normal.z)<.000001,'The curved side never inherits the front or back face normal');
+      const key=[x,y,z].map(value=>value.toFixed(4)).join(',');
+      if (sideNormals.has(key)) assert.ok(sideNormals.get(key).distanceTo(normal)<.000001,
+        'All adjacent side triangles agree on one normal, avoiding individual polygon highlights');
+      else sideNormals.set(key,normal);
+      if (Math.abs(normal.x)>.01&&Math.abs(normal.y)>.01) curvedNormals++;
+      if (shape==='circle') {
+        const radial=new THREE.Vector3(x,y,0).normalize();
+        assert.ok(radial.dot(normal)>.99999,'A circular logo has continuously radial side normals');
+        const start=group.start+Math.floor((i-group.start)/3)*3,next=start+(i-start+1)%3;
+        if (Math.abs(z-positions.getZ(next))<.001) {
+          const radius=size/2,chord=Math.hypot(x-positions.getX(next),y-positions.getY(next));
+          maxSagitta=Math.max(maxSagitta,radius-Math.sqrt(Math.max(0,radius*radius-chord*chord/4)));
+        }
+      }
+    }
+    assert.ok(curvedNormals>0,'The round or rounded outline contains smooth curved side normals');
+    assert.ok(maxSagitta<.03,`${size} mm circle deviation must stay below 0.03 mm, got ${maxSagitta}`);
+    assert.ok(body.castShadow&&body.receiveShadow,'The smoothed logo still casts and receives real shadows');
+    logoScene.disposeSignObject(model);
+  }
+});
+test('Square logos retain hard side corners while round logos receive smooth normals',async()=>{
+  for (const size of [80,242,550]) for (const depth of [40,60]) {
+    const model=await logoModel('square',size,depth),geometry=model.getObjectByName('extruded-logo').geometry;
+    const normals=geometry.getAttribute('normal');
+    for (const group of geometry.groups) if (group.materialIndex===1) for (let i=group.start;i<group.start+group.count;i++) {
+      const x=Math.abs(normals.getX(i)),y=Math.abs(normals.getY(i));
+      assert.ok((Math.abs(x-1)<.000001&&y<.000001)||(x<.000001&&Math.abs(y-1)<.000001),
+        'A manufactured square corner keeps its two distinct planar side normals');
+      assert.ok(Math.abs(normals.getZ(i))<.000001);
+    }
+    logoScene.disposeSignObject(model);
+  }
+});
+
 test('Wall and corner brackets touch the actual facade planes, retain physical size, and project away from the building', async()=>{
   for(const mode of mountingModes)for(const shape of ['circle','square','rounded'])for(const size of [200,500,2000])
     for(const depth of [30,60,160])for(const gap of [60,120,400]) {
