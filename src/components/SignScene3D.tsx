@@ -43,15 +43,17 @@ type SceneRuntime = {
 };
 
 export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', onZoomChange, resetKey = 0, onUnavailable }: SignScene3DProps) {
-  const geometryKey = JSON.stringify({ ...project, sceneMode: undefined });
-  const modelProject = useMemo(() => ({ ...project, sceneMode: 'night' as const }), [geometryKey]);
+  const geometryKey = JSON.stringify({ ...project, sceneMode: undefined, lightsOn:undefined });
+  const modelProject = useMemo(() => ({ ...project, sceneMode: 'night' as const, lightsOn:true }), [geometryKey]);
+  const lightsOnRef=useRef(project.lightsOn!==false);
+  lightsOnRef.current=project.lightsOn!==false;
   const lightFraction = useRef(project.sceneMode === 'night' ? 1 : 0);
   const layoutRef = useRef(layout);
   const panelRef = useRef(project.productId === "panel");
-  panelRef.current = project.productId === "panel";
+  panelRef.current = project.productId === "panel" || Boolean(project.backdropImage);
   layoutRef.current = project.productId === "panel"
     ? { ...layout, viewWidth: project.panelSize * 1.8, viewHeight: project.panelSize * 1.42 }
-    : project.productId === "neon" ? { ...layout, viewWidth: width * 1.25, viewHeight: height * 1.65 } : layout;
+    : project.productId === "neon" ? { ...layout, viewWidth: width * 1.1, viewHeight: height * 1.15 } : layout;
   const hostRef = useRef<HTMLDivElement>(null);
   const runtimeRef = useRef<SceneRuntime | null>(null);
   const unavailableRef = useRef(onUnavailable);
@@ -249,7 +251,19 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     const version = ++buildRef.current;
     if (hostRef.current) delete hostRef.current.dataset.renderedFont;
     setLoading(true);
-    void buildSignModel(modelProject, layout, width, height, depth, showDimensions).then((model) => {
+    void buildSignModel(modelProject, layout, width, height, depth, showDimensions).then(async(model) => {
+      if(placement==='none'&&project.backdropImage&&/^data:image\/(png|jpeg|webp);base64,/.test(project.backdropImage)) {
+        try {
+          const texture=await new THREE.TextureLoader().loadAsync(project.backdropImage);
+          texture.colorSpace=THREE.SRGBColorSpace;
+          const image=texture.image as HTMLImageElement;
+          const photoWidth=project.backdropWidth??4000,photoHeight=photoWidth*image.height/image.width;
+          const material=new THREE.MeshBasicMaterial({map:texture,color:'#ffffff',side:THREE.DoubleSide,toneMapped:false});
+          material.userData.dayColor=new THREE.Color('#ffffff'); material.userData.photoBackdrop=true;
+          const backdrop=new THREE.Mesh(new THREE.PlaneGeometry(photoWidth,photoHeight),material);
+          backdrop.name='photo-facade'; backdrop.position.set(0,-photoHeight*.1,-Math.max(25,project.acpDepth+4)); model.add(backdrop);
+        } catch { /* Keep the sign usable if a saved reference image cannot decode. */ }
+      }
       if (version !== buildRef.current || runtime !== runtimeRef.current) {
         disposeSignObject(model); return;
       }
@@ -259,20 +273,23 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         disposeSignObject(runtime.model);
       }
       runtime.model = model;
-      if (placement !== 'none') model.add(createFacadeModel(placement, width, height));
+      if (placement !== 'none') model.add(createFacadeModel(placement, width, height,{palette:project.facadePalette,signBackMm:project.productId==='neon'?(project.neonInstallMode==='hanging'?0:20):project.mountMode==='acp'?project.acpDepth:15}));
       if (hostRef.current) { hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId; }
       runtime.scene.add(model);
       runtime.bounds.setFromObject(model);
-      applySignLighting(model, lightFraction.current);
+      applySignLighting(model, lightFraction.current, lightsOnRef.current);
       runtime.ambient.intensity = .65 - lightFraction.current * .5;
       runtime.key.intensity = 1.1 - lightFraction.current * .95;
       runtime.fill.intensity = .3 - lightFraction.current * .22;
-      runtime.key.position.set(-width * 0.35, height * 2.4, Math.max(width, height) * 1.5);
-      runtime.fill.position.set(width * 0.8, height * 0.3, Math.max(width, height));
+      const extent=runtime.bounds.getSize(new THREE.Vector3()), center=runtime.bounds.getCenter(new THREE.Vector3());
+      const lightSpan=Math.max(extent.x,extent.y,width,height);
+      runtime.key.position.set(center.x-lightSpan*.55,center.y+lightSpan*.9,center.z+lightSpan*1.4);
+      runtime.fill.position.set(center.x+lightSpan*.8,center.y+lightSpan*.25,center.z+lightSpan);
+      runtime.key.target.position.copy(center); runtime.key.target.updateMatrixWorld();
       const shadow = runtime.key.shadow.camera;
-      shadow.left = -width; shadow.right = width;
-      shadow.top = height * 2; shadow.bottom = -height * 2;
-      shadow.near = 1; shadow.far = Math.max(width, height) * 6 + 1000;
+      shadow.left = -lightSpan*.8; shadow.right = lightSpan*.8;
+      shadow.top = lightSpan*.8; shadow.bottom = -lightSpan*.8;
+      shadow.near = 1; shadow.far = lightSpan * 6 + 1000;
       shadow.updateProjectionMatrix();
       runtime.frame(project.productId !== "panel", preserveOrbit);
       runtime.requestRender();
@@ -300,13 +317,15 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       runtime.key.intensity = 1.1 - amount * .95;
       runtime.fill.intensity = .3 - amount * .22;
       runtime.renderer.toneMappingExposure = 1.1 - amount * .2;
-      if (runtime.model) applySignLighting(runtime.model, amount);
+      if (runtime.model) applySignLighting(runtime.model, amount, lightsOnRef.current);
       runtime.requestRender();
       if (t < 1) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
   }, [project.sceneMode]);
+
+  useEffect(()=>{const runtime=runtimeRef.current;if(runtime?.model){applySignLighting(runtime.model,lightFraction.current,project.lightsOn!==false);runtime.requestRender();}},[project.lightsOn]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
