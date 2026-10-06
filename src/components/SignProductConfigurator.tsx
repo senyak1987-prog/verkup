@@ -333,7 +333,7 @@ const PROJECT_RANGES: Record<string, [number, number]> = {
   logoOffsetX: [-20000, 20000], logoOffsetY: [-10000, 10000], textOffsetX: [-20000, 20000], textOffsetY: [-10000, 10000],
   neonHeight: [40, 800], neonBrightness: [10, 100], neonBackerWidth: [150, 3950], neonBackerHeight: [150, 1450],
   neonLetterSpacing: [0, 100], neonLineSpacing: [0, 300], neonTargetWidth: [0, 3800], backdropWidth:[500,20000],
-  letterHeight: [40, 1200], letterDepth: [40, 60], logoScale: [45, 130], logoSizeMm: [20,90], haloBackerOffsetMm: [15,25],
+  letterHeight: [40, 1200], letterDepth: [40, 60], logoScale: [45, 130], logoSizeMm: [20,900], haloBackerOffsetMm: [15,25],
   letterWidth: [0, 20000],
   panelSize: [350, 700], panelDepth: [130, 150],
   panelWallGap: [60, 400], panelCornerRadius: [0, 300],
@@ -393,7 +393,7 @@ function validateProject(raw: unknown): ProjectState {
   result.frameProfile = 15;
   if(result.haloBackerEnabled && ["halo","faceHalo"].includes(result.glowMode))result.mountMode="frame";
   result.panelSize=normalizePanelSize(result.panelSize);result.panelDepth=normalizePanelDepth(result.panelDepth);
-  if(input.logoSizeMm===undefined)result.logoSizeMm=Math.max(20,Math.min(90,result.letterHeight*result.logoScale/100));
+  if(input.logoSizeMm===undefined)result.logoSizeMm=Math.max(20,Math.min(900,result.letterHeight*result.logoScale/100));
   if(result.panelMountMode==='corner') result.panelWallGap=Math.max(result.panelWallGap,result.panelDepth/2+20);
   result.letterDepth = normalizeLetterDepth([result.lettersText,result.secondLineText,result.thirdLineText].map((text,index)=>text.trim()?result.letterLineHeights[index]||result.letterHeight:0).filter(Boolean), result.letterDepth);
   if (Number(input.frameTopPosition) > 20) result.frameTopPosition = 15;
@@ -523,7 +523,7 @@ export function SignProductConfigurator() {
   const setLogoShape = (value: ProjectState["logoShape"]) => setProject(previous => ({ ...previous, logoShape: value }));
   const setLogoImage = (value: ProjectState["logoImage"]) => setProject(previous => ({ ...previous, logoImage: value }));
   const setLogoEnabled = (value: boolean) => setProject(previous => ({ ...previous, logoEnabled: value }));
-  const setLogoSize = (value:number) => setProject(previous => ({ ...previous, logoSizeMm: Math.max(20,Math.min(90,value)) }));
+  const setLogoSize = (value:number) => setProject(previous => ({ ...previous, logoSizeMm: Math.max(20,Math.min(900,value)) }));
   const setLetterOutlineEnabled = (value: ProjectState["letterOutlineEnabled"]) => setProject(previous => ({ ...previous, letterOutlineEnabled: value }));
   const setLogoOutlineEnabled = (value: ProjectState["logoOutlineEnabled"]) => setProject(previous => ({ ...previous, logoOutlineEnabled: value }));
   const setOutlineColor = (value: ProjectState["outlineColor"]) => setProject(previous => ({ ...previous, outlineColor: value }));
@@ -1606,8 +1606,8 @@ function LettersControls({
           <input accept="image/png,image/jpeg,image/webp" onChange={onLogoChange} type="file" />
         </label>
         <small className="control-note">PNG, JPG или WebP · до 2 МБ</small>
-        {logoEnabled && <NumberField label="Размер логотипа, мм" max={90} min={20} onChange={onLogoSizeChange} value={logoSizeMm} />}
-        <small className="control-note">Логотип: 180 ₽ за сантиметр высоты. Максимум 90 мм.</small>
+        {logoEnabled && <NumberField label="Размер логотипа, мм" max={900} min={20} onChange={onLogoSizeChange} value={logoSizeMm} />}
+        <small className="control-note">Логотип: 180 ₽ за сантиметр высоты. Максимум 900 мм.</small>
       </ControlSection>
 
       <ControlSection title="Лицо Oracal 8500">
@@ -1899,7 +1899,7 @@ function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayou
   const factor = config.contours?.lineFactor ?? 1;
   const natural = config.contours?.mainBox ?? config.textBox ?? { x: 0, y: -714, width: Math.max(1, config.text.length) * 640, height: 714 };
   const logoEnabled = Boolean(config.logoEnabled);
-  const requestedLogo = logoEnabled ? (config.logoSizeMm===undefined ? requestedHeight * clamp(config.logoScale,45,130)/100 : clamp(config.logoSizeMm,20,90)) : 0;
+  const requestedLogo = logoEnabled ? (config.logoSizeMm===undefined ? requestedHeight * clamp(config.logoScale,45,130)/100 : clamp(config.logoSizeMm,20,900)) : 0;
   const requestedGap = logoEnabled ? requestedHeight * LETTER_GAP_FACTOR : 0;
   const outline = config.letterOutlineEnabled ? Math.max(4, requestedHeight * .035) : 0;
   const requestedTextHeight = (requestedHeight - outline * 2) * factor;

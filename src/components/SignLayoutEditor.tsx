@@ -55,7 +55,7 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     const dx = point.x - active.point.x, dy = point.y - active.point.y;
     if (active.resize) {
       setSnapped({ x: false, y: false });
-      if (active.target === "logo") schedule({ logoSizeMm: Math.max(20, Math.min(90, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
+      if (active.target === "logo") schedule({ logoSizeMm: Math.max(20, Math.min(900, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
         (Math.abs(dx) > Math.abs(dy) ? dx : dy)))) });
       else if (active.target.startsWith("line-")) {
         const patch = resizeLayoutLine(active.layout, active.target, active.project.letterHeight, active.project.letterLineHeights, dx, dy);
