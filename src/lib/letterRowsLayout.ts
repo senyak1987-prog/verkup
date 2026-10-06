@@ -40,7 +40,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   for(const row of draft){row.y=previous?previous.y+previous.height+Math.max(Math.max(previous.height,row.height)*.35,previous.overBottom+row.overTop+15):0;previous=row;}
   const textNaturalWidth=Math.max(1,...draft.map(r=>r.width));
   const textNaturalHeight=draft.length?Math.max(...draft.map(r=>r.y+r.height)):0;
-  const logoSize=config.logoEnabled?(config.logoSizeMm===undefined?baseHeight*clamp(config.logoScale,45,130)/100:clamp(config.logoSizeMm,20,90)):0;
+  const logoSize=config.logoEnabled?(config.logoSizeMm===undefined?baseHeight*clamp(config.logoScale,45,130)/100:clamp(config.logoSizeMm,20,900)):0;
   const gap=config.logoEnabled&&draft.length?baseHeight*.16:0;
   const widthRequested=draft.length?(config.widthOverride?Math.max(logoSize+gap+20,config.widthOverride):logoSize+gap+textNaturalWidth):Math.max(1,logoSize);
   const stretch=Math.max(1,widthRequested-logoSize-gap)/textNaturalWidth;
