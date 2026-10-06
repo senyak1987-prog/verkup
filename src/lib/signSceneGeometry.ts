@@ -10,6 +10,7 @@ export type SignSceneBox = { x: number; y: number; width: number; height: number
 export type SignSceneProject = {
   productId: "panel" | "letters" | "neon";
   neonText?: string; neonFont?: string; neonHeight?: number; neonDiameter?: number; neonColor?: string;
+  neonLetterSpacing?: number; neonLineSpacing?: number;
   neonBackerShape?: string; neonBrightness?: number; neonAlign?: string;
   lightsOn?: boolean; facadePalette?: 'stone'|'brick'|'charcoal';
   backdropImage?: string; backdropWidth?: number;
