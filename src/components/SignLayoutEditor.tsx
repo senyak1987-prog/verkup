@@ -56,13 +56,13 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     if (active.resize) {
       setSnapped({ x: false, y: false });
       if (active.target === "logo") schedule({ logoSizeMm: Math.max(100, Math.min(700, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
-        (Math.abs(dx) > Math.abs(dy) ? dx : dy)))) });
+        (Math.abs(dx) > Math.abs(dy) ? dx : -dy)))) });
       else if (active.target.startsWith("line-")) {
-        const patch = resizeLayoutLine(active.layout, active.target, active.project.letterHeight, active.project.letterLineHeights, dx, dy);
+        const patch = resizeLayoutLine(active.layout, active.target, active.project.letterHeight, active.project.letterLineHeights, dx, -dy);
         if (patch) schedule(patch);
       }
       else schedule({ letterWidth: Math.max(60, Math.round(active.layout.signBox.width + dx)),
-        letterHeight: Math.max(100, Math.min(700, Math.round(active.project.letterHeight * (1 + dy / active.layout.textHeight)))) });
+        letterHeight: Math.max(100, Math.min(700, Math.round(active.project.letterHeight * (1 - dy / active.layout.textHeight)))) });
     } else {
       const result = moveLayoutSelection(active.layout, active.target, active.project.logoEnabled, dx, dy,
         { constrainToPanel: active.project.mountMode === "acp", snapTolerance: event.altKey ? 0 : active.tolerance });
@@ -92,7 +92,7 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
   const alignedX = snapped.x || Math.abs(selectedBox.x + selectedBox.width / 2 - centerX) < .01;
   const alignedY = snapped.y || Math.abs(selectedBox.y + selectedBox.height / 2 - centerY) < .01;
   return <svg ref={svgRef} className="layout-editor-overlay" viewBox={`0 0 ${layout.viewWidth} ${layout.viewHeight}`} tabIndex={0} role="group"
-    aria-label="Редактор макета. Нажмите на строку или выберите объект над макетом. Перетащите для перемещения, угловой маркер меняет размер. Стрелки — 1 мм, Shift — 10 мм. Alt отключает привязку к центру. Ctrl или Command Z отменяет изменение."
+    aria-label="Редактор макета. Нажмите на строку или выберите объект над макетом. Перетащите для перемещения, маркер сверху справа меняет размер. Стрелки — 1 мм, Shift — 10 мм. Alt отключает привязку к центру. Ctrl или Command Z отменяет изменение."
     onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={finish} onKeyDown={keyboard}>
     <g aria-hidden="true" pointerEvents="none" stroke="#65b787" vectorEffect="non-scaling-stroke">
       <line x1={centerX} y1={reference.y} x2={centerX} y2={reference.y + reference.height} strokeWidth={alignedX ? 2 : 1}
@@ -104,7 +104,7 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     {selection === "composition" && <rect data-object="composition" {...selectedBox} className="editor-selection selected" vectorEffect="non-scaling-stroke" />}
     {boxes.map(({ id, box }) => <g key={id}>
       <rect data-object={id} {...box} className={selection === id ? "editor-selection selected" : "editor-selection"} vectorEffect="non-scaling-stroke" />
-      {selection === id && <rect data-object={id} data-resize="true" x={box.x + box.width - handleSize / 2} y={box.y + box.height - handleSize / 2}
+      {selection === id && <rect data-object={id} data-resize="true" x={box.x + box.width - handleSize / 2} y={box.y - handleSize / 2}
         width={handleSize} height={handleSize} className="editor-resize" vectorEffect="non-scaling-stroke" />}
     </g>)}
   </svg>;
