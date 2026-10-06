@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { RotateCcw, ScanLine } from "lucide-react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { buildSignModel, disposeSignObject } from "../lib/signSceneGeometry";
+import { applySignLighting, buildSignModel, disposeSignObject } from "../lib/signSceneGeometry";
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
-import { panelConstruction } from "../lib/panelConstruction";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import "../sign-scene-3d.css";
 
 export type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
@@ -27,7 +27,6 @@ type SceneRuntime = {
   camera: THREE.OrthographicCamera;
   controls: OrbitControls;
   model: THREE.Group | null;
-  wall: THREE.Mesh;
   ambient: THREE.HemisphereLight;
   key: THREE.DirectionalLight;
   fill: THREE.DirectionalLight;
@@ -37,16 +36,18 @@ type SceneRuntime = {
   resize: () => void;
   fitToView: () => void;
   bounds: THREE.Box3;
-  brickTexture: THREE.CanvasTexture;
 };
 
 export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, resetKey = 0, onUnavailable }: SignScene3DProps) {
+  const geometryKey = JSON.stringify({ ...project, sceneMode: undefined });
+  const modelProject = useMemo(() => ({ ...project, sceneMode: 'night' as const }), [geometryKey]);
+  const lightFraction = useRef(project.sceneMode === 'night' ? 1 : 0);
   const layoutRef = useRef(layout);
   const panelRef = useRef(project.productId === "panel");
   panelRef.current = project.productId === "panel";
   layoutRef.current = project.productId === "panel"
     ? { ...layout, viewWidth: project.panelSize * 1.8, viewHeight: project.panelSize * 1.42 }
-    : layout;
+    : project.productId === "neon" ? { ...layout, viewWidth: width * 1.25, viewHeight: height * 1.65 } : layout;
   const hostRef = useRef<HTMLDivElement>(null);
   const runtimeRef = useRef<SceneRuntime | null>(null);
   const unavailableRef = useRef(onUnavailable);
@@ -94,30 +95,20 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       controls.maxZoom = 1;
       controls.minPolarAngle = 0.08;
       controls.maxPolarAngle = Math.PI - 0.08;
-      const wall = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
-        new THREE.MeshStandardMaterial({ color: "#e9eae5", roughness: 0.94, metalness: 0, side: THREE.DoubleSide }));
-      const brickCanvas = document.createElement("canvas");
-      brickCanvas.width = brickCanvas.height = 1024;
-      const brickContext = brickCanvas.getContext("2d")!;
-      brickContext.fillStyle = "#c4c8c9"; brickContext.fillRect(0, 0, 1024, 1024);
-      for (let row = 0; row < 12; row++) for (let column = -1; column < 5; column++) {
-        brickContext.fillStyle = (row + column) % 3 === 0 ? "#e5e7e7" : "#d9dddd";
-        brickContext.fillRect(column * 256 + (row % 2) * 128 + 3, row * 86 + 3, 250, 80);
-      }
-      const brickTexture = new THREE.CanvasTexture(brickCanvas);
-      brickTexture.colorSpace = THREE.SRGBColorSpace;
-      brickTexture.wrapS = brickTexture.wrapT = THREE.RepeatWrapping;
-      wall.position.z = -110;
-      wall.receiveShadow = true;
-      scene.add(wall);
-      const ambient = new THREE.HemisphereLight("#ffffff", "#5e6971", 2);
-      const key = new THREE.DirectionalLight("#fff5e9", 3.2);
+      const environmentScene = new RoomEnvironment();
+      const generator = new THREE.PMREMGenerator(renderer);
+      const environment = generator.fromScene(environmentScene, .04);
+      scene.environment = environment.texture;
+      scene.environmentIntensity = .18;
+      generator.dispose(); environmentScene.dispose();
+      const ambient = new THREE.HemisphereLight("#ffffff", "#5e6971", .65);
+      const key = new THREE.DirectionalLight("#fff5e9", 1.1);
       key.castShadow = true;
       key.shadow.mapSize.set(1024, 1024);
       key.shadow.bias = -0.00015;
       key.shadow.normalBias = 0.3;
       key.shadow.radius = 3;
-      const fill = new THREE.DirectionalLight("#dce9ef", 1.2);
+      const fill = new THREE.DirectionalLight("#dce9ef", .3);
       scene.add(ambient, key, key.target, fill, fill.target);
       host.appendChild(renderer.domElement);
       const currentRenderer = renderer;
@@ -131,8 +122,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         if (!disposed && !frameId) frameId = requestAnimationFrame(render);
       };
       const runtime: SceneRuntime = {
-        renderer, scene, camera, controls, model: null, wall, ambient, key, fill,
-        distance: 1800, requestRender, bounds: new THREE.Box3(), brickTexture,
+        renderer, scene, camera, controls, model: null, ambient, key, fill,
+        distance: 1800, requestRender, bounds: new THREE.Box3(),
         fitToView() {
           if (!runtime.model || runtime.bounds.isEmpty()) return;
           camera.updateMatrixWorld();
@@ -222,8 +213,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         currentControls.removeEventListener("change", requestRender);
         currentControls.dispose();
         if (runtime.model) disposeSignObject(runtime.model);
-        disposeSignObject(wall);
-        brickTexture.dispose();
+        environment.dispose();
         key.shadow.dispose();
         currentRenderer.renderLists.dispose();
         currentRenderer.dispose();
@@ -245,8 +235,9 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     const runtime = runtimeRef.current;
     if (!runtime || unavailable) return;
     const version = ++buildRef.current;
+    if (hostRef.current) delete hostRef.current.dataset.renderedFont;
     setLoading(true);
-    void buildSignModel(project, layout, width, height, depth, showDimensions).then((model) => {
+    void buildSignModel(modelProject, layout, width, height, depth, showDimensions).then((model) => {
       if (version !== buildRef.current || runtime !== runtimeRef.current) {
         disposeSignObject(model); return;
       }
@@ -256,28 +247,13 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         disposeSignObject(runtime.model);
       }
       runtime.model = model;
+      if (hostRef.current) { hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId; }
       runtime.scene.add(model);
       runtime.bounds.setFromObject(model);
-      const night = project.sceneMode === "night";
-      (runtime.wall.material as THREE.MeshStandardMaterial).color.set(night ? "#596773" : "#e9eae5");
-      if (project.productId === "panel") {
-        const mount = panelConstruction(project.panelSize, project.panelShape, project.panelWallGap, project.panelCornerRadius);
-        runtime.wall.rotation.y = Math.PI / 2;
-        runtime.wall.scale.set(project.panelSize * 3, project.panelSize * 5, 1);
-        runtime.wall.position.set(mount.wallX - 0.1, 0, depth / 2);
-        runtime.brickTexture.repeat.set(project.panelSize * 3 / 1024, project.panelSize * 5 / 1024);
-        (runtime.wall.material as THREE.MeshStandardMaterial).map = runtime.brickTexture;
-      } else {
-        (runtime.wall.material as THREE.MeshStandardMaterial).map = null;
-        runtime.wall.rotation.y = 0;
-        runtime.wall.scale.set(Math.max(width * 4, height * 5), Math.max(height * 5, width * 1.5), 1);
-        runtime.wall.position.set(0, 0, project.mountMode === "acp" ? -project.acpDepth - 2 : -2);
-      }
-      (runtime.wall.material as THREE.MeshStandardMaterial).needsUpdate = true;
-      runtime.ambient.intensity = night ? 0.65 : 2;
-      runtime.key.intensity = night ? 0.65 : 3.2;
-      runtime.fill.intensity = night ? 0.35 : 1.2;
-      runtime.renderer.toneMappingExposure = night ? 0.9 : 1.1;
+      applySignLighting(model, lightFraction.current);
+      runtime.ambient.intensity = .65 - lightFraction.current * .5;
+      runtime.key.intensity = 1.1 - lightFraction.current * .95;
+      runtime.fill.intensity = .3 - lightFraction.current * .22;
       runtime.key.position.set(-width * 0.35, height * 2.4, Math.max(width, height) * 1.5);
       runtime.fill.position.set(width * 0.8, height * 0.3, Math.max(width, height));
       const shadow = runtime.key.shadow.camera;
@@ -294,7 +270,30 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       unavailableRef.current?.();
     });
     return () => { if (version === buildRef.current) buildRef.current++; };
-  }, [project, layout, width, height, depth, showDimensions, unavailable]);
+  }, [modelProject, layout, width, height, depth, showDimensions, unavailable]);
+
+  useEffect(() => {
+    const target = project.sceneMode === 'night' ? 1 : 0;
+    const from = lightFraction.current, start = performance.now();
+    const duration = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 750;
+    let frame = 0;
+    const step = (now: number) => {
+      const runtime = runtimeRef.current; if (!runtime) return;
+      const t = duration ? Math.min(1, (now - start) / duration) : 1;
+      const eased = t * t * (3 - 2 * t);
+      lightFraction.current = from + (target - from) * eased;
+      const amount = lightFraction.current;
+      runtime.ambient.intensity = .65 - amount * .5;
+      runtime.key.intensity = 1.1 - amount * .95;
+      runtime.fill.intensity = .3 - amount * .22;
+      runtime.renderer.toneMappingExposure = 1.1 - amount * .2;
+      if (runtime.model) applySignLighting(runtime.model, amount);
+      runtime.requestRender();
+      if (t < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [project.sceneMode]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
