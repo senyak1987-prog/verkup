@@ -17,6 +17,23 @@ const sizing=load('neonSizing',{'./neonConstruction':neon});
 const scene=load('neonScene',{three:THREE,'./neonConstruction':neon});
 const dispose=model=>model.traverse(child=>{child.geometry?.dispose();for(const material of Array.isArray(child.material)?child.material:child.material?[child.material]:[])material.dispose();});
 
+function curveStats(paths,diameter) {
+  let maxChord=0,totalTurn=0,tightTurn=0,minRadius=Infinity;
+  for(const path of paths) {
+    for(let index=1;index<path.length;index++)maxChord=Math.max(maxChord,Math.hypot(path[index][0]-path[index-1][0],path[index][1]-path[index-1][1]));
+    for(let index=1;index<path.length-1;index++) {
+      const a=path[index-1],b=path[index],c=path[index+1];
+      const ab=Math.hypot(b[0]-a[0],b[1]-a[1]),bc=Math.hypot(c[0]-b[0],c[1]-b[1]),ac=Math.hypot(c[0]-a[0],c[1]-a[1]);
+      const cross=Math.abs((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]));
+      if(cross<.00001||!ab||!bc)continue;
+      const radius=ab*bc*ac/(2*cross);
+      const turn=Math.acos(Math.max(-1,Math.min(1,((b[0]-a[0])*(c[0]-b[0])+(b[1]-a[1])*(c[1]-b[1]))/(ab*bc))));
+      totalTurn+=turn;if(radius<diameter*2)tightTurn+=turn;minRadius=Math.min(minRadius,radius);
+    }
+  }
+  return {maxChord,totalTurn,tightTurnFraction:totalTurn?tightTurn/totalTurn:0,minRadius};
+}
+
 test('Adaptive cubic sampling retains small loops and does not waste samples on straight stems',()=>{
   const curved=fonts.sampleStrokePath('M0 0C100 100 -100 100 0 0')[0];
   const straight=fonts.sampleStrokePath('M0 0C30 0 70 0 100 0')[0];
@@ -24,6 +41,60 @@ test('Adaptive cubic sampling retains small loops and does not waste samples on 
   assert.ok(curved.length>40);
   assert.ok(Math.max(...curved.map(p=>p[1]))>=74.9);
   assert.deepEqual(curved[0],curved[curved.length-1]);
+});
+
+test('Script bowls distribute curvature across the stroke, rather than long chords joined by tiny fillets',()=>{
+  for(const font of fonts.EXTERNAL_NEON_FONTS.filter(font=>font.group==='Рукописные'))for(const diameter of [6,8]) {
+    const height=800,design=neon.createNeonDesign('O',height,diameter,font.id),stats=curveStats(design.paths,diameter);
+    assert.ok(stats.totalTurn>Math.PI,font.id+' retains its real bowl');
+    assert.ok(stats.maxChord<height*.07,font.id+' has no visible long polygon edge: '+stats.maxChord+' mm');
+    // Merely subdividing a polygon does not satisfy this test: its directional
+    // change remains concentrated in a series of minimum-radius corner arcs.
+    assert.ok(stats.tightTurnFraction<.15,font.id+' distributes curvature instead of hiding polygon corners: '+stats.tightTurnFraction);
+    assert.ok(stats.minRadius>=diameter/2-.02,font.id+' respects the physical tubing radius');
+  }
+});
+
+test('Allure LOVE preserves its original pen lifts and endpoints while rendering smooth at both scales',()=>{
+  const source=fs.readFileSync(new URL('../public/neon-fonts/EMSAllure.svg',import.meta.url),'utf8'),data=fonts.getNeonFont('allure');
+  let expected=0;
+  for(const char of 'LOVE') {
+    const tag=source.match(new RegExp('<glyph\\b[^>]*unicode="'+char+'"[^>]*>'))?.[0],definition=tag?.match(/d="([^"]*)"/)?.[1];
+    assert.ok(definition,char+' exists in the original font source');
+    const original=fonts.sampleStrokePath(definition);
+    expected+=original.length;
+    assert.equal(data.glyphs[char].paths.length,original.length,char+' keeps every genuine pen lift');
+    original.forEach((path,index)=>{
+      assert.deepEqual(data.glyphs[char].paths[index][0],path[0],char+' keeps its start');
+      assert.deepEqual(data.glyphs[char].paths[index].at(-1),path.at(-1),char+' keeps its end');
+    });
+  }
+  for(const height of [120,800])for(const diameter of [6,8]) {
+    const design=neon.createNeonDesign('LOVE',height,diameter,'allure');
+    assert.equal(design.paths.length,expected,'smoothing does not replace or split the selected font');
+    assert.ok(design.paths.every(path=>path.flat().every(Number.isFinite)));
+    assert.ok(design.cuts.every(cut=>cut.cutMm>0&&cut.cutMm%10===0));
+    const originalBowl=neon.createNeonDesign('O',height,diameter,'allure'),bowl=curveStats(originalBowl.paths,diameter);
+    assert.ok(bowl.maxChord<height*.06,'Allure O has no large straight polygon edge at '+height+' mm');
+    assert.ok(bowl.tightTurnFraction<.15,'Allure O has continuous curvature at '+height+' mm');
+    if(height===800)for(const ratio of [.5,1.5]) {
+      const stretched=neon.createNeonDesign('O',height,diameter,'allure','center',{targetWidth:originalBowl.width*ratio}),stats=curveStats(stretched.paths,diameter);
+      assert.equal(stretched.paths.length,originalBowl.paths.length);
+      assert.ok(stats.maxChord<height*.06,'width stretching retains the curve rather than rebuilding a polygon');
+      assert.ok(stats.tightTurnFraction<.15,'width stretching does not concentrate curvature in tiny corners');
+      assert.ok(stats.minRadius>=diameter/2-.02,'a stretched bowl still has fabricable bends');
+    }
+  }
+});
+
+test('Angular modern lettering keeps deliberate straight stems and its original endpoint direction',()=>{
+  const height=800,diameter=8,data=fonts.getNeonFont('tech'),source=data.glyphs.V.paths[0];
+  const design=neon.createNeonDesign('V',height,diameter,'tech'),path=design.paths[0],stats=curveStats(design.paths,diameter);
+  assert.equal(design.paths.length,data.glyphs.V.paths.length);
+  assert.ok(stats.maxChord>height*.65,'the two straight arms of the modern V do not become script swashes');
+  assert.ok(Math.abs((path.at(-1)[0]-path[0][0])-(source.at(-1)[0]-source[0][0])*height/data.capHeight)<.00001);
+  assert.ok(Math.abs((path.at(-1)[1]-path[0][1])+(source.at(-1)[1]-source[0][1])*height/data.capHeight)<.00001);
+  assert.ok(stats.minRadius>=diameter/2-.02,'the deliberate vertex is still a fabricable bend');
 });
 
 test('Every font keeps its actual pen lifts, without introducing fragments at any allowed size',()=>{
@@ -53,7 +124,7 @@ test('Small simple lettering renders at 40 mm, while impossible four-millimeter 
     const design=neon.createNeonDesign('СВЕТ',40,8,font);
     assert.ok(design.paths.length&&design.cuts.every(cut=>cut.cutMm%10===0));
   }
-  assert.throws(()=>neon.createNeonDesign('8',40,8,'casual'),/Увеличьте высоту/);
+  assert.throws(()=>neon.createNeonDesign('О',4,8,'rounded'),/Увеличьте высоту/);
 });
 
 test('Three independent rows retain fonts, colors, scaling and millimeter offsets in both previews',()=>{
@@ -196,7 +267,7 @@ test('Tiny external punctuation dots keep their own visible capsules instead of 
   }
   const bowl=neon.createNeonDesign('O',120,8,'casual');
   assert.ok(bowl.paths[0].length>20,'a genuine bowl remains a full loop');
-  assert.throws(()=>neon.createNeonDesign('8',40,8,'casual'),/Увеличьте высоту/,'a physically impossible letter loop is not replaced by a dot');
+  assert.throws(()=>neon.createNeonDesign('О',4,8,'rounded'),/Увеличьте высоту/,'a physically impossible letter loop is not replaced by a dot');
 });
 
 test('Width fitting preserves physical spacing and row offsets at integer millimeter letter heights',()=>{
@@ -242,9 +313,10 @@ test('Suggested sizes depend on the actual text and every offered backer enclose
   assert.deepEqual(sizing.suggestNeonSizes('',8,'rounded'),[]);
 });
 
-test('Visible circular turns retain the physical 3 or 4 mm bend radius',()=>{
-  for(const radius of [3,4]) {
-    const path=neon.roundNeonCorners([[0,100],[0,0],[100,0]],radius);
+test('Visible circular turns retain the physical 3 or 4 mm bend radius even in smooth-curve mode',()=>{
+  for(const radius of [3,4])for(const preserveSmooth of [false,true]) {
+    const path=neon.roundNeonCorners([[0,100],[0,0],[100,0]],radius,preserveSmooth);
+    assert.ok(!path.some(([x,y])=>Math.hypot(x,y)<.00001),'a sparse right angle is not mistaken for a broad smooth curve');
     const arc=path.slice(1,-1);
     assert.ok(arc.length>12);
     for(const [x,y] of arc)assert.ok(Math.abs(Math.hypot(x-radius,y-radius)-radius)<.00001);
