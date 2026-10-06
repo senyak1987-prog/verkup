@@ -21,10 +21,10 @@ const fonts = new Map(contourApi.SIGN_FONTS.filter(entry => entry.file).map(entr
 }));
 const selected = ['Manrope, sans-serif', '"Playfair Display", serif', '"Russo One", sans-serif'];
 const near = (actual, expected, message, tolerance = .001) => assert.ok(Math.abs(actual - expected) < tolerance, `${message}: ${actual} vs ${expected}`);
-test('Физический размер логотипа независим от строк и ограничен 90 мм',()=>{
-  for(const requested of [20,65,90,900]){
+test('Физический размер логотипа независим от строк и ограничен 900 мм',()=>{
+  for(const requested of [20,65,90,900,1200]){
     const result=layout(fixture({logoSizeMm:requested}));
-    near(result.logoBox.height,Math.min(90,requested),'Logo height');
+    near(result.logoBox.height,Math.min(900,requested),'Logo height');
     near(result.logoBox.width,result.logoBox.height,'Square artwork proportions');
   }
 });
