@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { facadeRects, FACADE_SIGN_ANCHOR } from './signFacade';
+import { facadeRects, facadeSignPlacement, FACADE_SIGN_ANCHOR } from './signFacade';
 import type { FacadeOptions, FacadeRect, SignPlacement } from './signFacade';
 import { isPanelCornerMount, panelMountLayout } from './panelConstruction';
 import type { PanelMountMode } from './panelConstruction';
@@ -34,9 +34,9 @@ function masonryTexture(): { color: THREE.CanvasTexture; bump: THREE.CanvasTextu
   return { color, bump };
 }
 
-function wallGeometry(rects: FacadeRect[]) {
+function wallGeometry(rects: FacadeRect[], anchor: { x: number; y: number }) {
   const wall = rects.find(r => r.kind === 'wall')!;
-  const { x: anchorX, y: anchorY } = FACADE_SIGN_ANCHOR;
+  const { x: anchorX, y: anchorY } = anchor;
   const left = wall.x - anchorX, right = left + wall.w;
   const top = anchorY - wall.y, bottom = top - wall.h;
   const shape = new THREE.Shape();
@@ -83,16 +83,20 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     return group;
   }
   if (place === 'none') return group;
-  const { x: anchorX, y: anchorY } = FACADE_SIGN_ANCHOR;
-  const anchorZ = -Math.max(0, options.signBackMm ?? 20) - 4;
+  const placement = facadeSignPlacement(place, _signWidth, _signHeight, options.signBackMm);
+  const { x: anchorX, y: anchorY } = panelWallSurface ? FACADE_SIGN_ANCHOR : placement.anchor;
+  const anchorZ = placement.surface.frontZ;
   const palette = options.palette ?? 'stone';
   const mountSurface = (r: FacadeRect) => !panelWallSurface || !['sign-mounting-band', 'sign-band-bottom', 'canopy-sign-upright'].includes(r.name ?? '');
-  const dayRects = facadeRects(place, false, options).filter(mountSurface), nightRects = facadeRects(place, true, options).filter(mountSurface);
+  const dayRects = facadeRects(place, false, options, panelWallSurface).filter(mountSurface), nightRects = facadeRects(place, true, options, panelWallSurface).filter(mountSurface);
   const materials = new Map<string, THREE.MeshStandardMaterial>();
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const leafGeometry = new THREE.SphereGeometry(.5, 10, 7);
   const masonry = palette === 'brick' ? masonryTexture() : undefined;
   group.userData.palette = palette; group.userData.signMountZ = anchorZ;
+  group.userData.signAnchor = { x: anchorX, y: anchorY };
+  group.userData.signFitsSurface = placement.fits;
+  group.userData.signMountSurface = place === 'canopy' && !panelWallSurface ? 'canopy-frieze' : 'wall';
   let windowCount = 0;
 
   for (const [index, r] of dayRects.entries()) {
@@ -129,7 +133,7 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     }
     let mesh: THREE.Mesh;
     if (kind === 'wall') {
-      mesh = new THREE.Mesh(wallGeometry(dayRects), material);
+      mesh = new THREE.Mesh(wallGeometry(dayRects, { x: anchorX, y: anchorY }), material);
       mesh.position.z = anchorZ + (r.z ?? 0) - (r.depth ?? 200);
     } else {
       const organic = kind === 'foliage' || kind === 'flower';

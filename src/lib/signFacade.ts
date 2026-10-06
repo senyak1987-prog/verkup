@@ -14,6 +14,7 @@ export const FACADE_PALETTES = [
 export type FacadePalette = typeof FACADE_PALETTES[number]['id'];
 export const FACADE_SIGN_ANCHOR = { x: 3900, y: 800 } as const;
 export const FACADE_VIEWBOX = { x: 0, y: 0, width: 7800, height: 4050 } as const;
+export const CANOPY_FRIEZE = { x: 2150, y: 630, width: 3500, height: 700, frontZ: 0, marginMm: 50 } as const;
 export type FacadeSignBox = { x: number; y: number; width: number; height: number };
 export type FacadeOptions = { palette?: FacadePalette; signBackMm?: number; signBox?: FacadeSignBox; panelMount?: ReturnType<typeof panelMountLayout>;
   windowLights?: boolean; windowLightLevel?: number };
@@ -23,6 +24,21 @@ export type FacadeRect = {
   z?: number; depth?: number; kind?: 'wall' | 'opening' | 'glass' | 'foliage' | 'flower' | 'lamp';
   name?: string; rotation?: number; radius?: number;
 };
+
+/** The architecture stays full size. A sign that exceeds the frieze keeps its actual dimensions. */
+export function facadeSignPlacement(place: SignPlacement, width: number, height: number, signBackMm = 20) {
+  const anchor = place === 'canopy'
+    ? { x: CANOPY_FRIEZE.x + CANOPY_FRIEZE.width / 2, y: CANOPY_FRIEZE.y + CANOPY_FRIEZE.height / 2 }
+    : { ...FACADE_SIGN_ANCHOR };
+  const rearMm = Math.max(0, Number.isFinite(signBackMm) ? signBackMm : 0), clearanceMm = 4;
+  const maxWidthMm = place === 'canopy' ? CANOPY_FRIEZE.width - CANOPY_FRIEZE.marginMm * 2 : 7200;
+  const maxHeightMm = place === 'canopy' ? CANOPY_FRIEZE.height - CANOPY_FRIEZE.marginMm * 2 : 710;
+  const surface = place === 'canopy'
+    ? { x: CANOPY_FRIEZE.x, y: CANOPY_FRIEZE.y, width: CANOPY_FRIEZE.width, height: CANOPY_FRIEZE.height, frontZ: -rearMm - clearanceMm }
+    : { x: 300, y: 430, width: 7200, height: 710, frontZ: -rearMm - clearanceMm };
+  return { anchor, surface, signRearZ: -rearMm, clearanceMm, maxWidthMm, maxHeightMm,
+    fits: Number.isFinite(width) && Number.isFinite(height) && width > 0 && height > 0 && width <= maxWidthMm && height <= maxHeightMm };
+}
 
 export const FACADE_COLORS = {
   stone: { wall: '#ddd7cd', joint: '#c8c0b4', trim: '#e8e1d7', frame: '#39444a', glass: '#5d7781', fascia: '#444c50', wood: '#a58261', ground: '#b3ada4', planter: '#877366' },
@@ -36,7 +52,7 @@ function nightColor(hex: string, night: boolean, amount = .58) {
 }
 
 /** One architectural description supplies the SVG and the 3D model. No coplanar glass/frame surfaces. */
-export function facadeRects(place: SignPlacement, night: boolean, options: FacadeOptions = {}): FacadeRect[] {
+export function facadeRects(place: SignPlacement, night: boolean, options: FacadeOptions = {}, panelWallSurface = false): FacadeRect[] {
   const palette = options.palette ?? 'stone', c = FACADE_COLORS[palette];
   const wallZ = place === 'canopy' ? -1500 : 0;
   const rects: FacadeRect[] = [];
@@ -101,16 +117,30 @@ export function facadeRects(place: SignPlacement, night: boolean, options: Facad
   }
 
   if (place === 'canopy') {
-    // 3.5 m roof, projecting 1.5 m. Letters stand above its leading edge.
-    add(2150, 1150, 3500, 180, '#6e7578', 0, 1500, 'canopy-roof');
-    add(2150, 1180, 3500, 150, c.fascia, 0, 80, 'canopy-fascia');
-    add(2150, 1330, 3500, 30, '#c6b396', -60, 1380, 'canopy-soffit');
-    for (const [side, x] of [['left', 2250], ['right', 5470]] as const) {
-      add(x, 1330, 80, 2660, c.frame, -50, 80, 'canopy-column-' + side);
-      add(x - 45, 3960, 170, 30, '#51585c', -10, 170, 'canopy-column-base-' + side);
-      add(x, 1290, 80, 40, c.frame, -50, 1450, 'canopy-side-beam-' + side);
+    if (options.panelMount || panelWallSurface) {
+      // Perpendicular panels remain anchored to their existing wall/corner planes.
+      add(2150, 1150, 3500, 180, '#6e7578', 0, 1500, 'canopy-roof');
+      add(2150, 1180, 3500, 150, c.fascia, 0, 80, 'canopy-fascia');
+      add(2150, 1330, 3500, 30, '#c6b396', -60, 1380, 'canopy-soffit');
+      for (const [side, x] of [['left', 2250], ['right', 5470]] as const) {
+        add(x, 1330, 80, 2660, c.frame, -50, 80, 'canopy-column-' + side);
+        add(x - 45, 3960, 170, 30, '#51585c', -10, 170, 'canopy-column-base-' + side);
+        add(x, 1290, 80, 40, c.frame, -50, 1450, 'canopy-side-beam-' + side);
+      }
+      for (const x of [3000, 4780]) add(x, 1060, 20, 90, c.frame, -10, 30, 'canopy-sign-upright');
+    } else {
+      // A hollow canopy: the upper roof sheet and vertical front frieze do not share coplanar faces.
+      add(CANOPY_FRIEZE.x, CANOPY_FRIEZE.y - 30, CANOPY_FRIEZE.width, 30, '#6e7578', 0, 1500, 'canopy-roof');
+      add(CANOPY_FRIEZE.x, CANOPY_FRIEZE.y, CANOPY_FRIEZE.width, CANOPY_FRIEZE.height, c.fascia, 0, 80, 'canopy-fascia');
+      add(CANOPY_FRIEZE.x, CANOPY_FRIEZE.y + CANOPY_FRIEZE.height, CANOPY_FRIEZE.width, 30, '#c6b396', -60, 1380, 'canopy-soffit');
+      add(CANOPY_FRIEZE.x, CANOPY_FRIEZE.y, CANOPY_FRIEZE.width, 80, c.frame, -1420, 80, 'canopy-rear-beam');
+      for (const [side, x] of [['left', 2250], ['right', 5470]] as const) {
+        add(x, 1360, 80, 2630, c.frame, -50, 80, 'canopy-column-' + side);
+        add(x - 45, 3960, 170, 30, '#51585c', -10, 170, 'canopy-column-base-' + side);
+        const returnX = side === 'left' ? CANOPY_FRIEZE.x : CANOPY_FRIEZE.x + CANOPY_FRIEZE.width - 80;
+        add(returnX, CANOPY_FRIEZE.y, 80, CANOPY_FRIEZE.height, c.frame, -80, 1420, 'canopy-side-return-' + side);
+      }
     }
-    for (const x of [3000, 4780]) add(x, 1060, 20, 90, c.frame, -10, 30, 'canopy-sign-upright');
   } else {
     add(300, 430, 7200, 710, palette === 'charcoal' ? '#555f67' : palette === 'brick' ? '#e0d4c3' : '#eee8de', wallZ + 3, 7, 'sign-mounting-band');
     add(300, 1140, 7200, 12, c.joint, wallZ + 5, 12, 'sign-band-bottom');
@@ -183,14 +213,15 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
   const view = markup.match(/\bviewBox=["']([^"']+)["']/)?.[1].trim().split(/[\s,]+/).map(Number);
   const [vx, vy, vw, vh] = view?.length === 4 && view.every(Number.isFinite) && view[2] > 0 && view[3] > 0 ? view : [0, 0, 1800, 300];
   const signBox = options.signBox ?? { x: vx, y: vy, width: vw, height: vh };
-  const x = FACADE_SIGN_ANCHOR.x - signBox.x - signBox.width / 2 + vx;
-  const y = FACADE_SIGN_ANCHOR.y - signBox.y - signBox.height / 2 + vy;
+  const placement = facadeSignPlacement(place, signBox.width, signBox.height, options.signBackMm);
+  const x = placement.anchor.x - signBox.x - signBox.width / 2 + vx;
+  const y = placement.anchor.y - signBox.y - signBox.height / 2 + vy;
   // Each SVG unit is already a millimetre. Keep export margins and dimension lines at the same scale.
   const inner = markup.replace(/^<\?xml[^>]*\?>\s*/, '').replace(/<svg\b([^>]*)>/, (_tag, attrs: string) => `<svg x="${x}" y="${y}" width="${vw}" height="${vh}" data-facade-sign="true" data-sign-width="${signBox.width}" data-sign-height="${signBox.height}" ` + attrs.replace(/\s(?:width|height)="[^"]*"/g, '') + '>')
     .replace(/id="([^"]+)"/g, (_a, id: string) => `id="${safePrefix}-${id}"`).replace(/url\(#([^\)]+)\)/g, (_a, id: string) => `url(#${safePrefix}-${id})`);
   const left = Math.min(0, x), top = Math.min(0, y);
   const width = Math.max(FACADE_VIEWBOX.width, x + vw) - left, height = Math.max(FACADE_VIEWBOX.height, y + vh) - top;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" data-facade-mm="true" data-facade-night="${night}" data-window-lights="${windowsOn}" data-window-light-level="${windowLevel}" role="img" aria-label="Размещение: ${SIGN_PLACEMENTS.find(p => p.id === place)?.title}. Дверь 1100 на 2100 мм${place === 'canopy' ? ', козырёк с выносом 1500 мм' : ''}">${defs}${rendered}${inner}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" data-facade-mm="true" data-facade-night="${night}" data-window-lights="${windowsOn}" data-window-light-level="${windowLevel}" data-sign-anchor="${placement.anchor.x} ${placement.anchor.y}" data-sign-fits-surface="${placement.fits}" role="img" aria-label="Размещение: ${SIGN_PLACEMENTS.find(p => p.id === place)?.title}. Дверь 1100 на 2100 мм${place === 'canopy' ? ', вывеска на переднем фризе козырька с выносом 1500 мм' : ''}">${defs}${rendered}${inner}</svg>`;
 }
 
 /** Axonometric construction view, using the same wall planes and panel pose as WebGL. */
@@ -244,8 +275,8 @@ function createPanelFacadeSvg(place:SignPlacement,markup:string,night:boolean,pr
   };
   // Project the housing and brackets onto the actual wall planes along one light ray.
   const cast=(point:[number,number,number],wall:'front'|'side')=>{
-    // Same direction as the scene key light: (-.55, +.9, +1.4) toward its target.
-    const sunX=.55/1.4,sunY=.9/1.4;
+    // Default editable scene light: (-1.28, +1.2, +2.8) toward the construction.
+    const sunX=1.28/2.8,sunY=1.2/2.8;
     const distance=wall==='front'?point[2]:-point[0]/sunX;
     if(distance<0)return undefined;
     return project([point[0]+sunX*distance,point[1]-sunY*distance,point[2]-distance]);
