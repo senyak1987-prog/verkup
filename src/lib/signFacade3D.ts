@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { facadeRects, FACADE_SIGN_ANCHOR } from './signFacade';
 import type { FacadeOptions, FacadeRect, SignPlacement } from './signFacade';
-import { panelMountLayout } from './panelConstruction';
+import { isPanelCornerMount, panelMountLayout } from './panelConstruction';
 import type { PanelMountMode } from './panelConstruction';
 
 type PanelFacadeMount = { mode: PanelMountMode; size: number; depth: number; gap: number; shape?: string; cornerRadius?: number };
@@ -63,7 +63,7 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     const wallShift = 4 + (place === 'canopy' ? 1500 : 0);
     const front = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, true);
     front.position.z = wallShift;
-    if (panel.mode === 'corner') {
+    if (isPanelCornerMount(panel.mode)) {
       front.name = 'facade-front'; front.position.x = -3900;
       const side = createFacadeModel(place, _signWidth, _signHeight, { palette: options.palette, signBackMm: 0 }, true);
       side.name = 'facade-side'; side.rotation.y = Math.PI / 2;
@@ -140,7 +140,7 @@ export function createPanelMountContext(panel: PanelFacadeMount, palette: Facade
     wall.position.set(x, 0, z); wall.name = name; wall.receiveShadow = true;
     wall.userData.facadeKind = 'wall'; group.add(wall);
   };
-  if (panel.mode === 'corner') {
+  if (isPanelCornerMount(panel.mode)) {
     addWall('panel-context-front-wall', span, thickness, -span / 2, -thickness / 2);
     addWall('panel-context-side-wall', thickness, span, -thickness / 2, -span / 2);
   } else addWall('panel-context-front-wall', span, thickness, 0, -thickness / 2);
