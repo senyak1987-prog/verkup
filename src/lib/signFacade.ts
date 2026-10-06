@@ -15,7 +15,8 @@ export type FacadePalette = typeof FACADE_PALETTES[number]['id'];
 export const FACADE_SIGN_ANCHOR = { x: 3900, y: 800 } as const;
 export const FACADE_VIEWBOX = { x: 0, y: 0, width: 7800, height: 4050 } as const;
 export type FacadeSignBox = { x: number; y: number; width: number; height: number };
-export type FacadeOptions = { palette?: FacadePalette; signBackMm?: number; signBox?: FacadeSignBox; panelMount?: ReturnType<typeof panelMountLayout> };
+export type FacadeOptions = { palette?: FacadePalette; signBackMm?: number; signBox?: FacadeSignBox; panelMount?: ReturnType<typeof panelMountLayout>;
+  windowLights?: boolean; windowLightLevel?: number };
 export type FacadeRect = {
   x: number; y: number; w: number; h: number; color: string;
   /** Millimetres. Front surface relative to the sign mounting surface. */
@@ -141,19 +142,42 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
   const safePrefix = prefix.replace(/[^a-zA-Z0-9_-]/g, '-');
   const palette = options.palette ?? 'stone', c = FACADE_COLORS[palette];
   const rects = facadeRects(place, night, options).filter(r=>!options.panelMount||!['sign-mounting-band','sign-band-bottom','canopy-sign-upright'].includes(r.name??''));
-  const glass = night ? ['#bba078', '#75674e', '#d6bc8c'] : ['#5e7d8e', '#8498a0', '#354c5a'];
+  const windowsOn = night && (options.windowLights ?? night);
+  const windowLevel = windowsOn ? Math.max(0, Math.min(1, Number.isFinite(options.windowLightLevel) ? options.windowLightLevel! : 1)) : 0;
+  const glass = night ? ['#253844', '#34424a', '#15232d'] : ['#7893a3', '#557482', '#273e4b'];
+  const glazing = rects.filter(r => r.kind === 'glass');
+  const reliefRects = rects.filter(r => r.name === 'cornice' || r.name?.includes('stone-reveal') || r.name?.includes('-sill') || r.name?.startsWith('entrance-step') || r.name?.startsWith('canopy-') || r.name === 'planter-box' || r.name === 'wall-lamp');
   const defs = `<defs>
-    <linearGradient id="${safePrefix}-glass" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="${glass[0]}"/><stop offset=".47" stop-color="${glass[1]}"/><stop offset="1" stop-color="${glass[2]}"/></linearGradient>
-    <pattern id="${safePrefix}-brick" patternUnits="userSpaceOnUse" width="480" height="156"><rect width="480" height="156" fill="${nightColor(c.joint, night)}"/><path d="M5 5H235V73H5ZM245 5H475V73H245ZM-115 83H115V151H-115ZM125 83H355V151H125ZM365 83H595V151H365Z" fill="${nightColor(c.wall, night)}"/><path d="M5 5H235M245 5H475M125 83H355" stroke="${nightColor('#d39777', night)}" stroke-width="4"/></pattern>
+    <linearGradient id="${safePrefix}-glass" x1=".12" y1="0" x2=".82" y2="1"><stop stop-color="${glass[0]}"/><stop offset=".38" stop-color="${glass[1]}"/><stop offset="1" stop-color="${glass[2]}"/></linearGradient>
+    <linearGradient id="${safePrefix}-glass-reflection" x1="0" y1=".1" x2="1" y2=".7"><stop stop-color="#e8f0f2" stop-opacity="0"/><stop offset=".35" stop-color="#e8f0f2" stop-opacity=".05"/><stop offset=".52" stop-color="#eef5f5" stop-opacity=".22"/><stop offset=".68" stop-color="#d7e3e7" stop-opacity=".07"/><stop offset="1" stop-color="#b0c5cf" stop-opacity="0"/></linearGradient>
+    <linearGradient id="${safePrefix}-window-warm" x1="0" y1="0" x2=".25" y2="1"><stop stop-color="#96764d"/><stop offset=".3" stop-color="#d9b276"/><stop offset=".72" stop-color="#b59262"/><stop offset="1" stop-color="#72604b"/></linearGradient>
+    <radialGradient id="${safePrefix}-window-lamp" cx=".5" cy=".02" r=".85"><stop stop-color="#fff3cc" stop-opacity=".60"/><stop offset=".5" stop-color="#ffe5aa" stop-opacity=".16"/><stop offset="1" stop-color="#ffe5aa" stop-opacity="0"/></radialGradient>
+    <linearGradient id="${safePrefix}-wall-shade" x1="0" y1="0" x2=".4" y2="1"><stop stop-color="#fffdf7" stop-opacity="${night ? '.015' : '.12'}"/><stop offset=".5" stop-color="#f5eee1" stop-opacity="0"/><stop offset="1" stop-color="#1c2831" stop-opacity="${night ? '.14' : '.09'}"/></linearGradient>
+    <linearGradient id="${safePrefix}-panel-housing" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="${night ? '#596670' : '#74838d'}"/><stop offset=".23" stop-color="${night ? '#36444f' : '#495b68'}"/><stop offset=".72" stop-color="${night ? '#23323e' : '#2b3d4a'}"/><stop offset="1" stop-color="${night ? '#37434c' : '#596670'}"/></linearGradient>
+    ${reliefRects.map((r, index) => `<filter id="${safePrefix}-architectural-shadow-${index}" filterUnits="userSpaceOnUse" x="${r.x - 55}" y="${r.y - 40}" width="${r.w + 120}" height="${r.h + 120}" color-interpolation-filters="sRGB"><feDropShadow dx="16" dy="26" stdDeviation="10" flood-color="#17212a" flood-opacity="${night ? '.11' : '.23'}"/></filter>`).join('')}
+    <filter id="${safePrefix}-panel-shadow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="18"/></filter>
+    <pattern id="${safePrefix}-brick" patternUnits="userSpaceOnUse" width="480" height="156"><rect width="480" height="156" fill="${nightColor(c.joint, night)}"/><path d="M5 5H235V73H5ZM245 5H475V73H245ZM-115 83H115V151H-115ZM125 83H355V151H125ZM365 83H595V151H365Z" fill="${nightColor(c.wall, night)}"/></pattern>
+    ${glazing.map((r, index) => `<clipPath id="${safePrefix}-window-clip-${index}"><rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}"/></clipPath>`).join('')}
   </defs>`;
   const wallOpenings = rects.filter(r => r.kind === 'opening');
   const wall = rects[0];
   const wallPath = `M${wall.x} ${wall.y}H${wall.x + wall.w}V${wall.y + wall.h}H${wall.x}Z${wallOpenings.map(r => `M${r.x} ${r.y}V${r.y + r.h}H${r.x + r.w}V${r.y}Z`).join('')}`;
+  let windowIndex = 0;
   const rendered = rects.map(r => {
-    if (r.kind === 'wall') return `<path d="${wallPath}" fill="${palette === 'brick' ? `url(#${safePrefix}-brick)` : wall.color}" fill-rule="evenodd"/>`;
+    if (r.kind === 'wall') return `<path d="${wallPath}" fill="${wall.color}" fill-rule="evenodd"/>${palette === 'brick' ? `<path d="${wallPath}" fill="url(#${safePrefix}-brick)" fill-rule="evenodd" opacity=".35"/>` : ''}<path d="${wallPath}" fill="url(#${safePrefix}-wall-shade)" fill-rule="evenodd"/>`;
     if (r.kind === 'foliage' || r.kind === 'flower') return `<ellipse cx="${r.x + r.w / 2}" cy="${r.y + r.h / 2}" rx="${r.w / 2}" ry="${r.h / 2}" fill="${r.color}" transform="rotate(${r.rotation ?? 0} ${r.x + r.w / 2} ${r.y + r.h / 2})"/>`;
-    if (r.kind === 'glass') return `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#${safePrefix}-glass)"/><path d="M${r.x + r.w * .17} ${r.y}L${r.x + r.w * .50} ${r.y + r.h}M${r.x + r.w * .26} ${r.y}L${r.x + r.w * .59} ${r.y + r.h}" stroke="${night ? '#fff2cf' : '#dce5e8'}" stroke-width="${r.w * .055}" opacity="${night ? '.045' : '.09'}"/>`;
-    return `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.color}" data-facade-part="${r.name}"${r.kind === 'lamp' ? ' rx="7"' : ''}/>`;
+    if (r.kind === 'glass') {
+      const index = windowIndex++, x = r.x, y = r.y, w = r.w, h = r.h;
+      return `<g clip-path="url(#${safePrefix}-window-clip-${index})" data-facade-part="${r.name}">
+        <rect data-window-base="true" x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${safePrefix}-glass)"/>
+        <g data-window-light="true" data-window-index="${index}" style="--window-order:${index}" opacity="${windowLevel}"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${safePrefix}-window-warm)"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${safePrefix}-window-lamp)"/><path d="M${x + w * .12} ${y + h * .71}H${x + w * .54}V${y + h}H${x + w * .12}ZM${x + w * .73} ${y + h * .46}H${x + w * .84}V${y + h}H${x + w * .73}Z" fill="#4e463b" opacity=".15"/></g>
+        <g data-window-reflection="true" data-window-index="${index}" opacity="${night ? '.24' : '.82'}"><path d="M${x - w * .2} ${y}H${x + w * .2}L${x + w * .84} ${y + h}H${x + w * .45}Z" fill="url(#${safePrefix}-glass-reflection)"/><path d="M${x} ${y + h * .23}C${x + w * .25} ${y + h * .11} ${x + w * .68} ${y + h * .25} ${x + w} ${y + h * .14}V${y}H${x}Z" fill="#b9ccd6" opacity=".16"/><path d="M${x + w * .7} ${y + h * .46}H${x + w * .97}V${y + h}H${x + w * .7}ZM${x} ${y + h * .69}H${x + w * .17}V${y + h}H${x}Z" fill="#182e3d" opacity=".10"/></g>
+        <path d="M${x + 8} ${y + h - 8}V${y + 8}H${x + w - 8}" fill="none" stroke="#dce7e8" stroke-opacity="${night ? '.06' : '.17'}" stroke-width="7"/>
+      </g>`;
+    }
+    const reliefIndex = reliefRects.indexOf(r), relief = reliefIndex >= 0;
+    const shadow = relief ? ` filter="url(#${safePrefix}-architectural-shadow-${reliefIndex})"` : '';
+    return `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.color}" data-facade-part="${r.name}"${r.kind === 'lamp' ? ' rx="7"' : ''}${shadow}/>${relief && r.h > 35 ? `<path d="M${r.x + 2} ${r.y + 3}H${r.x + r.w - 2}" stroke="#f2ede1" stroke-width="5" opacity="${night ? '.035' : '.12'}"/>` : ''}`;
   }).join('');
   if(options.panelMount) return createPanelFacadeSvg(place,markup,night,safePrefix,options,defs,rendered);
   const view = markup.match(/\bviewBox=["']([^"']+)["']/)?.[1].trim().split(/[\s,]+/).map(Number);
@@ -166,7 +190,7 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
     .replace(/id="([^"]+)"/g, (_a, id: string) => `id="${safePrefix}-${id}"`).replace(/url\(#([^\)]+)\)/g, (_a, id: string) => `url(#${safePrefix}-${id})`);
   const left = Math.min(0, x), top = Math.min(0, y);
   const width = Math.max(FACADE_VIEWBOX.width, x + vw) - left, height = Math.max(FACADE_VIEWBOX.height, y + vh) - top;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" data-facade-mm="true" role="img" aria-label="Размещение: ${SIGN_PLACEMENTS.find(p => p.id === place)?.title}. Дверь 1100 на 2100 мм${place === 'canopy' ? ', козырёк с выносом 1500 мм' : ''}">${defs}${rendered}${inner}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" data-facade-mm="true" data-facade-night="${night}" data-window-lights="${windowsOn}" data-window-light-level="${windowLevel}" role="img" aria-label="Размещение: ${SIGN_PLACEMENTS.find(p => p.id === place)?.title}. Дверь 1100 на 2100 мм${place === 'canopy' ? ', козырёк с выносом 1500 мм' : ''}">${defs}${rendered}${inner}</svg>`;
 }
 
 /** Axonometric construction view, using the same wall planes and panel pose as WebGL. */
@@ -179,7 +203,10 @@ function createPanelFacadeSvg(place:SignPlacement,markup:string,night:boolean,pr
   const faceDefs=rename(markup.match(/<defs>[\s\S]*?<\/defs>/)?.[0]??'');
   const corner=isPanelCornerMount(mount.mode),anchorX=corner?7800:FACADE_SIGN_ANCHOR.x;
   const front=`<g data-mount-wall="front" transform="matrix(.94 .041 0 1 ${n(-.94*anchorX)} ${n(-FACADE_SIGN_ANCHOR.y-.041*anchorX)})">${facade}</g>`;
-  const side=corner?`<g data-mount-wall="side" transform="matrix(.342 -.113 0 1 0 ${-FACADE_SIGN_ANCHOR.y})">${facade}</g>`:'';
+  const windowCount=(facade.match(/data-window-light="true"/g)??[]).length;
+  const sideFacade=facade.replace(/data-window-index="(\d+)"/g,(_tag,index:string)=>`data-window-index="${Number(index)+windowCount}"`)
+    .replace(/--window-order:(\d+)/g,(_tag,index:string)=>`--window-order:${Number(index)+windowCount}`);
+  const side=corner?`<g data-mount-wall="side" transform="matrix(.342 -.113 0 1 0 ${-FACADE_SIGN_ANCHOR.y})">${sideFacade}</g>`:'';
   const c=Math.cos(mount.rotationY),s=Math.sin(mount.rotationY),back=s*.342+c*.94<0,z=back?0:mount.depth;
   const origin=project(panelMountPoint(mount,[0,0,z]));
   const vector=project([c,0,-s]),centerX=box.x+box.width/2,centerY=box.y+box.height/2;
@@ -197,21 +224,52 @@ function createPanelFacadeSvg(place:SignPlacement,markup:string,night:boolean,pr
     return `<polygon data-mount-plane="${plate.wall}" points="${points.map(p=>p.map(n).join(',')).join(' ')}" fill="${steel}"/>`;
   }).join('');
   const half=mount.size/2,r=mount.shape==='circle'?half:mount.radius;
-  const outline=mount.shape==='square'||!r?[[-half,-half],[half,-half],[half,half],[-half,half]]:Array.from({length:64},(_,i)=>{
-    const angle=i*Math.PI/32,x=Math.cos(angle),y=Math.sin(angle);return [Math.sign(x)*(half-r)+r*x,Math.sign(y)*(half-r)+r*y];
+  const outline=mount.shape==='square'||!r?[[-half,-half],[half,-half],[half,half],[-half,half]]:Array.from({length:128},(_,i)=>{
+    const angle=i*Math.PI/64,x=Math.cos(angle),y=Math.sin(angle);return [Math.sign(x)*(half-r)+r*x,Math.sign(y)*(half-r)+r*y];
   });
-  const physical=outline.flatMap(([x,y])=>[project(panelMountPoint(mount,[x,y,0])),project(panelMountPoint(mount,[x,y,mount.depth]))]);
+  const worldOutline=outline.flatMap(([x,y])=>[panelMountPoint(mount,[x,y,0]),panelMountPoint(mount,[x,y,mount.depth])]);
+  const physical=worldOutline.map(point=>project(point));
   const sorted=physical.sort((p,q)=>p[0]-q[0]||p[1]-q[1]);
   const cross=(o:number[],p:number[],q:number[])=>(p[0]-o[0])*(q[1]-o[1])-(p[1]-o[1])*(q[0]-o[0]);
   const lower:number[][]=[],upper:number[][]=[];
   for(const p of sorted){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],p)<=0)lower.pop();lower.push(p);}
   for(const p of [...sorted].reverse()){while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],p)<=0)upper.pop();upper.push(p);}
   const hull=[...lower.slice(0,-1),...upper.slice(0,-1)];
-  const body=`<polygon data-panel-housing="true" points="${hull.map(p=>p.map(n).join(',')).join(' ')}" fill="${night?'#35414a':'#45525c'}"/>`;
+  const body=`<polygon data-panel-housing="true" points="${hull.map(p=>p.map(n).join(',')).join(' ')}" fill="url(#${prefix}-panel-housing)" stroke="${night?'#66737b':'#89959a'}" stroke-width="3" stroke-linejoin="round"/>`;
+  const convex=(points:number[][])=>{
+    const ordered=[...points].sort((p,q)=>p[0]-q[0]||p[1]-q[1]),lo:number[][]=[],hi:number[][]=[];
+    for(const p of ordered){while(lo.length>=2&&cross(lo[lo.length-2],lo[lo.length-1],p)<=0)lo.pop();lo.push(p);}
+    for(const p of [...ordered].reverse()){while(hi.length>=2&&cross(hi[hi.length-2],hi[hi.length-1],p)<=0)hi.pop();hi.push(p);}
+    return [...lo.slice(0,-1),...hi.slice(0,-1)];
+  };
+  // Project the housing and brackets onto the actual wall planes along one light ray.
+  const cast=(point:[number,number,number],wall:'front'|'side')=>{
+    // Same direction as the scene key light: (-.55, +.9, +1.4) toward its target.
+    const sunX=.55/1.4,sunY=.9/1.4;
+    const distance=wall==='front'?point[2]:-point[0]/sunX;
+    if(distance<0)return undefined;
+    return project([point[0]+sunX*distance,point[1]-sunY*distance,point[2]-distance]);
+  };
+  const shadowPlanes=corner?['front','side'] as const:['front'] as const;
+  const shadowDefs=shadowPlanes.map(wall=>{
+    const corners=wall==='front'?(corner?[[-7800,800,0],[0,800,0],[0,-3250,0],[-7800,-3250,0]]:[[-3900,800,0],[3900,800,0],[3900,-3250,0],[-3900,-3250,0]])
+      :[[0,800,0],[0,800,-7800],[0,-3250,-7800],[0,-3250,0]];
+    return `<clipPath id="${prefix}-cast-wall-${wall}"><polygon points="${corners.map(point=>project(point as [number,number,number]).map(n).join(',')).join(' ')}"/></clipPath>`;
+  }).join('');
+  const shadows=shadowPlanes.map(wall=>{
+    const points=worldOutline.map(point=>cast(point,wall)).filter((point):point is number[]=>!!point),shadowHull=convex(points);
+    const housing=shadowHull.length>2?`<polygon points="${shadowHull.map(point=>point.map(n).join(',')).join(' ')}"/>`:'';
+    const arms=[...mount.arms,...mount.ties].map(segment=>{
+      const p=cast(panelMountPoint(mount,segment.start),wall),q=cast(panelMountPoint(mount,segment.end),wall);
+      return p&&q?`<path d="M${p.map(n).join(' ')}L${q.map(n).join(' ')}" fill="none" stroke="#111c26" stroke-width="${mount.armProfile}"/>`:'';
+    }).join('');
+    return `<g data-panel-cast-shadow="${wall}" clip-path="url(#${prefix}-cast-wall-${wall})" fill="#111c26" opacity="${night?'.08':'.24'}"><g filter="url(#${prefix}-panel-shadow)">${housing}${arms}</g></g>`;
+  }).join('');
   const bounds=[...physical,...[[corner?-7800:-3900,800,0],[corner?0:3900,800,0],[corner?0:3900,-3250,0],[corner?-7800:-3900,-3250,0]].map(p=>project(p as [number,number,number])),...(corner?[[0,800,-7800],[0,-3250,-7800]].map(p=>project(p as [number,number,number])):[])];
   const left=Math.min(...bounds.map(p=>p[0]))-180,top=Math.min(...bounds.map(p=>p[1]))-120;
   const width=Math.max(...bounds.map(p=>p[0]))-left+180,height=Math.max(...bounds.map(p=>p[1]))-top+160;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${[left,top,width,height].map(n).join(' ')}" data-facade-mm="true" data-panel-mount="${mount.mode}" data-panel-pose="${[mount.rotationY,mount.position.x,mount.position.y,mount.position.z].map(n).join(' ')}" role="img" aria-label="Панель-кронштейн ${corner?'на наружном углу здания':'перпендикулярно стене'}, дверь 1100 на 2100 мм">${defs}${faceDefs}${side}${front}${plates}${supports}${body}${face}</svg>`;
+  const windowsOn=night&&(options.windowLights??night),windowLevel=windowsOn?Math.max(0,Math.min(1,Number.isFinite(options.windowLightLevel)?options.windowLightLevel!:1)):0;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${[left,top,width,height].map(n).join(' ')}" data-facade-mm="true" data-facade-night="${night}" data-window-lights="${windowsOn}" data-window-light-level="${windowLevel}" data-panel-mount="${mount.mode}" data-panel-pose="${[mount.rotationY,mount.position.x,mount.position.y,mount.position.z].map(n).join(' ')}" role="img" aria-label="Панель-кронштейн ${corner?'на наружном углу здания':'перпендикулярно стене'}, дверь 1100 на 2100 мм">${defs}<defs>${shadowDefs}</defs>${faceDefs}${side}${front}${shadows}${plates}${supports}${body}${face}</svg>`;
 }
 import { panelMountPoint, isPanelCornerMount } from './panelConstruction';
 import type { panelMountLayout } from './panelConstruction';
