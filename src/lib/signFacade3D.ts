@@ -220,7 +220,7 @@ export function setFacadeProductVisibility(model: THREE.Group, showSign: boolean
     .filter((kind: string) => kind === 'panel' ? showPanel : showSign);
 }
 
-/** Reuse the site's own bulb and wordmark, printed into a transparent textile decal. */
+/** Bake the brand into the fabric itself: one surface, without an intersecting decal. */
 export async function loadScalePersonBrand(baseUrl: string) {
   const loader = new THREE.TextureLoader();
   const textures = await Promise.all([loader.loadAsync(baseUrl + 'gorod-svet-bulb.png'), loader.loadAsync(baseUrl + 'gorod-svet-wordmark.svg')]);
@@ -237,48 +237,85 @@ export async function loadScalePersonBrand(baseUrl: string) {
   ctx.globalCompositeOperation = 'source-in'; ctx.fillStyle = '#f4efe4'; ctx.fillRect(0, 0, 1024, 512);
   ctx.globalCompositeOperation = 'source-over'; draw(bulb, 380, 12, 264, 280);
   textures.forEach(texture => texture.dispose());
-  const print = new THREE.CanvasTexture(canvas); print.colorSpace = THREE.SRGBColorSpace;
+  const cloth=document.createElement('canvas');cloth.width=1024;cloth.height=2048;
+  const fabric=cloth.getContext('2d')!;fabric.fillStyle='#164d3d';fabric.fillRect(0,0,1024,2048);
+  fabric.drawImage(canvas,164,492,696,532);
+  const print = new THREE.CanvasTexture(cloth); print.colorSpace = THREE.SRGBColorSpace;
   print.anisotropy = 4; return print;
 }
 
-/** Ready-made Quaternius superhero, with an original flowing cape, at an exact 1750 mm scale. */
+/** A pinned collar and restrained wind, shared by every point of the printed cloth. */
+function capePoint(u:number,v:number,time=0) {
+  const width=THREE.MathUtils.lerp(195,330,v),x=(u-.5)*width*2;
+  const wind=v*v*(9*Math.sin(time*1.15-v*3.2+u*2)+4*Math.sin(time*.73+u*5));
+  const y=1475-v*1145-12*Math.sin(Math.PI*u)*v;
+  const z=-165-145*v-18*Math.cos((u-.5)*Math.PI*6)*Math.sin(Math.PI*v/2)-24*Math.sin(Math.PI*v)+wind;
+  return new THREE.Vector3(x+v*v*3*Math.sin(time*.8),y,z);
+}
+
+function addStandingMotion(material:THREE.MeshStandardMaterial,time:{value:number}) {
+  material.onBeforeCompile=shader=>{
+    shader.uniforms.personTime=time;
+    shader.vertexShader='uniform float personTime;\n'+shader.vertexShader;
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
+      float upper = smoothstep(650.0, 1380.0, position.y);
+      float chest = sin(clamp((position.y-800.0)/700.0,0.0,1.0)*3.14159265);
+      transformed.x += upper * 1.7 * sin(personTime * 0.72);
+      transformed.y += upper * 0.8 * sin(personTime * 1.35);
+      transformed.z += chest * 1.5 * sin(personTime * 1.35);
+    `);
+  };
+  material.customProgramCacheKey=()=> 'gorod-svet-standing-v1';
+}
+
+/** Ready-made Quaternius superhero with authored parted hair, at an exact 1750 mm scale. */
 export function createScalePerson(facade: THREE.Group, target: THREE.Vector3, brand?: THREE.Texture, asset?: THREE.Group) {
   const pavement=facade.getObjectByName('facade-pavement');if(!pavement || !asset)return null;
   facade.updateWorldMatrix(true,true);const ground=new THREE.Box3().setFromObject(pavement);
   const person=new THREE.Group();person.name='scale-person';person.userData.heightMm=SCALE_PERSON_HEIGHT_MM;
   person.userData.assetSource='Quaternius Universal Base Characters / Superhero Male';person.userData.assetLicense='CC0 1.0';
+  const time={value:0};person.userData.motionTime=time;
   const body=asset.clone(true);body.name='quaternius-superhero';
   body.traverse(child=>{const mesh=child as THREE.Mesh;if(!mesh.isMesh)return;
     mesh.geometry=mesh.geometry.clone();
     const copy=(original:THREE.Material)=>{const material=original.clone() as THREE.MeshStandardMaterial;
-      material.userData.dayColor=material.color.clone();material.roughness=.72;material.metalness=0;material.envMapIntensity=.35;return material;};
+      material.userData.dayColor=material.color.clone();material.roughness=.72;material.metalness=0;material.envMapIntensity=.35;
+      addStandingMotion(material,time);return material;};
     mesh.material=Array.isArray(mesh.material)?mesh.material.map(copy):copy(mesh.material);
     mesh.castShadow=mesh.receiveShadow=true;
   });person.add(body);
-  const capePoint=(u:number,v:number)=>{
-    const width=THREE.MathUtils.lerp(195,350,v),x=(u-.5)*width*2;
-    const y=1490-v*1160-12*Math.sin(Math.PI*u)*v;
-    const z=-108-150*v-24*Math.cos((u-.5)*Math.PI*6)*Math.sin(Math.PI*v/2)-28*Math.sin(Math.PI*v);
-    return new THREE.Vector3(x,y,z);
-  };
-  const clothGeometry=(print:boolean)=>{
-    const geometry=new THREE.PlaneGeometry(1,1,64,80),positions=geometry.getAttribute('position'),uv=geometry.getAttribute('uv');
-    for(let i=0;i<positions.count;i++){
-      const u=uv.getX(i),v=1-uv.getY(i);
-      // Reversing U makes the print readable from behind the wearer.
-      const point=print?capePoint(.16+(1-u)*.68,.24+v*.26):capePoint(u,v);
-      positions.setXYZ(i,point.x,point.y,point.z-(print?1:0));
-    }geometry.computeVertexNormals();return geometry;
-  };
-  const capeMaterial=new THREE.MeshStandardMaterial({color:'#164d3d',roughness:.9,metalness:0,side:THREE.DoubleSide,envMapIntensity:.3});
+  const geometry=new THREE.PlaneGeometry(1,1,64,80),positions=geometry.getAttribute('position'),uv=geometry.getAttribute('uv');
+  for(let i=0;i<positions.count;i++){
+    const u=uv.getX(i),v=1-uv.getY(i),point=capePoint(u,v);
+    positions.setXYZ(i,point.x,point.y,point.z);
+    // The print is readable from behind. UVs stay attached during wind deformation.
+    uv.setX(i,1-u);
+  }
+  geometry.computeVertexNormals();geometry.computeBoundingSphere();
+  const capeMaterial=new THREE.MeshStandardMaterial({map:brand??null,color:brand?'#ffffff':'#164d3d',roughness:.94,metalness:0,
+    side:THREE.DoubleSide,envMapIntensity:.3});
   capeMaterial.userData.dayColor=capeMaterial.color.clone();
-  const cape=new THREE.Mesh(clothGeometry(false),capeMaterial);cape.name='person-cape';cape.castShadow=cape.receiveShadow=true;person.add(cape);
-  const printMaterial=new THREE.MeshStandardMaterial({map:brand??null,color:'#ffffff',transparent:true,alphaTest:.04,roughness:.95,
-    metalness:0,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1});
-  printMaterial.userData.dayColor=printMaterial.color.clone();printMaterial.userData.textileBrand=true;
-  const print=new THREE.Mesh(clothGeometry(true),printMaterial);print.name='person-gorod-svet-cape';print.userData.brand='Город Свет';
-  print.visible=Boolean(brand);print.castShadow=false;print.receiveShadow=true;person.add(print);
+  addStandingMotion(capeMaterial,time);
+  const cape=new THREE.Mesh(geometry,capeMaterial);cape.name='person-cape';cape.userData.brand='Город Свет';
+  cape.castShadow=cape.receiveShadow=true;person.add(cape);
   person.position.set(THREE.MathUtils.clamp(target.x+1100,ground.min.x+400,ground.max.x-400),ground.max.y,ground.max.z-600);
   const direction=target.clone().sub(person.position);person.rotation.y=Math.atan2(direction.x,direction.z);
   person.userData.lookTarget=target.toArray();person.userData.groundY=ground.max.y;return person;
+}
+
+/** Feet and placement stay fixed; only upper-body breathing and the free cloth move. */
+export function animateScalePerson(person:THREE.Object3D,timeSeconds:number,reducedMotion=false) {
+  const time=person.userData.motionTime as {value:number}|undefined;
+  const cape=person.getObjectByName('person-cape') as THREE.Mesh|undefined;
+  if(!time||!cape)return false;
+  const phase=reducedMotion?0:timeSeconds;time.value=phase;
+  const positions=cape.geometry.getAttribute('position'),uv=cape.geometry.getAttribute('uv');
+  for(let i=0;i<positions.count;i++){
+    const point=capePoint(1-uv.getX(i),1-uv.getY(i),phase);
+    positions.setXYZ(i,point.x,point.y,point.z);
+  }
+  positions.needsUpdate=true;cape.geometry.computeVertexNormals();
+  // Bounded wind fits inside this sphere for all phases, avoiding per-frame camera fitting.
+  cape.geometry.boundingSphere!.radius=750;
+  return !reducedMotion&&person.visible;
 }
