@@ -290,7 +290,7 @@ const DEFAULT_PROJECT = {
   letterOutlineEnabled: false,
   logoOutlineEnabled: false,
   outlineColor: ORACAL_641_COLORS[1] as ColorOption,
-  haloBackerEnabled: true,
+  haloBackerEnabled: false,
   haloBackerColor: ACP_COLORS[0] as ColorOption,
   mountMode: "frame" as MountMode,
   frameProfile: 15 as FrameProfile,
@@ -541,7 +541,8 @@ export function SignProductConfigurator() {
   const [fitSignal, setFitSignal] = useState(0);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
   const [showDimensions, setShowDimensions] = useState(true);
-  const [showFacadePair, setShowFacadePair] = useState(true);
+  const [showFacadeSign, setShowFacadeSign] = useState(true);
+  const [showFacadePanel, setShowFacadePanel] = useState(true);
   const [showScalePerson, setShowScalePerson] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const cart = useSignCart<ProjectState>();
@@ -561,7 +562,7 @@ export function SignProductConfigurator() {
   };
   const handleResetSettings = () => {
     replaceProjectWithUndo(resetProjectSettings(), "Все изменения сброшены. Возвращены исходные параметры конструктора. Действие можно отменить.");
-    setShowDimensions(true); setShowFacadePair(true); setShowScalePerson(true); setCartOpen(false); setEditing(true);
+    setShowDimensions(true); setShowFacadeSign(true); setShowFacadePanel(true); setShowScalePerson(true); setCartOpen(false); setEditing(true);
   };
   const handleClearLayout = () => replaceProjectWithUndo(clearProjectArtwork(project), "Макет очищен. Действие можно отменить.");
   useEffect(() => {
@@ -796,7 +797,7 @@ export function SignProductConfigurator() {
     : productId === "panel" ? panelSvgFaceBox(panelSize,clamp(project.panelWallGap,60,400),project.panelMountMode)
     : mountMode === "acp" ? lettersLayout.panelBox : lettersLayout.signBox;
   const signDepth = productId === "neon" ? (project.neonInstallMode==='hanging'?3:23) + project.neonDiameter : productId === "panel" ? project.panelDepth : letterDepth;
-  const companionScene = !showFacadePair || placement === 'none' ? undefined : productId === 'panel'
+  const companionScene = placement === 'none' ? undefined : productId === 'panel'
     ? !fontPending && letterContours && !isProjectBlank({ ...project, productId: 'letters' })
       ? { project: { ...project, productId: 'letters' as const }, width: mountMode === 'acp' ? acpWidth : measuredLettersWidth,
           height: mountMode === 'acp' ? acpHeight : Math.round(lettersLayout.signBox.height), depth: letterDepth } : undefined
@@ -1086,7 +1087,8 @@ export function SignProductConfigurator() {
             <label className="dimensions-toggle"><input type="checkbox" checked={showDimensions} onChange={event => setShowDimensions(event.target.checked)} />Размеры</label>
           </div>
           {viewMode === '3d' && placement !== 'none' && <div className="facade-context-toolbar" role="group" aria-label="Общий вид фасада">
-            <label><input type="checkbox" checked={showFacadePair} onChange={event => setShowFacadePair(event.target.checked)} />{productId === 'neon' ? 'Неон + кронштейн' : 'Вывеска + кронштейн'}</label>
+            <label><input type="checkbox" checked={showFacadeSign} onChange={event => setShowFacadeSign(event.target.checked)} />{productId === 'neon' ? 'Неоновая вывеска' : 'Вывеска'}</label>
+            <label><input type="checkbox" checked={showFacadePanel} onChange={event => setShowFacadePanel(event.target.checked)} />Панель-кронштейн</label>
             <label><input type="checkbox" checked={showScalePerson} onChange={event => setShowScalePerson(event.target.checked)} />Человек 175 см</label>
             <span>Параметры каждого изделия — в его вкладке</span>
           </div>}
@@ -1116,7 +1118,7 @@ export function SignProductConfigurator() {
           {blankSign ? <div className="studio-empty-preview" role="status"><Type size={34} aria-hidden="true" /><strong>Макет пуст</strong>
             <p>{productId === "neon" ? "Добавьте надпись или фигуру в настройках." : "Добавьте надпись или логотип в настройках."}</p>
             <a className="studio-button" href="#studio-controls" onClick={() => setActiveSection("design")}>Добавить надпись</a>
-          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showPerson={showScalePerson} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
+          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showPerson={showScalePerson} showSign={showFacadeSign} showPanel={showFacadePanel} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
             {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
               <PanelPreview
                 lightsOn={project.lightsOn}
@@ -1534,23 +1536,6 @@ function LettersControls({
           <RangeField label="Глубина подложки, мм" max={100} min={30} onChange={onAcpDepthChange} step={5} value={acpDepth} />
           <small className="control-note">Допустимые размеры рассчитываются автоматически.</small>
           <ColorGrid colors={ACP_COLORS} selected={acpColor} onSelect={onAcpColorChange} compact />
-        </ControlSection>
-      )}
-
-      {glowHasHalo && mountMode !== "frame" && (
-        <ControlSection title="Контражурная подложка">
-          <div className="toggle-grid">
-            <button
-              aria-pressed={haloBackerEnabled} className={haloBackerEnabled ? "active" : ""}
-              onClick={() => onHaloBackerEnabledChange(!haloBackerEnabled)}
-              type="button"
-            >
-              Подложка контуром вокруг букв
-            </button>
-          </div>
-          {haloBackerEnabled && (
-            <ColorGrid colors={ACP_COLORS} selected={haloBackerColor} onSelect={onHaloBackerColorChange} compact />
-          )}
         </ControlSection>
       )}
 
@@ -2029,13 +2014,6 @@ function createLettersSvgMarkup(
         '" y1="' + n(y) + '" y2="' + n(y) +
         '" stroke="#8793a1" stroke-width="2" stroke-dasharray="12 9" opacity="0.5" />').join("") + "</g>"
     : "";
-  const backerMarkup = config.haloBackerEnabled
-    ? '<rect id="halo-backer" x="' + n(layout.haloBackerBox.x) + '" y="' +
-      n(layout.haloBackerBox.y) + '" width="' + n(layout.haloBackerBox.width) +
-      '" height="' + n(layout.haloBackerBox.height) + '" rx="' + n(layout.haloBackerRadius) +
-      '" fill="' + (night ? mix(config.haloBackerColor, "#08101c", 0.73) : config.haloBackerColor) +
-      '" stroke="' + (night ? "#354253" : "#cbd2db") + '" stroke-width="2" />'
-    : "";
   const frameMarkup = config.mountMode === "frame"
     ? layout.frameSegments ? '<g id="frame-rails" filter="url(#letters-cast-shadow)">' + layout.frameSegments.map(segment=>
       `<rect data-frame-id="${segment.id}" data-frame-kind="${segment.kind}" x="${n(segment.x)}" y="${n(segment.y)}" width="${n(segment.width)}" height="${n(segment.height)}" rx="0" fill="${segment.kind==='rail'?'url(#letters-steel)':night?'#424649':'#606669'}" stroke="${night?'#6e7275':'#82888b'}" stroke-width="0.5" />`).join("")+'</g>'
@@ -2089,7 +2067,7 @@ function createLettersSvgMarkup(
     mix(config.sideColor, "#ffffff", 0.4) + '" flood-opacity="0.72" /></filter>' +
     '<filter id="letters-halo" x="-45%" y="-80%" width="200%" height="260%">' +
     '<feGaussianBlur stdDeviation="' + n(Math.max(10, config.height * 0.055)) + '" /></filter>' +
-    "</defs>\n" + panelMarkup + "\n" + backerMarkup + "\n" + frameMarkup + "\n" + haloMarkup + "\n" +
+    "</defs>\n" + panelMarkup + "\n" + frameMarkup + "\n" + haloMarkup + "\n" +
     '<g id="sign-side"' + (sideLit ? ' filter="url(#letters-side-light)"' : ' filter="url(#letters-cast-shadow)"') +
     ">" + sideMarkup + "</g>\n" +
     '<g id="sign-face"' + (faceLit ? ' filter="url(#letters-face-light)"' : "") + ">" +
