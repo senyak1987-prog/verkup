@@ -1,14 +1,22 @@
-export type LayoutObject = "text" | "logo" | "composition";
+export type LayoutObject = "text" | "logo" | "composition" | `line-${number}`;
 export type AlignmentAxis = "x" | "y";
 export type AlignmentBox = { x: number; y: number; width: number; height: number };
+export type AlignmentTextRow = {
+  id: string; index: number; text: string; font: string;
+  box: AlignmentBox; inkBox: AlignmentBox; pathBox: AlignmentBox;
+  defaultX: number; defaultY: number;
+};
 export type AlignmentLayout = {
   viewWidth: number; viewHeight: number;
   panelBox: AlignmentBox; logoBox: AlignmentBox; textInkBox?: AlignmentBox;
   textX: number; textTop: number; textWidth: number; textHeight: number;
   defaultTextX: number; defaultTextY: number; defaultLogoX: number; defaultLogoY: number;
+  textRows?: AlignmentTextRow[];
+  letterLineOffsets?: { x: number; y: number }[];
 };
 export type LayoutOffsetPatch = Partial<{
   logoOffsetX: number; logoOffsetY: number; textOffsetX: number; textOffsetY: number;
+  letterLineOffsets: { x: number; y: number }[];
 }>;
 type MoveOptions = { constrainToPanel?: boolean; snapTolerance?: number };
 
@@ -16,8 +24,30 @@ export function layoutReferenceBox(layout: AlignmentLayout, constrainToPanel = f
   return constrainToPanel ? layout.panelBox : { x: 0, y: 0, width: layout.viewWidth, height: layout.viewHeight };
 }
 
+export function selectedLayoutLine(layout: AlignmentLayout, selected: LayoutObject): AlignmentTextRow | undefined {
+  if (!selected.startsWith("line-")) return;
+  const index = Number(selected.slice(5));
+  return layout.textRows?.find(row => row.index === index);
+}
+
+/** A corner handle scales a row uniformly; its font's width/height ratio stays intact. */
+export function resizeLayoutLine(layout: AlignmentLayout, selected: LayoutObject, baseHeight: number,
+  lineHeights: readonly number[] = [], deltaX = 0, deltaY = 0): { letterLineHeights: number[] } | undefined {
+  const row = selectedLayoutLine(layout, selected); if (!row) return;
+  const horizontal = Number.isFinite(deltaX) ? deltaX / Math.max(1, row.box.width) : 0;
+  const vertical = Number.isFinite(deltaY) ? deltaY / Math.max(1, row.box.height) : 0;
+  const ratio = 1 + (Math.abs(horizontal) > Math.abs(vertical) ? horizontal : vertical);
+  const previous = lineHeights[row.index] || baseHeight;
+  const height = Math.max(40, Math.min(1200, Math.round(previous * ratio)));
+  const length = Math.max(lineHeights.length, row.index + 1);
+  const heights = Array.from({ length }, (_, index) => lineHeights[index] ?? baseHeight);
+  heights[row.index] = height;
+  return { letterLineHeights: heights };
+}
+
 /** Use the full visible ink, including tails and accents, rather than a font's cap-height box. */
 export function layoutSelectionBox(layout: AlignmentLayout, selected: LayoutObject, logoEnabled: boolean): AlignmentBox {
+  const row = selectedLayoutLine(layout, selected); if (row) return row.inkBox;
   const text = layout.textInkBox ?? { x: layout.textX, y: layout.textTop, width: layout.textWidth, height: layout.textHeight };
   if (selected === "logo" && logoEnabled) return layout.logoBox;
   if (selected !== "composition" || !logoEnabled) return text;
@@ -45,6 +75,23 @@ export function moveLayoutSelection(layout: AlignmentLayout, selected: LayoutObj
   }
   const mm = (value: number) => Math.round(value * 1000) / 1000;
   const patch: LayoutOffsetPatch = {};
+  if (selected.startsWith("line-")) {
+    const row = selectedLayoutLine(layout, selected);
+    if (row) {
+      const length = Math.max(layout.letterLineOffsets?.length ?? 0, row.index + 1,
+        ...(layout.textRows ?? []).map(item => item.index + 1));
+      const offsets = Array.from({ length }, (_, index) => {
+        const other = layout.textRows?.find(item => item.index === index);
+        return { ...(layout.letterLineOffsets?.[index] ?? (other
+          ? { x: mm(other.box.x - other.defaultX), y: mm(other.box.y - other.defaultY) } : { x: 0, y: 0 })) };
+      });
+      // Defaults include the group translation but exclude this row's own offset.
+      offsets[row.index] = { x: mm(row.box.x + dx - row.defaultX), y: mm(row.box.y + dy - row.defaultY) };
+      patch.letterLineOffsets = offsets;
+    }
+    return { patch, snappedX: !!row && snapX && Math.abs(box.x + box.width / 2 + dx - centerX) < .01,
+      snappedY: !!row && snapY && Math.abs(box.y + box.height / 2 + dy - centerY) < .01 };
+  }
   if (selected !== "logo" || !logoEnabled) {
     patch.textOffsetX = mm(layout.textX + dx - layout.defaultTextX);
     patch.textOffsetY = mm(layout.textTop + dy - layout.defaultTextY);

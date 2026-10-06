@@ -5,6 +5,7 @@ import { filledGlyphShapes } from "./glyphShapes";
 import { createNeonModel } from "./neonScene";
 import { panelMountLayout } from "./panelConstruction";
 import type { PanelMountMode } from "./panelConstruction";
+import type { LetterFrameSegment } from './letterFrame';
 
 type SceneColor = { value: string };
 export type SignSceneBox = { x: number; y: number; width: number; height: number };
@@ -65,6 +66,8 @@ export type SignSceneLayout = {
   fontSize: number;
   textPathData?: string;
   textNaturalBox?: SignSceneBox;
+  textRows?: SignSceneTextRow[];
+  frameSegments?: LetterFrameSegment[];
   signBox: SignSceneBox;
   railX: number;
   railWidth: number;
@@ -75,6 +78,11 @@ export type SignSceneLayout = {
   panelCornerRadius: number;
   haloBackerBox: SignSceneBox;
   haloBackerRadius: number;
+};
+export type SignSceneTextRow = {
+  id: string; index: number; text: string; font: string;
+  box: SignSceneBox; pathBox: SignSceneBox; inkBox: SignSceneBox;
+  pathData: string; naturalBox: SignSceneBox; defaultX: number; defaultY: number;
 };
 
 function roundedShape(width: number, height: number, radius = 0, circular = false) {
@@ -257,19 +265,21 @@ function addDimension(group: THREE.Group, start: THREE.Vector3, end: THREE.Vecto
 
 type GlyphData = { pathData: string; box: { x1: number; y1: number; x2: number; y2: number }; shapes: THREE.Shape[] };
 const glyphCache = new Map<string, GlyphData>();
-async function glyphData(project: SignSceneProject, layout: SignSceneLayout): Promise<GlyphData> {
-  const contours = layout.textPathData && layout.textNaturalBox
-    ? { pathData: layout.textPathData, mainBox: layout.textNaturalBox }
-    : await loadLetterContours(project.letterFont, project.lettersText);
-  const box = contours.mainBox;
-  const key = contours.pathData + JSON.stringify(box);
+function glyphFromPath(pathData: string, box: SignSceneBox): GlyphData {
+  const key = pathData + JSON.stringify(box);
   const cached = glyphCache.get(key); if (cached) return cached;
-  const data = new SVGLoader().parse('<svg xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="' + contours.pathData + '" /></svg>');
-  const result = { pathData: contours.pathData, box: { x1: box.x, y1: box.y, x2: box.x + box.width, y2: box.y + box.height },
+  const data = new SVGLoader().parse('<svg xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="' + pathData + '" /></svg>');
+  const result = { pathData, box: { x1: box.x, y1: box.y, x2: box.x + box.width, y2: box.y + box.height },
     shapes: filledGlyphShapes(data.paths) };
   if (glyphCache.size >= 24) glyphCache.delete(glyphCache.keys().next().value!);
   glyphCache.set(key, result);
   return result;
+}
+async function glyphData(project: SignSceneProject, layout: SignSceneLayout): Promise<GlyphData> {
+  const contours = layout.textPathData && layout.textNaturalBox
+    ? { pathData: layout.textPathData, mainBox: layout.textNaturalBox }
+    : await loadLetterContours(project.letterFont, project.lettersText);
+  return glyphFromPath(contours.pathData, contours.mainBox);
 }
 
 function lightProjection(project: SignSceneProject, layout: SignSceneLayout,
@@ -282,18 +292,23 @@ function lightProjection(project: SignSceneProject, layout: SignSceneLayout,
   canvas.height = Math.max(128, Math.min(1024, Math.round(1024 * worldHeight / worldWidth)));
   const context = canvas.getContext("2d")!;
   const xScale = canvas.width / worldWidth, yScale = canvas.height / worldHeight;
-  const box = glyph.box;
   context.fillStyle = color;
   context.shadowColor = color;
   context.shadowBlur = blur * Math.min(xScale, yScale);
-  context.save();
-  context.translate((layout.textX - layout.signBox.x + padding) * xScale,
-    (textTop - layout.signBox.y + padding) * yScale);
-  context.scale(textWidth / Math.max(1, box.x2 - box.x1) * xScale,
-    textHeight / Math.max(1, box.y2 - box.y1) * yScale);
-  context.translate(-box.x1, -box.y1);
-  context.fill(new Path2D(glyph.pathData));
-  context.restore();
+  const paths = layout.textRows?.length ? layout.textRows.map(row => ({
+    glyph: glyphFromPath(row.pathData, row.naturalBox), box: row.pathBox,
+  })) : [{ glyph, box: { x: layout.textX, y: textTop, width: textWidth, height: textHeight } }];
+  for (const path of paths) {
+    const box = path.glyph.box;
+    context.save();
+    context.translate((path.box.x - layout.signBox.x + padding) * xScale,
+      (path.box.y - layout.signBox.y + padding) * yScale);
+    context.scale(path.box.width / Math.max(1, box.x2 - box.x1) * xScale,
+      path.box.height / Math.max(1, box.y2 - box.y1) * yScale);
+    context.translate(-box.x1, -box.y1);
+    context.fill(new Path2D(path.glyph.pathData));
+    context.restore();
+  }
   if (project.logoEnabled !== false && layout.logoBox.width > 0) {
     const logo = layout.logoBox;
     const x = (logo.x - layout.signBox.x + padding) * xScale;
@@ -408,7 +423,8 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
           new THREE.Vector3(mount.wallX + mount.gap / 2, size / 2 + 65, modelDepth / 2), size * 0.7, night);
       }
     } else {
-      const glyph = await glyphData(project, layout);
+      const textRows = layout.textRows?.length ? layout.textRows.map(row => ({ row, glyph: glyphFromPath(row.pathData, row.naturalBox) })) : undefined;
+      const glyph = textRows?.[0].glyph ?? await glyphData(project, layout);
       const referenceBox = project.mountMode === "acp" ? layout.panelBox : layout.signBox;
       const centerX = referenceBox.x + referenceBox.width / 2;
       const centerY = referenceBox.y + referenceBox.height / 2;
@@ -420,11 +436,14 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       const haloMode = project.glowMode === "faceHalo" || project.glowMode === "halo";
       const rear = project.mountMode === "frame" ? 15 : haloMode ? 30 : 0;
       const backMaterial = solidMaterial(haloLit ? faceColor : sideColor, night, haloLit);
-      let text: THREE.Mesh | undefined;
-      const box = glyph.box;
-      if (glyph.shapes.length) {
-        text = extrude(glyph.shapes, modelDepth, face, side, backMaterial);
-        text.geometry.scale(textWidth / Math.max(1, box.x2 - box.x1), -textHeight / Math.max(1, box.y2 - box.y1), 1);
+      const textParts = textRows?.map(({ row, glyph }) => ({
+        glyph, box: row.pathBox, name: `extruded-letter-row-${row.index}`, row,
+      })) ?? [{ glyph, box: { x: layout.textX, y: textTop, width: textWidth, height: textHeight }, name: 'extruded-letter-contours', row: undefined }];
+      for (const part of textParts) if (part.glyph.shapes.length) {
+        const box = part.glyph.box;
+        const sx = part.box.width / Math.max(1, box.x2 - box.x1), sy = part.box.height / Math.max(1, box.y2 - box.y1);
+        const text = extrude(part.glyph.shapes, modelDepth, face, side, backMaterial);
+        text.geometry.scale(sx, -sy, 1);
         // Reflecting Y changes winding; restore each face before culling and lighting.
         const vertexCount = text.geometry.getAttribute("position").count;
         const reversed = new Array<number>(vertexCount);
@@ -436,8 +455,9 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         text.geometry.setIndex(reversed);
         text.geometry.computeVertexNormals();
         text.geometry.computeBoundingBox();
-        text.position.set(toX(layout.textX) - box.x1 * textWidth / Math.max(1, box.x2 - box.x1), toY(layout.textBaseline), rear);
-        text.name = "extruded-letter-contours";
+        text.position.set(toX(part.box.x) - box.x1 * sx, toY(part.box.y) + box.y1 * sy, rear);
+        text.name = part.name;
+        if (part.row) { text.userData.lineIndex = part.row.index; text.userData.font = part.row.font; text.userData.rowId = part.row.id; }
         if (project.letterOutlineEnabled) contour(text, project.outlineColor.value);
         group.add(text);
       }
@@ -457,11 +477,15 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       if (project.mountMode === "frame") {
         const steel = new THREE.MeshStandardMaterial({ color: night ? "#919da5" : "#727e85",
           metalness: night ? 0.32 : 0.7, roughness: night ? 0.55 : 0.4 });
-        for (const y of [layout.railTopY, layout.railBottomY]) {
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(layout.railWidth, 15, 15), steel);
-          rail.position.set(toX(layout.railX + layout.railWidth / 2), toY(y), 7.5);
+        const segments = layout.frameSegments ?? [layout.railTopY, layout.railBottomY].map((y, index) => ({
+          id: `legacy-rail-${index}`, kind: 'rail', rowIds: [], x: layout.railX, y: y - 7.5, width: layout.railWidth, height: 15,
+        }));
+        for (const segment of segments) {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(segment.width, segment.height, 15), steel);
+          rail.position.set(toX(segment.x + segment.width / 2), toY(segment.y + segment.height / 2), 7.5);
           rail.castShadow = true; rail.receiveShadow = true;
-          rail.name = "frame-15x15mm"; group.add(rail);
+          rail.name = "frame-15x15mm"; rail.userData.frameSegmentId = segment.id;
+          rail.userData.frameKind = segment.kind; rail.userData.frameRowIds = segment.rowIds; group.add(rail);
         }
       } else if (project.mountMode === "acp") {
         const panelShape = roundedShape(layout.panelBox.width, layout.panelBox.height, layout.panelCornerRadius);
