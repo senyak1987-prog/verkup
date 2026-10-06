@@ -12,10 +12,13 @@ export const FACADE_PALETTES = [
   { id: 'charcoal', title: 'Графит и дерево' },
 ] as const;
 export type FacadePalette = typeof FACADE_PALETTES[number]['id'];
-export type FacadeOptions = { palette?: FacadePalette; signBackMm?: number };
+export const FACADE_SIGN_ANCHOR = { x: 3900, y: 800 } as const;
+export const FACADE_VIEWBOX = { x: 0, y: 0, width: 7800, height: 4050 } as const;
+export type FacadeSignBox = { x: number; y: number; width: number; height: number };
+export type FacadeOptions = { palette?: FacadePalette; signBackMm?: number; signBox?: FacadeSignBox };
 export type FacadeRect = {
   x: number; y: number; w: number; h: number; color: string;
-  /** Front surface, in facade units, relative to the sign mounting surface. */
+  /** Millimetres. Front surface relative to the sign mounting surface. */
   z?: number; depth?: number; kind?: 'wall' | 'opening' | 'glass' | 'foliage' | 'flower' | 'lamp';
   name?: string; rotation?: number; radius?: number;
 };
@@ -34,92 +37,101 @@ function nightColor(hex: string, night: boolean, amount = .58) {
 /** One architectural description supplies the SVG and the 3D model. No coplanar glass/frame surfaces. */
 export function facadeRects(place: SignPlacement, night: boolean, options: FacadeOptions = {}): FacadeRect[] {
   const palette = options.palette ?? 'stone', c = FACADE_COLORS[palette];
-  const wallZ = place === 'canopy' ? -32 : 0;
+  const wallZ = place === 'canopy' ? -1500 : 0;
   const rects: FacadeRect[] = [];
-  const add = (x: number, y: number, w: number, h: number, color: string, z = wallZ + .65, depth = .6,
+  const add = (x: number, y: number, w: number, h: number, color: string, z = wallZ + 8, depth = 8,
     name = 'detail', extra: Partial<FacadeRect> = {}) => rects.push({ x, y, w, h, color: nightColor(color, night), z, depth, name, ...extra });
-  add(0, 0, 500, 273, c.wall, wallZ, 14, 'wall', { kind: 'wall' });
-  add(0, 0, 500, 10, c.trim, wallZ + 1.2, 2.5, 'cornice');
-  add(0, 10, 500, 1.4, c.joint, wallZ + .7, .5, 'cornice-shadow');
-  add(0, 269, 500, 6, c.trim, wallZ + 1.4, 3, 'plinth');
-  add(0, 274, 500, 6, c.ground, wallZ + 54, 70, 'pavement');
+  add(0, 0, 7800, 3990, c.wall, wallZ, 200, 'wall', { kind: 'wall' });
+  add(0, 0, 7800, 100, c.trim, wallZ + 25, 45, 'cornice');
+  add(0, 100, 7800, 15, c.joint, wallZ + 8, 12, 'cornice-shadow');
+  add(0, 3860, 7800, 130, c.trim, wallZ + 20, 45, 'plinth');
+  add(0, 3990, 7800, 60, c.ground, wallZ + 2400, 2650, 'pavement');
 
   if (palette === 'stone') {
-    for (const y of [29, 137, 259]) add(0, y, 500, .65, c.joint, wallZ + .2, .35, 'stone-course');
-    for (const [x, y, h] of [[104, 12, 17], [395, 12, 17], [24, 30, 107], [476, 30, 107]]) add(x, y, .6, h, c.joint, wallZ + .2, .35, 'stone-joint');
+    for (const y of [450, 1350, 3780]) add(0, y, 7800, 8, c.joint, wallZ + 2, 3, 'stone-course');
+    for (const [x, y, h] of [[1800, 120, 330], [6000, 120, 330], [240, 460, 890], [7540, 460, 890]]) add(x, y, 8, h, c.joint, wallZ + 2, 3, 'stone-joint');
   } else if (palette === 'charcoal') {
-    for (const x of [24, 96, 168, 240, 312, 384, 456]) add(x, 13, .7, 121, c.joint, wallZ + .2, .35, 'cladding-joint');
+    for (let x = 300; x < 7800; x += 900) add(x, 120, 8, 1220, c.joint, wallZ + 2, 3, 'cladding-joint');
   }
 
   const window = (x: number, y: number, w: number, h: number, divided: boolean, door = false) => {
     const id = door ? 'door' : 'window-' + x;
     // Back of the opening, glazing, frame and stone trim have distinct depths.
-    add(x, y, w, h, '#293942', wallZ - 9, .8, id + '-opening', { kind: 'opening' });
-    add(x + 3, y + 3, w - 6, h - 6, night ? '#dcc294' : c.glass, wallZ - 3.6, .65, id + '-glass', { kind: 'glass', color: night ? '#dcc294' : c.glass });
-    for (const [bx, by, bw, bh] of [[x - 3, y - 3, w + 6, 3], [x - 3, y + h, w + 6, 3], [x - 3, y, 3, h], [x + w, y, 3, h]])
-      add(bx, by, bw, bh, c.trim, wallZ + 1.5, 4.5, id + '-stone-reveal');
-    for (const [bx, by, bw, bh] of [[x, y, w, 3], [x, y + h - 3, w, 3], [x, y + 3, 3, h - 6], [x + w - 3, y + 3, 3, h - 6]])
-      add(bx, by, bw, bh, c.frame, wallZ + .95, 5, id + '-frame');
+    add(x, y, w, h, '#293942', wallZ - 130, 12, id + '-opening', { kind: 'opening' });
+    add(x + 45, y + 45, w - 90, h - 90, night ? '#dcc294' : c.glass, wallZ - 65, 10, id + '-glass', { kind: 'glass', color: night ? '#dcc294' : c.glass });
+    for (const [bx, by, bw, bh] of [[x - 50, y - 50, w + 100, 50], [x - 50, y + h, w + 100, 50], [x - 50, y, 50, h], [x + w, y, 50, h]])
+      add(bx, by, bw, bh, c.trim, wallZ + 25, 90, id + '-stone-reveal');
+    for (const [bx, by, bw, bh] of [[x, y, w, 45], [x, y + h - 45, w, 45], [x, y + 45, 45, h - 90], [x + w - 45, y + 45, 45, h - 90]])
+      add(bx, by, bw, bh, c.frame, wallZ + 15, 80, id + '-frame');
     if (divided) {
-      add(x + w / 2 - 1.3, y + 3, 2.6, h - 6, c.frame, wallZ + .95, 5, id + '-mullion');
-      add(x + 3, y + h * .57, w / 2 - 4.3, 2.6, c.frame, wallZ + .95, 5, id + '-transom-left');
-      add(x + w / 2 + 1.3, y + h * .57, w / 2 - 4.3, 2.6, c.frame, wallZ + .95, 5, id + '-transom-right');
+      add(x + w / 2 - 18, y + 45, 36, h - 90, c.frame, wallZ + 15, 80, id + '-mullion');
+      add(x + 45, y + h * .57, w / 2 - 63, 36, c.frame, wallZ + 15, 80, id + '-transom-left');
+      add(x + w / 2 + 18, y + h * .57, w / 2 - 63, 36, c.frame, wallZ + 15, 80, id + '-transom-right');
     }
     if (door) {
-      add(x + w - 12, y + h * .45, 2, 17, '#c8c7bc', wallZ + 3.1, 1.7, 'door-handle');
-      add(x + 3, y + h - 20, w - 6, 17, c.frame, wallZ + .8, 3, 'door-bottom-rail');
-      add(x - 8, y + h + 3, w + 16, 3.4, '#d4cabb', wallZ + 17, 24, 'entrance-threshold');
-      add(x - 13, y + h + 6.4, w + 26, 3.6, '#bab3a9', wallZ + 25, 31, 'entrance-step');
-    } else add(x - 5, y + h + 3, w + 10, 3, c.trim, wallZ + 5, 8, id + '-sill');
+      add(x + w - 135, y + 950, 25, 300, '#c8c7bc', wallZ + 70, 35, 'door-handle');
+      add(x + 45, y + h - 190, w - 90, 145, c.frame, wallZ + 12, 65, 'door-bottom-rail');
+      add(x - 50, y + h - 15, w + 100, 15, '#d4cabb', wallZ + 130, 190, 'entrance-threshold');
+      for (let step = 0; step < 3; step++) {
+        const width = 1900 + step * 180;
+        add(x + w / 2 - width / 2, y + h + step * 150, width, 150, step === 0 ? '#cec6b9' : '#bdb6aa',
+          wallZ + 650 + step * 300, 650 + step * 300, 'entrance-step-' + (step + 1));
+      }
+    } else add(x - 55, y + h + 5, w + 110, 40, c.trim, wallZ + 90, 140, id + '-sill');
   };
 
   if (place === 'shop') {
-    window(45, 143, 132, 116, false);
-    window(181, 143, 132, 116, false);
-    window(327, 143, 96, 120, false, true);
-    add(49, 151, 124, 2, c.frame, wallZ + .95, 5, 'shop-transom-left');
-    add(185, 151, 124, 2, c.frame, wallZ + .95, 5, 'shop-transom-right');
+    window(550, 1440, 2100, 2100, false);
+    window(3000, 1440, 2100, 2100, false);
+    window(5900, 1440, 1100, 2100, false, true);
+    for (const x of [595, 3045]) add(x, 1640, 2010, 30, c.frame, wallZ + 15, 80, 'shop-transom');
   } else if (place === 'entrance') {
-    window(54, 146, 108, 113, true);
-    window(197, 146, 108, 113, true);
-    window(350, 137, 92, 126, false, true);
-    for (const x of [327, 451]) add(x, 144, 4, 58, c.wood, wallZ + 1, 1.6, 'entrance-wood-slat');
+    window(650, 1540, 1800, 2000, true);
+    window(3350, 1440, 1100, 2100, false, true);
+    window(5350, 1540, 1800, 2000, true);
+    for (const x of [3100, 4590]) add(x, 1440, 40, 2100, c.wood, wallZ + 20, 35, 'entrance-wood-slat');
+  } else if (place === 'canopy') {
+    window(650, 1540, 1700, 2000, true);
+    window(3350, 1440, 1100, 2100, false, true);
+    window(5450, 1540, 1700, 2000, true);
   } else {
-    for (const x of [53, 203, 353]) window(x, 149, 94, 110, true);
+    for (const x of [400, 2250, 4100]) window(x, 1690, 1400, 1850, true);
+    window(5950, 1440, 1100, 2100, false, true);
   }
 
   if (place === 'canopy') {
-    // The roof is above the letter slot, and the vertical fascia is behind it.
-    add(21, 29, 458, 7, '#6e7578', 1.2, 36, 'canopy-roof');
-    add(27, 36, 446, 96, c.fascia, 0, 2.5, 'canopy-fascia');
-    add(25, 132, 450, 4, '#262e34', 1.3, 36, 'canopy-bottom');
-    add(26, 37, 3, 95, '#4b555d', .6, 35, 'canopy-left-return');
-    add(471, 37, 3, 95, '#4b555d', .6, 35, 'canopy-right-return');
-    for (const x of [56, 444]) add(x, 138, 4, 20, c.frame, wallZ + 15, 19, 'canopy-bracket');
+    // 3.5 m roof, projecting 1.5 m. Letters stand above its leading edge.
+    add(2150, 1150, 3500, 180, '#6e7578', 0, 1500, 'canopy-roof');
+    add(2150, 1180, 3500, 150, c.fascia, 0, 80, 'canopy-fascia');
+    add(2150, 1330, 3500, 30, '#c6b396', -60, 1380, 'canopy-soffit');
+    for (const [side, x] of [['left', 2250], ['right', 5470]] as const) {
+      add(x, 1330, 80, 2660, c.frame, -50, 80, 'canopy-column-' + side);
+      add(x - 45, 3960, 170, 30, '#51585c', -10, 170, 'canopy-column-base-' + side);
+      add(x, 1290, 80, 40, c.frame, -50, 1450, 'canopy-side-beam-' + side);
+    }
+    for (const x of [3000, 4780]) add(x, 1060, 20, 90, c.frame, -10, 30, 'canopy-sign-upright');
   } else {
-    add(29, 38, 442, 94, palette === 'charcoal' ? '#555f67' : palette === 'brick' ? '#e0d4c3' : '#eee8de', wallZ + .35, .65, 'sign-mounting-band');
-    add(29, 132, 442, 1.1, c.joint, wallZ + .45, .9, 'sign-band-bottom');
+    add(300, 430, 7200, 710, palette === 'charcoal' ? '#555f67' : palette === 'brick' ? '#e0d4c3' : '#eee8de', wallZ + 3, 7, 'sign-mounting-band');
+    add(300, 1140, 7200, 12, c.joint, wallZ + 5, 12, 'sign-band-bottom');
   }
 
   const planter = (x: number, width: number, flowers = false) => {
-    const z = wallZ + 13;
-    add(x, 250, width, 21, c.planter, z, 20, 'planter-box');
-    add(x - .8, 249, width + 1.6, 2.4, '#a59b88', z + .8, 22, 'planter-rim');
-    add(x + 2, 248.7, width - 4, 1.5, '#40382c', z - 2, 16, 'planter-soil');
+    const z = wallZ + 500;
+    add(x, 3640, width, 350, c.planter, z, 440, 'planter-box');
+    add(x - 12, 3620, width + 24, 35, '#a59b88', z + 12, 460, 'planter-rim');
+    add(x + 25, 3610, width - 50, 20, '#40382c', z - 30, 380, 'planter-soil');
     for (const [i, stemX] of [x + width * .23, x + width * .51, x + width * .77].entries()) {
-      const top = 232 - (i === 1 ? 10 : 0);
-      add(stemX, top, 1, 249 - top, '#5a6650', z - 1, 1, 'plant-stem');
-      for (const [dx, dy, angle, size] of [[-4, 4, -35, 8], [3, 8, 30, 9], [-3, 13, -28, 7], [3, 17, 35, 8]])
-        add(stemX + dx - size / 2, top + dy, size, size * .6, i === 1 ? '#617454' : '#75876a', z + 1.5, size * .7, 'plant-leaf', { kind: 'foliage', rotation: angle });
-      if (flowers) add(stemX - 2.5, top - 2, 6, 5, i === 1 ? '#d9b166' : '#b57d70', z + 2.1, 3, 'planter-flower', { kind: 'flower' });
+      const top = 3340 - (i === 1 ? 170 : 0);
+      add(stemX, top, 12, 3620 - top, '#5a6650', z - 20, 12, 'plant-stem');
+      for (const [dx, dy, angle, size] of [[-60, 60, -35, 115], [45, 120, 30, 130], [-45, 200, -28, 100], [45, 260, 35, 115]])
+        add(stemX + dx - size / 2, top + dy, size, size * .6, i === 1 ? '#617454' : '#75876a', z + 25, size * .7, 'plant-leaf', { kind: 'foliage', rotation: angle });
+      if (flowers) add(stemX - 35, top - 30, 80, 70, i === 1 ? '#d9b166' : '#b57d70', z + 35, 45, 'planter-flower', { kind: 'flower' });
     }
   };
-  if (place === 'entrance') { planter(16, 31, true); planter(458, 27); }
-  else if (place === 'shop') { planter(8, 27); planter(445, 42, true); }
-  else { planter(14, 29, true); planter(461, 27); }
-  for (const x of [18, 478]) {
-    add(x, 143, 5, 13, '#31393d', wallZ + 2.8, 4, 'wall-lamp');
-    add(x + .6, 145, 3.8, 7.5, night ? '#f4d4a0' : '#e0d0b4', wallZ + 3.1, .5, 'wall-lamp-lens', { kind: 'lamp', color: night ? '#f4d4a0' : '#e0d0b4' });
+  planter(50, 400, true); planter(7330, 400);
+  for (const x of [250, 7470]) {
+    add(x, 1570, 70, 190, '#31393d', wallZ + 60, 80, 'wall-lamp');
+    add(x + 9, 1600, 52, 110, night ? '#f4d4a0' : '#e0d0b4', wallZ + 66, 8, 'wall-lamp-lens', { kind: 'lamp', color: night ? '#f4d4a0' : '#e0d0b4' });
   }
   return rects;
 }
@@ -132,18 +144,26 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
   const glass = night ? ['#bba078', '#75674e', '#d6bc8c'] : ['#5e7d8e', '#8498a0', '#354c5a'];
   const defs = `<defs>
     <linearGradient id="${safePrefix}-glass" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="${glass[0]}"/><stop offset=".47" stop-color="${glass[1]}"/><stop offset="1" stop-color="${glass[2]}"/></linearGradient>
-    <pattern id="${safePrefix}-brick" patternUnits="userSpaceOnUse" width="80" height="26"><rect width="80" height="26" fill="${nightColor(c.joint, night)}"/><path d="M.8 .8H39.2V12.2H.8ZM40.8 .8H79.2V12.2H40.8ZM-19.2 13.8H19.2V25.2H-19.2ZM20.8 13.8H59.2V25.2H20.8ZM60.8 13.8H99.2V25.2H60.8Z" fill="${nightColor(c.wall, night)}"/><path d="M.8 .8H39.2M40.8 .8H79.2M20.8 13.8H59.2" stroke="${nightColor('#d39777', night)}" stroke-width=".7"/></pattern>
+    <pattern id="${safePrefix}-brick" patternUnits="userSpaceOnUse" width="480" height="156"><rect width="480" height="156" fill="${nightColor(c.joint, night)}"/><path d="M5 5H235V73H5ZM245 5H475V73H245ZM-115 83H115V151H-115ZM125 83H355V151H125ZM365 83H595V151H365Z" fill="${nightColor(c.wall, night)}"/><path d="M5 5H235M245 5H475M125 83H355" stroke="${nightColor('#d39777', night)}" stroke-width="4"/></pattern>
   </defs>`;
   const wallOpenings = rects.filter(r => r.kind === 'opening');
   const wall = rects[0];
-  const wallPath = `M0 0H500V273H0Z${wallOpenings.map(r => `M${r.x} ${r.y}V${r.y + r.h}H${r.x + r.w}V${r.y}Z`).join('')}`;
+  const wallPath = `M${wall.x} ${wall.y}H${wall.x + wall.w}V${wall.y + wall.h}H${wall.x}Z${wallOpenings.map(r => `M${r.x} ${r.y}V${r.y + r.h}H${r.x + r.w}V${r.y}Z`).join('')}`;
   const rendered = rects.map(r => {
     if (r.kind === 'wall') return `<path d="${wallPath}" fill="${palette === 'brick' ? `url(#${safePrefix}-brick)` : wall.color}" fill-rule="evenodd"/>`;
     if (r.kind === 'foliage' || r.kind === 'flower') return `<ellipse cx="${r.x + r.w / 2}" cy="${r.y + r.h / 2}" rx="${r.w / 2}" ry="${r.h / 2}" fill="${r.color}" transform="rotate(${r.rotation ?? 0} ${r.x + r.w / 2} ${r.y + r.h / 2})"/>`;
     if (r.kind === 'glass') return `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#${safePrefix}-glass)"/><path d="M${r.x + r.w * .17} ${r.y}L${r.x + r.w * .50} ${r.y + r.h}M${r.x + r.w * .26} ${r.y}L${r.x + r.w * .59} ${r.y + r.h}" stroke="${night ? '#fff2cf' : '#dce5e8'}" stroke-width="${r.w * .055}" opacity="${night ? '.045' : '.09'}"/>`;
-    return `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.color}"${r.kind === 'lamp' ? ' rx=".5"' : ''}/>`;
+    return `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.color}" data-facade-part="${r.name}"${r.kind === 'lamp' ? ' rx="7"' : ''}/>`;
   }).join('');
-  const inner = markup.replace(/^<\?xml[^>]*\?>\s*/, '').replace(/<svg\b([^>]*)>/, (_tag, attrs: string) => '<svg x="75" y="40" width="350" height="90" ' + attrs.replace(/\s(?:width|height)="[^"]*"/g, '') + '>')
+  const view = markup.match(/\bviewBox=["']([^"']+)["']/)?.[1].trim().split(/[\s,]+/).map(Number);
+  const [vx, vy, vw, vh] = view?.length === 4 && view.every(Number.isFinite) && view[2] > 0 && view[3] > 0 ? view : [0, 0, 1800, 300];
+  const signBox = options.signBox ?? { x: vx, y: vy, width: vw, height: vh };
+  const x = FACADE_SIGN_ANCHOR.x - signBox.x - signBox.width / 2 + vx;
+  const y = FACADE_SIGN_ANCHOR.y - signBox.y - signBox.height / 2 + vy;
+  // Each SVG unit is already a millimetre. Keep export margins and dimension lines at the same scale.
+  const inner = markup.replace(/^<\?xml[^>]*\?>\s*/, '').replace(/<svg\b([^>]*)>/, (_tag, attrs: string) => `<svg x="${x}" y="${y}" width="${vw}" height="${vh}" data-facade-sign="true" data-sign-width="${signBox.width}" data-sign-height="${signBox.height}" ` + attrs.replace(/\s(?:width|height)="[^"]*"/g, '') + '>')
     .replace(/id="([^"]+)"/g, (_a, id: string) => `id="${safePrefix}-${id}"`).replace(/url\(#([^\)]+)\)/g, (_a, id: string) => `url(#${safePrefix}-${id})`);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 280" role="img" aria-label="Размещение: ${SIGN_PLACEMENTS.find(p => p.id === place)?.title}">${defs}${rendered}${inner}</svg>`;
+  const left = Math.min(0, x), top = Math.min(0, y);
+  const width = Math.max(FACADE_VIEWBOX.width, x + vw) - left, height = Math.max(FACADE_VIEWBOX.height, y + vh) - top;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" data-facade-mm="true" role="img" aria-label="Размещение: ${SIGN_PLACEMENTS.find(p => p.id === place)?.title}. Дверь 1100 на 2100 мм${place === 'canopy' ? ', козырёк с выносом 1500 мм' : ''}">${defs}${rendered}${inner}</svg>`;
 }

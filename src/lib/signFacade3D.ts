@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { facadeRects } from './signFacade';
+import { facadeRects, FACADE_SIGN_ANCHOR } from './signFacade';
 import type { FacadeOptions, FacadeRect, SignPlacement } from './signFacade';
 
 /** Restrained masonry colour and shallow joints, with no high frequency glass texture. */
@@ -22,30 +22,38 @@ function masonryTexture(): { color: THREE.CanvasTexture; bump: THREE.CanvasTextu
   }
   const color = new THREE.CanvasTexture(canvas), bump = new THREE.CanvasTexture(heightMap);
   color.colorSpace = THREE.SRGBColorSpace;
-  for (const texture of [color, bump]) { texture.anisotropy = 2; texture.generateMipmaps = true; texture.minFilter = THREE.LinearMipmapLinearFilter; }
+  for (const texture of [color, bump]) {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.anisotropy = 2; texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+  }
   return { color, bump };
 }
 
-function wallGeometry(rects: FacadeRect[], scale: number) {
+function wallGeometry(rects: FacadeRect[]) {
   const wall = rects.find(r => r.kind === 'wall')!;
+  const { x: anchorX, y: anchorY } = FACADE_SIGN_ANCHOR;
+  const left = wall.x - anchorX, right = left + wall.w;
+  const top = anchorY - wall.y, bottom = top - wall.h;
   const shape = new THREE.Shape();
-  shape.moveTo(-250, 85); shape.lineTo(250, 85); shape.lineTo(250, 85 - wall.h); shape.lineTo(-250, 85 - wall.h); shape.closePath();
+  shape.moveTo(left, top); shape.lineTo(right, top); shape.lineTo(right, bottom); shape.lineTo(left, bottom); shape.closePath();
   for (const r of rects.filter(item => item.kind === 'opening')) {
-    const hole = new THREE.Path(), left = r.x - 250, right = left + r.w, top = 85 - r.y, bottom = top - r.h;
-    hole.moveTo(left, top); hole.lineTo(left, bottom); hole.lineTo(right, bottom); hole.lineTo(right, top); hole.closePath();
+    const hole = new THREE.Path(), holeLeft = r.x - anchorX, holeRight = holeLeft + r.w;
+    const holeTop = anchorY - r.y, holeBottom = holeTop - r.h;
+    hole.moveTo(holeLeft, holeTop); hole.lineTo(holeLeft, holeBottom); hole.lineTo(holeRight, holeBottom); hole.lineTo(holeRight, holeTop); hole.closePath();
     shape.holes.push(hole);
   }
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: wall.depth ?? 14, bevelEnabled: false, steps: 1 });
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: wall.depth ?? 200, bevelEnabled: false, steps: 1 });
   const positions = geometry.getAttribute('position'), uv = geometry.getAttribute('uv');
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, (positions.getX(i) + 250) / 500, (positions.getY(i) + 195) / 280);
-  geometry.scale(scale, scale, scale);
+  // A 1000 × 560 texture contains 80 × 26 pixel bricks: 240 × 78 mm in the scene.
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (positions.getX(i) - left) / 3000, (positions.getY(i) - bottom) / 1680);
   return geometry;
 }
 
-export function createFacadeModel(place: SignPlacement, signWidth: number, signHeight: number, options: FacadeOptions = {}) {
+export function createFacadeModel(place: SignPlacement, _signWidth: number, _signHeight: number, options: FacadeOptions = {}) {
   const group = new THREE.Group(); group.name = 'facade';
   if (place === 'none') return group;
-  const scale = Math.max(signWidth / 300, signHeight / 76, 8);
+  const { x: anchorX, y: anchorY } = FACADE_SIGN_ANCHOR;
   const anchorZ = -Math.max(0, options.signBackMm ?? 20) - 4;
   const palette = options.palette ?? 'stone';
   const dayRects = facadeRects(place, false, options), nightRects = facadeRects(place, true, options);
@@ -76,21 +84,21 @@ export function createFacadeModel(place: SignPlacement, signWidth: number, signH
     }
     let mesh: THREE.Mesh;
     if (kind === 'wall') {
-      mesh = new THREE.Mesh(wallGeometry(dayRects, scale), material);
-      mesh.position.z = anchorZ + (r.z ?? 0) * scale - (r.depth ?? 14) * scale;
+      mesh = new THREE.Mesh(wallGeometry(dayRects), material);
+      mesh.position.z = anchorZ + (r.z ?? 0) - (r.depth ?? 200);
     } else {
       const organic = kind === 'foliage' || kind === 'flower';
       mesh = new THREE.Mesh(organic ? leafGeometry : boxGeometry, material);
-      mesh.scale.set(r.w * scale, r.h * scale, (r.depth ?? .6) * scale);
-      mesh.position.set((r.x + r.w / 2 - 250) * scale, (85 - r.y - r.h / 2) * scale,
-        anchorZ + ((r.z ?? 0) - (r.depth ?? .6) / 2) * scale);
+      mesh.scale.set(r.w, r.h, r.depth ?? .6);
+      mesh.position.set(r.x + r.w / 2 - anchorX, anchorY - r.y - r.h / 2,
+        anchorZ + (r.z ?? 0) - (r.depth ?? .6) / 2);
       if (r.rotation) mesh.rotation.z = -r.rotation * Math.PI / 180;
     }
     mesh.name = kind === 'wall' ? 'facade-wall' : 'facade-' + (r.name ?? 'detail');
     mesh.receiveShadow = kind !== 'glass' && kind !== 'lamp';
     mesh.castShadow = kind !== 'wall' && kind !== 'glass' && kind !== 'opening' && kind !== 'lamp';
     mesh.userData.facadeKind = kind;
-    mesh.userData.frontZ = anchorZ + (r.z ?? 0) * scale;
+    mesh.userData.frontZ = anchorZ + (r.z ?? 0);
     group.add(mesh);
   }
   return group;
