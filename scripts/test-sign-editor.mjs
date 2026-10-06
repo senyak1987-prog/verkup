@@ -77,7 +77,7 @@ test('Raster outline tracing preserves the hole and opposite contour winding',()
   assert.ok(signed[0]*signed[1]<0);
 });
 test('All neon alphabets and styles produce contained centerlines and 1 cm cuts',()=>{
-  for(const font of neon.NEON_FONTS) for(const diameter of [6,8]) for(const text of (font.cyrillic?['АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ','ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789','Город\nСВЕТ']:['Neon Coffee','ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'])) {
+  for(const font of neon.NEON_FONTS) for(const diameter of [6,8]) for(const text of (font.cyrillic?['АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ','абвгдеёжзийклмнопрстуфхцчшщъыьэюя','ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789','abcdefghijklmnopqrstuvwxyz','Город\nСВЕТ']:['Neon Coffee','ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789','abcdefghijklmnopqrstuvwxyz'])) {
     let design;try {design=neon.createNeonDesign(text,300,diameter,font.id);} catch(error){throw new Error(font.id+" "+diameter+" "+text+": "+error.message);}
     assert.equal(design.radius,diameter/2);
     for(const cut of design.cuts){assert.equal(cut.cutMm%10,0);assert.ok(cut.cutMm>=cut.visibleMm-.001);assert.ok(cut.hiddenTailMm<10.001);}

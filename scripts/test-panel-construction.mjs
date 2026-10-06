@@ -14,7 +14,8 @@ function load(name, dependencies = {}) {
 }
 const mount = load('panelConstruction');
 const svg = load('signPanelExport', { './panelConstruction': mount });
-const scene = load('signSceneGeometry', { three: THREE, './panelConstruction': mount, './letterContours': {}, './neonScene': {} });
+const glyphShapes = load('glyphShapes', { three: THREE, libtess: { default: require('libtess') } });
+const scene = load('signSceneGeometry', { three: THREE, './panelConstruction': mount, './letterContours': {}, './neonScene': {}, './glyphShapes': glyphShapes });
 for (const shape of ['circle','square','rounded']) test(shape + ': две консоли, отдельные пластины и корпус заданной глубины', async () => {
   for (const size of [200, 500, 2000]) for (const gap of [60, 120, 400]) {
     const project = { productId: 'panel', panelShape: shape, panelSize: size, panelWallGap: gap, panelCornerRadius: 90,
