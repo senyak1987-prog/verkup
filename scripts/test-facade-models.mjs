@@ -89,11 +89,12 @@ test('SVG signs keep their actual millimetre size and share the 3D mounting orig
   const anchor = facade.FACADE_SIGN_ANCHOR;
   assert.deepEqual(anchor, { x: 3900, y: 800 });
   for (const place of places) for (const [width, height] of dimensions) {
+    const signAnchor = facade.facadeSignPlacement(place.id, width, height, 50).anchor;
     const markup = `<svg width="999" height="999" viewBox="0 0 ${width} ${height}"><path d="M0 0H${width}V${height}H0Z"/></svg>`;
     const svg = facade.createFacadeSvg(place.id, markup, false, 'physical-size', { signBox: { x: 0, y: 0, width, height } });
     const tag = signSvgTag(svg);
-    close(Number(tag.x), anchor.x - width / 2, 'SVG sign left');
-    close(Number(tag.y), anchor.y - height / 2, 'SVG sign top');
+    close(Number(tag.x), signAnchor.x - width / 2, 'SVG sign left');
+    close(Number(tag.y), signAnchor.y - height / 2, 'SVG sign top');
     close(Number(tag.width), width, 'SVG sign width');
     close(Number(tag.height), height, 'SVG sign height');
     close(Number(tag['data-sign-width']), width, 'Reported sign width');
@@ -102,8 +103,8 @@ test('SVG signs keep their actual millimetre size and share the 3D mounting orig
     const door = rects.find(r => r.name === 'door-opening');
     const model = scene.createFacadeModel(place.id, width, height, { signBackMm: 50 });
     const doorBox = bounds(model.getObjectByName('facade-door-opening'));
-    close(doorBox.min.x, door.x - anchor.x, 'SVG and 3D door left');
-    close(doorBox.max.y, anchor.y - door.y, 'SVG and 3D door top');
+    close(doorBox.min.x, door.x - signAnchor.x, 'SVG and 3D door left');
+    close(doorBox.max.y, signAnchor.y - door.y, 'SVG and 3D door top');
     close(Number(tag.width) / door.w, width / doorBox.getSize(new THREE.Vector3()).x, 'Sign to door width proportion');
     dispose(model);
   }
@@ -121,8 +122,8 @@ test('The SVG preserves editor and dimension margins without changing the constr
 });
 
 test('Windows have true apertures, restrained reflections and separated glazing at every sign size', () => {
-  const anchor = facade.FACADE_SIGN_ANCHOR;
   for (const { id: palette } of facade.FACADE_PALETTES) for (const place of places) for (const [width, height] of dimensions) {
+    const anchor = facade.facadeSignPlacement(place.id, width, height, 50).anchor;
     const rects = facade.facadeRects(place.id, false, { palette });
     const model = scene.createFacadeModel(place.id, width, height, { palette, signBackMm: 50 });
     model.updateMatrixWorld(true);
@@ -223,8 +224,9 @@ test('The entrance canopy projects 1500 mm with structural columns and three 150
     const roof = rects.find(r => r.name === 'canopy-roof'), fascia = rects.find(r => r.name === 'canopy-fascia');
     const wall = rects.find(r => r.kind === 'wall');
     assert.equal(roof.depth, 1500); assert.equal(roof.z - wall.z, 1500);
-    assert.equal(roof.w, 3500); assert.equal(roof.h, 180);
-    assert.equal(fascia.h, 150, 'The front edge remains a thin canopy rather than a tall wall frieze');
+    assert.equal(roof.w, 3500); assert.equal(roof.h, 30);
+    assert.equal(fascia.w, 3500); assert.equal(fascia.h, 700, 'The front frieze has enough height for 550 mm letters with margins');
+    assert.equal(roof.y + roof.h, fascia.y, 'The roof sheet sits above the front frieze without coplanar faces');
     const model = scene.createFacadeModel('canopy', width, height, { palette, signBackMm: 100 });
     model.updateMatrixWorld(true);
     const roofMesh = model.getObjectByName('facade-canopy-roof'), wallMesh = model.getObjectByName('facade-wall');
@@ -235,12 +237,13 @@ test('The entrance canopy projects 1500 mm with structural columns and three 150
     for (const side of ['left', 'right']) {
       const column = rects.find(r => r.name === 'canopy-column-' + side);
       assert.ok(column, 'Canopy has a ' + side + ' structural column');
-      assert.equal(column.w, 80); assert.equal(column.h, 2660); assert.equal(column.depth, 80);
+      assert.equal(column.w, 80); assert.equal(column.h, 2630); assert.equal(column.depth, 80);
       assert.equal(column.y + column.h, 3990, 'Columns reach the ground');
-      assert.equal(column.y, roof.y + roof.h, 'Column tops meet the underside of the canopy');
+      const soffit = rects.find(r => r.name === 'canopy-soffit');
+      assert.equal(column.y, soffit.y + soffit.h, 'Column tops meet the underside of the hollow canopy');
       const box = bounds(model.getObjectByName('facade-canopy-column-' + side));
       close(box.getSize(new THREE.Vector3()).x, 80, 'Column width in 3D');
-      close(box.getSize(new THREE.Vector3()).y, 2660, 'Column height in 3D');
+      close(box.getSize(new THREE.Vector3()).y, 2630, 'Column height in 3D');
       assert.ok(box.max.z < roofBox.max.z && box.min.z > roofBox.min.z, 'Posts stand under the projecting roof');
     }
     const steps = [1, 2, 3].map(index => rects.find(r => r.name === 'entrance-step-' + index));
@@ -256,19 +259,73 @@ test('The entrance canopy projects 1500 mm with structural columns and three 150
   }
 });
 
-test('Letters up to 550 mm stay above the canopy roof, with no architectural rescaling', () => {
-  for (const { id: palette } of facade.FACADE_PALETTES) for (const [width, height] of [[600, 180], [1800, 300], [5000, 550]]) {
+test('Letters and ACP are centred on the front frieze, with a physical rear clearance in 2D and 3D', () => {
+  for (const { id: palette } of facade.FACADE_PALETTES) for (const [width, height] of [[600, 180], [1800, 300], [3400, 550]]) for (const backMm of [0, 30, 100]) {
     const rects = facade.facadeRects('canopy', false, { palette });
-    const roof = rects.find(r => r.name === 'canopy-roof');
-    const signBottom = facade.FACADE_SIGN_ANCHOR.y + height / 2;
-    assert.ok(signBottom < roof.y, 'The letters and canopy roof need separate physical vertical positions');
-    const model = scene.createFacadeModel('canopy', width, height, { palette, signBackMm: 100 });
+    const frieze = rects.find(r => r.name === 'canopy-fascia');
+    const placement = facade.facadeSignPlacement('canopy', width, height, backMm);
+    close(placement.anchor.x, frieze.x + frieze.w / 2, 'Sign is centred horizontally on the frieze');
+    close(placement.anchor.y, frieze.y + frieze.h / 2, 'Sign is centred vertically on the frieze');
+    assert.ok(placement.anchor.y - height / 2 >= frieze.y + 50 && placement.anchor.y + height / 2 <= frieze.y + frieze.h - 50);
+    assert.ok(placement.fits);
+    const markup = `<svg viewBox="-80 -60 ${width + 160} ${height + 120}"><path d="M0 0H${width}V${height}H0Z"/></svg>`;
+    const tag = signSvgTag(facade.createFacadeSvg('canopy', markup, false, 'frieze', { palette, signBackMm: backMm, signBox: { x: 0, y: 0, width, height } }));
+    close(Number(tag.x) + 80 + width / 2, placement.anchor.x, 'SVG export margins preserve the horizontal physical anchor');
+    close(Number(tag.y) + 60 + height / 2, placement.anchor.y, 'SVG export margins preserve the vertical physical anchor');
+    const model = scene.createFacadeModel('canopy', width, height, { palette, signBackMm: backMm });
     model.updateMatrixWorld(true);
+    const friezeMesh = model.getObjectByName('facade-canopy-fascia'), friezeBox = bounds(friezeMesh);
+    close(friezeBox.getCenter(new THREE.Vector3()).x, 0, '3D sign centre matches frieze centre X');
+    close(friezeBox.getCenter(new THREE.Vector3()).y, 0, '3D sign centre matches frieze centre Y');
+    close(friezeBox.max.z, placement.surface.frontZ, 'The visible front frieze is the actual mounting plane');
+    close(placement.signRearZ - friezeBox.max.z, 4, 'ACP depth or frame rear extent leaves exactly 4 mm mounting clearance');
     for (const [x, y] of [[-width / 2 + 10, 0], [0, -height / 2 + 10], [width / 2 - 10, height / 2 - 10]]) {
       const hits = new THREE.Raycaster(new THREE.Vector3(x, y, 5000), new THREE.Vector3(0, 0, -1)).intersectObjects(model.children, false);
-      assert.ok(hits.every(hit => hit.object.name !== 'facade-canopy-roof' && !hit.object.name.startsWith('facade-canopy-column')), 'The roof and columns cannot occlude the letter area');
+      assert.equal(hits[0]?.object.name, 'facade-canopy-fascia', 'The entire standard sign area must be in front of the vertical frieze');
     }
-    assert.equal(model.userData.signMountZ, -104, 'Actual sign depth still determines the mounting surface');
+    assert.equal(model.userData.signMountSurface, 'canopy-frieze');
+    assert.equal(model.userData.signMountZ, -backMm - 4, 'Actual sign rear geometry determines the mounting surface');
+    assert.ok(!model.children.some(child => child.name === 'facade-canopy-sign-upright'), 'Standard signs are not supported above the canopy roof');
+    dispose(model);
+  }
+});
+
+test('Oversized signs keep their dimensions and never stretch the canopy or facade', () => {
+  const reference = facade.facadeRects('canopy', false), standard = facade.facadeSignPlacement('canopy', 3400, 600, 0);
+  assert.ok(standard.fits); assert.equal(standard.maxWidthMm, 3400); assert.equal(standard.maxHeightMm, 600);
+  for (const [width, height] of [[5000, 550], [1500, 800], [8000, 1200]]) {
+    const placement = facade.facadeSignPlacement('canopy', width, height, 100);
+    assert.equal(placement.fits, false);
+    assert.deepEqual(placement.anchor, standard.anchor);
+    const model = scene.createFacadeModel('canopy', width, height, { signBackMm: 100 });
+    close(bounds(model.getObjectByName('facade-canopy-fascia')).getSize(new THREE.Vector3()).x, 3500, 'Frieze width stays fixed');
+    close(bounds(model.getObjectByName('facade-canopy-fascia')).getSize(new THREE.Vector3()).y, 700, 'Frieze height stays fixed');
+    close(bounds(model.getObjectByName('facade-wall')).getSize(new THREE.Vector3()).x, 7800, 'Building width stays fixed');
+    const tag = signSvgTag(facade.createFacadeSvg('canopy', `<svg viewBox="0 0 ${width} ${height}"/>`, false));
+    close(Number(tag.width), width, 'Oversized SVG sign keeps its actual width');
+    close(Number(tag.height), height, 'Oversized SVG sign keeps its actual height');
+    assert.deepEqual(facade.facadeRects('canopy', false), reference);
+    assert.equal(model.userData.signFitsSurface, false);
+    dispose(model);
+  }
+});
+
+test('Perpendicular panel mounts retain the existing canopy context and real wall planes', () => {
+  for (const mode of ['wall', 'corner', 'corner-front', 'corner-side']) {
+    const pose = panelMount.panelMountLayout(550, 'circle', 120, 60, 160, mode);
+    const rects = facade.facadeRects('canopy', false, { panelMount: pose });
+    const frieze = rects.find(r => r.name === 'canopy-fascia'), roof = rects.find(r => r.name === 'canopy-roof');
+    assert.equal(frieze.y, 1180); assert.equal(frieze.h, 150);
+    assert.equal(roof.y, 1150); assert.equal(roof.h, 180);
+    const model = scene.createFacadeModel('canopy', 550, 550, { panelMount: pose });
+    model.updateMatrixWorld(true);
+    const wall = model.getObjectByName('facade-wall');
+    close(bounds(wall).max.z, 0, 'Panel front wall remains its Z=0 anchoring plane');
+    close(bounds(wall).max.y, 800, 'Panel physical vertical wall reference remains unchanged');
+    if (mode !== 'wall') {
+      const side = model.getObjectByName('facade-side'), sideWall = side.getObjectByName('facade-wall');
+      close(bounds(sideWall).max.x, 0, 'Corner side wall remains its X=0 anchoring plane');
+    }
     dispose(model);
   }
 });

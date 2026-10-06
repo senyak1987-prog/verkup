@@ -560,7 +560,7 @@ export function applySignLighting(group: THREE.Object3D, night: number, lightsOn
           ? (material.userData.maxEmission ?? 0) * night
           : material.userData.neonEmission !== undefined
             ? material.userData.neonEmission * (.35 + .65 * night) * on
-            : (material.userData.maxEmission ?? 0) * (.12 + .88 * night) * on;
+            : (material.userData.maxEmission ?? 0) * (.02 + .98 * night) * on;
       }
       if (material.userData.dayColor && lit.color) {
         lit.color.copy(material.userData.dayColor);

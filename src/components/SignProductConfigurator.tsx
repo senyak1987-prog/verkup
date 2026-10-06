@@ -15,6 +15,9 @@ import { fitNeonToWidth } from "../lib/neonSizing";
 import { NeonControls } from "./NeonControls";
 import { NeonStudioEditor } from "./NeonStudioEditor";
 import { SignLayoutEditor } from "./SignLayoutEditor";
+import { AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, Undo2 } from "lucide-react";
+import { centerLayoutSelection, packLayoutComposition } from "../lib/signLayoutAlignment";
+import type { AlignmentAxis, LayoutObject } from "../lib/signLayoutAlignment";
 import { SignPlacements } from "./SignPlacements";
 import { SignPhotoPreview } from "./SignPhotoPreview";
 import { createFacadeSvg, SIGN_PLACEMENTS } from "../lib/signFacade";
@@ -76,6 +79,7 @@ type LettersSvgLayout = {
   textWidth: number;
   textHeight: number;
   textTop: number;
+  textInkBox: SvgBox;
   textNaturalBox: SvgBox;
   textPathData?: string;
   signBox: SvgBox;
@@ -348,7 +352,9 @@ function validateProject(raw: unknown): ProjectState {
     } else if (typeof initial === "number") {
       if (typeof value !== "number" || !Number.isFinite(value)) throw new Error("Проверьте числовые параметры проекта.");
       const limits = PROJECT_RANGES[key];
-      output[key] = limits ? Math.round(Math.min(limits[1], Math.max(limits[0], value))) : value;
+      const bounded = limits ? Math.min(limits[1], Math.max(limits[0], value)) : value;
+      output[key] = key === "logoOffsetX" || key === "logoOffsetY" || key === "textOffsetX" || key === "textOffsetY"
+        ? Math.round(bounded * 1000) / 1000 : limits ? Math.round(bounded) : bounded;
     } else if (typeof initial === "boolean") {
       if (typeof value !== "boolean") throw new Error("Некорректная настройка проекта.");
       output[key] = value;
@@ -391,12 +397,18 @@ export function SignProductConfigurator() {
   const [selectedNeonLine,setSelectedNeonLine] = useState(0);
   useEffect(() => { setSelectedNeonLine(index => Math.min(index, project.neonText.split('\n').length - 1)); }, [project.neonText]);
   const [editing, setEditing] = useState(false);
+  const [layoutSelection, setLayoutSelection] = useState<LayoutObject>("composition");
+  const layoutInteraction = useRef<"idle" | "start" | "active">("idle");
+  useEffect(() => { if (!project.logoEnabled && layoutSelection === "logo") setLayoutSelection("composition"); }, [project.logoEnabled, layoutSelection]);
   const combinedText = project.lettersText + (project.secondLineText.trim() ? "\n" + project.secondLineText : "");
   const patchProject = (patch: Partial<ProjectState>, remember = true) => {
-    if (remember && project.productId === 'neon' && Object.keys(patch).some(key=>key.startsWith('neon'))) {
-      if (Date.now()-lastUndoEdit.current > 800 || !undoHistory.current.length) {
+    const layoutEdit = project.productId === "letters" && Object.keys(patch).some(key =>
+      ["logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "letterWidth", "letterHeight", "secondLineText"].includes(key));
+    if (remember && (layoutEdit || project.productId === 'neon' && Object.keys(patch).some(key=>key.startsWith('neon')))) {
+      if (layoutInteraction.current === "start" || layoutInteraction.current !== "active" && (Date.now()-lastUndoEdit.current > 800 || !undoHistory.current.length)) {
         undoHistory.current.push(project); if (undoHistory.current.length>30) undoHistory.current.shift(); setCanUndo(true);
       }
+      if (layoutEdit && layoutInteraction.current !== "idle") layoutInteraction.current = "active";
       lastUndoEdit.current = Date.now();
     }
     setProject(previous => {
@@ -423,6 +435,8 @@ export function SignProductConfigurator() {
     });
   };
   const undoNeon = () => { const previous=undoHistory.current.pop(); if(previous) setProject(previous); lastUndoEdit.current=0; setCanUndo(undoHistory.current.length>0); };
+  const beginLayoutInteraction = () => { layoutInteraction.current = "start"; };
+  const endLayoutInteraction = () => { layoutInteraction.current = "idle"; lastUndoEdit.current = 0; };
   useEffect(() => { const bounded = constrainBacker(project.acpWidth, project.acpHeight, project.acpDepth);
     if (bounded.width !== project.acpWidth || bounded.height !== project.acpHeight) patchProject({ acpWidth: bounded.width, acpHeight: bounded.height });
   }, [project.acpWidth, project.acpHeight, project.acpDepth]);
@@ -583,6 +597,17 @@ export function SignProductConfigurator() {
     letterWidth,
     logoEnabled, project.logoOffsetX, project.logoOffsetY, project.textOffsetX, project.textOffsetY,
   ]);
+  const alignLayoutSelection = (axis: AlignmentAxis) => {
+    lastUndoEdit.current = 0;
+    patchProject(centerLayoutSelection(lettersLayout, layoutSelection, logoEnabled, axis, mountMode === "acp"));
+    lastUndoEdit.current = 0;
+  };
+  const packLayout = () => {
+    lastUndoEdit.current = 0;
+    patchProject(packLayoutComposition(lettersLayout, logoEnabled, mountMode === "acp"));
+    lastUndoEdit.current = 0;
+    setLayoutSelection("composition");
+  };
   useEffect(() => {
     if (project.mountMode !== 'acp' || !letterContours || fontPending) return;
     const actualHeight = lettersLayout.textHeight / (letterContours.lineFactor ?? 1);
@@ -895,10 +920,15 @@ export function SignProductConfigurator() {
             <label className="placement-select"><span>Размещение</span><select aria-label="Размещение в основном просмотре" value={placement} onChange={e=>{setPlacement(e.target.value as SignPlacement);setEditing(false);}}>{SIGN_PLACEMENTS.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
             <label className="dimensions-toggle"><input type="checkbox" checked={showDimensions} onChange={event => setShowDimensions(event.target.checked)} />Размеры</label>
           </div>
-          {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar">
-            <button type="button" onClick={() => patchProject({ textOffsetX: 0, textOffsetY: 0, logoOffsetX: 0, logoOffsetY: 0 })}>По центру{mountMode === "acp" ? " подложки" : " макета"}</button>
-            <button type="button" onClick={() => patchProject({ textOffsetX: lettersLayout.viewWidth / 2 - lettersLayout.textWidth / 2 - lettersLayout.defaultTextX, textOffsetY: lettersLayout.viewHeight / 2 - lettersLayout.textHeight / 2 - lettersLayout.defaultTextY })}>Центр надписи</button>
-            {logoEnabled && <button type="button" onClick={() => patchProject({ logoOffsetX: lettersLayout.viewWidth / 2 - lettersLayout.logoBox.width / 2 - lettersLayout.defaultLogoX, logoOffsetY: lettersLayout.viewHeight / 2 - lettersLayout.logoBox.height / 2 - lettersLayout.defaultLogoY })}>Центр логотипа</button>}
+          {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar layout-alignment-toolbar" aria-label="Выбор и выравнивание объектов макета">
+            <button className="layout-pack-button" type="button" title="Собрать логотип и надпись в ряд с обычным промежутком и центрировать по обеим осям" disabled={fontPending} onClick={packLayout}>Собрать и центрировать</button>
+            <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => setLayoutSelection(event.target.value as LayoutObject)}><option value="text">Надпись</option><option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
+            <div className="alignment-actions" role="group" aria-label={mountMode === "acp" ? "Центрирование по подложке" : "Центрирование по макету"}>
+              <button type="button" title={mountMode === "acp" ? "По центру подложки по горизонтали" : "По центру макета по горизонтали"} disabled={fontPending} onClick={() => alignLayoutSelection("x")}><AlignHorizontalJustifyCenter size={16}/>Центр X</button>
+              <button type="button" title={mountMode === "acp" ? "По центру подложки по вертикали" : "По центру макета по вертикали"} disabled={fontPending} onClick={() => alignLayoutSelection("y")}><AlignVerticalJustifyCenter size={16}/>Центр Y</button>
+            </div>
+            <span className="alignment-reference">{mountMode === "acp" ? "По подложке" : "По макету"}</span>
+            <button type="button" aria-label="Отменить изменение макета" title="Отменить изменение макета (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={16}/></button>
             <button type="button" onClick={() => { patchProject({ secondLineText: project.secondLineText || "НОВАЯ СТРОКА" }); setActiveSection("design"); }}>+ Строка ниже</button>
             <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
           </div>}
@@ -935,7 +965,7 @@ export function SignProductConfigurator() {
             ) : (
               <LettersPreview
                 lightsOn={project.lightsOn}
-                editor={editing ? <SignLayoutEditor layout={lettersLayout} project={project} onChange={patchProject}/> : undefined}
+                editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={project} selection={layoutSelection} onSelect={setLayoutSelection} onChange={patchProject} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
                 sceneMode={sceneMode}
                 acpDepth={acpDepth}
                 acpColor={acpColor.value}
@@ -1739,12 +1769,13 @@ function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayou
   const y2=Math.max(textTop+textHeight,logoEnabled?logoBox.y+logoBox.height:textTop+textHeight);
   const signBox={x:x1,y:y1,width:x2-x1,height:y2-y1};
   const textBaseline=textTop-natural.y*textHeight/natural.height;
+  const textInkBox={x:textX,y:textTop-overTop*fit,width:textWidth,height:textHeight+(overTop+overBottom)*fit};
   const railHeight=15, centers=frameRailCenters(signBox.y,signBox.height,config.frameTopPosition,config.frameBottomPosition);
   const railTopY=centers.top,railBottomY=centers.bottom;
   const inset=clamp(config.frameEdgeInset,0,signBox.width*.38),railX=signBox.x+inset;
   const railWidth=Math.max(30,signBox.width-inset*2);
   const haloBackerBox={x:signBox.x-height*.16,y:signBox.y-height*.11,width:signBox.width+height*.32,height:signBox.height+height*.22};
-  return {defaultTextX,defaultTextY,defaultLogoX,defaultLogoY,viewWidth,viewHeight,signBox,logoBox,logoCornerRadius:logoSize*.16,textX,textTop,textBaseline,textWidth,textHeight,fontSize,
+  return {defaultTextX,defaultTextY,defaultLogoX,defaultLogoY,viewWidth,viewHeight,signBox,logoBox,logoCornerRadius:logoSize*.16,textX,textTop,textBaseline,textWidth,textHeight,textInkBox,fontSize,
     textPathData:config.contours?.pathData,textNaturalBox:natural,railX,railWidth,railHeight,railTopY,railBottomY,panelBox,panelCornerRadius:0,
     haloBackerBox,haloBackerRadius:Math.min(height*.28,haloBackerBox.height/2),seamXs:[],seamYs:[]};
 }
