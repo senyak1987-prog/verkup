@@ -178,6 +178,8 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
   const glazing = rects.filter(r => r.kind === 'glass');
   const reliefRects = rects.filter(r => r.name === 'cornice' || r.name?.includes('stone-reveal') || r.name?.includes('-sill') || r.name?.startsWith('entrance-step') || r.name?.startsWith('canopy-') || r.name === 'planter-box' || r.name === 'wall-lamp');
   const defs = `<defs>
+    <filter id="${safePrefix}-frosted-interior" x="-15%" y="-15%" width="130%" height="130%"><feGaussianBlur stdDeviation="30"/></filter>
+    <radialGradient id="${safePrefix}-window-spill"><stop stop-color="#ffd9a1" stop-opacity=".62"/><stop offset=".5" stop-color="#ffca80" stop-opacity=".25"/><stop offset="1" stop-color="#ffd9a1" stop-opacity="0"/></radialGradient>
     <linearGradient id="${safePrefix}-glass" x1=".12" y1="0" x2=".82" y2="1"><stop stop-color="${glass[0]}"/><stop offset=".38" stop-color="${glass[1]}"/><stop offset="1" stop-color="${glass[2]}"/></linearGradient>
     <linearGradient id="${safePrefix}-glass-reflection" x1="0" y1=".1" x2="1" y2=".7"><stop stop-color="#e8f0f2" stop-opacity="0"/><stop offset=".35" stop-color="#e8f0f2" stop-opacity=".05"/><stop offset=".52" stop-color="#eef5f5" stop-opacity=".22"/><stop offset=".68" stop-color="#d7e3e7" stop-opacity=".07"/><stop offset="1" stop-color="#b0c5cf" stop-opacity="0"/></linearGradient>
     <linearGradient id="${safePrefix}-window-warm" x1="0" y1="0" x2=".25" y2="1"><stop stop-color="#96764d"/><stop offset=".3" stop-color="#d9b276"/><stop offset=".72" stop-color="#b59262"/><stop offset="1" stop-color="#72604b"/></linearGradient>
@@ -200,7 +202,7 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
       const index = windowIndex++, x = r.x, y = r.y, w = r.w, h = r.h;
       return `<g clip-path="url(#${safePrefix}-window-clip-${index})" data-facade-part="${r.name}">
         <rect data-window-base="true" x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${safePrefix}-glass)"/>
-        <g data-window-light="true" data-window-index="${index}" style="--window-order:${index}" opacity="${windowLevel}"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${safePrefix}-window-warm)"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${safePrefix}-window-lamp)"/><path d="M${x + w * .12} ${y + h * .71}H${x + w * .54}V${y + h}H${x + w * .12}ZM${x + w * .73} ${y + h * .46}H${x + w * .84}V${y + h}H${x + w * .73}Z" fill="#4e463b" opacity=".15"/></g>
+        <g data-window-light="true" data-window-index="${index}" style="--window-order:${index}" opacity="${windowLevel}"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${safePrefix}-window-warm)"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${safePrefix}-window-lamp)"/><path d="M${x + w * .12} ${y + h * .71}H${x + w * .54}V${y + h}H${x + w * .12}ZM${x + w * .73} ${y + h * .46}H${x + w * .84}V${y + h}H${x + w * .73}Z" fill="#4e463b" opacity=".12" filter="url(#${safePrefix}-frosted-interior)"/></g>
         <g data-window-reflection="true" data-window-index="${index}" opacity="${night ? '.24' : '.82'}"><path d="M${x - w * .2} ${y}H${x + w * .2}L${x + w * .84} ${y + h}H${x + w * .45}Z" fill="url(#${safePrefix}-glass-reflection)"/><path d="M${x} ${y + h * .23}C${x + w * .25} ${y + h * .11} ${x + w * .68} ${y + h * .25} ${x + w} ${y + h * .14}V${y}H${x}Z" fill="#b9ccd6" opacity=".16"/><path d="M${x + w * .7} ${y + h * .46}H${x + w * .97}V${y + h}H${x + w * .7}ZM${x} ${y + h * .69}H${x + w * .17}V${y + h}H${x}Z" fill="#182e3d" opacity=".10"/></g>
         <path d="M${x + 8} ${y + h - 8}V${y + 8}H${x + w - 8}" fill="none" stroke="#dce7e8" stroke-opacity="${night ? '.06' : '.17'}" stroke-width="7"/>
       </g>`;
@@ -209,7 +211,8 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
     const shadow = relief ? ` filter="url(#${safePrefix}-architectural-shadow-${reliefIndex})"` : '';
     return `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.color}" data-facade-part="${r.name}"${r.kind === 'lamp' ? ' rx="7"' : ''}${shadow}/>${relief && r.h > 35 ? `<path d="M${r.x + 2} ${r.y + 3}H${r.x + r.w - 2}" stroke="#f2ede1" stroke-width="5" opacity="${night ? '.035' : '.12'}"/>` : ''}`;
   }).join('');
-  if(options.panelMount) return createPanelFacadeSvg(place,markup,night,safePrefix,options,defs,rendered);
+  const spill=glazing.map((r,index)=>`<ellipse data-window-spill="true" data-window-light="true" data-window-index="${index}" style="--window-order:${index}" opacity="${windowLevel}" cx="${r.x+r.w/2}" cy="3998" rx="${r.w*.65}" ry="42" fill="url(#${safePrefix}-window-spill)"/>`).join('');
+  if(options.panelMount) return createPanelFacadeSvg(place,markup,night,safePrefix,options,defs,rendered+spill);
   const view = markup.match(/\bviewBox=["']([^"']+)["']/)?.[1].trim().split(/[\s,]+/).map(Number);
   const [vx, vy, vw, vh] = view?.length === 4 && view.every(Number.isFinite) && view[2] > 0 && view[3] > 0 ? view : [0, 0, 1800, 300];
   const signBox = options.signBox ?? { x: vx, y: vy, width: vw, height: vh };
@@ -221,7 +224,7 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
     .replace(/id="([^"]+)"/g, (_a, id: string) => `id="${safePrefix}-${id}"`).replace(/url\(#([^\)]+)\)/g, (_a, id: string) => `url(#${safePrefix}-${id})`);
   const left = Math.min(0, x), top = Math.min(0, y);
   const width = Math.max(FACADE_VIEWBOX.width, x + vw) - left, height = Math.max(FACADE_VIEWBOX.height, y + vh) - top;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" data-facade-mm="true" data-facade-night="${night}" data-window-lights="${windowsOn}" data-window-light-level="${windowLevel}" data-sign-anchor="${placement.anchor.x} ${placement.anchor.y}" data-sign-fits-surface="${placement.fits}" role="img" aria-label="Размещение: ${SIGN_PLACEMENTS.find(p => p.id === place)?.title}. Дверь 1100 на 2100 мм${place === 'canopy' ? ', вывеска на переднем фризе козырька с выносом 1500 мм' : ''}">${defs}${rendered}${inner}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" data-facade-mm="true" data-facade-night="${night}" data-window-lights="${windowsOn}" data-window-light-level="${windowLevel}" data-sign-anchor="${placement.anchor.x} ${placement.anchor.y}" data-sign-fits-surface="${placement.fits}" role="img" aria-label="Размещение: ${SIGN_PLACEMENTS.find(p => p.id === place)?.title}. Дверь 1100 на 2100 мм${place === 'canopy' ? ', вывеска на переднем фризе козырька с выносом 1500 мм' : ''}">${defs}${rendered}${spill}${inner}</svg>`;
 }
 
 /** Axonometric construction view, using the same wall planes and panel pose as WebGL. */
@@ -234,7 +237,7 @@ function createPanelFacadeSvg(place:SignPlacement,markup:string,night:boolean,pr
   const faceDefs=rename(markup.match(/<defs>[\s\S]*?<\/defs>/)?.[0]??'');
   const corner=isPanelCornerMount(mount.mode),anchorX=corner?7800:FACADE_SIGN_ANCHOR.x;
   const front=`<g data-mount-wall="front" transform="matrix(.94 .041 0 1 ${n(-.94*anchorX)} ${n(-FACADE_SIGN_ANCHOR.y-.041*anchorX)})">${facade}</g>`;
-  const windowCount=(facade.match(/data-window-light="true"/g)??[]).length;
+  const windowCount=(facade.match(/data-window-base="true"/g)??[]).length;
   const sideFacade=facade.replace(/data-window-index="(\d+)"/g,(_tag,index:string)=>`data-window-index="${Number(index)+windowCount}"`)
     .replace(/--window-order:(\d+)/g,(_tag,index:string)=>`--window-order:${Number(index)+windowCount}`);
   const side=corner?`<g data-mount-wall="side" transform="matrix(.342 -.113 0 1 0 ${-FACADE_SIGN_ANCHOR.y})">${sideFacade}</g>`:'';

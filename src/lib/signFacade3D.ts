@@ -71,7 +71,7 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
       side.position.set(wallShift, 0, -3900);
       const offset = front.userData.windowCount ?? 0;
       side.traverse(child => {
-        if(child instanceof THREE.PointLight)child.userData.windowIndex+=offset;
+        if(child instanceof THREE.Light && child.userData.windowIntensity)child.userData.windowIndex+=offset;
         const material = (child as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
         if (material?.userData.windowLight) {
           material.userData.windowIndex += offset;
@@ -108,9 +108,9 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     let material = materials.get(materialKey);
     if (!material) {
       material = kind === 'glass'
-        ? new THREE.MeshPhysicalMaterial({ color: r.color, roughness: .13, metalness: 0,
-          ior: 1.5, clearcoat: 1, clearcoatRoughness: .075, specularIntensity: 1, envMapIntensity: 1.2,
-          transparent:true, opacity:.24, depthWrite:false, side:THREE.DoubleSide })
+        ? new THREE.MeshPhysicalMaterial({ color: '#c4c7c5', roughness: .52, metalness: 0,
+          ior: 1.45, transmission: .15, thickness: 80, attenuationColor: '#d8d3c5', attenuationDistance: 1800,
+          clearcoat: .3, clearcoatRoughness: .28, specularIntensity: .65, envMapIntensity: .7, transparent: true, opacity: .70, depthWrite: false, side: THREE.DoubleSide })
         : new THREE.MeshStandardMaterial({ color: r.color,
           roughness: kind === 'foliage' ? .86 : kind === 'wall' ? .98 : .77,
           metalness: r.name?.includes('frame') || r.name?.includes('canopy') ? .12 : 0, envMapIntensity: .3 });
@@ -119,12 +119,13 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
       // Interior light remains independent of the sign's lighting switch.
       if (kind === 'glass') {
         material.emissive.set('#ffd8a1');
-        material.userData.maxWindowEmission = .08 + (windowIndex! % 4) * .012;
+        material.userData.maxWindowEmission = .13 + (windowIndex! % 4) * .015;
         material.userData.maxEmission = material.userData.maxWindowEmission;
         material.userData.facadeEmission = true;
         material.userData.windowLight = true; material.userData.windowIndex = windowIndex;
-        material.userData.nightColor = new THREE.Color('#324653');
-        material.userData.dayEnvIntensity = 1.2; material.userData.nightEnvIntensity = .45;
+        material.userData.nightColor = new THREE.Color('#bcb8ad');
+        material.userData.dayEnvIntensity = .7; material.userData.nightEnvIntensity = .3;
+        material.userData.frostedGlass = true;
       }
       if (kind === 'lamp') { material.emissive.set(nightRects[index].color); material.userData.maxEmission = .65; material.userData.facadeEmission = true; }
       if (kind === 'wall' && masonry) {
@@ -210,7 +211,34 @@ function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:numb
     add('interior-pendant-wire-'+index,8,350,8,cx,anchor.y-r.y+300,behind,dark);
     const light=new THREE.PointLight('#ffd6a0',0,2600,2);light.name='interior-light-'+index;
     light.position.set(cx,base+r.h*.75,frontZ-950);light.userData.windowIndex=index;light.userData.windowIntensity=700000;group.add(light);
+    addWindowSpill(group, r, index, anchor, frontZ);
   }
+}
+
+/** A soft aperture light reaches the pavement and nearby objects without a visible cone. */
+function addWindowSpill(group: THREE.Group, pane: FacadeRect, index: number,
+  anchor: {x:number;y:number;z:number}, frontZ:number) {
+  const x=pane.x+pane.w/2-anchor.x, groundY=anchor.y-3990;
+  const light=new THREE.SpotLight('#ffd6a0',0,4400,.72,1,2);
+  light.name='window-exterior-light-'+index;
+  light.position.set(x,anchor.y-pane.y-pane.h*.45,frontZ+30);
+  light.target.position.set(x,groundY,frontZ+1450);
+  light.userData.windowIndex=index;light.userData.windowIntensity=2400000;light.userData.dayWindowIntensity=0;
+  group.add(light,light.target);
+  // Analytic soft penumbra stays smooth at every zoom; no texture or additional shadow maps.
+  const material=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,
+    blending:THREE.AdditiveBlending,uniforms:{strength:{value:0},spillColor:{value:new THREE.Color('#ffd39a')}},
+    vertexShader:'varying vec2 spillUv; void main(){spillUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+    fragmentShader:`varying vec2 spillUv; uniform float strength; uniform vec3 spillColor;
+      void main(){float side=1.0-smoothstep(.35,1.0,abs(spillUv.x*2.0-1.0));
+      float reach=1.0-smoothstep(.05,1.0,1.0-spillUv.y);
+      gl_FragColor=vec4(spillColor,side*reach*reach*strength);
+      #include <colorspace_fragment>
+      }`});
+  material.userData.windowLight=true;material.userData.windowIndex=index;material.userData.maxWindowSpill=.42;
+  const spill=new THREE.Mesh(new THREE.PlaneGeometry(pane.w*1.55,2200),material);
+  spill.name='window-pavement-light-'+index;spill.rotation.x=-Math.PI/2;
+  spill.position.set(x,groundY+1.5,frontZ+1150);spill.renderOrder=2;group.add(spill);
 }
 
 /** A cropped wall sample makes the same anchoring visible when no architectural scene is selected. */
@@ -318,14 +346,30 @@ function addStandingMotion(material:THREE.MeshStandardMaterial,time:{value:numbe
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>',`#include <begin_vertex>
       float upper = smoothstep(650.0, 1380.0, position.y);
       float chest = sin(clamp((position.y-800.0)/700.0,0.0,1.0)*3.14159265);
-      float stance = 1.0-smoothstep(350.0, 850.0, position.y);
-      transformed.z += stance * (position.x > 0.0 ? 35.0 : -20.0);
       transformed.x += upper * 1.7 * sin(personTime * 0.72);
       transformed.y += upper * 0.8 * sin(personTime * 1.35);
       transformed.z += chest * 1.5 * sin(personTime * 1.35);
     `);
   };
-  material.customProgramCacheKey=()=> 'gorod-svet-standing-v1';
+  material.customProgramCacheKey=()=> 'gorod-svet-standing-v2';
+}
+
+/** Smooth regional articulation for the static source mesh, baked before normals/shadows. */
+function relaxedStandingPoint(x:number,y:number,z:number,headPitch:number) {
+  const smooth=(a:number,b:number,v:number)=>THREE.MathUtils.smoothstep(v,a,b);
+  const leg=1-smooth(650,920,y),free=x<0;
+  const shift=smooth(650,1100,y)*35;
+  const arm=smooth(165,225,Math.abs(x))*(1-smooth(1320,1460,y))*smooth(570,690,y);
+  let px=x+shift+(free?-32:8)*leg-arm*Math.sign(x)*(free?36:14);
+  let pz=z+(free?85:-16)*leg+(free?70:0)*Math.sin(Math.PI*Math.min(1,y/920))*leg+arm*(free?85:25);
+  // Relax the free foot outward, while both soles stay on the same ground plane.
+  const foot=1-smooth(110,230,y),yaw=(free?-.10:.035)*foot;
+  const centre=free?-115:115,dx=px-centre,dz=pz-35;
+  px=centre+Math.cos(yaw)*dx+Math.sin(yaw)*dz;
+  pz=35-Math.sin(yaw)*dx+Math.cos(yaw)*dz;
+  const head=smooth(1440,1510,y),angle=-headPitch*head,dy=y-1460;
+  return new THREE.Vector3(px,1460+Math.cos(angle)*dy-Math.sin(angle)*pz,
+    Math.sin(angle)*dy+Math.cos(angle)*pz);
 }
 
 /** Ready-made Quaternius superhero with authored parted hair, at an exact 1750 mm scale. */
@@ -334,20 +378,34 @@ export function createScalePerson(facade: THREE.Group, target: THREE.Vector3, br
   facade.updateWorldMatrix(true,true);const ground=new THREE.Box3().setFromObject(pavement);
   const person=new THREE.Group();person.name='scale-person';person.userData.heightMm=SCALE_PERSON_HEIGHT_MM;
   person.userData.assetSource='Quaternius Universal Base Characters / Superhero Male';person.userData.assetLicense='CC0 1.0';
+  person.position.set(THREE.MathUtils.clamp(target.x-1800,ground.min.x+500,ground.max.x-500),ground.max.y,ground.max.z-650);
+  const direction=target.clone().sub(person.position);person.rotation.y=Math.atan2(direction.x,direction.z);
+  const headPitch=THREE.MathUtils.clamp(Math.atan2(direction.y-1580,Math.hypot(direction.x,direction.z)),.10,.32);
+  person.userData.standingPose='relaxed-weight-shift';person.userData.headPitchRadians=headPitch;
   const time={value:0};person.userData.motionTime=time;
   const body=asset.clone(true);body.name='quaternius-superhero';
   body.traverse(child=>{const mesh=child as THREE.Mesh;if(!mesh.isMesh)return;
     mesh.geometry=mesh.geometry.clone();
+    const vertices=mesh.geometry.getAttribute('position');
+    for(let i=0;i<vertices.count;i++){
+      const point=relaxedStandingPoint(vertices.getX(i),vertices.getY(i),vertices.getZ(i),headPitch);
+      vertices.setXYZ(i,point.x,point.y,point.z);
+    }
+    mesh.geometry.computeVertexNormals();mesh.geometry.computeBoundingBox();
     const copy=(original:THREE.Material)=>{const material=original.clone() as THREE.MeshStandardMaterial;
       material.userData.dayColor=material.color.clone();material.roughness=.72;material.metalness=0;material.envMapIntensity=.35;
       addStandingMotion(material,time);return material;};
     mesh.material=Array.isArray(mesh.material)?mesh.material.map(copy):copy(mesh.material);
     mesh.castShadow=mesh.receiveShadow=true;
   });person.add(body);
+  const bodyBounds=new THREE.Box3().setFromObject(body),poseScale=SCALE_PERSON_HEIGHT_MM/bodyBounds.getSize(new THREE.Vector3()).y;
+  person.userData.poseScale=poseScale;
+  body.traverse(child=>{const mesh=child as THREE.Mesh;if(!mesh.isMesh)return;mesh.geometry.scale(poseScale,poseScale,poseScale);});
   const geometry=new THREE.PlaneGeometry(1,1,64,80),positions=geometry.getAttribute('position'),uv=geometry.getAttribute('uv');
   for(let i=0;i<positions.count;i++){
     const u=uv.getX(i),v=1-uv.getY(i),point=capePoint(u,v);
-    positions.setXYZ(i,point.x,point.y,point.z);
+    const shift=THREE.MathUtils.smoothstep(point.y,650,1100)*35;
+    positions.setXYZ(i,(point.x+shift)*poseScale,point.y*poseScale,point.z*poseScale);
     // The print is readable from behind. UVs stay attached during wind deformation.
     uv.setX(i,1-u);
   }
@@ -358,8 +416,6 @@ export function createScalePerson(facade: THREE.Group, target: THREE.Vector3, br
   addStandingMotion(capeMaterial,time);
   const cape=new THREE.Mesh(geometry,capeMaterial);cape.name='person-cape';cape.userData.brand='Город Свет';
   cape.castShadow=cape.receiveShadow=true;person.add(cape);
-  person.position.set(THREE.MathUtils.clamp(target.x-1800,ground.min.x+500,ground.max.x-500),ground.max.y,ground.max.z-450);
-  const direction=target.clone().sub(person.position);person.rotation.y=Math.atan2(direction.x,direction.z);
   person.userData.lookTarget=target.toArray();person.userData.groundY=ground.max.y;return person;
 }
 
@@ -372,7 +428,8 @@ export function animateScalePerson(person:THREE.Object3D,timeSeconds:number,redu
   const positions=cape.geometry.getAttribute('position'),uv=cape.geometry.getAttribute('uv');
   for(let i=0;i<positions.count;i++){
     const point=capePoint(1-uv.getX(i),1-uv.getY(i),phase);
-    positions.setXYZ(i,point.x,point.y,point.z);
+    const scale=person.userData.poseScale??1,shift=THREE.MathUtils.smoothstep(point.y,650,1100)*35;
+    positions.setXYZ(i,(point.x+shift)*scale,point.y*scale,point.z*scale);
   }
   positions.needsUpdate=true;cape.geometry.computeVertexNormals();
   // Bounded wind fits inside this sphere for all phases, avoiding per-frame camera fitting.

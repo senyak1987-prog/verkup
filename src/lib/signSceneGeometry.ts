@@ -717,9 +717,9 @@ export function disposeSignObject(object: THREE.Object3D) {
 export function applySignLighting(group: THREE.Object3D, night: number, lightsOn = true, windowLight = night) {
   const on = lightsOn ? 1 : 0;
   group.traverse(child => {
-    if(child instanceof THREE.PointLight && child.userData.windowIntensity){
+    if(child instanceof THREE.Light && child.userData.windowIntensity){
       const delay=Math.min(child.userData.windowIndex??0,7)*.035;
-      child.intensity=child.userData.windowIntensity*((1-night)*.25+Math.max(0,Math.min(1,(windowLight-delay)/(1-delay))));
+      child.intensity=child.userData.windowIntensity*((1-night)*(child.userData.dayWindowIntensity??.25)+Math.max(0,Math.min(1,(windowLight-delay)/(1-delay))));
     }
     const mesh = child as THREE.Mesh;
     if (!mesh.material) return;
@@ -740,6 +740,10 @@ export function applySignLighting(group: THREE.Object3D, night: number, lightsOn
         lit.color.copy(material.userData.dayColor);
         if (material.userData.windowLight && material.userData.nightColor) lit.color.lerp(material.userData.nightColor, night);
         else lit.color.multiplyScalar(1 - night * (material.userData.photoBackdrop ? .7 : .28));
+      }
+      if (material.userData.maxWindowSpill !== undefined) {
+        const delay=Math.min(material.userData.windowIndex??0,7)*.035;
+        (material as THREE.ShaderMaterial).uniforms.strength.value=material.userData.maxWindowSpill*Math.max(0,Math.min(1,(windowLight-delay)/(1-delay)));
       }
       if (material.userData.windowLight) {
         const day = material.userData.dayEnvIntensity ?? 1, dark = material.userData.nightEnvIntensity ?? .3;
