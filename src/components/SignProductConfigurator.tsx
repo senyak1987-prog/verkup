@@ -3,14 +3,20 @@ import { Component, createContext, lazy, Suspense, useContext, useEffect, useMem
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 import { createPanelSvgMarkup } from "../lib/signPanelExport";
 import { calculateLetterPrice, hasUnpricedSymbols, requiresFrameApproval, useSignCart } from "../lib/signCommerce";
+import { systemFontAvailable } from "../lib/systemFontContours";
 import { SIGN_FONTS, loadLetterContours, resolveSignFont } from "../lib/letterContours";
 import type { LetterContours } from "../lib/letterContours";
 import { allowedLetterDepths, normalizeLetterDepth, frameRailCenters } from "../lib/letterConstruction";
+import { constrainBacker, containBox, backerLimits } from "../lib/backerConstraints";
+import { createNeonDesign, neonSvg } from "../lib/neonConstruction";
+import { NeonControls } from "./NeonControls";
+import { SignLayoutEditor } from "./SignLayoutEditor";
+import { SignPlacements } from "./SignPlacements";
 import { SignCart } from "./SignCart";
 
 const SignScene3D = lazy(() => import("./SignScene3D"));
 
-type ProductId = "panel" | "letters";
+type ProductId = "panel" | "letters" | "neon";
 type SceneMode = "day" | "night";
 type PanelShape = "circle" | "square" | "rounded";
 type LogoShape = "circle" | "square" | "rounded";
@@ -49,6 +55,7 @@ type SvgBox = {
 };
 
 type LettersSvgLayout = {
+  defaultTextX: number; defaultTextY: number; defaultLogoX: number; defaultLogoY: number;
   viewWidth: number;
   viewHeight: number;
   logoBox: SvgBox;
@@ -90,6 +97,7 @@ type LettersSvgLayoutConfig = {
   text: string;
   textBox: SvgBox | null;
   contours?: LetterContours | null;
+  logoOffsetX?: number; logoOffsetY?: number; textOffsetX?: number; textOffsetY?: number;
   widthOverride?: number;
   logoEnabled?: boolean;
 };
@@ -117,6 +125,7 @@ const ACP_SHEET_HEIGHT_MM = 1500;
 const ACP_SECOND_RETURN_MM = 25;
 
 const PRODUCTS: Array<{ id: ProductId; title: string; note: string }> = [
+  { id: "neon", title: "Неоновая вывеска", note: "Неон 6 / 8 мм на прозрачном акриле" },
   {
     id: "panel",
     title: "Панель-кронштейн",
@@ -151,7 +160,7 @@ const GLOW_MODES: Array<{ id: GlowMode; label: string; note: string }> = [
 const MOUNT_MODES: Array<{ id: MountMode; label: string; note: string }> = [
   { id: "wall", label: "На стене", note: "без общей основы" },
   { id: "frame", label: "На раме", note: "две трубы за буквами" },
-  { id: "acp", label: "На подложке АКП", note: "короб с подворотами" },
+  { id: "acp", label: "На подложке АКП", note: "основа под ваш макет" },
 ];
 
 const LOGO_WIDTH_FACTOR = 0.72;
@@ -232,6 +241,9 @@ const DEFAULT_PROJECT = {
   panelFaceColor: ORACAL_8500_COLORS[1] as ColorOption,
   panelSideColor: ORACAL_641_COLORS[1] as ColorOption,
   lettersText: "ЦВЕТЫ",
+  secondLineText: "",
+  logoOffsetX: 0, logoOffsetY: 0, textOffsetX: 0, textOffsetY: 0,
+  neonText: "ГОРОД СВЕТ", neonFont: "rounded", neonHeight: 200, neonDiameter: 6, neonColor: "#ffa658", neonBackerWidth: 1900, neonBackerHeight: 350,
   letterFont: LETTER_FONTS[0].value as string,
   letterHeight: 410,
   letterWidth: 0,
@@ -274,14 +286,16 @@ const SECTION_GROUPS: Record<string, StudioSection> = {
   "Логотип": "logo", "Изображение": "logo",
 };
 const PROJECT_ENUMS: Record<string, readonly unknown[]> = {
-  productId: ["panel", "letters"], sceneMode: ["day", "night"],
+  productId: ["panel", "letters", "neon"], neonFont: ["rounded", "slanted", "narrow"], neonDiameter: [6, 8], sceneMode: ["day", "night"],
   panelShape: ["circle", "square", "rounded"], logoShape: ["circle", "square", "rounded"],
   glowMode: ["face", "faceSide", "faceHalo", "halo"], mountMode: ["wall", "frame", "acp"],
   frameProfile: [15, 20], letterFont: LETTER_FONTS.map(item => item.value),
 };
 const PROJECT_RANGES: Record<string, [number, number]> = {
   panelImageScale: [45, 130], panelImageX: [-40, 40], panelImageY: [-40, 40],
-  letterHeight: [120, 1200], letterDepth: [40, 60], logoScale: [45, 130],
+  logoOffsetX: [-20000, 20000], logoOffsetY: [-10000, 10000], textOffsetX: [-20000, 20000], textOffsetY: [-10000, 10000],
+  neonHeight: [120, 800], neonBackerWidth: [150, 3950], neonBackerHeight: [150, 1450],
+  letterHeight: [40, 1200], letterDepth: [40, 60], logoScale: [45, 130],
   letterWidth: [0, 20000],
   panelSize: [200, 2000], panelDepth: [30, 160],
   panelWallGap: [60, 400], panelCornerRadius: [0, 300],
@@ -312,7 +326,8 @@ function validateProject(raw: unknown): ProjectState {
       output[key] = value;
     } else if (typeof initial === "string") {
       if (typeof value !== "string") throw new Error("Некорректный текст в проекте.");
-      if (key === "panelImage" || key === "logoImage") {
+      if (key === "neonColor") { if (!/^#[0-9a-f]{6}$/i.test(value)) throw new Error("Некорректный цвет неона."); output[key] = value; }
+      else if (key === "panelImage" || key === "logoImage") {
         if (value && (!/^data:image\/(png|jpeg|webp);base64,/.test(value) || value.length > 3_000_000)) throw new Error("Изображение в проекте не поддерживается.");
         output[key] = value;
       } else output[key] = value.slice(0, 60);
@@ -328,6 +343,8 @@ function validateProject(raw: unknown): ProjectState {
   if (Number(input.frameTopPosition) > 20) result.frameTopPosition = 15;
   if (Number(input.frameBottomPosition) > 20) result.frameBottomPosition = 15;
   if (input.logoEnabled === undefined) result.logoEnabled = Boolean(result.logoImage);
+  const bounded = constrainBacker(result.acpWidth,result.acpHeight,result.acpDepth); result.acpWidth=bounded.width; result.acpHeight=bounded.height;
+  result.neonText=result.neonText.split("\n").slice(0,2).join("\n");
   return result;
 }
 function loadSavedProject(): ProjectState {
@@ -339,6 +356,18 @@ function loadSavedProject(): ProjectState {
 
 export function SignProductConfigurator() {
   const [project, setProject] = useState<ProjectState>(loadSavedProject);
+  const [editing, setEditing] = useState(false);
+  const combinedText = project.lettersText + (project.secondLineText.trim() ? "\n" + project.secondLineText : "");
+  const patchProject = (patch: Partial<ProjectState>) => setProject(previous => {
+    const next = { ...previous, ...patch };
+    const backer = constrainBacker(next.acpWidth, next.acpHeight, next.acpDepth);
+    next.acpWidth = backer.width; next.acpHeight = backer.height;
+    next.letterDepth = normalizeLetterDepth(next.letterHeight, next.letterDepth);
+    return next;
+  });
+  useEffect(() => { const bounded = constrainBacker(project.acpWidth, project.acpHeight, project.acpDepth);
+    if (bounded.width !== project.acpWidth || bounded.height !== project.acpHeight) patchProject({ acpWidth: bounded.width, acpHeight: bounded.height });
+  }, [project.acpWidth, project.acpHeight, project.acpDepth]);
   const { productId, sceneMode, panelShape, panelSize, panelImage, panelImageScale, panelImageX, panelImageY, panelFaceColor, panelSideColor, lettersText, letterFont, letterHeight, letterWidth, letterDepth, letterFaceColor, letterSideColor, glowMode, logoShape, logoImage, logoEnabled, logoScale, letterOutlineEnabled, logoOutlineEnabled, outlineColor, haloBackerEnabled, haloBackerColor, mountMode, frameProfile, frameEdgeInset, frameTopPosition, frameBottomPosition, acpColor, acpWidth, acpHeight, acpDepth } = project;
   const setProductId = (value: ProjectState["productId"]) => setProject(previous => ({ ...previous, productId: value }));
   const setSceneMode = (value: ProjectState["sceneMode"]) => setProject(previous => ({ ...previous, sceneMode: value }));
@@ -423,15 +452,16 @@ export function SignProductConfigurator() {
     return () => window.clearTimeout(timer);
   }, [project]);
   const [letterContours, setLetterContours] = useState<LetterContours | null>(null);
+  const lastValidFont = useRef(LETTER_FONTS[0].value as string);
   const [fontPending, setFontPending] = useState(false);
   useEffect(() => {
     let active = true;
     setFontPending(true);
-    void loadLetterContours(letterFont, lettersText).then(contours => {
-      if (active) { setLetterContours(contours); setFontPending(false); }
-    }).catch(error => { if (active) { setFontPending(false); setLetterContours(null); setNotice(error.message); } });
+    void loadLetterContours(letterFont, combinedText).then(contours => {
+      if (active) { lastValidFont.current = letterFont; setLetterContours(contours); setFontPending(false); }
+    }).catch(error => { if (active) { setFontPending(false); setLetterFont(lastValidFont.current); setNotice(error.message); } });
     return () => { active = false; };
-  }, [letterFont, lettersText]);
+  }, [letterFont, combinedText]);
   const letterTextBox = letterContours?.mainBox ?? null;
 
   const activeProduct = PRODUCTS.find((product) => product.id === productId) || PRODUCTS[0];
@@ -470,6 +500,7 @@ export function SignProductConfigurator() {
     contours: letterContours,
     widthOverride: letterWidth,
     logoEnabled,
+    logoOffsetX: project.logoOffsetX, logoOffsetY: project.logoOffsetY, textOffsetX: project.textOffsetX, textOffsetY: project.textOffsetY,
   }), [
     acpLayout,
     frameBottomPosition,
@@ -486,8 +517,17 @@ export function SignProductConfigurator() {
     logoShape,
     mountMode,
     letterWidth,
-    logoEnabled,
+    logoEnabled, project.logoOffsetX, project.logoOffsetY, project.textOffsetX, project.textOffsetY,
   ]);
+  useEffect(() => {
+    if (project.mountMode !== 'acp' || !letterContours || fontPending) return;
+    const actualHeight = lettersLayout.textHeight / (letterContours.lineFactor ?? 1);
+    const expectedHeight = letterHeight - (letterOutlineEnabled ? Math.max(4, letterHeight * .035) * 2 : 0);
+    if (actualHeight < expectedHeight - 1) {
+      const nextHeight = Math.max(40, Math.floor(letterHeight * actualHeight / expectedHeight));
+      patchProject({ letterHeight: nextHeight, letterWidth: letterWidth ? Math.floor(lettersLayout.signBox.width) : 0 });
+    }
+  }, [lettersLayout, letterContours, fontPending, project.mountMode, letterHeight, letterOutlineEnabled, letterWidth]);
   const measuredLettersWidth = Math.max(1, Math.round(lettersLayout.signBox.width));
   const frameEdgeInsetSafe = Math.max(0, Math.min(120, frameEdgeInset));
   const frameEdgeInsetPercent = Math.min(12, (frameEdgeInsetSafe / Math.max(1, measuredLettersWidth)) * 100);
@@ -495,21 +535,32 @@ export function SignProductConfigurator() {
   const glowHasHalo = hasHaloGlow(glowMode);
   const glowLabel = GLOW_MODES.find((item) => item.id === glowMode)?.label || "";
   const mountLabel = MOUNT_MODES.find((item) => item.id === mountMode)?.label || "";
-  const letterPrice = calculateLetterPrice(lettersText, letterHeight);
+  const letterPrice = calculateLetterPrice(combinedText, lettersLayout.textHeight / (letterContours?.lineFactor ?? 1) + (letterOutlineEnabled ? Math.max(4, letterHeight * .035) * 2 : 0));
   const frameNeedsApproval = mountMode === "frame" && requiresFrameApproval(letterHeight);
-  const priceNotes = productId === "panel" ? ["Панель-кронштейн — по согласованию."] : [
+  const priceNotes = productId === "neon" ? ["Неоновая вывеска — по согласованию."] : productId === "panel" ? ["Панель-кронштейн — по согласованию."] : [
     ...(logoEnabled ? ["Логотип — по согласованию."] : []),
-    ...(hasUnpricedSymbols(lettersText) ? ["Специальные символы — по согласованию."] : []),
+    ...(hasUnpricedSymbols(combinedText) ? ["Специальные символы — по согласованию."] : []),
     ...(letterHeight > 550 ? ["Глубина букв выше 55 см — по согласованию."] : []),
     ...(frameNeedsApproval ? ["Рама для букв выше 55 см — по согласованию."] : []),
   ];
-  const signWidth = productId === "panel" ? panelSize : mountMode === "acp" ? acpWidth : measuredLettersWidth;
-  const signHeight = productId === "panel" ? panelSize : mountMode === "acp" ? acpHeight : Math.round(lettersLayout.signBox.height);
-  const signDepth = productId === "panel" ? project.panelDepth : letterDepth;
+  const neonResult = useMemo(() => {
+    try { return { design: createNeonDesign(project.neonText, project.neonHeight, project.neonDiameter, project.neonFont), error: "" }; }
+    catch(error) { return { design: null, error: error instanceof Error ? error.message : "Проверьте неоновую надпись." }; }
+  }, [project.neonText, project.neonHeight, project.neonDiameter, project.neonFont]);
+  const neonWidth = Math.max(project.neonBackerWidth, (neonResult.design?.width ?? 0) + 60);
+  const neonHeight = Math.max(project.neonBackerHeight, (neonResult.design?.height ?? 0) + 60);
+  const neonFits = neonWidth <= 3950 && neonHeight <= 1450;
+  useEffect(() => {
+    if (neonFits && productId === 'neon' && (project.neonBackerWidth < neonWidth || project.neonBackerHeight < neonHeight))
+      patchProject({neonBackerWidth:Math.ceil(neonWidth),neonBackerHeight:Math.ceil(neonHeight)});
+  }, [neonWidth,neonHeight,neonFits,project.neonBackerWidth,project.neonBackerHeight,productId]);
+  const signWidth = productId === "neon" ? Math.round(neonWidth) : productId === "panel" ? panelSize : mountMode === "acp" ? acpWidth : measuredLettersWidth;
+  const signHeight = productId === "neon" ? Math.round(neonHeight) : productId === "panel" ? panelSize : mountMode === "acp" ? acpHeight : Math.round(lettersLayout.signBox.height);
+  const signDepth = productId === "neon" ? 23 + project.neonDiameter : productId === "panel" ? project.panelDepth : letterDepth;
   const cartQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
   function handleAddToCart() {
     const added = cart.addItem({
-      project, label: productId === "letters" ? lettersText.trim() || "Объемные буквы" : "Панель-кронштейн",
+      project, label: productId === "neon" ? "Неон · " + project.neonText : productId === "letters" ? lettersText.trim() || "Объемные буквы" : "Панель-кронштейн",
       widthMm: signWidth, heightMm: signHeight, depthMm: signDepth,
       price: productId === "letters" && letterPrice.letterCount > 0 ? letterPrice.total : null,
       requiresApproval: priceNotes.length > 0 || productId === "letters" && letterPrice.letterCount === 0,
@@ -558,7 +609,7 @@ export function SignProductConfigurator() {
     finally { event.target.value = ""; }
   }
   function handleSaveProject() {
-    downloadTextFile(`gorod-svet-${productId === "letters" ? lettersText || "вывеска" : "панель"}.json`, JSON.stringify({ version: 1, project }, null, 2), "application/json");
+    downloadTextFile(`gorod-svet-${productId === "letters" ? lettersText || "вывеска" : productId === "neon" ? "неон" : "панель"}.json`, JSON.stringify({ version: 1, project }, null, 2), "application/json");
     setNotice("Проект скачан. Его можно открыть здесь на любом устройстве.");
   }
   async function handleOpenProject(event: ChangeEvent<HTMLInputElement>) {
@@ -582,6 +633,7 @@ export function SignProductConfigurator() {
     finally { event.target.value = ""; }
   }
   function createCurrentSvg(withDimensions = showDimensions) {
+    if (productId === "neon") return neonResult.design ? neonSvg(neonResult.design, neonWidth, neonHeight, project.neonDiameter, project.neonColor, sceneMode === "night", withDimensions) : "";
     if (productId === "panel") {
       return createPanelSvgMarkup({ shape: panelShape, size: panelSize, depth: project.panelDepth, wallGap: project.panelWallGap, cornerRadius: project.panelCornerRadius, faceColor: panelFaceColor.value, sideColor: panelSideColor.value, image: panelImage, imageScale: panelImageScale, imageX: panelImageX, imageY: panelImageY, sceneMode, showDimensions: withDimensions, flat: true });
     }
@@ -600,7 +652,7 @@ export function SignProductConfigurator() {
       frameTopPosition,
       glowMode,
       haloBackerColor: haloBackerColor.value,
-      haloBackerEnabled: glowHasHalo && haloBackerEnabled && mountMode !== "frame",
+      haloBackerEnabled: glowHasHalo && haloBackerEnabled && mountMode === "wall",
       logoEnabled,
       showDimensions: withDimensions,
       height: letterHeight,
@@ -630,15 +682,15 @@ export function SignProductConfigurator() {
       <a className="studio-skip" href="#studio-controls">К настройкам вывески</a>
       <header className="studio-header">
         <a className="studio-brand" href="./" aria-label="Город Свет — конструктор вывесок">
-          <img className="studio-brand-mark" src={`${import.meta.env.BASE_URL}gorod-svet-mark.svg`} alt="" />
-          <span>ГОРОД СВЕТ<small>Конструктор вывесок</small></span>
+          <img className="studio-brand-mark" src={`${import.meta.env.BASE_URL}gorod-svet-bulb.png`} alt="" />
+          <span><img className="studio-wordmark" src={`${import.meta.env.BASE_URL}gorod-svet-wordmark.svg`} alt="Город Свет"/><small>Конструктор вывесок</small></span>
         </a>
         <div className="studio-header-meta"><Check size={14} /><span role="status">{saveStatus}</span></div>
         <div className="studio-actions">
           <input hidden ref={projectFileRef} type="file" accept=".json,application/json" onChange={event => void handleOpenProject(event)} />
           <button className="studio-button" type="button" onClick={() => projectFileRef.current?.click()}><FolderOpen size={16} /><span>Открыть</span></button>
           <button className="studio-button" type="button" onClick={handleSaveProject}><Save size={16} /><span>Сохранить проект</span></button>
-          <button className="studio-button primary" type="button" onClick={handleExportVector} disabled={productId === "letters" && (fontPending || !letterContours)}><Download size={16} /><span>Скачать SVG</span></button>
+          <button className="studio-button primary" type="button" onClick={handleExportVector} disabled={productId === "neon" ? !neonResult.design || !neonFits : productId === "letters" && (fontPending || !letterContours)}><Download size={16} /><span>Скачать SVG</span></button>
           <button className="studio-button studio-cart-toggle" type="button" aria-expanded={cartOpen} aria-controls="sign-cart" onClick={() => setCartOpen(value => !value)}><ShoppingCart size={17} /><span>Корзина</span><span className="cart-count">{cartQuantity}</span></button>
         </div>
       </header>
@@ -652,7 +704,7 @@ export function SignProductConfigurator() {
       <section className="product-tabs" aria-label="Тип вывески">
         {[...PRODUCTS].reverse().map(product => <button type="button" key={product.id} aria-pressed={productId === product.id} className={productId === product.id ? "active" : ""} onClick={() => { setProductId(product.id); setActiveSection("design"); setZoom(100); }}>
           {product.id === "letters" ? <Type size={24} /> : <Maximize size={24} />}
-          <div><strong>{product.id === "letters" ? "Объемные буквы" : "Панель-кронштейн"}</strong><span>{product.id === "letters" ? "Надпись и логотип на вашем фасаде" : "Двусторонняя вывеска на кронштейне"}</span></div><Check className="product-check" size={18} />
+          <div><strong>{product.title}</strong><span>{product.note}</span></div><Check className="product-check" size={18} />
         </button>)}
       </section>
       <section className="sign-builder-layout">
@@ -660,10 +712,10 @@ export function SignProductConfigurator() {
         <aside className="builder-controls" id="studio-controls" aria-label="Настройки вывески">
           <header className="controls-heading"><h2>Настройте вывеску</h2><span>Все изменения — на макете</span></header>
           <nav className="studio-section-tabs" aria-label="Разделы настроек">
-            {SECTION_ITEMS.filter(item => productId === "letters" || ["design", "colors", "mount", "logo"].includes(item.id)).map(item => <button type="button" key={item.id} aria-pressed={activeSection === item.id} className={activeSection === item.id ? "active" : ""} onClick={() => setActiveSection(item.id)}><item.icon size={18} /><span>{productId === "panel" && item.id === "design" ? "Форма" : item.label}</span></button>)}
+            {productId !== "neon" && SECTION_ITEMS.filter(item => productId === "letters" || ["design", "colors", "mount", "logo"].includes(item.id)).map(item => <button type="button" key={item.id} aria-pressed={activeSection === item.id} className={activeSection === item.id ? "active" : ""} onClick={() => setActiveSection(item.id)}><item.icon size={18} /><span>{productId === "panel" && item.id === "design" ? "Форма" : item.label}</span></button>)}
           </nav>
           <div className="controls-body"><SectionContext.Provider value={activeSection}>
-          {productId === "panel" ? (
+          {productId === "neon" ? <NeonControls project={project} onChange={patchProject} /> : productId === "panel" ? (
             <PanelControls
               faceColor={panelFaceColor}
               imageScale={panelImageScale}
@@ -745,30 +797,41 @@ export function SignProductConfigurator() {
             />
           )}
           </SectionContext.Provider>
+          {productId === "letters" && activeSection === "design" && <label className="builder-field"><span>Вторая строка</span><input maxLength={60} placeholder="Добавить надпись ниже" value={project.secondLineText} onChange={event => patchProject({ secondLineText: event.target.value })}/><small className="control-note">Строки центрируются относительно друг друга</small></label>}
+          {productId === "neon" && (neonResult.error || !neonFits) && <p className="studio-fit-warning" role="alert">{neonResult.error || "Уменьшите высоту или длину надписи, чтобы она поместилась на подложке."}</p>}
           {activeSection === "logo" && (productId === "letters" ? logoImage : panelImage) && <button className="studio-remove" type="button" onClick={() => productId === "letters" ? setLogoImage("") : setPanelImage("")}><X size={14} />Удалить изображение</button>}
           {productId === "panel" && activeSection === "design" && <p className="control-note">Размер — диаметр круга или сторона квадрата, в миллиметрах.</p>}
           {productId === "letters" && activeSection === "mount" && mountMode === "acp" && (measuredLettersWidth > acpWidth || letterHeight > acpHeight) && <p className="studio-fit-warning" role="status">Надпись выходит за подложку. Увеличьте АКП минимум до {measuredLettersWidth} × {letterHeight} мм или уменьшите высоту букв.</p>}
           </div>
           <details className="studio-help"><summary>Как пользоваться студией<ChevronRight size={14} /></summary><p>Выберите тип вывески и настройте параметры по разделам. Переключайте день и ночь, чтобы оценить свечение. Проект сохраняется в этом браузере. Скачайте JSON для переноса на другое устройство.</p><p>Макет дает представление о конструкции. Цвета на экране могут отличаться от физических образцов Oracal; производственную документацию нужно подготовить отдельно.</p></details>
         </aside>
-        <section ref={workspaceRef} style={{ "--workspace-height": `${previewHeight}px` } as CSSProperties} className={`studio-workspace ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет">
+        <section ref={workspaceRef} style={{ "--workspace-height": `${previewHeight}px` } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет">
           <header className="canvas-toolbar"><div className="canvas-title"><strong>Предпросмотр</strong><span>{sceneMode === "day" ? "Дневное освещение" : "Ночное освещение"}</span></div>
-            <div className="scene-switch" role="group" aria-label="Режим визуализации">
+            <div className={"scene-switch " + sceneMode} role="group" aria-label="Режим визуализации">
+              <span className="celestial-track" aria-hidden="true"><Sun className="celestial-sun" size={19}/><Moon className="celestial-moon" size={19}/></span>
               <button type="button" aria-pressed={sceneMode === "day"} className={sceneMode === "day" ? "active" : ""} onClick={() => setSceneMode("day")}><Sun size={16} />День</button>
               <button type="button" aria-pressed={sceneMode === "night"} className={sceneMode === "night" ? "active" : ""} onClick={() => setSceneMode("night")}><Moon size={16} />Ночь</button>
             </div><div className="canvas-tools"><button type="button" aria-label="Уменьшить макет" disabled={zoom <= 60} onClick={() => setZoom(value => Math.max(60, value - 10))}><Minus size={16} /></button><span className="zoom-value" title="100% — макет целиком в окне">{zoom}%</span><button type="button" aria-label="Увеличить макет" disabled={zoom >= 100} onClick={() => setZoom(value => Math.min(100, value + 10))}><Plus size={16} /></button><button type="button" aria-label="Подогнать макет" onClick={handleFitPreview}><Maximize size={16} /></button></div>
           </header>
           <div className="canvas-mode-toolbar">
             <div className="view-switch" role="group" aria-label="Вид макета"><button type="button" aria-pressed={viewMode === "2d"} className={viewMode === "2d" ? "active" : ""} onClick={() => { setViewMode("2d"); setZoom(100); }}>2D</button><button type="button" aria-pressed={viewMode === "3d"} className={viewMode === "3d" ? "active" : ""} onClick={() => { setViewMode("3d"); setZoom(100); }}>3D · вращение</button></div>
+            {productId === "letters" && viewMode === "2d" && <button className={"editor-toggle " + (editing ? "active" : "")} type="button" aria-pressed={editing} onClick={() => setEditing(!editing)}>Редактировать макет</button>}
             <label className="dimensions-toggle"><input type="checkbox" checked={showDimensions} onChange={event => setShowDimensions(event.target.checked)} />Размеры</label>
           </div>
+          {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar">
+            <button type="button" onClick={() => patchProject({ textOffsetX: 0, textOffsetY: 0, logoOffsetX: 0, logoOffsetY: 0 })}>По центру{mountMode === "acp" ? " подложки" : " макета"}</button>
+            <button type="button" onClick={() => patchProject({ textOffsetX: lettersLayout.viewWidth / 2 - lettersLayout.textWidth / 2 - lettersLayout.defaultTextX, textOffsetY: lettersLayout.viewHeight / 2 - lettersLayout.textHeight / 2 - lettersLayout.defaultTextY })}>Центр надписи</button>
+            {logoEnabled && <button type="button" onClick={() => patchProject({ logoOffsetX: lettersLayout.viewWidth / 2 - lettersLayout.logoBox.width / 2 - lettersLayout.defaultLogoX, logoOffsetY: lettersLayout.viewHeight / 2 - lettersLayout.logoBox.height / 2 - lettersLayout.defaultLogoY })}>Центр логотипа</button>}
+            <button type="button" onClick={() => { patchProject({ secondLineText: project.secondLineText || "НОВАЯ СТРОКА" }); setActiveSection("design"); }}>+ Строка ниже</button>
+            <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
+          </div>}
         <section
           className={`builder-preview ${sceneMode} glow-${glowMode} view-mode-${viewMode}`}
           aria-label="Визуализация"
         >
           {fontPending && productId === "letters" && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
-          {viewMode === "3d" ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div className="preview-art" style={{ "--preview-zoom": zoom / 100 } as CSSProperties}>
-            {productId === "panel" ? (
+          {viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div className="preview-art" style={{ "--preview-zoom": zoom / 100 } as CSSProperties}>
+            {productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'} /> : productId === "panel" ? (
               <PanelPreview
                 image={panelImage}
                 shape={panelShape}
@@ -786,6 +849,7 @@ export function SignProductConfigurator() {
               />
             ) : (
               <LettersPreview
+                editor={editing ? <SignLayoutEditor layout={lettersLayout} project={project} onChange={patchProject}/> : undefined}
                 sceneMode={sceneMode}
                 acpDepth={acpDepth}
                 acpColor={acpColor.value}
@@ -795,7 +859,7 @@ export function SignProductConfigurator() {
                 frameProfile={frameProfile}
                 glowMode={glowMode}
                 haloBackerColor={haloBackerColor.value}
-                haloBackerEnabled={glowHasHalo && haloBackerEnabled && mountMode !== "frame"}
+                haloBackerEnabled={glowHasHalo && haloBackerEnabled && mountMode === "wall"}
                 logoEnabled={logoEnabled}
                 showDimensions={showDimensions}
                 height={letterHeight}
@@ -813,9 +877,10 @@ export function SignProductConfigurator() {
           </div></div>}
           {showDimensions && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
         </section>
-          <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{productId === "letters" ? `${letterDepth} мм — до передней плоскости рамы` : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
+          <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{productId === "letters" ? `${letterDepth} мм — до передней плоскости рамы` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · прозрачная подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
         </section>
 
+        <SignPlacements markup={createCurrentSvg(false)} night={sceneMode === "night"}/>
         <aside className="builder-summary" aria-label="Структура проекта"><header className="summary-heading"><h2>Ваш проект</h2><p>Параметры конструкции</p></header>
           <div className="summary-block">
             <span>Продукт</span>
@@ -829,7 +894,7 @@ export function SignProductConfigurator() {
           </div>
           <div className="summary-block">
             <span>Свечение</span>
-            <strong>{productId === "letters" ? glowLabel : "Лицевое"}</strong>
+            <strong>{productId === "neon" ? "Неоновая трубка " + project.neonDiameter + " мм" : productId === "letters" ? glowLabel : "Лицевое"}</strong>
           </div>
           <div className="summary-block">
             <span>Монтаж</span>
@@ -838,20 +903,20 @@ export function SignProductConfigurator() {
                 ? mountMode === "frame"
                   ? frameNeedsApproval ? `${mountLabel} — по согласованию` : `${mountLabel}, профиль 15 × 15 мм`
                   : mountLabel
-                : `Две консоли · отступ от стены ${project.panelWallGap} мм`}
+                : productId === "neon" ? "Прозрачный акрил · держатели 20 мм" : `Две консоли · отступ от стены ${project.panelWallGap} мм`}
             </strong>
           </div>
           <div className="summary-block">
-            <span>Лицевая пленка</span>
-            <strong>{currentFaceColor.code} {currentFaceColor.name}</strong>
+            <span>{productId === "neon" ? "Цвет неона" : "Лицевая пленка"}</span>
+            <strong>{productId === "neon" ? project.neonColor : currentFaceColor.code + " " + currentFaceColor.name}</strong>
           </div>
           <div className="summary-block">
-            <span>Борт</span>
-            <strong>{currentSideColor.code} {currentSideColor.name}</strong>
+            <span>{productId === "neon" ? "Подложка" : "Борт"}</span>
+            <strong>{productId === "neon" ? "Прозрачная · 3 мм" : currentSideColor.code + " " + currentSideColor.name}</strong>
           </div>
           <div className="summary-block">
             <span>{productId === "letters" ? "Габаритная площадь" : "Площадь лица"}</span>
-            <strong>{formatArea(productId === "panel" ? panelAreaM2 : lettersAreaM2)} м²</strong>
+            <strong>{formatArea(productId === "neon" ? neonWidth * neonHeight / 1_000_000 : productId === "panel" ? panelAreaM2 : lettersAreaM2)} м²</strong>
           </div>
           {productId === "letters" && (
             <div className="summary-block">
@@ -863,13 +928,11 @@ export function SignProductConfigurator() {
               </strong>
             </div>
           )}
-          {productId === "letters" && mountMode === "acp" && (
-            <AcpLayoutCard layout={acpLayout} />
-          )}
+
           <div className="studio-purchase">
             <div className="price-details"><span>{productId === "letters" ? "Стоимость букв" : "Стоимость вывески"}</span><strong className="price-total">{productId === "letters" && letterPrice.letterCount > 0 ? formatMoney(letterPrice.total) : "По согласованию"}</strong>
             {productId === "letters" && letterPrice.letterCount > 0 && <p className="price-formula">{letterPrice.letterCount} букв × {letterPrice.heightCm} см × 120 ₽</p>}</div>
-            <button className="studio-add-cart" type="button" onClick={handleAddToCart} disabled={productId === "letters" && (fontPending || !letterContours || !lettersText.trim() && !logoEnabled)}><ShoppingCart size={18} />В корзину</button>
+            <button className="studio-add-cart" type="button" onClick={handleAddToCart} disabled={productId === "neon" ? !neonResult.design || !neonFits || !project.neonText.trim() : productId === "letters" && (fontPending || !letterContours || !lettersText.trim() && !logoEnabled)}><ShoppingCart size={18} />В корзину</button>
             {priceNotes.length > 0 && <p className="price-notes">{priceNotes.join(" ")}</p>}
             <p className="purchase-basis">{productId === "letters" ? "120 ₽ за 1 см высоты каждой буквы. Пробелы не считаются. Монтаж, подложка и доставка рассчитываются отдельно." : "Сохраните макет в корзину для согласования стоимости."}</p>
           </div>
@@ -1112,18 +1175,18 @@ function LettersControls({
           <span>Шрифт</span>
           <select value={font} onChange={(event) => onFontChange(event.target.value)}>
             {LETTER_FONTS.map((fontOption) => (
-              <option key={fontOption.label} value={fontOption.value}>
+              <option key={fontOption.label} value={fontOption.value} disabled={!fontOption.file && !systemFontAvailable(fontOption.value.split(",")[0].replace(/"/g,""),fontOption.weight)}>
                 {fontOption.label}
               </option>
             ))}
           </select>
-          <small className="control-note">Все шрифты встроены: одинаковые контуры в 2D и 3D.</small>
+          <small className="control-note">14 встроенных шрифтов + системные Arial и Arial Black. Контуры одинаковы в 2D и 3D.</small>
         </label>
         <div className="dimension-number-grid">
           <NumberField label="Ширина вывески, мм" min={Math.round(height * (logoEnabled ? Math.min(1.3, Math.max(0.45, logoScale / 100)) + 0.46 : 0.3))} max={20000} onChange={onWidthChange} value={width} />
-          <NumberField label="Высота букв, мм" min={120} max={1200} onChange={onHeightChange} value={height} />
+          <NumberField label="Высота букв, мм" min={40} max={1200} onChange={onHeightChange} value={height} />
         </div>
-        <div className="width-auto"><span>{widthAuto ? "Ширина по пропорциям шрифта" : "Ширина задана вручную"}</span><button type="button" onClick={() => onWidthChange(0)} disabled={widthAuto}>Автоширина</button></div>
+        <label className={"width-auto-checkbox " + (widthAuto ? "checked" : "")}><input type="checkbox" checked={widthAuto} onChange={event => onWidthChange(event.target.checked ? 0 : width)}/><span><strong>Ширина по пропорциям</strong><small>{widthAuto ? "Сохраняем естественные пропорции шрифта" : "Ширину можно менять вручную"}</small></span></label>
         <label className="builder-field"><span>Глубина букв до рамы, мм</span><select value={depth} onChange={event => onDepthChange(Number(event.target.value))}>{(allowedLetterDepths(height).length ? allowedLetterDepths(height) : [60]).map(value => <option key={value} value={value}>{value} мм{height > 550 ? " · по согласованию" : ""}</option>)}</select><small className="control-note">40 мм — до 18 см; 50 мм — 12–35 см; 60 мм — 20–55 см. Выносные элементы в высоту не входят.</small></label>
       </ControlSection>
 
@@ -1172,11 +1235,11 @@ function LettersControls({
       {mountMode === "acp" && (
         <ControlSection title="Подложка АКП">
           <div className="sign-size-grid">
-            <NumberField label="Ширина, мм" min={400} onChange={onAcpWidthChange} value={acpWidth} />
-            <NumberField label="Высота, мм" min={250} onChange={onAcpHeightChange} value={acpHeight} />
+            <NumberField label="Ширина, мм" min={400} max={backerLimits(acpDepth).width} onChange={onAcpWidthChange} value={acpWidth} />
+            <NumberField label="Высота, мм" min={250} max={backerLimits(acpDepth).height} onChange={onAcpHeightChange} value={acpHeight} />
           </div>
           <RangeField label="Глубина подложки, мм" max={100} min={30} onChange={onAcpDepthChange} step={5} value={acpDepth} />
-          <small className="control-note">В развертке учитывается второй подворот 25 мм.</small>
+          <small className="control-note">Допустимые размеры рассчитываются автоматически.</small>
           <ColorGrid colors={ACP_COLORS} selected={acpColor} onSelect={onAcpColorChange} compact />
         </ControlSection>
       )}
@@ -1287,8 +1350,20 @@ function PanelPreview({
 }
 
 /** Keep measurement text readable in screen pixels, including a very wide sign on a phone. */
-function SvgMarkupPreview({ className, markup }: { className: string; markup: string }) {
+function SvgMarkupPreview({ className, markup, children }: { className: string; markup: string; children?: ReactNode }) {
   const host = useRef<HTMLDivElement>(null);
+  const prior = useRef(markup);
+  const [previous, setPrevious] = useState('');
+  useEffect(() => {
+    const isNight = (value: string) => /ночной|#d5e8e1/.test(value);
+    if (isNight(prior.current) !== isNight(markup) && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setPrevious(prior.current);
+      const timer = window.setTimeout(() => setPrevious(''), 780);
+      prior.current = markup;
+      return () => window.clearTimeout(timer);
+    }
+    prior.current = markup; setPrevious("");
+  }, [markup]);
   const [labels, setLabels] = useState<{text: string; x: number; y: number; vertical: boolean}[]>([]);
   useEffect(() => {
     const element = host.current;
@@ -1313,12 +1388,15 @@ function SvgMarkupPreview({ className, markup }: { className: string; markup: st
   }, [markup]);
   return <div className={className} ref={host}>
     <div className="studio-svg-layer" dangerouslySetInnerHTML={{ __html: markup }} />
+    {previous && <div className="studio-svg-layer studio-svg-previous" aria-hidden="true" dangerouslySetInnerHTML={{__html:previous.replace(/id="([^"]+)"/g, (_a,id:string)=>`id="previous-${id}"`).replace(/url\(#([^\)]+)\)/g, (_a,id:string)=>`url(#previous-${id})`)}}/>}
+    {children}
     <div className="studio-measure-labels" aria-hidden="true">{labels.map((label, index) => <span key={index}
       style={{ left: label.x, top: label.y, transform: `translate(-50%, -50%)${label.vertical ? " rotate(-90deg)" : ""}` }}>{label.text}</span>)}</div>
   </div>;
 }
 
 function LettersPreview({
+  editor,
   acpColor,
   acpDepth,
   depth,
@@ -1344,6 +1422,7 @@ function LettersPreview({
 }: {
   acpColor: string;
   acpDepth?: number;
+  editor?: ReactNode;
   depth: number;
   faceColor: string;
   font: string;
@@ -1374,87 +1453,11 @@ function LettersPreview({
 
   return (
     <div className={"letters-scene mount-" + mountMode + (haloBackerEnabled ? " with-halo-backer" : "")}>
-      <SvgMarkupPreview className="letters-svg-render" markup={svg} />
+      <SvgMarkupPreview className="letters-svg-render" markup={svg}>{editor}</SvgMarkupPreview>
       <div className="preview-dimension">
         h {height} мм · глубина до рамы {depth} мм
         {mountMode === "frame" ? " · профиль " + frameProfile + "x" + frameProfile + " · рама " + Math.round(layout.railWidth) + " мм" : ""}
       </div>
-    </div>
-  );
-}
-
-function AcpPreviewPanel({ layout }: { layout: AcpLayout }) {
-  return (
-    <div className="acp-preview-panel" aria-hidden="true">
-      {Array.from({ length: Math.max(0, layout.sheetsX - 1) }).map((_, index) => (
-        <i
-          className="acp-preview-seam vertical"
-          key={`x-${index}`}
-          style={{ left: `${((index + 1) * ACP_SHEET_WIDTH_MM / layout.faceWidth) * 100}%` }}
-        />
-      ))}
-      {Array.from({ length: Math.max(0, layout.sheetsY - 1) }).map((_, index) => (
-        <i
-          className="acp-preview-seam horizontal"
-          key={`y-${index}`}
-          style={{ top: `${((index + 1) * ACP_SHEET_HEIGHT_MM / layout.faceHeight) * 100}%` }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function AcpLayoutCard({ layout }: { layout: AcpLayout }) {
-  const secondX = (layout.secondReturn / layout.unfoldedWidth) * 100;
-  const secondY = (layout.secondReturn / layout.unfoldedHeight) * 100;
-  const faceX = ((layout.secondReturn + layout.depth) / layout.unfoldedWidth) * 100;
-  const faceY = ((layout.secondReturn + layout.depth) / layout.unfoldedHeight) * 100;
-  const faceW = (layout.faceWidth / layout.unfoldedWidth) * 100;
-  const faceH = (layout.faceHeight / layout.unfoldedHeight) * 100;
-  const faceRight = faceX + faceW;
-  const faceBottom = faceY + faceH;
-
-  return (
-    <div className="summary-block acp-layout-summary">
-      <span>Раскладка АКП 1.5 x 4 м</span>
-      <strong>
-        {layout.sheetCount} {pluralizeSheet(layout.sheetCount)} · развертка {layout.unfoldedWidth} x {layout.unfoldedHeight} мм
-      </strong>
-      <div className="acp-layout-diagram" style={{ aspectRatio: `${layout.unfoldedWidth} / ${layout.unfoldedHeight}` }}>
-        <div className="acp-layout-face" style={rectStyle(faceX, faceY, faceW, faceH)}>
-          {layout.faceWidth} x {layout.faceHeight}
-        </div>
-        <i className="acp-line red vertical" style={{ left: `${faceX}%` }} />
-        <i className="acp-line red vertical" style={{ left: `${faceRight}%` }} />
-        <i className="acp-line red horizontal" style={{ top: `${faceY}%` }} />
-        <i className="acp-line red horizontal" style={{ top: `${faceBottom}%` }} />
-        <i className="acp-line gray vertical" style={{ left: `${secondX}%` }} />
-        <i className="acp-line gray vertical" style={{ right: `${secondX}%` }} />
-        <i className="acp-line gray horizontal" style={{ top: `${secondY}%` }} />
-        <i className="acp-line gray horizontal" style={{ bottom: `${secondY}%` }} />
-        {Array.from({ length: Math.max(0, layout.sheetsX - 1) }).map((_, index) => (
-          <i
-            className="acp-line seam vertical"
-            key={`layout-x-${index}`}
-            style={{ left: `${((index + 1) * ACP_SHEET_WIDTH_MM / layout.unfoldedWidth) * 100}%` }}
-          />
-        ))}
-        {Array.from({ length: Math.max(0, layout.sheetsY - 1) }).map((_, index) => (
-          <i
-            className="acp-line seam horizontal"
-            key={`layout-y-${index}`}
-            style={{ top: `${((index + 1) * ACP_SHEET_HEIGHT_MM / layout.unfoldedHeight) * 100}%` }}
-          />
-        ))}
-        <b className="acp-corner top-left" />
-        <b className="acp-corner top-right" />
-        <b className="acp-corner bottom-left" />
-        <b className="acp-corner bottom-right" />
-      </div>
-      <em>
-        Глубина {layout.depth} мм, второй подворот {layout.secondReturn} мм
-        {layout.sheetCount === 1 ? ", стыков нет" : ", стыки показаны пунктиром"}
-      </em>
     </div>
   );
 }
@@ -1567,52 +1570,59 @@ function NumberField({
 }
 
 function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayout {
-  const height = clamp(config.height, 120, 1200);
+  const requestedHeight = clamp(config.height, 40, 1200);
+  const factor = config.contours?.lineFactor ?? 1;
+  const natural = config.contours?.mainBox ?? config.textBox ?? { x: 0, y: -714, width: Math.max(1, config.text.length) * 640, height: 714 };
   const logoEnabled = Boolean(config.logoEnabled);
-  const logoSize = logoEnabled ? clamp(height * config.logoScale / 100, height * 0.45, height * 1.3) : 0;
-  const gap = logoEnabled ? height * LETTER_GAP_FACTOR : 0;
-  const outline = config.letterOutlineEnabled ? Math.max(4, height * 0.035) : 0;
-  const textHeight = height - outline * 2;
-  const natural = config.contours?.mainBox ?? config.textBox;
-  const fontSize = natural && natural.height > 0 ? textHeight * 1000 / natural.height : textHeight * 1.4;
-  const naturalWidth = natural && natural.height > 0 ? textHeight * natural.width / natural.height : Math.max(height * 0.9, (config.text.trim() || "Вывеска").length * height * LETTER_TEXT_WIDTH_FACTOR);
-  const naturalSignWidth = logoSize + gap + naturalWidth + outline * 2;
-  const signWidth = config.widthOverride ? clamp(config.widthOverride, logoSize + gap + height * 0.3, 20000) : naturalSignWidth;
-  const textWidth = Math.max(height * 0.2, signWidth - logoSize - gap - outline * 2);
-  const signHeight = Math.max(height, logoSize);
-  const panelRequired = config.mountMode === "acp";
-  const baseWidth = panelRequired ? Math.max(config.acpLayout.faceWidth, signWidth) : signWidth;
-  const baseHeight = panelRequired ? Math.max(config.acpLayout.faceHeight, signHeight) : signHeight;
-  const ink = config.contours?.inkBox;
-  const inkOverhang = ink && natural ? Math.max(0, natural.y - ink.y, ink.y + ink.height - natural.y - natural.height) * textHeight / natural.height : 0;
-  const margin = Math.max(120, inkOverhang + 80, Math.min(550, Math.max(baseHeight * 0.3, baseWidth * 0.045)));
-  const viewWidth = baseWidth + margin * 2;
-  const viewHeight = baseHeight + margin * 2;
-  const signBox = { x: (viewWidth - signWidth) / 2, y: (viewHeight - signHeight) / 2, width: signWidth, height: signHeight };
-  const logoBox = { x: signBox.x, y: signBox.y + (signHeight - logoSize) / 2, width: logoSize, height: logoSize };
-  const textX = signBox.x + logoSize + gap + outline;
-  const textTop = signBox.y + (signHeight - height) / 2 + outline;
-  const textBaseline = textTop - (natural?.y ?? -714) * fontSize / 1000;
-  const panelBox = { x: (viewWidth - config.acpLayout.faceWidth) / 2, y: (viewHeight - config.acpLayout.faceHeight) / 2, width: config.acpLayout.faceWidth, height: config.acpLayout.faceHeight };
-  const railHeight = 15;
-  const railCenters = frameRailCenters(signBox.y, signBox.height, config.frameTopPosition, config.frameBottomPosition);
-  const railTopY = railCenters.top, railBottomY = railCenters.bottom;
-  const railLeft = logoEnabled && config.logoShape === "circle" ? Math.max(getLogoRailLeft(logoBox, railTopY), getLogoRailLeft(logoBox, railBottomY)) : signBox.x;
-  const inset = clamp(config.frameEdgeInset, 0, signBox.width * 0.38);
-  const railX = railLeft + inset;
-  const railWidth = Math.max(railHeight * 2, signBox.x + signBox.width - inset - railX);
-  const haloBackerBox = { x: signBox.x - height * 0.16, y: signBox.y - height * 0.11, width: signBox.width + height * 0.32, height: signBox.height + height * 0.22 };
-  return {
-    viewWidth, viewHeight, signBox, logoBox, logoCornerRadius: logoSize * 0.16,
-    textX, textTop, textBaseline, textWidth, textHeight, fontSize,
-    textPathData: config.contours?.pathData,
-    textNaturalBox: natural ?? { x: 0, y: -714, height: 714, width: naturalWidth * 714 / textHeight },
-    railX, railWidth, railHeight, railTopY, railBottomY,
-    panelBox, panelCornerRadius: Math.min(70, config.acpLayout.faceHeight * 0.08),
-    haloBackerBox, haloBackerRadius: Math.min(height * 0.28, haloBackerBox.height / 2),
-    seamXs: Array.from({ length: Math.max(0, config.acpLayout.sheetsX - 1) }, (_, i) => panelBox.x + (i + 1) * ACP_SHEET_WIDTH_MM),
-    seamYs: Array.from({ length: Math.max(0, config.acpLayout.sheetsY - 1) }, (_, i) => panelBox.y + (i + 1) * ACP_SHEET_HEIGHT_MM),
-  };
+  const requestedLogo = logoEnabled ? requestedHeight * clamp(config.logoScale, 45, 130) / 100 : 0;
+  const requestedGap = logoEnabled ? requestedHeight * LETTER_GAP_FACTOR : 0;
+  const outline = config.letterOutlineEnabled ? Math.max(4, requestedHeight * .035) : 0;
+  const requestedTextHeight = (requestedHeight - outline * 2) * factor;
+  const naturalWidth = requestedTextHeight * natural.width / natural.height;
+  const requestedWidth = config.widthOverride ? Math.max(requestedLogo + requestedGap + 20, config.widthOverride) : requestedLogo + requestedGap + naturalWidth + outline * 2;
+  const ink = config.contours?.inkBox ?? natural;
+  const overTop = Math.max(0, natural.y - ink.y) / natural.height * requestedTextHeight;
+  const overBottom = Math.max(0, ink.y + ink.height - natural.y - natural.height) / natural.height * requestedTextHeight;
+  const panelRequired = config.mountMode === 'acp';
+  const fit = panelRequired ? Math.min(1, (config.acpLayout.faceWidth - 12) / requestedWidth,
+    (config.acpLayout.faceHeight - 12) / (Math.max(requestedTextHeight + outline * 2, requestedLogo) + overTop + overBottom)) : 1;
+  const height = requestedHeight * fit, logoSize = requestedLogo * fit, gap = requestedGap * fit;
+  const textHeight = requestedTextHeight * fit, signWidth = requestedWidth * fit;
+  const textWidth = Math.max(1, signWidth - logoSize - gap - outline * 2 * fit);
+  const signHeight = Math.max(height * factor, logoSize);
+  const fontSize = textHeight * 1000 / natural.height;
+  const extraX = panelRequired ? 0 : Math.max(Math.abs(config.logoOffsetX ?? 0), Math.abs(config.textOffsetX ?? 0));
+  const extraY = panelRequired ? 0 : Math.max(Math.abs(config.logoOffsetY ?? 0), Math.abs(config.textOffsetY ?? 0));
+  const baseWidth = panelRequired ? config.acpLayout.faceWidth : signWidth + extraX * 2;
+  const baseHeight = panelRequired ? config.acpLayout.faceHeight : signHeight + extraY * 2;
+  const margin = Math.max(100, (overTop + overBottom) * fit + 70, Math.min(550, Math.max(baseHeight * .24, baseWidth * .045)));
+  const viewWidth = baseWidth + margin * 2, viewHeight = baseHeight + margin * 2;
+  const base = { x: (viewWidth-signWidth)/2, y: (viewHeight-signHeight)/2, width: signWidth, height: signHeight };
+  const panelBox = { x: (viewWidth-config.acpLayout.faceWidth)/2, y: (viewHeight-config.acpLayout.faceHeight)/2, width:config.acpLayout.faceWidth, height:config.acpLayout.faceHeight };
+  const defaultLogoX=base.x,defaultLogoY=base.y+(signHeight-logoSize)/2;
+  const defaultTextX=base.x+logoSize+gap+outline*fit,defaultTextY=base.y+(signHeight-height*factor)/2+outline*fit;
+  let logoBox = { x:defaultLogoX+(config.logoOffsetX??0), y:defaultLogoY+(config.logoOffsetY??0), width:logoSize, height:logoSize };
+  let textX = defaultTextX+(config.textOffsetX??0);
+  let textTop = defaultTextY+(config.textOffsetY??0);
+  if(panelRequired) {
+    const container={x:panelBox.x+6,y:panelBox.y+6,width:panelBox.width-12,height:panelBox.height-12};
+    logoBox=containBox(logoBox,container);
+    const inkBox=containBox({x:textX,y:textTop-overTop*fit,width:textWidth,height:textHeight+(overTop+overBottom)*fit},container);
+    textX=inkBox.x; textTop=inkBox.y+overTop*fit;
+  }
+  const x1=Math.min(textX,logoEnabled?logoBox.x:textX),y1=Math.min(textTop,logoEnabled?logoBox.y:textTop);
+  const x2=Math.max(textX+textWidth,logoEnabled?logoBox.x+logoBox.width:textX+textWidth);
+  const y2=Math.max(textTop+textHeight,logoEnabled?logoBox.y+logoBox.height:textTop+textHeight);
+  const signBox={x:x1,y:y1,width:x2-x1,height:y2-y1};
+  const textBaseline=textTop-natural.y*textHeight/natural.height;
+  const railHeight=15, centers=frameRailCenters(signBox.y,signBox.height,config.frameTopPosition,config.frameBottomPosition);
+  const railTopY=centers.top,railBottomY=centers.bottom;
+  const inset=clamp(config.frameEdgeInset,0,signBox.width*.38),railX=signBox.x+inset;
+  const railWidth=Math.max(30,signBox.width-inset*2);
+  const haloBackerBox={x:signBox.x-height*.16,y:signBox.y-height*.11,width:signBox.width+height*.32,height:signBox.height+height*.22};
+  return {defaultTextX,defaultTextY,defaultLogoX,defaultLogoY,viewWidth,viewHeight,signBox,logoBox,logoCornerRadius:logoSize*.16,textX,textTop,textBaseline,textWidth,textHeight,fontSize,
+    textPathData:config.contours?.pathData,textNaturalBox:natural,railX,railWidth,railHeight,railTopY,railBottomY,panelBox,panelCornerRadius:0,
+    haloBackerBox,haloBackerRadius:Math.min(height*.28,haloBackerBox.height/2),seamXs:[],seamYs:[]};
 }
 
 function createLettersSvgMarkup(
@@ -1708,10 +1718,10 @@ function createLettersSvgMarkup(
       [layout.railTopY, layout.railBottomY].map((railY, index) =>
         '<g id="frame-rail-' + (index + 1) + '"><rect x="' + n(layout.railX) +
         '" y="' + n(railY - layout.railHeight / 2) + '" width="' + n(layout.railWidth) +
-        '" height="' + n(layout.railHeight) + '" rx="1.5" fill="url(#letters-steel)" />' +
+        '" height="' + n(layout.railHeight) + '" rx="0" fill="url(#letters-steel)" />' +
         '<line x1="' + n(layout.railX + layout.railHeight * 0.25) + '" x2="' +
         n(layout.railX + layout.railWidth - layout.railHeight * 0.25) + '" y1="' +
-        n(railY - layout.railHeight * 0.25) + '" y2="' + n(railY - layout.railHeight * 0.25) +
+        n(railY - layout.railHeight / 2 + .75) + '" y2="' + n(railY - layout.railHeight / 2 + .75) +
         '" stroke="' + (night ? "#8896a7" : "#e1e5e9") + '" opacity="0.55" stroke-width="1.5" /></g>',
       ).join("") + "</g>"
     : "";
@@ -1737,8 +1747,8 @@ function createLettersSvgMarkup(
     '" /><stop offset="1" stop-color="' + mix(config.acpColor, "#091524", night ? 0.79 : 0.12) + '" /></linearGradient>' +
     '<linearGradient id="letters-steel" x1="0" y1="0" x2="0" y2="1">' +
     '<stop offset="0" stop-color="' + (night ? "#516173" : "#a1aab2") + '" />' +
-    '<stop offset="0.5" stop-color="' + (night ? "#263440" : "#6c7782") + '" />' +
-    '<stop offset="1" stop-color="' + (night ? "#0c1722" : "#44515d") + '" /></linearGradient>' +
+    '<stop offset="0.02" stop-color="' + (night ? "#263440" : "#6c7782") + '" />' +
+    '<stop offset="1" stop-color="' + (night ? "#263440" : "#6c7782") + '" /></linearGradient>' +
     '<filter id="letters-cast-shadow" x="-25%" y="-40%" width="160%" height="200%">' +
     '<feDropShadow dx="' + n(extrusionX * 0.42) + '" dy="' + n(extrusionY * 0.7) +
     '" stdDeviation="' + n(Math.max(3, config.depth * 0.12)) +
