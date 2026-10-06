@@ -2,7 +2,8 @@ import { ArrowUpRight, Check, ChevronRight, Download, FolderOpen, ImagePlus, Lig
 import { Component, createContext, lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 import { createPanelSvgMarkup, panelSvgFaceBox } from "../lib/signPanelExport";
-import { panelMountLayout } from "../lib/panelConstruction";
+import { panelMountLayout, isPanelCornerMount } from "../lib/panelConstruction";
+import type { PanelMountMode } from "../lib/panelConstruction";
 import { calculateLetterPrice, hasUnpricedSymbols, requiresFrameApproval, useSignCart } from "../lib/signCommerce";
 import { systemFontAvailable } from "../lib/systemFontContours";
 import { SIGN_FONTS, loadLetterContours, resolveSignFont } from "../lib/letterContours";
@@ -244,7 +245,7 @@ const DEFAULT_PROJECT = {
   panelSize: 500,
   panelDepth: 60,
   panelWallGap: 120,
-  panelMountMode: "wall" as "wall" | "corner",
+  panelMountMode: "wall" as PanelMountMode,
   panelCornerRadius: 60,
   panelImage: "",
   panelImageScale: 82,
@@ -303,7 +304,7 @@ const SECTION_GROUPS: Record<string, StudioSection> = {
 const PROJECT_ENUMS: Record<string, readonly unknown[]> = {
   facadePalette: ["stone","brick","charcoal"], neonIcon: ["none","heart","star","bolt","cup","music","infinity"], neonBackerColor:["clear","white","black"], neonInstallMode:["standoffs","hanging"], neonUse:["indoor","outdoor"],
   productId: ["panel", "letters", "neon"], neonFont: NEON_FONTS.map(font=>font.id), neonDiameter: [6, 8], neonBackerShape: ["rectangle","rounded","contour"], neonAlign: ["left","center","right"], sceneMode: ["day", "night"],
-  panelShape: ["circle", "square", "rounded"], panelMountMode: ["wall", "corner"], logoShape: ["circle", "square", "rounded"],
+  panelShape: ["circle", "square", "rounded"], panelMountMode: ["wall", "corner", "corner-front", "corner-side"], logoShape: ["circle", "square", "rounded"],
   glowMode: ["face", "faceSide", "faceHalo", "halo"], mountMode: ["wall", "frame", "acp"],
   frameProfile: [15, 20], letterFont: LETTER_FONTS.map(item => item.value),
 };
@@ -989,7 +990,7 @@ export function SignProductConfigurator() {
                 ? mountMode === "frame"
                   ? frameNeedsApproval ? `${mountLabel} — по согласованию` : `${mountLabel}, профиль 15 × 15 мм`
                   : mountLabel
-                : productId === "neon" ? project.neonInstallMode==='hanging'?'Два подвеса':"Дистанционные держатели · 20 мм" : `${project.panelMountMode==='corner'?'На углу здания':'Перпендикулярно стене'} · отступ ${project.panelWallGap} мм`}
+                : productId === "neon" ? project.neonInstallMode==='hanging'?'Два подвеса':"Дистанционные держатели · 20 мм" : `${project.panelMountMode==='corner'?'На углу · по диагонали':project.panelMountMode==='corner-front'?'На углу · первая стена':project.panelMountMode==='corner-side'?'На углу · вторая стена':'Перпендикулярно стене'} · отступ ${project.panelWallGap} мм`}
             </strong>
           </div>
           <div className="summary-block">
@@ -1057,8 +1058,8 @@ function PanelControls({
   onSideColorChange,
   onSizeChange,
 }: {
-  mountMode: "wall" | "corner";
-  onMountModeChange: (value: "wall" | "corner") => void;
+  mountMode: PanelMountMode;
+  onMountModeChange: (value: PanelMountMode) => void;
   wallGap: number;
   cornerRadius: number;
   onWallGapChange: (value: number) => void;
@@ -1119,10 +1120,18 @@ function PanelControls({
       <ControlSection title="Крепление к стене">
         <div className="option-grid two" role="group" aria-label="Монтаж панели-кронштейна">
           <button type="button" aria-pressed={mountMode==='wall'} className={mountMode==='wall'?'active':''} onClick={()=>onMountModeChange('wall')}>На стене</button>
-          <button type="button" aria-pressed={mountMode==='corner'} className={mountMode==='corner'?'active':''} onClick={()=>onMountModeChange('corner')}>На углу здания</button>
+          <button type="button" aria-pressed={isPanelCornerMount(mountMode)} className={isPanelCornerMount(mountMode)?'active':''} onClick={()=>onMountModeChange(isPanelCornerMount(mountMode)?mountMode:'corner-front')}>На углу здания</button>
         </div>
-        <NumberField label={mountMode==='corner'?"Отступ корпуса от угла, мм":"Отступ корпуса от стены, мм"} min={mountMode==='corner'?Math.max(60,depth/2+20):60} max={400} value={wallGap} onChange={onWallGapChange} />
-        <p className="control-note">{mountMode==='corner'?"Панель выступает по диагонали от наружного угла. Кронштейн опирается на обе стены.":"Двусторонняя панель стоит перпендикулярно фасаду. Две консоли закреплены на монтажных пластинах у стены."}</p>
+        {isPanelCornerMount(mountMode) && <div className="builder-field">
+          <span>Положение на углу</span>
+          <div className="option-grid three" role="group" aria-label="Положение панели на углу">
+            <button type="button" aria-pressed={mountMode==='corner-front'} className={mountMode==='corner-front'?'active':''} onClick={()=>onMountModeChange('corner-front')}>Первая стена</button>
+            <button type="button" aria-pressed={mountMode==='corner-side'} className={mountMode==='corner-side'?'active':''} onClick={()=>onMountModeChange('corner-side')}>Вторая стена</button>
+            <button type="button" aria-pressed={mountMode==='corner'} className={mountMode==='corner'?'active':''} onClick={()=>onMountModeChange('corner')}>По диагонали</button>
+          </div>
+        </div>}
+        <NumberField label={mountMode==='corner'?"Отступ корпуса от угла, мм":isPanelCornerMount(mountMode)?"Отступ от выбранной стены, мм":"Отступ корпуса от стены, мм"} min={mountMode==='corner'?Math.max(60,depth/2+20):60} max={400} value={wallGap} onChange={onWallGapChange} />
+        <p className="control-note">{mountMode==='corner'?"Панель выступает по диагонали от наружного угла. Кронштейн опирается на обе стены.":isPanelCornerMount(mountMode)?"Панель стоит перпендикулярно выбранной стене рядом с углом. Обе консоли закреплены на этой стене.":"Двусторонняя панель стоит перпендикулярно фасаду. Две консоли закреплены на монтажных пластинах у стены."}</p>
       </ControlSection>
 
       <ControlSection title="Изображение">
@@ -1431,7 +1440,7 @@ function PanelPreview({
   wallGap: number;
   cornerRadius: number;
   image: string;
-  mountMode: "wall" | "corner";
+  mountMode: PanelMountMode;
   shape: PanelShape;
   sideColor: string;
   faceColor: string;
