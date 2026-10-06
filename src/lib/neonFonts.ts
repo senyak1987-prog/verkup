@@ -7,8 +7,8 @@ export const EXTERNAL_NEON_FONTS = [
   {id:'pepita',label:'Pepita',group:'Рукописные',file:'EMSPepita.svg'},
   {id:'elfin',label:'Elfin',group:'Рукописные',file:'EMSElfin.svg'},
   {id:'script',label:'Hershey Script',group:'Рукописные',file:'HersheyScript1.svg'},
-  {id:'swiss',label:'Swiss',group:'Современные',file:'EMSSwiss.svg'},
-  {id:'league',label:'League',group:'Современные',file:'EMSLeague.svg'},
+  {id:'swiss',label:'Swiss',group:'Рукописные',file:'EMSSwiss.svg'},
+  {id:'league',label:'League',group:'Рукописные',file:'EMSLeague.svg'},
   {id:'tech',label:'Tech',group:'Современные',file:'EMSTech.svg'},
 ] as const;
 const fonts=new Map<string,StrokeFont>(),requests=new Map<string,Promise<void>>();
