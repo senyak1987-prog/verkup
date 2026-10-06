@@ -28,9 +28,9 @@ const schemaCompiled=ts.transpileModule(schemaSource,{compilerOptions:{target:ts
 const panel=load('panelConstruction');
 const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS','normalizePanelSize','normalizePanelDepth',schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker,neon.NEON_FONTS,panel.normalizePanelSize,panel.normalizePanelDepth);
 test('Импорт ограничивает логотип, отступ контура и дискретные размеры панели',()=>{
-  const imported=schema.validate({version:1,project:{logoSizeMm:900,panelSize:621,panelDepth:80,haloBackerOffsetMm:100}});
-  assert.equal(imported.logoSizeMm,90);assert.equal(imported.panelSize,600);assert.equal(imported.panelDepth,130);assert.equal(imported.haloBackerOffsetMm,25);
-  const legacy=schema.validate({version:1,project:{letterHeight:400,logoScale:100}});assert.equal(legacy.logoSizeMm,90);
+  const imported=schema.validate({version:1,project:{logoSizeMm:9000,panelSize:621,panelDepth:80,haloBackerOffsetMm:100}});
+  assert.equal(imported.logoSizeMm,900);assert.equal(imported.panelSize,600);assert.equal(imported.panelDepth,130);assert.equal(imported.haloBackerOffsetMm,25);
+  const legacy=schema.validate({version:1,project:{letterHeight:400,logoScale:100}});assert.equal(legacy.logoSizeMm,400);
 });
 
 test('An imported contour backer selects the supporting frame only in halo modes',()=>{
