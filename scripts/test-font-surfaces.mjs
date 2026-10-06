@@ -87,9 +87,18 @@ export function surfaceDifference(path, shapes) {
   return maximum / Math.max(1, box.max.x - box.min.x);
 }
 
-const fonts = contours.SIGN_FONTS.filter(font => font.file).map(entry => {
+const fonts = [...contours.SIGN_FONTS, ...contours.LEGACY_SIGN_FONTS].filter(font => font.file).map(entry => {
   const bytes = fs.readFileSync(new URL('../public/fonts/' + entry.file, import.meta.url));
   return { ...entry, font: opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)) };
+});
+test('The picker offers distinct fonts and archived font names retain their exact outlines', () => {
+  assert.equal(contours.SIGN_FONTS.length, 16);
+  for (const entry of contours.LEGACY_SIGN_FONTS) {
+    assert.ok(!contours.SIGN_FONTS.some(font => font.value === entry.value));
+    assert.equal(contours.resolveSignFont(entry.value).file, entry.file);
+    assert.equal(contours.resolveSignFont(entry.value).weight, entry.weight);
+  }
+  for (const entry of contours.SIGN_FONTS) assert.equal(contours.resolveSignFont(entry.value).value, entry.value);
 });
 test('Playfair Display М reproduces the former spurious triangle and retains its open notch after repair', () => {
   const entry = fonts.find(font => font.file === 'PlayfairDisplay-Variable.ttf');
@@ -98,9 +107,17 @@ test('Playfair Display М reproduces the former spurious triangle and retains it
   assert.ok(surfaceDifference(path, filledGlyphShapes([path])) < .00001);
 });
 for (const entry of fonts) test(entry.label + ': all letter faces match the SVG nonzero fill, including holes and overlapping strokes', () => {
+  const alphabet = 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдеёжзийклмнопрстуфхцчшщъыьэюяABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,:;!?«»()№+-/';
+  for (const character of alphabet) {
+    assert.ok(entry.font.hasChar(character), entry.label + ': missing ' + character);
+    const glyph = contours.contoursFromFont(entry.font, character, entry.weight);
+    assert.ok(glyph.pathData.length > 0, entry.label + ': blank ' + character);
+    assert.ok(glyph.inkBox.width > 0 && glyph.inkBox.height > 0, entry.label + ': empty ' + character);
+    assert.doesNotMatch(glyph.pathData, /NaN|Infinity|undefined/);
+  }
   for (const text of ['ШАУРМА', 'ЦВЕТЫ', 'Город Свет',
     'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ', 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя',
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz', '0123456789']) {
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz', '0123456789', '.,:;!?«»()№+-/']) {
     const path = shapePathFromData(contours.contoursFromFont(entry.font, text, entry.weight).pathData);
     const shapes = filledGlyphShapes([path]);
     assert.ok(shapes.length > 0);
