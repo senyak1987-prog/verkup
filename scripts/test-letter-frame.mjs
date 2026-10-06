@@ -166,12 +166,15 @@ test('Контурная подложка имеет толщину 3 мм и п
     letterFaceColor:{value:'#ffffff'},letterSideColor:{value:'#222222'},haloBackerColor:{value:'#888888'}};
   const path='M-20 0Q-20 -20 0 -20L1000 -20Q1020 -20 1020 0L1020 300Q1020 320 1000 320L0 320Q-20 320 -20 300Z';
   const layout={textRows:[row],signBox:box,textX:0,textTop:0,textWidth:1000,textHeight:300,haloBackerPath:path};
-  for(const mode of ['face','faceSide','halo','faceHalo'])for(const enabled of [false,true]){
-    const model=await scene.buildSignModel({...project,glowMode:mode,haloBackerEnabled:enabled},layout,1000,300,50,false);
+  for(const mode of ['face','faceSide','halo','faceHalo'])for(const enabled of [false,true])for(const bodyDepth of [40,50]){
+    const model=await scene.buildSignModel({...project,letterDepth:bodyDepth,glowMode:mode,haloBackerEnabled:enabled},layout,1000,300,bodyDepth,false);
     const plate=model.getObjectByName('halo-contour-backer');
     assert.equal(Boolean(plate),enabled&&['halo','faceHalo'].includes(mode));
-    if(plate){const letter=model.getObjectByName('extruded-letter-row-0');const bodyBounds=new THREE.Box3().setFromObject(letter);assert.equal(bodyBounds.min.z,28);assert.equal(bodyBounds.max.z,65);const bounds=new THREE.Box3().setFromObject(plate);assert.ok(Math.abs(bounds.getSize(new THREE.Vector3()).z-3)<.00001);
-      assert.equal(bounds.min.z,15);assert.equal(bounds.max.z,18);assert.equal(plate.userData.mount,"frame");assert.equal(bounds.min.x,-520);assert.equal(bounds.max.x,520);assert.equal(bounds.min.y,-170);assert.equal(bounds.max.y,170);}
+    if(plate){const letter=model.getObjectByName('extruded-letter-row-0');const bodyBounds=new THREE.Box3().setFromObject(letter);assert.equal(bodyBounds.min.z,38);assert.equal(bodyBounds.max.z,38+bodyDepth);const bounds=new THREE.Box3().setFromObject(plate);assert.ok(Math.abs(bounds.getSize(new THREE.Vector3()).z-3)<.00001);
+      assert.equal(bounds.min.z,15);assert.equal(bounds.max.z,18);
+      assert.equal(bodyBounds.min.z-bounds.max.z,20);assert.equal(bodyBounds.max.z-bodyBounds.min.z,bodyDepth);
+      const spacers=model.children.filter(child=>child.name==='halo-distance-spacer');assert.equal(spacers.length,2);
+      for(const spacer of spacers){const b=new THREE.Box3().setFromObject(spacer);assert.equal(b.min.z,18);assert.equal(b.max.z,38);assert.equal(spacer.userData.lengthMm,20);}assert.equal(plate.userData.mount,"frame");assert.equal(bounds.min.x,-520);assert.equal(bounds.max.x,520);assert.equal(bounds.min.y,-170);assert.equal(bounds.max.y,170);}
     scene.disposeSignObject(model);
   }
 });

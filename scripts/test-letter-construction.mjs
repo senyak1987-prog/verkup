@@ -64,7 +64,7 @@ const validateProject = new Function('LETTER_FONTS','resolveSignFont','normalize
   schemaCompiled + ';return validateProject;')(contours.SIGN_FONTS, contours.resolveSignFont,
   construction.normalizeLetterDepth, load('backerConstraints').constrainBacker, [],panel.normalizePanelSize,panel.normalizePanelDepth);
 test('Восстановление проекта считает глубину по активным строкам вместо скрытой базовой высоты', () => {
-  const restore = project => validateProject({ version: 1, project });
+  const restore = project => validateProject({ version: 1, project: {glowMode:"face",...project} });
   const short = restore({ lettersText: 'КОФЕ', letterHeight: 220, letterLineHeights: [100], letterDepth: 60 });
   assert.equal(short.letterDepth, 40);
   const sparse = restore({ lettersText: '', secondLineText: 'КАФЕ', thirdLineText: 'СВЕТ',
@@ -115,4 +115,16 @@ test('Разные шрифты создают разные контуры бе�
     return contours.contoursFromFont(opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)), 'ЦВЕТЫ', item.weight).pathData;
   });
   assert.equal(new Set(paths).size, contours.SIGN_FONTS.filter(item => item.file).length);
+});
+
+test('Контражур сохраняет борт 40/50 мм, исправляет 60 мм и импорт без дробных глубин',()=>{
+  for(const mode of ['halo','faceHalo']){
+    assert.equal(construction.normalizeLetterDepth(150,40,mode),40);
+    assert.equal(construction.normalizeLetterDepth(300,50,mode),50);
+    assert.equal(construction.normalizeLetterDepth(300,60,mode),50);
+    assert.equal(construction.normalizeLetterDepth(400,60,mode),50);
+    const saved=validateProject({version:1,project:{lettersText:'СВЕТ',letterHeight:300,letterLineHeights:[300],letterDepth:60,glowMode:mode}});
+    assert.equal(saved.letterDepth,50);
+    for(const invalid of [41,45,55,NaN,Infinity])assert.ok([40,50].includes(construction.normalizeLetterDepth(150,invalid,mode)));
+  }
 });
