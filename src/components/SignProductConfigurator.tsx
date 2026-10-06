@@ -471,7 +471,6 @@ export function SignProductConfigurator() {
   const setHaloBackerEnabled = (value: ProjectState["haloBackerEnabled"]) => setProject(previous => ({ ...previous, haloBackerEnabled: value }));
   const setHaloBackerColor = (value: ProjectState["haloBackerColor"]) => setProject(previous => ({ ...previous, haloBackerColor: value }));
   const setMountMode = (value: ProjectState["mountMode"]) => setProject(previous => ({ ...previous, mountMode: value }));
-  const setFrameEdgeInset = (value: ProjectState["frameEdgeInset"]) => setProject(previous => ({ ...previous, frameEdgeInset: value }));
   const setFrameTopPosition = (value: ProjectState["frameTopPosition"]) => setProject(previous => ({ ...previous, frameTopPosition: value }));
   const setFrameBottomPosition = (value: ProjectState["frameBottomPosition"]) => setProject(previous => ({ ...previous, frameBottomPosition: value }));
   const setAcpColor = (value: ProjectState["acpColor"]) => setProject(previous => ({ ...previous, acpColor: value }));
@@ -687,8 +686,6 @@ export function SignProductConfigurator() {
     }
   }, [lettersLayout, letterContours, fontPending, project.mountMode, letterHeight, letterOutlineEnabled, letterWidth]);
   const measuredLettersWidth = Math.max(1, Math.round(lettersLayout.signBox.width));
-  const frameEdgeInsetSafe = Math.max(0, Math.min(120, frameEdgeInset));
-  const frameEdgeInsetPercent = Math.min(12, (frameEdgeInsetSafe / Math.max(1, measuredLettersWidth)) * 100);
   const lettersAreaM2 = (measuredLettersWidth * lettersLayout.signBox.height) / 1_000_000;
   const glowHasHalo = hasHaloGlow(glowMode);
   const glowLabel = GLOW_MODES.find((item) => item.id === glowMode)?.label || "";
@@ -749,7 +746,7 @@ export function SignProductConfigurator() {
     "--letter-side-step": `${Math.max(1, Math.min(3, letterDepth / 32))}px`,
     "--logo-outline-width": logoOutlineEnabled ? "7px" : "0px",
     "--frame-profile-size": `${frameProfile === 15 ? 6 : 8}px`,
-    "--frame-edge-inset": `${frameEdgeInsetPercent}%`,
+    "--frame-edge-inset": "0%",
     "--frame-rail-top": `${frameTopPosition}%`,
     "--frame-rail-bottom": `${frameBottomPosition}%`,
     "--halo-backer-color": haloBackerColor.value,
@@ -921,7 +918,6 @@ export function SignProductConfigurator() {
               faceColor={letterFaceColor}
               font={letterFont}
               frameBottomPosition={frameBottomPosition}
-              frameEdgeInset={frameEdgeInset}
               frameProfile={frameProfile}
               frameTopPosition={frameTopPosition}
               glowMode={glowMode}
@@ -947,7 +943,6 @@ export function SignProductConfigurator() {
               onDepthChange={setLetterDepth}
               onFaceColorChange={setLetterFaceColor}
               onFrameBottomPositionChange={setFrameBottomPosition}
-              onFrameEdgeInsetChange={setFrameEdgeInset}
               onFontChange={setLetterFont}
               onFrameTopPositionChange={setFrameTopPosition}
               onGlowModeChange={setGlowMode}
@@ -1271,7 +1266,6 @@ function LettersControls({
   faceColor,
   font,
   frameBottomPosition,
-  frameEdgeInset,
   frameProfile,
   frameTopPosition,
   glowMode,
@@ -1297,7 +1291,6 @@ function LettersControls({
   onDepthChange,
   onFaceColorChange,
   onFrameBottomPositionChange,
-  onFrameEdgeInsetChange,
   onFontChange,
   onFrameTopPositionChange,
   onGlowModeChange,
@@ -1324,7 +1317,6 @@ function LettersControls({
   faceColor: ColorOption;
   font: string;
   frameBottomPosition: number;
-  frameEdgeInset: number;
   frameProfile: FrameProfile;
   frameTopPosition: number;
   glowMode: GlowMode;
@@ -1350,7 +1342,6 @@ function LettersControls({
   onDepthChange: (value: number) => void;
   onFaceColorChange: (color: ColorOption) => void;
   onFrameBottomPositionChange: (value: number) => void;
-  onFrameEdgeInsetChange: (value: number) => void;
   onFontChange: (font: string) => void;
   onFrameTopPositionChange: (value: number) => void;
   onGlowModeChange: (mode: GlowMode) => void;
@@ -1432,10 +1423,9 @@ function LettersControls({
       {mountMode === "frame" && (
         <ControlSection title="Рама">
           <div className={`frame-policy ${height > 550 ? "warning" : ""}`}><strong className="frame-profile">{height > 550 ? "Рама по согласованию" : "Профиль 15 × 15 мм"}</strong><p>{height > 550 ? "Буквы выше 55 см. Сечение и конструкцию рамы согласуем перед изготовлением. В макете показан профиль 15 мм." : "Для букв высотой до 55 см включительно. Две горизонтальные трубы за буквами."}</p></div>
-          <RangeField label="Отступ рамы от края, мм" max={120} min={0} onChange={onFrameEdgeInsetChange} step={5} value={frameEdgeInset} />
           <RangeField label="Верхний отступ рамы, мм" max={20} min={10} onChange={onFrameTopPositionChange} value={frameTopPosition} />
-          <RangeField label="Нижний отступ рамы, мм" max={20} min={10} onChange={onFrameBottomPositionChange} value={frameBottomPosition} /><p className="control-note">Отступы от общей линии букв до наружного края трубы. Хвосты и надстрочные элементы не учитываются.</p>
-          <small className="control-note">Положение и длина труб показаны в 2D и 3D в масштабе вывески.</small>
+          <RangeField label="Нижний отступ рамы, мм" max={20} min={10} onChange={onFrameBottomPositionChange} value={frameBottomPosition} /><p className="control-note">Отступы внутрь от верхнего и нижнего края меньшего элемента: логотипа или надписи. У букв хвосты и надстрочные элементы не учитываются.</p>
+          <small className="control-note">Обе трубы проходят через всю ширину вывески. Положение одинаково в 2D и 3D.</small>
         </ControlSection>
       )}
 
@@ -1844,10 +1834,11 @@ function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayou
   const signBox={x:x1,y:y1,width:x2-x1,height:y2-y1};
   const textBaseline=textTop-natural.y*textHeight/natural.height;
   const textInkBox={x:textX,y:textTop-overTop*fit,width:textWidth,height:textHeight+(overTop+overBottom)*fit};
-  const railHeight=15, centers=frameRailCenters(signBox.y,signBox.height,config.frameTopPosition,config.frameBottomPosition);
+  const textBody={y:textTop-outline*fit,height:textHeight+outline*2*fit};
+  const frameReference=logoEnabled&&logoBox.height>0&&logoBox.height<textBody.height?logoBox:textBody;
+  const railHeight=15, centers=frameRailCenters(frameReference.y,frameReference.height,config.frameTopPosition,config.frameBottomPosition);
   const railTopY=centers.top,railBottomY=centers.bottom;
-  const inset=clamp(config.frameEdgeInset,0,signBox.width*.38),railX=signBox.x+inset;
-  const railWidth=Math.max(30,signBox.width-inset*2);
+  const railX=signBox.x,railWidth=signBox.width;
   const haloBackerBox={x:signBox.x-height*.16,y:signBox.y-height*.11,width:signBox.width+height*.32,height:signBox.height+height*.22};
   return {defaultTextX,defaultTextY,defaultLogoX,defaultLogoY,viewWidth,viewHeight,signBox,logoBox,logoCornerRadius:logoSize*.16,textX,textTop,textBaseline,textWidth,textHeight,textInkBox,fontSize,
     textPathData:config.contours?.pathData,textNaturalBox:natural,railX,railWidth,railHeight,railTopY,railBottomY,panelBox,panelCornerRadius:0,

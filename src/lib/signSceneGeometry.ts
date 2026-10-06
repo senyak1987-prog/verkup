@@ -443,13 +443,16 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       }
       if (project.logoEnabled !== false && layout.logoBox.width > 0) {
         const shape = logoShape(project.logoShape, layout.logoBox.width);
-        const logo = extrude(shape, modelDepth, face, side, backMaterial);
+        // An even sample count also includes the circle's four cardinal points exactly.
+        const curveSegments = Math.ceil(panelCurveSegments(layout.logoBox.width, project.logoShape, layout.logoCornerRadius) / 2) * 2;
+        const logo = extrude(shape, modelDepth, face, side, backMaterial, { curveSegments, smoothSides: true });
         logo.position.set(toX(layout.logoBox.x + layout.logoBox.width / 2),
           toY(layout.logoBox.y + layout.logoBox.height / 2), rear);
         logo.name = "extruded-logo";
         if (project.logoOutlineEnabled) contour(logo, project.outlineColor.value);
         group.add(logo);
-        await applyArtwork(logo, shape, project.logoImage, layout.logoBox.width, modelDepth, night, faceLit);
+        await applyArtwork(logo, shape, project.logoImage, layout.logoBox.width, modelDepth, night, faceLit,
+          100, 0, 0, false, curveSegments);
       }
       if (project.mountMode === "frame") {
         const steel = new THREE.MeshStandardMaterial({ color: night ? "#919da5" : "#727e85",

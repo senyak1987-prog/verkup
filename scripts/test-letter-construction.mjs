@@ -31,6 +31,14 @@ test('Наружные края обеих труб находятся на 10�
     assert.equal(220 - rails.bottom - 7.5, inset);
   }
 });
+test('Независимые отступы трубы ограничены 10–20 мм даже в старых сохраненных проектах', () => {
+  for (const [topInset,bottomInset,expectedTop,expectedBottom] of [[0,100,10,20],[-50,15,10,15],[20,0,20,10]]) {
+    const rails = construction.frameRailCenters(-85, 220, topInset, bottomInset);
+    assert.equal(rails.top - 7.5 + 85, expectedTop);
+    assert.equal(135 - rails.bottom - 7.5, expectedBottom);
+    assert.ok(rails.top < rails.bottom);
+  }
+});
 for (const item of contours.SIGN_FONTS.filter(item => item.file)) test(item.label + ': живой контур и высота без выносных элементов', () => {
   const bytes = fs.readFileSync(new URL('../public/fonts/' + item.file, import.meta.url));
   const font = opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
