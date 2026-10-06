@@ -6,7 +6,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { applySignLighting, buildSignModel, disposeSignObject } from "../lib/signSceneGeometry";
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { createFacadeModel } from "../lib/signFacade3D";
+import { createFacadeModel, createPanelMountContext } from "../lib/signFacade3D";
+import { panelMountLayout } from "../lib/panelConstruction";
 import type { SignPlacement } from "../lib/signFacade";
 import "../sign-scene-3d.css";
 
@@ -174,7 +175,11 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         frame(front, preserveOrbit = false) {
           if (!runtime.model) return;
           const box = new THREE.Box3();
-          for (const child of runtime.model.children) if (child.name !== "dimensions") box.expandByObject(child);
+          for (const child of runtime.model.children) {
+            if (child.name === 'panel-construction') {
+              for (const part of child.children) if (part.name !== 'dimensions') box.expandByObject(part);
+            } else if (child.name !== 'dimensions') box.expandByObject(child);
+          }
           if (box.isEmpty()) return;
           const center = panelRef.current || runtime.model.getObjectByName('facade') ? box.getCenter(new THREE.Vector3()) : new THREE.Vector3(0, 0, box.max.z / 2);
           const view = layoutRef.current;
@@ -188,9 +193,13 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const sceneSize = box.getSize(new THREE.Vector3());
           runtime.distance = Math.max(view.viewWidth, view.viewHeight, sceneSize.x, sceneSize.y, sceneSize.z) * 3;
           const canopyView = runtime.model.userData.placement === 'canopy';
+          const panelPose = runtime.model.userData.panelPose as ReturnType<typeof panelMountLayout> | undefined;
+          const panelFront = panelPose ? new THREE.Vector3(Math.sin(panelPose.rotationY), 0, Math.cos(panelPose.rotationY)) : new THREE.Vector3(0, 0, 1);
+          const panelDefault = panelPose?.mode === 'corner' ? new THREE.Vector3(.3, .18, 1)
+            : runtime.model.userData.placement === 'none' && panelPose ? new THREE.Vector3(-1, .15, .65) : new THREE.Vector3(.85, .12, 1);
           const direction = preserveOrbit
             ? camera.position.clone().sub(currentControls.target).normalize()
-            : front ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(panelRef.current ? 0.68 : canopyView ? 0.55 : 0.3, canopyView ? 0.3 : 0.12, 1).normalize();
+            : front ? panelFront : (panelPose ? panelDefault : new THREE.Vector3(panelRef.current ? 0.68 : canopyView ? 0.55 : 0.3, canopyView ? 0.3 : 0.12, 1)).normalize();
           currentControls.target.copy(center);
           camera.position.copy(center).addScaledVector(direction, runtime.distance);
           currentControls.minDistance = Math.max(100, runtime.distance * 0.22);
@@ -255,7 +264,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     setLoading(true);
     // The facade keeps its physical scale; construction labels stay in the screen-pinned size bar.
     void buildSignModel(modelProject, layout, width, height, depth, showDimensions && placement === 'none').then(async(model) => {
-      if(placement==='none'&&project.backdropImage&&/^data:image\/(png|jpeg|webp);base64,/.test(project.backdropImage)) {
+      if(placement==='none'&&project.productId!=='panel'&&project.backdropImage&&/^data:image\/(png|jpeg|webp);base64,/.test(project.backdropImage)) {
         try {
           const texture=await new THREE.TextureLoader().loadAsync(project.backdropImage);
           texture.colorSpace=THREE.SRGBColorSpace;
@@ -270,14 +279,25 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       if (version !== buildRef.current || runtime !== runtimeRef.current) {
         disposeSignObject(model); return;
       }
-      const preserveOrbit = runtime.model?.userData.productId === project.productId && runtime.model?.userData.placement === placement;
+      const preserveOrbit = runtime.model?.userData.productId === project.productId && runtime.model?.userData.placement === placement
+        && runtime.model?.userData.panelPose?.mode === (project.productId === 'panel' ? project.panelMountMode ?? 'wall' : undefined);
       model.userData.placement = placement;
       if (runtime.model) {
         runtime.scene.remove(runtime.model);
         disposeSignObject(runtime.model);
       }
+      if (project.productId === 'panel') {
+        const pose = panelMountLayout(project.panelSize, project.panelShape, project.panelWallGap, project.panelCornerRadius, depth, project.panelMountMode ?? 'wall');
+        const construction = new THREE.Group(); construction.name = 'panel-construction';
+        for (const child of [...model.children]) construction.add(child);
+        construction.rotation.y = pose.rotationY;
+        construction.position.set(pose.position.x, pose.position.y, pose.position.z);
+        model.add(construction); model.userData.panelPose = pose;
+        const panelMount = { mode: pose.mode, size: project.panelSize, depth, gap: pose.gap, shape: project.panelShape, cornerRadius: project.panelCornerRadius };
+        model.add(placement === 'none' ? createPanelMountContext(panelMount, project.facadePalette)
+          : createFacadeModel(placement, width, height, { palette: project.facadePalette, panelMount: pose }));
+      } else if (placement !== 'none') model.add(createFacadeModel(placement, width, height,{palette:project.facadePalette,signBackMm:project.productId==='neon'?(project.neonInstallMode==='hanging'?0:20):project.mountMode==='acp'?project.acpDepth:15}));
       runtime.model = model;
-      if (placement !== 'none') model.add(createFacadeModel(placement, width, height,{palette:project.facadePalette,signBackMm:project.productId==='neon'?(project.neonInstallMode==='hanging'?0:20):project.mountMode==='acp'?project.acpDepth:15}));
       if (hostRef.current) { hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId; }
       runtime.scene.add(model);
       runtime.bounds.setFromObject(model);
