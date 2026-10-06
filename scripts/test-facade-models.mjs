@@ -24,7 +24,7 @@ const scene = load('signFacade3D', { three: THREE, './signFacade': facade, './pa
 const places = facade.SIGN_PLACEMENTS.filter(place => place.id !== 'none');
 const dimensions = [[600, 180], [1800, 300], [5000, 300], [1200, 800]];
 
-test('The real CC0 superhero uses authored subdivided anatomy and a curved Gorod Svet cape print', () => {
+test('The CC0 superhero has authored parted hair and the brand is printed into one opaque cape surface', () => {
   const building=scene.createFacadeModel('windows',2000,400),brand=new THREE.Texture();
   const person=scene.createScalePerson(building,new THREE.Vector3(0,0,200),brand,asset);
   let vertices=0;person.traverse(child=>{if(child.isMesh){
@@ -36,10 +36,39 @@ test('The real CC0 superhero uses authored subdivided anatomy and a curved Gorod
   assert.ok(body);assert.notEqual(body.geometry,source.geometry);assert.notEqual(body.material,source.material);
   assert.deepEqual(body.geometry.getAttribute('position').array,source.geometry.getAttribute('position').array);
   assert.ok(person.getObjectByName('Eyebrows'));assert.ok(person.getObjectByName('Eyes'));assert.ok(person.getObjectByName('person-cape'));
-  const print=person.getObjectByName('person-gorod-svet-cape');assert.equal(print.material.map,brand);assert.equal(print.userData.brand,'Город Свет');
-  assert.equal(print.visible,true);assert.equal(print.castShadow,false);assert.ok(print.geometry.getAttribute('position').count>1000);
+  const hair=person.getObjectByName('hair-simple-parted');assert.ok(hair);assert.ok(hair.geometry.getAttribute('position').count>10000);
+  const print=person.getObjectByName('person-cape');assert.equal(print.material.map,brand);assert.equal(print.userData.brand,'Город Свет');
+  assert.equal(print.material.transparent,false);assert.equal(print.castShadow,true);assert.ok(print.geometry.getAttribute('position').count>1000);
+  assert.equal(person.getObjectByName('person-gorod-svet-cape'),undefined,'No separate decal can clip or fight the cloth depth');
   building.add(person);dispose(building);
   assert.ok(source.geometry.getAttribute('position').count>100000,'Disposing one facade cannot damage the cached source model');
+});
+
+test('Standing animation keeps feet and collar fixed, gently moves the hem and preserves the printed UVs', () => {
+  const building=scene.createFacadeModel('windows',2000,400),person=scene.createScalePerson(building,new THREE.Vector3(),new THREE.Texture(),asset);
+  const cloth=person.getObjectByName('person-cape'),p=cloth.geometry.getAttribute('position'),uv=cloth.geometry.getAttribute('uv');
+  const uvBefore=Array.from(uv.array),bodyBefore=Array.from(person.getObjectByName('superhero-authored-body').geometry.getAttribute('position').array);
+  const position=person.position.clone(),rotation=person.quaternion.clone();
+  scene.animateScalePerson(person,0);const rest=Array.from(p.array);
+  for(const time of [1,2,4,8,15]){
+    assert.equal(scene.animateScalePerson(person,time),true);
+    let hemMotion=0;
+    for(let i=0;i<p.count;i++){
+      const v=1-uv.getY(i);
+      if(v===0)assert.deepEqual([p.getX(i),p.getY(i),p.getZ(i)],rest.slice(i*3,i*3+3),'Shoulder attachment stays pinned');
+      if(v>.9)hemMotion=Math.max(hemMotion,Math.abs(p.getZ(i)-rest[i*3+2]));
+      assert.ok(Math.abs(p.getZ(i)-rest[i*3+2])<27,'Restrained cloth movement in millimetres');
+      assert.ok(p.getZ(i)<-150,'Fabric remains behind the back');
+    }
+    assert.ok(hemMotion>1);assert.deepEqual(Array.from(uv.array),uvBefore);
+    assert.deepEqual(person.position,position);assert.deepEqual(person.quaternion.toArray(),rotation.toArray());
+    assert.deepEqual(Array.from(person.getObjectByName('superhero-authored-body').geometry.getAttribute('position').array),bodyBefore,'Standing shader leaves feet and source geometry untouched');
+  }
+  assert.equal(scene.animateScalePerson(person,25,true),false);
+  assert.equal(person.userData.motionTime.value,0);assert.deepEqual(Array.from(p.array),rest,'Reduced motion returns to the still pose');
+  const shader={uniforms:{},vertexShader:'#include <begin_vertex>'};person.getObjectByName('hair-simple-parted').material.onBeforeCompile(shader);
+  assert.equal(shader.uniforms.personTime,person.userData.motionTime);assert.match(shader.vertexShader,/smoothstep\(650.0, 1380.0, position.y\)/);
+  building.add(person);dispose(building);
 });
 
 test('Facade product switches independently support all four combinations without moving either product', () => {

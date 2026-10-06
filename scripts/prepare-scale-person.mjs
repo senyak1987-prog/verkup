@@ -1,15 +1,19 @@
 /** Bake the CC0 Quaternius rig into a standing, smoothly subdivided, static GLB.
- * Usage: node scripts/prepare-scale-person.mjs path/to/character.glb
+ * Usage: node scripts/prepare-scale-person.mjs path/to/character.glb path/to/Hair_SimpleParted.gltf
  * Source and license: public/models/README.md. No Blender or remote runtime dependencies.
  */
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+globalThis.ProgressEvent ??= class ProgressEvent { constructor(type,values){this.type=type;Object.assign(this,values);} };
 
 const source=fs.readFileSync(process.argv[2]);
 const gltf=await new GLTFLoader().parseAsync(source.buffer.slice(source.byteOffset,source.byteOffset+source.byteLength),'');
 const rig=gltf.scene;rig.updateMatrixWorld(true);
+const restHead=rig.getObjectByName('Head').matrixWorld.clone();
 function aim(name,childName,direction){
   const bone=rig.getObjectByName(name),child=rig.getObjectByName(childName);
   const current=child.getWorldPosition(new THREE.Vector3()).sub(bone.getWorldPosition(new THREE.Vector3())).normalize();
@@ -72,6 +76,32 @@ rig.traverse(mesh=>{
   const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(smooth.positions.flat(),3));
   geometry.setAttribute('color',new THREE.Float32BufferAttribute(smooth.colors.flat(),3));geometry.setIndex(smooth.indices);geometry.computeVertexNormals();
   meshes.push({name:mesh.name==='SuperHero_Male'?'superhero-authored-body':mesh.name,geometry});
+});
+// Authored short, parted hair from the same CC0 pack. Bake the head's standing pose into it.
+const hairPath=process.argv[3];
+if(!hairPath)throw new Error('Supply the official Hair_SimpleParted.gltf and adjacent .bin');
+const hairJson=JSON.parse(fs.readFileSync(hairPath,'utf8'));
+const hairBin=fs.readFileSync(new URL(hairJson.buffers[0].uri,pathToFileURL(resolve(hairPath))));
+hairJson.buffers[0].uri='data:application/octet-stream;base64,'+hairBin.toString('base64');
+delete hairJson.images;delete hairJson.textures;delete hairJson.samplers;
+hairJson.materials=[{pbrMetallicRoughness:{baseColorFactor:[.025,.022,.02,1],roughnessFactor:.78}}];
+const hair=(await new GLTFLoader().parseAsync(JSON.stringify(hairJson),'')).scene;
+hair.updateMatrixWorld(true);
+const headDelta=rig.getObjectByName('Head').matrixWorld.clone().multiply(restHead.invert());
+hair.traverse(mesh=>{
+  if(!mesh.isMesh)return;
+  const p=mesh.geometry.getAttribute('position'),positions=[],colors=[],map=[],weld=new Map();
+  for(let i=0;i<p.count;i++){
+    const point=new THREE.Vector3().fromBufferAttribute(p,i).applyMatrix4(mesh.matrixWorld).applyMatrix4(headDelta);
+    const key=point.toArray().map(v=>v.toFixed(6)).join(',');
+    if(weld.has(key)){map.push(weld.get(key));continue;}
+    weld.set(key,positions.length);map.push(positions.length);positions.push(point.toArray());colors.push(new THREE.Color('#24201e').toArray());
+  }
+  const index=mesh.geometry.getIndex(),indices=Array.from({length:index.count},(_,i)=>map[index.getX(i)]);
+  let smooth={positions,colors,indices};for(let step=0;step<2;step++)smooth=subdivide(smooth.positions,smooth.colors,smooth.indices);
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(smooth.positions.flat(),3));
+  geometry.setAttribute('color',new THREE.Float32BufferAttribute(smooth.colors.flat(),3));geometry.setIndex(smooth.indices);geometry.computeVertexNormals();
+  meshes.push({name:'hair-simple-parted',geometry});
 });
 const bounds=new THREE.Box3();for(const{geometry}of meshes){geometry.computeBoundingBox();bounds.union(geometry.boundingBox);}
 const scale=1750/(bounds.max.y-bounds.min.y),center=bounds.getCenter(new THREE.Vector3());

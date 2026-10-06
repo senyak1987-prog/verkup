@@ -6,7 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { applySignLighting, buildSignModel, disposeSignObject } from "../lib/signSceneGeometry";
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { attachFacadePair, createFacadeModel, createPanelMountContext, createScalePerson, loadScalePersonBrand, setFacadeProductVisibility } from "../lib/signFacade3D";
+import { animateScalePerson, attachFacadePair, createFacadeModel, createPanelMountContext, createScalePerson, loadScalePersonBrand, setFacadeProductVisibility } from "../lib/signFacade3D";
 import { loadScalePersonModel } from "../lib/scalePersonAsset";
 import { DAYLIGHT_LEVELS, daylightSource } from "../lib/signDaylight";
 import { signFocusBounds, zoomFocusWeight } from "../lib/signCameraFocus";
@@ -161,10 +161,19 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       host.appendChild(renderer.domElement);
       const currentRenderer = renderer;
       const currentControls = controls;
+      const motionPreference=window.matchMedia('(prefers-reduced-motion: reduce)');
+      let motionTimer:ReturnType<typeof setTimeout>|undefined,hostInView=true,lastPersonShadow=0;
       const render = () => {
         frameId = 0;
-        if (disposed || document.visibilityState === "hidden") return;
+        clearTimeout(motionTimer);motionTimer=undefined;
+        if (disposed || !hostInView || document.visibilityState === "hidden") return;
         try {
+          const person=runtime.model?.getObjectByName('scale-person');
+          const now=performance.now();
+          const animated=person?.visible&&animateScalePerson(person,now/1000,motionPreference.matches);
+          if(animated&&now-lastPersonShadow>500){key.shadow.needsUpdate=true;lastPersonShadow=now;}
+          host.dataset.personAnimation=person?.visible?(animated?'standing-cape':'still'):'';
+          if(animated)host.dataset.personMotionTime=(now/1000).toFixed(3);
           currentRenderer.render(scene, camera);
           host.dataset.cameraZoom = String(camera.zoom);
           host.dataset.cameraViewHeight = String(camera.top - camera.bottom);
@@ -174,6 +183,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           host.dataset.signScreen = `${signScreen.x.toFixed(4)},${signScreen.y.toFixed(4)}`;
           const value = Math.round(camera.zoom * 100);
           if (value !== zoomRef.current) zoomChangeRef.current?.(value);
+          if(animated)motionTimer=setTimeout(requestRender,32);
         } catch { fail(); }
       };
       const requestRender = () => {
@@ -316,6 +326,11 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       renderer.domElement.addEventListener("webglcontextlost", contextLost);
       const visible = () => { if (document.visibilityState === "visible") requestRender(); };
       document.addEventListener("visibilitychange", visible);
+      const motionChanged=()=>requestRender();motionPreference.addEventListener('change',motionChanged);
+      const visibilityObserver=new IntersectionObserver(entries=>{
+        hostInView=entries.some(entry=>entry.isIntersecting);
+        if(hostInView)requestRender();else{clearTimeout(motionTimer);motionTimer=undefined;}
+      });visibilityObserver.observe(host);
       observer = new ResizeObserver(runtime.resize);
       observer.observe(host);
       runtime.resize();
@@ -323,6 +338,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         disposed = true;
         buildRef.current++;
         cancelAnimationFrame(frameId);
+        clearTimeout(motionTimer);visibilityObserver.disconnect();motionPreference.removeEventListener('change',motionChanged);
         observer?.disconnect();
         document.removeEventListener("visibilitychange", visible);
         currentRenderer.domElement.removeEventListener("webglcontextlost", contextLost);
