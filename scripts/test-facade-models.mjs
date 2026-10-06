@@ -34,7 +34,13 @@ test('The CC0 superhero has authored parted hair and the brand is printed into o
   assert.equal(person.userData.assetLicense,'CC0 1.0');assert.match(person.userData.assetSource,/Quaternius/);
   const body=person.getObjectByName('superhero-authored-body'),source=asset.getObjectByName('superhero-authored-body');
   assert.ok(body);assert.notEqual(body.geometry,source.geometry);assert.notEqual(body.material,source.material);
-  assert.deepEqual(body.geometry.getAttribute('position').array,source.geometry.getAttribute('position').array);
+  assert.notDeepEqual(body.geometry.getAttribute('position').array,source.geometry.getAttribute('position').array,'The relaxed stance is baked into actual geometry, including its shadows');
+  assert.equal(person.userData.standingPose,'relaxed-weight-shift');
+  assert.ok(person.userData.headPitchRadians>=.1&&person.userData.headPitchRadians<=.32);
+  const posed=body.geometry.getAttribute('position'),original=source.geometry.getAttribute('position');
+  const soles=[[],[]];for(let i=0;i<posed.count;i++)if(original.getY(i)<2)soles[original.getX(i)<0?0:1].push(posed.getZ(i));
+  assert.ok(soles.every(points=>points.length));
+  assert.ok(soles[0].reduce((a,b)=>a+b)/soles[0].length-soles[1].reduce((a,b)=>a+b)/soles[1].length>70,'One foot is ahead of the weight-bearing leg');
   assert.ok(person.getObjectByName('Eyebrows'));assert.ok(person.getObjectByName('Eyes'));assert.ok(person.getObjectByName('person-cape'));
   const hair=person.getObjectByName('hair-simple-parted');assert.ok(hair);assert.ok(hair.geometry.getAttribute('position').count>10000);
   const print=person.getObjectByName('person-cape');assert.equal(print.material.map,brand);assert.equal(print.userData.brand,'Город Свет');
@@ -263,7 +269,7 @@ test('Windows have true apertures, restrained reflections and separated glazing 
         anchor.y - glass.y - glass.h * .25, 5000), new THREE.Vector3(0, 0, -1));
       const hit = ray.intersectObjects(model.children, false)[0];
       assert.equal(hit?.object.userData.facadeKind, 'glass', place.id + ': glazing must be visible through the wall');
-      assert.ok(hit.object.material.roughness >= .08 && hit.object.material.roughness <= .5
+      assert.ok(hit.object.material.roughness >= .5 && hit.object.material.roughness <= .75
         && hit.object.material.envMapIntensity >= .2 && hit.object.material.envMapIntensity <= 1.25,
         'Glazing has readable reflections without becoming a perfect mirror');
       assert.ok(hit.object.material.userData.facadeEmission, 'Interior light is independent of the sign switch');
@@ -292,7 +298,7 @@ test('Facade glass has separate stable light identities and architecture casts r
     for(const mesh of glass) {
       const material=mesh.material;
       assert.ok(material.isMeshPhysicalMaterial,'Glass uses a physical dielectric material');
-      assert.ok(material.roughness>=.08&&material.roughness<=.5,'Window reflections stay softer than a mirror');
+      assert.ok(material.roughness>=.5&&material.roughness<=.75,'Window reflections stay softer than a mirror');
       assert.equal(material.metalness,0,'Architectural glass remains a dielectric surface');
       assert.ok(material.envMapIntensity>=.2&&material.envMapIntensity<=1.25,'Scene reflections are present but restrained');
       assert.ok(material.userData.windowLight&&material.userData.facadeEmission,'The window light is separated from the sign lighting switch');
@@ -449,13 +455,13 @@ test('Perpendicular panel mounts retain the existing canopy context and real wal
 });
 
 
-test('A complete building has four walls, a closed pitched roof, a real floor and furnished interiors behind transparent glass',()=>{
+test('A complete building has four walls, a closed pitched roof, a real floor and furnished interiors behind frosted glass',()=>{
   for(const place of places){
     const model=scene.createFacadeModel(place.id,2000,400);
     for(const name of ['facade-wall','building-left-wall','building-right-wall','building-back-wall','building-roof-front','building-roof-rear','interior-floor','interior-ceiling'])assert.ok(model.getObjectByName(name),name);
     assert.equal(model.userData.buildingDepthMm,5000);
     const glass=model.children.filter(mesh=>mesh.userData.facadeKind==='glass');
-    assert.ok(glass.every(mesh=>mesh.material.transparent&&mesh.material.opacity<.4&&!mesh.material.depthWrite));
+    assert.ok(glass.every(mesh=>mesh.material.transparent&&mesh.material.opacity>=.65&&mesh.material.opacity<=.8&&mesh.material.roughness>=.5&&mesh.material.thickness>0));
     assert.ok(model.children.some(mesh=>mesh.name.startsWith('interior-display-')));
     assert.equal(model.children.filter(mesh=>mesh.isPointLight).length,glass.length);
     for(const pane of glass){
@@ -464,6 +470,56 @@ test('A complete building has four walls, a closed pitched roof, a real floor an
     }
     const hero=scene.createScalePerson(model,new THREE.Vector3(),undefined,asset);
     assert.ok(hero.position.x<0,'Observer stands to the left of the sign');
+    dispose(model);
+  }
+});
+
+
+test('Every window casts a soft exterior pool from its own aperture and shares the delayed light identity',()=>{
+  for(const place of places){
+    const model=scene.createFacadeModel(place.id,2000,400),glass=model.children.filter(mesh=>mesh.userData.facadeKind==='glass');
+    const pavement=bounds(model.getObjectByName('facade-pavement'));
+    for(const pane of glass){
+      const index=pane.userData.windowIndex,light=model.getObjectByName('window-exterior-light-'+index),spill=model.getObjectByName('window-pavement-light-'+index);
+      assert.ok(light.isSpotLight&&light.penumbra===1);
+      assert.equal(light.userData.windowIndex,index);assert.equal(light.userData.dayWindowIntensity,0);
+      assert.equal(spill.material.userData.windowIndex,index);assert.ok(spill.material.transparent&&!spill.material.depthWrite);
+      close(light.position.x,pane.position.x,'The light emerges from the same window');
+      assert.ok(light.position.z>pane.position.z&&light.target.position.z>light.position.z,'Light travels outside the shop');
+      assert.ok(spill.position.y>pavement.max.y&&spill.position.y<pavement.max.y+2,'Light pool is attached to the actual pavement');
+      assert.ok(pane.material.userData.frostedGlass&&pane.material.transparent&&pane.material.opacity>=.65,'The furnished interior is diffusely transmitted through matte glass');
+    }
+    const svg=facade.createFacadeSvg(place.id,'<svg viewBox="0 0 2000 400"/>',true);
+    assert.equal((svg.match(/data-window-spill="true"/g)??[]).length,glass.length);
+    assert.match(svg,/feGaussianBlur stdDeviation="30"/);
+    dispose(model);
+  }
+});
+
+
+test('Window spill waits for the interior track, fades with it and ignores the sign switch',()=>{
+  const src=fs.readFileSync(new URL('../src/lib/signSceneGeometry.ts',import.meta.url),'utf8');
+  const fn=src.slice(src.indexOf('export function applySignLighting('));
+  const compiled=ts.transpileModule(fn,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
+  const api={};new Function('exports','THREE',compiled)(api,THREE);
+  for(const mode of ['wall','corner-front']){
+    const model=scene.createFacadeModel('shop',2000,400,{panelMount:panelMount.panelMountLayout(550,'circle',120,60,150,mode),frontSign:true});
+    const panes=[],lights=[],pools=[];model.traverse(child=>{
+      if(child.userData.facadeKind==='glass')panes.push(child);
+      if(child.isSpotLight)lights.push(child);
+      if(child.name.startsWith('window-pavement-light-'))pools.push(child);
+    });
+    assert.deepEqual(lights.map(l=>l.userData.windowIndex),panes.map(p=>p.userData.windowIndex));
+    for(const [night,windows,on]of [[0,0,true],[1,0,true],[1,.5,false],[1,1,false],[1,1,true],[0,0,false]]){
+      api.applySignLighting(model,night,on,windows);
+      lights.forEach((light,index)=>{
+        const delay=Math.min(light.userData.windowIndex,7)*.035;
+        const level=Math.max(0,Math.min(1,(windows-delay)/(1-delay)));
+        close(light.intensity/light.userData.windowIntensity,level,'Exterior light follows its own delayed interior track');
+        close(pools[index].material.uniforms.strength.value/pools[index].material.userData.maxWindowSpill,level,'Soft pavement falloff follows the same track');
+        if(windows===0){assert.equal(light.intensity,0);assert.equal(pools[index].material.uniforms.strength.value,0);}
+      });
+    }
     dispose(model);
   }
 });
