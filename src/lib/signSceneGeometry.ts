@@ -502,13 +502,19 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       const textHeight = layout.textHeight ?? height;
       const textTop = layout.textTop ?? layout.textBaseline - textHeight;
       const haloMode = project.glowMode === "faceHalo" || project.glowMode === "halo";
-      const rear = project.mountMode === "frame" ? 15 : haloMode ? 30 : 0;
-      if (haloMode && project.haloBackerEnabled && layout.haloBackerPath) {
+      const frameReferenceRear = project.mountMode === "frame" ? 15 : haloMode ? 30 : 0;
+      const contourOnFrame = project.mountMode === "frame" && haloMode && project.haloBackerEnabled && Boolean(layout.haloBackerPath);
+      // Front of the tube: 15 mm. The 3 mm plate sits on it, with 10 mm halo spacers.
+      // The configured face-to-frame depth includes these layers; the face remains at 15 + depth.
+      const rear = frameReferenceRear + (contourOnFrame ? 13 : 0);
+      const bodyDepth = modelDepth - (contourOnFrame ? 13 : 0);
+      if (contourOnFrame && layout.haloBackerPath) {
         const shapes=glyphFromPath(layout.haloBackerPath,layout.signBox,6).shapes;
         const material=solidMaterial(project.haloBackerColor.value,night);material.roughness=.65;
         const plate=extrude(shapes,3,material,material,material,{curveSegments:24,smoothSides:true});
-        plate.geometry.rotateX(Math.PI);plate.geometry.translate(-centerX,centerY,0);
-        plate.name='halo-contour-backer';plate.userData.thicknessMm=3;group.add(plate);
+        plate.geometry.rotateX(Math.PI);plate.geometry.translate(-centerX,centerY,18);
+        plate.name='halo-contour-backer';plate.userData.thicknessMm=3;
+        plate.userData.mount='frame';plate.userData.frontZ=18;plate.userData.haloGapMm=10;group.add(plate);
       }
       const backMaterial = solidMaterial(haloLit ? faceColor : sideColor, night, haloLit);
       // Trimless letters have an acrylic face and painted metal return, not a
@@ -527,7 +533,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       for (const part of textParts) if (part.glyph.shapes.length) {
         const box = part.glyph.box;
         const sx = part.box.width / Math.max(1, box.x2 - box.x1), sy = part.box.height / Math.max(1, box.y2 - box.y1);
-        const text = extrude(part.glyph.shapes, modelDepth, face, side, backMaterial, { frontSeam });
+        const text = extrude(part.glyph.shapes, bodyDepth, face, side, backMaterial, { frontSeam });
         seamUsed = true;
         text.geometry.scale(sx, -sy, 1);
         // Reflecting Y changes winding; restore each face before culling and lighting.
@@ -552,14 +558,14 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         const shape = logoShape(project.logoShape, layout.logoBox.width);
         // An even sample count also includes the circle's four cardinal points exactly.
         const curveSegments = Math.ceil(panelCurveSegments(layout.logoBox.width, project.logoShape, layout.logoCornerRadius) / 2) * 2;
-        const logo = extrude(shape, modelDepth, face, side, backMaterial, { curveSegments, smoothSides: true, frontSeam });
+        const logo = extrude(shape, bodyDepth, face, side, backMaterial, { curveSegments, smoothSides: true, frontSeam });
         seamUsed = true;
         logo.position.set(toX(layout.logoBox.x + layout.logoBox.width / 2),
           toY(layout.logoBox.y + layout.logoBox.height / 2), rear);
         logo.name = "extruded-logo";
         if (project.logoOutlineEnabled) contour(logo, project.outlineColor.value);
         group.add(logo);
-        await applyArtwork(logo, shape, project.logoImage, layout.logoBox.width, modelDepth, night, faceLit,
+        await applyArtwork(logo, shape, project.logoImage, layout.logoBox.width, bodyDepth, night, faceLit,
           100, 0, 0, false, curveSegments);
       }
       if (!seamUsed) frontSeam.dispose();
@@ -588,21 +594,21 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       if (haloLit) {
         const halo = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.10);
         halo.position.x = toX(layout.signBox.x + layout.signBox.width / 2); halo.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
-        halo.position.z = 0.4;
+        halo.position.z = contourOnFrame ? 18.4 : 0.4;
         (halo.material as THREE.MeshBasicMaterial).opacity = 1;
         halo.name = "rear-halo-projection"; group.add(halo);
       }
       if (faceLit) {
         const aura = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.02);
         aura.position.x = toX(layout.signBox.x + layout.signBox.width / 2); aura.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
-        aura.position.z = rear + modelDepth + 0.75;
+        aura.position.z = rear + bodyDepth + 0.75;
         (aura.material as THREE.MeshBasicMaterial).opacity = 0.22;
         aura.name = "face-light-aura"; group.add(aura);
       }
       if (showDimensions) {
         const halfWidth = width / 2, halfHeight = height / 2;
         const offset = Math.max(55, height * 0.2);
-        const z = rear + modelDepth + 2;
+        const z = rear + bodyDepth + 2;
         for(const row of layout.textRows??[]){
           const box=row.box,y=toY(box.y)-box.height-12;
           addDimension(dimensionGroup,new THREE.Vector3(toX(box.x),y,z),new THREE.Vector3(toX(box.x+box.width),y,z),
@@ -621,8 +627,8 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         addDimension(dimensionGroup, new THREE.Vector3(-halfWidth - offset, -halfHeight, z),
           new THREE.Vector3(-halfWidth - offset, halfHeight, z), Math.round(height) + " мм",
           new THREE.Vector3(-halfWidth - offset * 1.8, 0, z), dimensionScale * 0.85, night);
-        const constructionBack = rear;
-        const constructionFront = rear + modelDepth;
+        const constructionBack = frameReferenceRear;
+        const constructionFront = rear + bodyDepth;
         addDimension(dimensionGroup, new THREE.Vector3(halfWidth + offset, halfHeight, constructionBack),
           new THREE.Vector3(halfWidth + offset, halfHeight, constructionFront), Math.round(constructionFront - constructionBack) + " мм",
           new THREE.Vector3(halfWidth + offset * 1.65, halfHeight, (constructionBack + constructionFront) / 2), dimensionScale * 0.65, night);
