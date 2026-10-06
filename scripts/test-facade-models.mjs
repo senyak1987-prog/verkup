@@ -20,6 +20,53 @@ const facade = load('signFacade', { './panelConstruction': panelMount });
 const scene = load('signFacade3D', { three: THREE, './signFacade': facade, './panelConstruction': panelMount });
 const places = facade.SIGN_PLACEMENTS.filter(place => place.id !== 'none');
 const dimensions = [[600, 180], [1800, 300], [5000, 300], [1200, 800]];
+
+test('A 1750mm observer stands on the pavement and faces the sign in every facade and mounting mode', () => {
+  for (const place of places) for (const mode of ['wall', 'corner-front', 'corner-side', 'corner']) {
+    const pose = panelMount.panelMountLayout(550, 'circle', 120, 60, 160, mode);
+    const model = scene.createFacadeModel(place.id, 2000, 400, { panelMount: pose, frontSign: true });
+    const target = new THREE.Vector3(0, 0, 200);
+    const person = scene.createScalePerson(model, target);
+    assert.ok(person); model.add(person); model.updateWorldMatrix(true, true);
+    const actual = new THREE.Box3().setFromObject(person), pavement = new THREE.Box3().setFromObject(model.getObjectByName('facade-pavement'));
+    close(actual.max.y - actual.min.y, 1750, 'Actual crown-to-ground height');
+    close(actual.min.y, pavement.max.y, 'Shoes touch the pavement');
+    assert.ok(person.position.x > pavement.min.x && person.position.x < pavement.max.x);
+    assert.ok(person.position.z > pavement.min.z && person.position.z < pavement.max.z);
+    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(person.quaternion), direction = target.clone().sub(person.position); direction.y = 0; direction.normalize();
+    close(forward.dot(direction), 1, 'The observer faces the sign');
+    person.traverse(child => { if (child.isMesh) { assert.equal(child.castShadow, true); const positions=child.geometry.getAttribute('position'); for(let i=0;i<positions.count;i++) assert.ok(Number.isFinite(positions.getX(i)) && Number.isFinite(positions.getY(i)) && Number.isFinite(positions.getZ(i))); } });
+    dispose(model);
+  }
+  assert.equal(scene.createScalePerson(new THREE.Group(), new THREE.Vector3()), null, 'A cropped wall without ground cannot invent a standing height');
+});
+
+test('Paired signs retain their sizes and share real wall planes, including the canopy frieze and corners', () => {
+  for (const place of places) for (const mode of ['wall', 'corner-front', 'corner-side', 'corner']) for (const primaryKind of ['letters', 'panel']) {
+    const primary = new THREE.Group(), companion = new THREE.Group();
+    const letter = new THREE.Mesh(new THREE.BoxGeometry(2000, 400, 60), new THREE.MeshStandardMaterial()); letter.position.z = 30;
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(550, 550, 160), new THREE.MeshStandardMaterial()); panel.name = 'panel-body'; panel.position.z = 80;
+    (primaryKind === 'letters' ? primary : companion).add(letter);
+    (primaryKind === 'panel' ? primary : companion).add(panel);
+    const settings = { mode, size:550, depth:160, gap:120, shape:'circle', cornerRadius:60 };
+    const facadeModel = scene.attachFacadePair(primary, companion, primaryKind, place.id, settings, 2000, 400);
+    primary.updateWorldMatrix(true, true);
+    const surface = new THREE.Box3().setFromObject(facadeModel.getObjectByName(place.id === 'canopy' ? 'facade-canopy-fascia' : 'facade-sign-mounting-band'));
+    const letterBounds = new THREE.Box3().setFromObject(letter), frontWall = new THREE.Box3().setFromObject(facadeModel.getObjectByName('facade-wall'));
+    close(letterBounds.min.z - surface.max.z, 4, 'Real mounting clearance');
+    close(letterBounds.getCenter(new THREE.Vector3()).x, surface.getCenter(new THREE.Vector3()).x, 'Centred on the front mounting surface');
+    close(letterBounds.getSize(new THREE.Vector3()).x, 2000, 'Letter width must not be resized to fit');
+    close(letterBounds.getSize(new THREE.Vector3()).y, 400, 'Letter height must not be resized to fit');
+    const pose = panelMount.panelMountLayout(550,'circle',120,60,160,mode);
+    const owner = primaryKind === 'panel' ? primary.getObjectByName('primary-sign') : companion;
+    const construction = panelMount.panelConstruction(550,'circle',120,60);
+    const plate = new THREE.Vector3(...pose.plates[0].center).applyMatrix4(owner.matrixWorld);
+    if (mode !== 'corner' && mode !== 'corner-side') close(plate.z, frontWall.max.z + construction.plateThickness / 2, 'Plate touches the front wall');
+    assert.deepEqual(primary.userData.contextProducts, primaryKind === 'panel' ? ['panel','letters'] : ['letters','panel']);
+    assert.equal(primary.getObjectByName('companion-sign'), companion);
+    dispose(primary);
+  }
+});
 const close = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < .01, `${message}: ${actual} != ${expected}`);
 
 function dispose(model) {
