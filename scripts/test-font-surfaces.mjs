@@ -128,6 +128,36 @@ for (const entry of fonts) test(entry.label + ': all letter faces match the SVG 
   }
 });
 
+test('Actual browser-traced Arial Black at 80 mm keeps the SVG holes and flat, finite 3D faces', () => {
+  const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/arial-black-raster-sign.json', import.meta.url), 'utf8'));
+  const path = shapePathFromData(fixture.pathData), shapes = filledGlyphShapes([path]);
+  assert.ok(shapes.some(shape => shape.holes.length > 0), 'Counters must survive the real raster trace');
+  assert.ok(surfaceDifference(path, shapes) < .00001);
+  const geometry = new THREE.ExtrudeGeometry(shapes, { depth: 60, bevelEnabled: false, curveSegments: 14, steps: 1 });
+  const scale = fixture.heightMm / fixture.mainBox.height;
+  geometry.scale(scale, -scale, 1);
+  // Reproduce the sign renderer's Y reflection and restored winding.
+  const count = geometry.attributes.position.count, reversed = new Array(count);
+  for (let i = 0; i < count; i += 3) { reversed[i] = i; reversed[i+1] = i+2; reversed[i+2] = i+1; }
+  geometry.setIndex(reversed); geometry.computeVertexNormals();
+  const positions = geometry.attributes.position, normals = geometry.attributes.normal;
+  assert.ok(Array.from(positions.array).every(Number.isFinite));
+  assert.ok(Array.from(normals.array).every(Number.isFinite));
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (const group of geometry.groups) if (group.materialIndex === 0) {
+    for (let i = group.start; i < group.start + group.count; i += 3) {
+      const vertices = [0,1,2].map(offset => geometry.index.getX(i+offset));
+      a.fromBufferAttribute(positions,vertices[0]); b.fromBufferAttribute(positions,vertices[1]); c.fromBufferAttribute(positions,vertices[2]);
+      assert.ok(b.sub(a).cross(c.sub(a)).lengthSq() > 1e-10, 'A cap triangle must have nonzero area');
+      for (const index of vertices) {
+        assert.ok(Math.abs(normals.getX(index)) < .00001 && Math.abs(normals.getY(index)) < .00001);
+        assert.ok(Math.abs(Math.abs(normals.getZ(index))-1) < .00001, 'The entire letter face must share its flat normal');
+      }
+    }
+  }
+  geometry.dispose();
+});
+
 // Optional real browser traces verify installed Arial faces without publishing
 // copies of the system fonts or requiring them on Linux CI runners.
 const fixtureFlag = process.argv.indexOf('--system-fixtures');

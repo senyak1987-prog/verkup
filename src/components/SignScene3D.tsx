@@ -30,6 +30,20 @@ export type SignScene3DProps = {
   onUnavailable?: () => void;
 };
 
+/** Cube shadow depth is measured along its face axis, rather than radial distance. */
+export function pointShadowFrustum(bounds: THREE.Box3, position: THREE.Vector3) {
+  const axisDistance = (value: number, min: number, max: number) => Math.max(min - value, value - max, 0);
+  const nearest = Math.max(axisDistance(position.x, bounds.min.x, bounds.max.x),
+    axisDistance(position.y, bounds.min.y, bounds.max.y), axisDistance(position.z, bounds.min.z, bounds.max.z));
+  const farthest = Math.max(Math.abs(position.x - bounds.min.x), Math.abs(position.x - bounds.max.x),
+    Math.abs(position.y - bounds.min.y), Math.abs(position.y - bounds.max.y),
+    Math.abs(position.z - bounds.min.z), Math.abs(position.z - bounds.max.z), 1);
+  const near = Math.max(1, nearest * .8), far = Math.max(near + 1, farthest * 1.08);
+  // A 0.35 mm depth offset stays physical when the scene or camera range changes.
+  const bias = -.35 * near * far / ((far - near) * farthest * farthest);
+  return { near, far, bias };
+}
+
 type SceneRuntime = {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -101,7 +115,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       renderer.toneMapping = THREE.NeutralToneMapping;
       renderer.toneMappingExposure = DAYLIGHT_LEVELS.exposure;
       renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
       renderer.setClearColor(0, 0);
       const scene = new THREE.Scene();
       const camera = new THREE.OrthographicCamera(-500, 500, 500, -500, 1, 100000);
@@ -126,12 +140,13 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const ambient = new THREE.HemisphereLight("#ffffff", "#5e6971", DAYLIGHT_LEVELS.ambient);
       const key = new THREE.PointLight("#ffffff", 1, 0, 2);
       key.castShadow = true;
-      key.shadow.mapSize.set(1024, 1024);
+      const shadowSize = Math.min(2048, renderer.capabilities.maxCubemapSize);
+      key.shadow.mapSize.set(shadowSize, shadowSize);
       // A point shadow has six faces: rebuild only when the source or geometry changes.
       key.shadow.autoUpdate = false;
-      key.shadow.bias = -0.00015;
+      key.shadow.bias = -0.00005;
       key.shadow.normalBias = 0.6;
-      key.shadow.radius = 3;
+      key.shadow.radius = 1;
       const fill = new THREE.DirectionalLight("#dce9ef", DAYLIGHT_LEVELS.fill);
       scene.add(ambient, key, fill, fill.target);
       host.appendChild(renderer.domElement);
@@ -176,18 +191,21 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const source = daylightSource({ center, span }, marker);
           key.position.set(source.position.x, source.position.y, source.position.z);
           daylightIntensity = source.intensity;
-          key.intensity = daylightIntensity * (1 - lightFraction.current * .95);
-          key.shadow.camera.near = source.shadowNear; key.shadow.camera.far = source.shadowFar;
+          key.intensity = daylightIntensity * (1 - lightFraction.current);
+          const shadow = pointShadowFrustum(runtime.bounds, key.position);
+          key.shadow.camera.near = shadow.near; key.shadow.camera.far = shadow.far; key.shadow.bias = shadow.bias;
           key.shadow.camera.updateProjectionMatrix(); key.shadow.needsUpdate = true;
           fill.position.set(center.x + span * .8, center.y + span * .25, center.z + span);
           fill.target.position.copy(center); fill.target.updateMatrixWorld();
           host.dataset.daylightSource = "point";
           host.dataset.daylightMarker = `${marker.x.toFixed(2)},${marker.y.toFixed(2)}`;
+          host.dataset.shadowRange = `${shadow.near.toFixed(3)},${shadow.far.toFixed(3)}`;
+          host.dataset.shadowBias = shadow.bias.toFixed(8);
           requestRender();
         },
         light(night, windows, lightsOn) {
           ambient.intensity = DAYLIGHT_LEVELS.ambient + (.08 - DAYLIGHT_LEVELS.ambient) * night;
-          key.intensity = daylightIntensity * (1 - night * .95);
+          key.intensity = daylightIntensity * (1 - night);
           fill.intensity = DAYLIGHT_LEVELS.fill + (.025 - DAYLIGHT_LEVELS.fill) * night;
           scene.environmentIntensity = DAYLIGHT_LEVELS.environment + (.07 - DAYLIGHT_LEVELS.environment) * night;
           currentRenderer.toneMappingExposure = DAYLIGHT_LEVELS.exposure;

@@ -169,7 +169,7 @@ for (const shape of ['circle','rounded']) test(`${shape}: logos have continuous 
     const sideNormals=new Map(); let maxSagitta=0,curvedNormals=0;
     for (const group of geometry.groups) for (let i=group.start;i<group.start+group.count;i++) {
       const x=positions.getX(i),y=positions.getY(i),z=positions.getZ(i),normal=new THREE.Vector3().fromBufferAttribute(normals,i);
-      if (group.materialIndex!==1) {
+      if (group.materialIndex!==1&&group.materialIndex!==3) {
         assert.ok(Math.abs(normal.x)<.000001&&Math.abs(normal.y)<.000001,'Logo face normals remain separate from the smooth side');
         close(normal.z,z<depth/2?-1:1,'The logo front and back retain flat physical face normals',.000001);
         continue;

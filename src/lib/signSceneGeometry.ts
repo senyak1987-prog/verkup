@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { loadLetterContours } from "./letterContours";
 import { filledGlyphShapes } from "./glyphShapes";
 import { createNeonModel } from "./neonScene";
@@ -143,7 +144,7 @@ function smoothExtrudedSides(geometry: THREE.BufferGeometry) {
   const positions = geometry.getAttribute('position'), normals = geometry.getAttribute('normal');
   const vertices = new Map<string, { indices: number[]; normals: Map<string, THREE.Vector3> }>();
   const coordinate = (value: number) => Math.round(value * 100000);
-  for (const group of geometry.groups) if (group.materialIndex === 1) {
+  for (const group of geometry.groups) if (group.materialIndex === 1 || group.materialIndex === 3) {
     for (let index = group.start; index < group.start + group.count; index++) {
       const key = [positions.getX(index), positions.getY(index), positions.getZ(index)].map(coordinate).join(':');
       let entry = vertices.get(key);
@@ -161,11 +162,34 @@ function smoothExtrudedSides(geometry: THREE.BufferGeometry) {
   normals.needsUpdate = true;
 }
 
+/** Move whole triangles, not their vertices, so material bands add no overlay or extra cap. */
+function regroupTriangles(geometry: THREE.BufferGeometry, triangles: Map<number, number[]>) {
+  const order = [...triangles.values()].flat();
+  for (const [name, attribute] of Object.entries(geometry.attributes)) {
+    const source = attribute as THREE.BufferAttribute;
+    const values = new Float32Array(order.length * source.itemSize);
+    order.forEach((index, target) => {
+      for (let offset = 0; offset < source.itemSize; offset++)
+        values[target * source.itemSize + offset] = source.array[index * source.itemSize + offset];
+    });
+    geometry.setAttribute(name, new THREE.BufferAttribute(values, source.itemSize, source.normalized));
+  }
+  geometry.setIndex(null); geometry.clearGroups();
+  let start = 0;
+  for (const [material, indices] of triangles) { if (indices.length) geometry.addGroup(start, indices.length, material); start += indices.length; }
+}
+
 function extrude(shapes: THREE.Shape | THREE.Shape[], depth: number, face: THREE.Material, side: THREE.Material,
-  back: THREE.Material = face, surface: { curveSegments?: number; smoothSides?: boolean } = {}) {
+  back: THREE.Material = face, surface: { curveSegments?: number; smoothSides?: boolean; frontSeam?: THREE.Material } = {}) {
+  const seamDepth = surface.frontSeam ? Math.min(.55, depth * .025) : 0;
   const geometry = new THREE.ExtrudeGeometry(shapes, {
-    depth, bevelEnabled: false, curveSegments: surface.curveSegments ?? 14, steps: 1,
+    depth, bevelEnabled: false, curveSegments: surface.curveSegments ?? 14, steps: seamDepth ? 2 : 1,
   });
+  if (seamDepth) {
+    const positions = geometry.getAttribute('position');
+    for (let index = 0; index < positions.count; index++)
+      if (Math.abs(positions.getZ(index) - depth / 2) < .0001) positions.setZ(index, depth - seamDepth);
+  }
   const groups = geometry.groups.map((group) => ({ ...group }));
   geometry.clearGroups();
   for (const group of groups) {
@@ -174,8 +198,18 @@ function extrude(shapes: THREE.Shape | THREE.Shape[], depth: number, face: THREE
       geometry.addGroup(group.start + group.count / 2, group.count / 2, 0);
     } else geometry.addGroup(group.start, group.count, group.materialIndex);
   }
+  if (seamDepth) {
+    const triangles = new Map<number, number[]>([[2, []], [0, []], [1, []], [3, []]]);
+    const positions = geometry.getAttribute('position');
+    for (const group of geometry.groups) for (let index = group.start; index < group.start + group.count; index += 3) {
+      const seam = group.materialIndex === 1 && Math.min(positions.getZ(index), positions.getZ(index + 1), positions.getZ(index + 2)) >= depth - seamDepth - .0001;
+      triangles.get(seam ? 3 : group.materialIndex!)!.push(index, index + 1, index + 2);
+    }
+    regroupTriangles(geometry, triangles);
+  }
   if (surface.smoothSides) smoothExtrudedSides(geometry);
-  const mesh = new THREE.Mesh(geometry, [face, side, back]);
+  const mesh = new THREE.Mesh(geometry, surface.frontSeam ? [face, side, back, surface.frontSeam] : [face, side, back]);
+  if (seamDepth) mesh.userData.frontSeamDepth = seamDepth;
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   return mesh;
@@ -274,6 +308,19 @@ function glyphFromPath(pathData: string, box: SignSceneBox): GlyphData {
   if (glyphCache.size >= 24) glyphCache.delete(glyphCache.keys().next().value!);
   glyphCache.set(key, result);
   return result;
+}
+
+function frameTubeGeometry(width: number, height: number, weldEnds: boolean) {
+  const geometry = new RoundedBoxGeometry(width, height, 15, 2, .3);
+  if (!weldEnds) return geometry;
+  const positions = geometry.getAttribute('position'), axis = width >= height ? 0 : 1, extent = Math.max(width, height) / 2;
+  const triangles = new Map<number, number[]>([[0, []], [1, []]]);
+  for (let index = 0; index < positions.count; index += 3) {
+    const atEnd = [0, 1, 2].every(offset => Math.abs(positions.getComponent(index + offset, axis)) >= extent - .305);
+    triangles.get(atEnd ? 1 : 0)!.push(index, index + 1, index + 2);
+  }
+  regroupTriangles(geometry, triangles);
+  return geometry;
 }
 async function glyphData(project: SignSceneProject, layout: SignSceneLayout): Promise<GlyphData> {
   const contours = layout.textPathData && layout.textNaturalBox
@@ -436,13 +483,24 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       const haloMode = project.glowMode === "faceHalo" || project.glowMode === "halo";
       const rear = project.mountMode === "frame" ? 15 : haloMode ? 30 : 0;
       const backMaterial = solidMaterial(haloLit ? faceColor : sideColor, night, haloLit);
+      // Trimless letters have an acrylic face and painted metal return, not a
+      // continuous metallic block. Their tiny front joint remains inside the body.
+      face.metalness = 0; face.roughness = .32; face.envMapIntensity = .45;
+      side.metalness = .06; side.roughness = .42; side.envMapIntensity = .6;
+      backMaterial.metalness = haloLit ? 0 : .06; backMaterial.roughness = haloLit ? .32 : .48;
+      const frontSeam = solidMaterial(sideColor, night, sideLit);
+      frontSeam.userData.dayColor.multiplyScalar(.94);
+      frontSeam.color.multiplyScalar(.94); frontSeam.metalness = .04; frontSeam.roughness = .3; frontSeam.envMapIntensity = .55;
+      if (sideLit) { frontSeam.emissive.copy(side.emissive); frontSeam.emissiveIntensity = side.emissiveIntensity * .92; }
+      let seamUsed = false;
       const textParts = textRows?.map(({ row, glyph }) => ({
         glyph, box: row.pathBox, name: `extruded-letter-row-${row.index}`, row,
       })) ?? [{ glyph, box: { x: layout.textX, y: textTop, width: textWidth, height: textHeight }, name: 'extruded-letter-contours', row: undefined }];
       for (const part of textParts) if (part.glyph.shapes.length) {
         const box = part.glyph.box;
         const sx = part.box.width / Math.max(1, box.x2 - box.x1), sy = part.box.height / Math.max(1, box.y2 - box.y1);
-        const text = extrude(part.glyph.shapes, modelDepth, face, side, backMaterial);
+        const text = extrude(part.glyph.shapes, modelDepth, face, side, backMaterial, { frontSeam });
+        seamUsed = true;
         text.geometry.scale(sx, -sy, 1);
         // Reflecting Y changes winding; restore each face before culling and lighting.
         const vertexCount = text.geometry.getAttribute("position").count;
@@ -454,6 +512,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         }
         text.geometry.setIndex(reversed);
         text.geometry.computeVertexNormals();
+        smoothExtrudedSides(text.geometry);
         text.geometry.computeBoundingBox();
         text.position.set(toX(part.box.x) - box.x1 * sx, toY(part.box.y) + box.y1 * sy, rear);
         text.name = part.name;
@@ -465,7 +524,8 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         const shape = logoShape(project.logoShape, layout.logoBox.width);
         // An even sample count also includes the circle's four cardinal points exactly.
         const curveSegments = Math.ceil(panelCurveSegments(layout.logoBox.width, project.logoShape, layout.logoCornerRadius) / 2) * 2;
-        const logo = extrude(shape, modelDepth, face, side, backMaterial, { curveSegments, smoothSides: true });
+        const logo = extrude(shape, modelDepth, face, side, backMaterial, { curveSegments, smoothSides: true, frontSeam });
+        seamUsed = true;
         logo.position.set(toX(layout.logoBox.x + layout.logoBox.width / 2),
           toY(layout.logoBox.y + layout.logoBox.height / 2), rear);
         logo.name = "extruded-logo";
@@ -474,14 +534,17 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         await applyArtwork(logo, shape, project.logoImage, layout.logoBox.width, modelDepth, night, faceLit,
           100, 0, 0, false, curveSegments);
       }
+      if (!seamUsed) frontSeam.dispose();
       if (project.mountMode === "frame") {
         const steel = new THREE.MeshStandardMaterial({ color: night ? "#919da5" : "#727e85",
           metalness: night ? 0.32 : 0.7, roughness: night ? 0.55 : 0.4 });
+        const weld = new THREE.MeshStandardMaterial({ color: steel.color.clone().multiplyScalar(.92), metalness: .55, roughness: .48 });
         const segments = layout.frameSegments ?? [layout.railTopY, layout.railBottomY].map((y, index) => ({
           id: `legacy-rail-${index}`, kind: 'rail', rowIds: [], x: layout.railX, y: y - 7.5, width: layout.railWidth, height: 15,
         }));
         for (const segment of segments) {
-          const rail = new THREE.Mesh(new THREE.BoxGeometry(segment.width, segment.height, 15), steel);
+          const isWeld = segment.kind !== 'rail';
+          const rail = new THREE.Mesh(frameTubeGeometry(segment.width, segment.height, isWeld), isWeld ? [steel, weld] : steel);
           rail.position.set(toX(segment.x + segment.width / 2), toY(segment.y + segment.height / 2), 7.5);
           rail.castShadow = true; rail.receiveShadow = true;
           rail.name = "frame-15x15mm"; rail.userData.frameSegmentId = segment.id;
