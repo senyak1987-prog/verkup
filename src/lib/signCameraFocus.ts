@@ -22,7 +22,9 @@ function drawableBounds(object: THREE.Object3D) {
 /** The physical sign, rather than facade, annotations, mounting context or emitted light, sets the zoom focus. */
 export function signFocusBounds(model: THREE.Object3D): THREE.Box3 {
   model.updateWorldMatrix(true, true);
-  const primary = model.getObjectByName('primary-sign') ?? model;
+  const configured = model.getObjectByName('primary-sign') ?? model;
+  const primary = configured.visible ? configured : model.getObjectByName('companion-sign') ?? configured;
+  if (!primary.visible) return new THREE.Box3();
   const panel = primary.getObjectByName('panel-body');
   if (panel) return drawableBounds(panel);
   const neonBacker = primary.getObjectByName('transparent-acrylic-backer');
@@ -30,7 +32,7 @@ export function signFocusBounds(model: THREE.Object3D): THREE.Box3 {
 
   const bounds = new THREE.Box3();
   const visit = (object: THREE.Object3D) => {
-    if (excludedFromFocus(object)) return;
+    if (!object.visible || object !== primary && excludedFromFocus(object)) return;
     bounds.union(drawableBounds(object));
     for (const child of object.children) visit(child);
   };

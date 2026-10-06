@@ -206,49 +206,134 @@ export function attachFacadePair(model: THREE.Group, companion: THREE.Group, pri
 
 export const SCALE_PERSON_HEIGHT_MM = 1750;
 
-/** A quiet, smooth silhouette with real millimetre dimensions, standing on the pavement. */
-export function createScalePerson(facade: THREE.Group, target: THREE.Vector3) {
+/** Product switches affect only the products, keeping the building and camera stable. */
+export function setFacadeProductVisibility(model: THREE.Group, showSign: boolean, showPanel: boolean) {
+  const primary = model.getObjectByName('primary-sign');
+  const companion = model.getObjectByName('companion-sign');
+  if (primary) primary.visible = model.userData.productId === 'panel' ? showPanel : showSign;
+  else {
+    const construction = model.getObjectByName('panel-construction');
+    if (construction) construction.visible = showPanel;
+  }
+  if (companion) companion.visible = model.userData.productId === 'panel' ? showSign : showPanel;
+  model.userData.visibleProducts = (model.userData.contextProducts ?? [model.userData.productId])
+    .filter((kind: string) => kind === 'panel' ? showPanel : showSign);
+}
+
+/** Reuse the site's own bulb and wordmark, printed into a transparent textile decal. */
+export async function loadScalePersonBrand(baseUrl: string) {
+  const loader = new THREE.TextureLoader();
+  const textures = await Promise.all([loader.loadAsync(baseUrl + 'gorod-svet-bulb.png'), loader.loadAsync(baseUrl + 'gorod-svet-wordmark.svg')]);
+  const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 512;
+  const ctx = canvas.getContext('2d')!;
+  const bulb = textures[0].image as HTMLImageElement, wordmark = textures[1].image as HTMLImageElement;
+  const draw = (image: HTMLImageElement, x: number, y: number, w: number, h: number) => {
+    const scale = Math.min(w / image.width, h / image.height), width = image.width * scale, height = image.height * scale;
+    ctx.drawImage(image, x + (w - width) / 2, y + (h - height) / 2, width, height);
+  };
+  draw(wordmark, 12, 308, 1000, 180);
+  // The official lettering printed in light ink remains readable on green fabric.
+  ctx.globalCompositeOperation = 'source-in'; ctx.fillStyle = '#f4efe4'; ctx.fillRect(0, 0, 1024, 512);
+  ctx.globalCompositeOperation = 'source-over'; draw(bulb, 380, 12, 264, 280);
+  textures.forEach(texture => texture.dispose());
+  const print = new THREE.CanvasTexture(canvas); print.colorSpace = THREE.SRGBColorSpace;
+  print.anisotropy = 4; return print;
+}
+
+/** A detailed clothed observer, in millimetres, with a smooth silhouette and no polygon edges. */
+export function createScalePerson(facade: THREE.Group, target: THREE.Vector3, brand?: THREE.Texture) {
   const pavement = facade.getObjectByName('facade-pavement');
   if (!pavement) return null;
   facade.updateWorldMatrix(true, true);
   const ground = new THREE.Box3().setFromObject(pavement);
   const person = new THREE.Group(); person.name = 'scale-person';
   person.userData.heightMm = SCALE_PERSON_HEIGHT_MM;
-  const material = new THREE.MeshStandardMaterial({ color: '#454b50', roughness: .94, metalness: 0, envMapIntensity: .25 });
-  material.userData.dayColor = material.color.clone();
-  const sphere = new THREE.SphereGeometry(1, 32, 24);
-  const add = (geometry: THREE.BufferGeometry, name: string, position: THREE.Vector3) => {
+  const cloth = (color: string, roughness = .9) => {
+    const material = new THREE.MeshStandardMaterial({ color, roughness, metalness: 0, envMapIntensity: .3 });
+    material.userData.dayColor = material.color.clone(); return material;
+  };
+  const sweatshirt = cloth('#184d3e'), ribbing = cloth('#123a30'), trousers = cloth('#30343a'), skin = cloth('#b98a6e', .72);
+  const hair = cloth('#332a26'), shoes = cloth('#1b2025', .68), sole = cloth('#7b7e77');
+  const sphere = new THREE.SphereGeometry(1, 64, 48);
+  const add = (geometry: THREE.BufferGeometry, name: string, position: THREE.Vector3, material: THREE.Material = sweatshirt) => {
     const mesh = new THREE.Mesh(geometry, material); mesh.name = name;
     mesh.position.copy(position); mesh.castShadow = true; mesh.receiveShadow = true; person.add(mesh); return mesh;
   };
-  const oval = (name: string, x: number, y: number, z: number, width: number, height: number, depth: number) => {
-    const mesh = add(sphere, name, new THREE.Vector3(x, y, z)); mesh.scale.set(width, height, depth); return mesh;
+  const oval = (name: string, x: number, y: number, z: number, width: number, height: number, depth: number, material: THREE.Material = sweatshirt) => {
+    const mesh = add(sphere, name, new THREE.Vector3(x, y, z), material); mesh.scale.set(width, height, depth); return mesh;
   };
-  const limb = (name: string, start: THREE.Vector3, end: THREE.Vector3, radius: number) => {
+  const limb = (name: string, start: THREE.Vector3, end: THREE.Vector3, radius: number, material: THREE.Material = sweatshirt) => {
     const axis = end.clone().sub(start), length = axis.length();
-    const mesh = add(new THREE.CapsuleGeometry(radius, Math.max(0, length - 2 * radius), 8, 20), name, start.clone().add(end).multiplyScalar(.5));
+    const mesh = add(new THREE.CapsuleGeometry(radius, Math.max(0, length - 2 * radius), 16, 48), name, start.clone().add(end).multiplyScalar(.5), material);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.normalize()); return mesh;
   };
-  const torso = new THREE.Shape();
-  torso.moveTo(-43, 1515); torso.bezierCurveTo(-70, 1490, -174, 1480, -207, 1410);
-  torso.bezierCurveTo(-218, 1330, -165, 1150, -143, 1070); torso.quadraticCurveTo(-173, 975, -127, 905);
-  torso.lineTo(127, 905); torso.quadraticCurveTo(173, 975, 143, 1070);
-  torso.bezierCurveTo(165, 1150, 218, 1330, 207, 1410); torso.bezierCurveTo(174, 1480, 70, 1490, 43, 1515); torso.closePath();
-  add(new THREE.ExtrudeGeometry(torso, { depth: 180, curveSegments: 32, bevelEnabled: true, bevelThickness: 8, bevelSize: 8, bevelSegments: 4 }), 'person-torso', new THREE.Vector3(0, 0, -90));
-  oval('person-neck', 0, 1505, 0, 43, 82, 44);
-  oval('person-head', 0, 1635, 0, 97, 115, 94);
+  const profile = new THREE.SplineCurve([
+    new THREE.Vector2(0, 912), new THREE.Vector2(142, 920), new THREE.Vector2(157, 980),
+    new THREE.Vector2(145, 1100), new THREE.Vector2(175, 1260), new THREE.Vector2(203, 1380),
+    new THREE.Vector2(187, 1450), new THREE.Vector2(104, 1492), new THREE.Vector2(58, 1510), new THREE.Vector2(0, 1510),
+  ]).getPoints(100);
+  const torso = add(new THREE.LatheGeometry(profile, 96), 'person-torso', new THREE.Vector3()); torso.scale.z = .61;
+  oval('person-waist-rib', 0, 938, 0, 153, 31, 98, ribbing);
+  oval('person-neck', 0, 1515, 0, 42, 63, 43, skin);
+  oval('person-head', 0, 1635, 0, 97, 115, 94, skin);
+  const hairCap = add(new THREE.SphereGeometry(1, 64, 32, 0, Math.PI * 2, 0, Math.PI * .56), 'person-hair', new THREE.Vector3(0, 1635, 0), hair);
+  hairCap.scale.set(98, 115, 95);
+  oval('person-hood', 0, 1488, -37, 111, 70, 86, ribbing);
+  // A rounded hood opening and neckline, rather than a disconnected black head and torso.
+  const collar = add(new THREE.TorusGeometry(55, 12, 20, 72), 'person-collar', new THREE.Vector3(0, 1512, 0), ribbing); collar.rotation.x = Math.PI / 2;
   for (const side of [-1, 1]) {
-    limb('person-leg', new THREE.Vector3(side * 73, 940, 0), new THREE.Vector3(side * 88, 40, 0), 66);
-    oval('person-shoe', side * 88, 30, 50, 67, 30, 140);
-    limb('person-upper-arm', new THREE.Vector3(side * 201, 1400, 0), new THREE.Vector3(side * 245, 1100, 0), 65);
-    limb('person-forearm', new THREE.Vector3(side * 245, 1110, 0), new THREE.Vector3(side * 254, 842, 15), 46);
-    oval('person-hand', side * 254, 840, 15, 37, 65, 35);
+    oval('person-ear', side * 96, 1630, 0, 16, 31, 16, skin);
+    limb('person-thigh', new THREE.Vector3(side * 75, 957, 0), new THREE.Vector3(side * 83, 520, 8), 78, trousers);
+    limb('person-calf', new THREE.Vector3(side * 83, 545, 8), new THREE.Vector3(side * 88, 85, 0), 58, trousers);
+    oval('person-knee', side * 83, 528, 14, 61, 78, 61, trousers);
+    oval('person-shoe-sole', side * 88, 15, 50, 69, 15, 142, sole);
+    oval('person-shoe', side * 88, 45, 45, 67, 31, 137, shoes);
+    oval('person-shoe-upper', side * 88, 66, 22, 58, 27, 80, shoes);
+    limb('person-upper-arm', new THREE.Vector3(side * 185, 1415, 0), new THREE.Vector3(side * 231, 1115, 0), 72);
+    limb('person-forearm', new THREE.Vector3(side * 231, 1120, 0), new THREE.Vector3(side * 248, 867, 20), 52);
+    oval('person-cuff', side * 248, 891, 18, 48, 26, 46, ribbing);
+    oval('person-hand', side * 248, 836, 20, 35, 52, 26, skin);
+    for (let finger = 0; finger < 4; finger++) limb('person-finger', new THREE.Vector3(side * (229 + finger * 12), 818, 20), new THREE.Vector3(side * (229 + finger * 12), 777 + Math.abs(1.5 - finger) * 7, 24), 7, skin);
+    limb('person-thumb', new THREE.Vector3(side * 220, 848, 31), new THREE.Vector3(side * 208, 812, 38), 10, skin);
+    for (let lace = 0; lace < 4; lace++) limb('person-shoelace', new THREE.Vector3(side * 88 - 26, 87 - lace * 3, 16 + lace * 17), new THREE.Vector3(side * 88 + 26, 87 - lace * 3, 16 + lace * 17), 1.6, sole);
   }
+  const stitch = (name: string, points: THREE.Vector3[], radius: number, material: THREE.Material = ribbing) =>
+    add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 48, radius, 12, false), name, new THREE.Vector3(), material);
+  for (const side of [-1, 1]) {
+    stitch('person-pocket-seam', [new THREE.Vector3(side * 14, 1040, 88), new THREE.Vector3(side * 80, 1052, 78), new THREE.Vector3(side * 121, 1130, 66)], 2.4);
+    stitch('person-hood-cord', [new THREE.Vector3(side * 40, 1480, 55), new THREE.Vector3(side * 44, 1400, 105), new THREE.Vector3(side * 37, 1330, 106)], 2, sole);
+  }
+  const textileProfile = profile.filter(point => point.x > 50).sort((a, b) => a.y - b.y);
+  const radiusAt = (y: number) => {
+    const index = textileProfile.findIndex(point => point.y >= y);
+    if (index <= 0) return textileProfile[Math.max(0, index)].x;
+    const a = textileProfile[index - 1], b = textileProfile[index];
+    return THREE.MathUtils.lerp(a.x, b.x, (y - a.y) / Math.max(.001, b.y - a.y));
+  };
+  const print = (name: string, y: number, w: number, h: number, back: boolean) => {
+    const geometry = new THREE.PlaneGeometry(w, h, 48, 24), positions = geometry.getAttribute('position');
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i), height = positions.getY(i) + y, radius = radiusAt(height);
+      positions.setZ(i, (back ? -1 : 1) * (Math.sqrt(Math.max(1, radius * radius - x * x)) * .61 + 1));
+      if (back) positions.setX(i, -x); // Readable from the back, not mirrored through the body.
+    }
+    geometry.computeVertexNormals();
+    const material = new THREE.MeshStandardMaterial({ map: brand ?? null, color: '#ffffff', transparent: true, alphaTest: .04, roughness: .94,
+      metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1 });
+    material.userData.dayColor = material.color.clone(); material.userData.textileBrand = true;
+    const decal = add(geometry, name, new THREE.Vector3(0, y, 0), material); decal.userData.brand = 'Город Свет';
+    // Do not draw an opaque placeholder if brand images have not loaded.
+    decal.visible = Boolean(brand);
+  };
+  print('person-gorod-svet-back', 1320, 270, 135, true);
+  print('person-gorod-svet-chest', 1355, 118, 59, false);
   person.position.set(THREE.MathUtils.clamp(target.x + 1100, ground.min.x + 350, ground.max.x - 350), ground.max.y, ground.max.z - 400);
   const direction = target.clone().sub(person.position);
   person.rotation.y = Math.atan2(direction.x, direction.z);
   const eyeAngle = Math.atan2(target.y - person.position.y - 1635, Math.hypot(direction.x, direction.z));
-  oval('person-profile', 0, 1635 + 92 * Math.sin(eyeAngle), 92 * Math.cos(eyeAngle), 16, 17, 26);
+  oval('person-nose', 0, 1627 + 92 * Math.sin(eyeAngle), 92 * Math.cos(eyeAngle), 14, 18, 24, skin);
+  oval('person-chin', 0, 1565, 57, 42, 26, 35, skin);
+  for (const side of [-1, 1]) oval('person-eye', side * 33, 1650, 86, 8, 4, 5, hair);
   person.userData.lookTarget = target.toArray(); person.userData.groundY = ground.max.y;
   return person;
 }
