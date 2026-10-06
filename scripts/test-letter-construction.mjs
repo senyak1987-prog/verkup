@@ -132,8 +132,33 @@ test('Контражур сохраняет борт 40/50 мм, исправл�
 
 test('Old ACP palettes migrate to Oracal 641 without losing independent logo and halo colours',()=>{
  const saved=validateProject({version:1,project:{acpColor:{code:'ACP-R',value:'#c9282d'},haloBackerColor:{code:'ACP-S',value:'#c8ced8'},letterFaceColor:{code:'031',value:'#d8242a'},logoFaceColor:{code:'053',value:'#5ca8d7'},logoSideColor:{code:'091',value:'#b99a51'},haloLightColor:{code:'010',value:'#f8f8f2'}}});
- assert.equal(saved.acpColor.code,'031');assert.equal(saved.haloBackerColor.code,'072');
- assert.equal(saved.letterFaceColor.value,'#d8242a');assert.equal(saved.logoFaceColor.value,'#5ca8d7');assert.equal(saved.logoSideColor.code,'091');assert.equal(saved.haloLightColor.code,'010');
+ assert.equal(saved.acpColor.code,'047');assert.equal(saved.haloBackerColor.code,'072');
+ assert.equal(saved.letterFaceColor.value,'#c81e0d');assert.equal(saved.logoFaceColor.value,'#0987c8');assert.equal(saved.logoSideColor.code,'091');assert.equal(saved.haloLightColor.code,'010');
  const old=validateProject({version:1,project:{letterFaceColor:{code:'031',value:'#d8242a'},letterSideColor:{code:'049',value:'#004f9f'}}});
  assert.deepEqual(old.logoFaceColor,old.letterFaceColor);assert.deepEqual(old.logoSideColor,old.letterSideColor);assert.deepEqual(old.haloLightColor,old.letterFaceColor);
+});
+
+const paletteCompiled=ts.transpileModule(projectSource.slice(projectSource.indexOf('const ORACAL_8500_COLORS'),projectSource.indexOf('type StudioSection')),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
+const filmCatalog=new Function(paletteCompiled+';return {opaque:ORACAL_641_COLORS,translucent:ORACAL_8500_COLORS,luminous:LIGHT_FACE_FILMS,white:WHITE_LIGHT_TONES,normalize:normalizeFaceFilms};')();
+test('All supplied film codes belong to their own complete series and survive save/import',()=>{
+ const expected8500='010 025 021 013 020 207 034 330 323 032 329 016 031 017 030 085 413 041 008 040 403 012 527 053 052 051 528 005 006 049 542 065 007 541 066 054 062 063 009 614 068 618 087 060 070 074 076 072 805 011 081 088 090 091'.split(' ');
+ const expected641='000 010 020 019 021 022 025 312 030 031 032 047 034 036 035 404 040 043 042 041 045 562 518 050 065 049 086 067 057 051 098 052 084 053 056 066 054 055 060 613 061 068 062 064 063 800 083 081 082 023 070 073 071 076 074 072 090 091 092'.split(' ');
+ assert.deepEqual(filmCatalog.translucent.map(c=>c.code),expected8500);assert.deepEqual(filmCatalog.opaque.map(c=>c.code),expected641);
+ for(const [key,colors] of [['panelFaceColor',filmCatalog.translucent],['letterSideColor',filmCatalog.opaque]]) for(const color of colors){
+  assert.match(color.value,/^#[0-9a-f]{6}$/);assert.ok(color.name.length>2);
+  const result=validateProject({version:1,project:{[key]:color}});assert.deepEqual(result[key],color);
+ }
+ assert.equal(filmCatalog.luminous.length,52);assert.ok(filmCatalog.luminous.every(c=>!['010','070'].includes(c.code)));
+});
+test('Luminous white and black film migrate to bare acrylic with independent white-light tones',()=>{
+ for(const glowMode of ['face','faceSide','faceHalo'])for(const code of ['010','070','none'])for(const tone of ['cool','neutral','warm']){
+  const result=validateProject({version:1,project:{glowMode,letterFaceColor:{code,value:'#ffffff'},logoFaceColor:{code,value:'#ffffff'},letterWhiteTone:tone,logoWhiteTone:'warm'}});
+  assert.equal(result.letterFaceColor.code,'none');assert.equal(result.letterFaceColor.value,filmCatalog.white.find(c=>c.id===tone).value);
+  assert.equal(result.logoFaceColor.value,filmCatalog.white.find(c=>c.id==='warm').value);
+  const restored=validateProject({version:1,project:{glowMode,letterFaceColor:result.letterFaceColor,logoFaceColor:result.logoFaceColor,letterWhiteTone:result.letterWhiteTone,logoWhiteTone:result.logoWhiteTone}});assert.deepEqual(restored.letterFaceColor,result.letterFaceColor);assert.equal(restored.letterWhiteTone,tone);
+ }
+ for(const code of ['010','070']){const result=validateProject({version:1,project:{glowMode:'halo',letterFaceColor:{code,value:'#ffffff'}}});assert.equal(result.letterFaceColor.code,code);}
+ const halo=validateProject({version:1,project:{glowMode:'halo',letterFaceColor:{code:'none',value:'#ffdcb1'}}});assert.equal(halo.letterFaceColor.code,'010');
+ assert.throws(()=>validateProject({version:1,project:{letterWhiteTone:'invalid'}}),/неподдерживаемые/);
+ const blackHalo=validateProject({version:1,project:{glowMode:'halo',letterFaceColor:{code:'070',value:'#060606'}}});blackHalo.glowMode='face';assert.equal(filmCatalog.normalize(blackHalo).letterFaceColor.code,'none');
 });

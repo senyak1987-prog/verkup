@@ -192,3 +192,19 @@ test('Halo on ACP has physical 20 mm standoffs behind each row and logo, with in
  for(const spacer of spacers){const bounds=new THREE.Box3().setFromObject(spacer);near(bounds.min.z,panel.max.z,'Spacer touches ACP');near(bounds.max.z,20,'Spacer touches rear of body');}
  scene.disposeSignObject(model);
 });
+
+test('Unfilmed acrylic stays white when switched off while its emitted light uses each selected temperature',async()=>{
+ const result=layout(fixture({logoEnabled:false}));
+ const previousDocument=globalThis.document,previousPath=globalThis.Path2D;
+ const context={save(){},translate(){},scale(){},fill(){},restore(){}};
+ globalThis.document={createElement:()=>({getContext:()=>context})};globalThis.Path2D=class {};
+ try { for(const value of ['#e6f3ff','#fff4e6','#ffdcb1']){
+  const project={productId:'letters',sceneMode:'night',letterHeight:210,letterDepth:50,mountMode:'frame',glowMode:'face',logoEnabled:false,letterFaceColor:{code:'none',value},letterSideColor:{value:'#222222'}};
+  const model=await scene.buildSignModel(project,result,4000,1000,50,false);
+  const face=model.getObjectByName('extruded-letter-row-0').material[0];
+  assert.equal(face.userData.dayColor.getHexString(),'f5f5f3');assert.equal(face.emissive.getHexString(),value.slice(1));
+  scene.applySignLighting(model,1,false,1);assert.equal(face.emissiveIntensity,0);
+  scene.applySignLighting(model,1,true,1);assert.ok(face.emissiveIntensity>0);
+  scene.disposeSignObject(model);
+ } } finally {if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument;if(previousPath===undefined)delete globalThis.Path2D;else globalThis.Path2D=previousPath;}
+});
