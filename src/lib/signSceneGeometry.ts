@@ -8,7 +8,7 @@ import { panelMountLayout } from "./panelConstruction";
 import type { PanelMountMode } from "./panelConstruction";
 import type { LetterFrameSegment } from './letterFrame';
 
-type SceneColor = { value: string };
+type SceneColor = { value: string; code?: string };
 export type SignSceneBox = { x: number; y: number; width: number; height: number };
 export type SignSceneProject = {
   productId: "panel" | "letters" | "neon";
@@ -124,15 +124,16 @@ function logoShape(shapeName: string, size: number) {
   return shape;
 }
 
-function solidMaterial(color: string, night: boolean, emissive = false) {
-  const value = new THREE.Color(color);
+function solidMaterial(color: string, night: boolean, emissive = false, bareFace = false) {
+  const baseColor = bareFace ? "#f5f5f3" : color;
+  const value = new THREE.Color(baseColor);
   if (night && !emissive) value.multiplyScalar(0.55);
   const material = new THREE.MeshStandardMaterial({
     color: value, roughness: emissive ? 0.28 : 0.46, metalness: 0.08,
     emissive: emissive ? new THREE.Color(color) : new THREE.Color(0),
     emissiveIntensity: emissive ? 1.4 : 0,
   });
-  material.userData.dayColor = new THREE.Color(color);
+  material.userData.dayColor = new THREE.Color(baseColor);
   return material;
 }
 
@@ -416,7 +417,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
   const faceColor = project.productId === "panel" ? project.panelFaceColor.value : project.letterFaceColor.value;
   const sideColor = project.productId === "panel" ? project.panelSideColor.value : project.letterSideColor.value;
   const haloColor = project.haloLightColor?.value ?? faceColor;
-  const face = solidMaterial(faceColor, night, faceLit);
+  const face = solidMaterial(faceColor, night, faceLit, project.productId === "letters" && project.letterFaceColor.code === "none");
   const side = solidMaterial(sideColor, night, sideLit);
   if (sideLit) {
     side.emissive.set(sideColor).lerp(new THREE.Color(faceColor), 0.78);
@@ -590,7 +591,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         const shape = logoShape(project.logoShape, layout.logoBox.width);
         // An even sample count also includes the circle's four cardinal points exactly.
         const curveSegments = Math.ceil(panelCurveSegments(layout.logoBox.width, project.logoShape, layout.logoCornerRadius) / 2) * 2;
-        const logoFace = solidMaterial(project.logoFaceColor?.value ?? faceColor, night, faceLit);
+        const logoFace = solidMaterial(project.logoFaceColor?.value ?? faceColor, night, faceLit, project.logoFaceColor?.code === "none");
         const logoSide = solidMaterial(project.logoSideColor?.value ?? sideColor, night, sideLit);
         logoFace.roughness=.32;logoFace.metalness=0;logoSide.roughness=.42;logoSide.metalness=.06;
         const logoSeam = solidMaterial(project.logoSideColor?.value ?? sideColor, night, sideLit);
