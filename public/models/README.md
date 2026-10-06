@@ -6,7 +6,9 @@ The source mesh is `Base Characters/Godot - UE/Superhero_Male_FullBody.gltf`. It
 
 `QUATERNIUS-LICENSE.txt` preserves the author's license. This is a generic superhero, not an official Superman model.
 
-The bundled `gorod-svet-hero.glb` retains the authored body, face and hands, poses its arms at rest, applies two Loop subdivisions, adds suit vertex colours and scales the actual crown-to-ground height to 1750 mm. The cape and the site's own Gorod Svet print are attached by the renderer. No advertising tagline is included.
+The bundled `gorod-svet-hero.glb` retains the authored body, face and hands and adds the author's `Hair_SimpleParted` hairstyle from the free Standard pack (`Hairstyles/Origin at 0/glTF (Godot)`). It poses the arms at rest, applies two Loop subdivisions, adds suit vertex colours and scales the actual hair-crown-to-ground height to 1750 mm. The renderer provides restrained standing breathing and a pinned, gently moving cape. The site's own Gorod Svet logo is baked into the opaque cloth texture, so there is no separate intersecting decal. Reduced-motion preferences stop the animation; hidden or off-screen previews stop rendering it.
+
+Rebuild with `node scripts/prepare-scale-person.mjs <character.glb> <Hair_SimpleParted.gltf>`, keeping the original adjacent `Hair_SimpleParted.bin` alongside the hairstyle. Obtain the Standard pack from the author's official page linked above. No advertising tagline is included.
 
 Reproduce the static model without Blender:
 
