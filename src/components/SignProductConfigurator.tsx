@@ -8,7 +8,8 @@ import { SIGN_FONTS, loadLetterContours, resolveSignFont } from "../lib/letterCo
 import type { LetterContours } from "../lib/letterContours";
 import { allowedLetterDepths, normalizeLetterDepth, frameRailCenters } from "../lib/letterConstruction";
 import { constrainBacker, containBox, backerLimits } from "../lib/backerConstraints";
-import { createNeonDesign, neonSvg, neonRequiredBacker } from "../lib/neonConstruction";
+import { createNeonDesign, neonSvg, neonRequiredBacker, neonUnsupportedCharacters } from "../lib/neonConstruction";
+import { fitNeonToWidth } from "../lib/neonSizing";
 import { NeonControls } from "./NeonControls";
 import { NeonStudioEditor } from "./NeonStudioEditor";
 import { SignLayoutEditor } from "./SignLayoutEditor";
@@ -254,7 +255,7 @@ const DEFAULT_PROJECT = {
   logoOffsetX: 0, logoOffsetY: 0, textOffsetX: 0, textOffsetY: 0,
   neonText: "ГОРОД СВЕТ", neonFont: "rounded", neonHeight: 200, neonDiameter: 6, neonColor: "#ffa658", neonBackerWidth: 1900, neonBackerHeight: 350, neonBackerShape: "rectangle", neonBrightness: 85, neonAlign: "center",
   neonLineFonts: [] as string[], neonLineColors: [] as string[], neonLineScales: [] as number[], neonLineOffsets: [] as {x:number;y:number}[],
-  neonIcon: "none", neonBackerColor: "clear" as "clear" | "white" | "black", neonInstallMode: "standoffs" as "standoffs" | "hanging", neonUse: "indoor" as "indoor" | "outdoor", neonTargetWidth: 0, neonKeepAspect: true,
+  neonIcon: "none", neonBackerColor: "clear" as "clear" | "white" | "black", neonInstallMode: "standoffs" as "standoffs" | "hanging", neonUse: "indoor" as "indoor" | "outdoor", neonTargetWidth: 0, neonKeepAspect: true, neonLetterSpacing: 0, neonLineSpacing: 0, neonReferenceImage: "",
   backdropImage: "", backdropWidth: 4000,
   letterFont: LETTER_FONTS[0].value as string,
   letterHeight: 410,
@@ -308,7 +309,7 @@ const PROJECT_RANGES: Record<string, [number, number]> = {
   panelImageScale: [45, 130], panelImageX: [-40, 40], panelImageY: [-40, 40],
   logoOffsetX: [-20000, 20000], logoOffsetY: [-10000, 10000], textOffsetX: [-20000, 20000], textOffsetY: [-10000, 10000],
   neonHeight: [40, 800], neonBrightness: [10, 100], neonBackerWidth: [150, 3950], neonBackerHeight: [150, 1450],
-  neonTargetWidth: [0, 3800], backdropWidth:[500,20000],
+  neonLetterSpacing: [0, 100], neonLineSpacing: [0, 300], neonTargetWidth: [0, 3800], backdropWidth:[500,20000],
   letterHeight: [40, 1200], letterDepth: [40, 60], logoScale: [45, 130],
   letterWidth: [0, 20000],
   panelSize: [200, 2000], panelDepth: [30, 160],
@@ -350,7 +351,7 @@ function validateProject(raw: unknown): ProjectState {
     } else if (typeof initial === "string") {
       if (typeof value !== "string") throw new Error("Некорректный текст в проекте.");
       if (key === "neonColor") { if (!/^#[0-9a-f]{6}$/i.test(value)) throw new Error("Некорректный цвет неона."); output[key] = value; }
-      else if (key === "panelImage" || key === "logoImage" || key === "backdropImage") {
+      else if (key === "panelImage" || key === "logoImage" || key === "backdropImage" || key === "neonReferenceImage") {
         if (value && (!/^data:image\/(png|jpeg|webp);base64,/.test(value) || value.length > 3_000_000)) throw new Error("Изображение в проекте не поддерживается.");
         output[key] = value;
       } else output[key] = value.slice(0, 60);
@@ -383,6 +384,7 @@ export function SignProductConfigurator() {
   const lastUndoEdit = useRef(0);
   const [canUndo,setCanUndo] = useState(false);
   const [selectedNeonLine,setSelectedNeonLine] = useState(0);
+  useEffect(() => { setSelectedNeonLine(index => Math.min(index, project.neonText.split('\n').length - 1)); }, [project.neonText]);
   const [editing, setEditing] = useState(false);
   const combinedText = project.lettersText + (project.secondLineText.trim() ? "\n" + project.secondLineText : "");
   const patchProject = (patch: Partial<ProjectState>, remember = true) => {
@@ -396,19 +398,19 @@ export function SignProductConfigurator() {
     const next = { ...previous, ...patch };
     if (patch.neonTargetWidth && next.neonKeepAspect) {
       try {
-        const measured = createNeonDesign(next.neonText,next.neonHeight,next.neonDiameter,next.neonFont,next.neonAlign,{lineFonts:next.neonLineFonts,lineScales:next.neonLineScales,lineOffsets:next.neonLineOffsets,icon:next.neonIcon});
-        if (measured.width>0) next.neonHeight=Math.max(40,Math.min(800,Math.round(next.neonHeight*patch.neonTargetWidth/measured.width)));
-      } catch { /* The font-loading status supplies recovery while a face is unavailable. */ }
+        const fitted = fitNeonToWidth(next.neonText,patch.neonTargetWidth,next.neonDiameter,next.neonFont,next.neonAlign,{lineFonts:next.neonLineFonts,lineScales:next.neonLineScales,lineOffsets:next.neonLineOffsets,icon:next.neonIcon,letterSpacing:next.neonLetterSpacing,lineSpacing:next.neonLineSpacing});
+        next.neonHeight=fitted.height;
+      } catch (error) { setNotice(error instanceof Error ? error.message : "Увеличьте ширину надписи."); return previous; }
     }
     if (patch.neonTargetWidth) {
       try {
-        const design=createNeonDesign(next.neonText,next.neonHeight,next.neonDiameter,next.neonFont,next.neonAlign,{lineFonts:next.neonLineFonts,lineScales:next.neonLineScales,lineOffsets:next.neonLineOffsets,icon:next.neonIcon,targetWidth:next.neonKeepAspect?undefined:patch.neonTargetWidth});
+        const design=createNeonDesign(next.neonText,next.neonHeight,next.neonDiameter,next.neonFont,next.neonAlign,{lineFonts:next.neonLineFonts,lineScales:next.neonLineScales,lineOffsets:next.neonLineOffsets,icon:next.neonIcon,letterSpacing:next.neonLetterSpacing,lineSpacing:next.neonLineSpacing,targetWidth:next.neonKeepAspect?undefined:patch.neonTargetWidth});
         const minimum=neonRequiredBacker(design);
         next.neonBackerWidth=Math.max(150,Math.ceil(minimum.width));next.neonBackerHeight=Math.max(150,Math.ceil(minimum.height));
         if(next.neonKeepAspect) next.neonTargetWidth=Math.round(design.width);
       } catch { /* Preserve the current backer until a valid centerline can be made. */ }
     }
-    if (next.neonKeepAspect && (patch.neonHeight!==undefined || patch.neonText!==undefined || patch.neonIcon!==undefined || patch.neonLineFonts || patch.neonLineScales || patch.neonLineOffsets || patch.neonAlign!==undefined)) next.neonTargetWidth=0;
+    if (next.neonKeepAspect && (patch.neonHeight!==undefined || patch.neonText!==undefined || patch.neonIcon!==undefined || patch.neonLineFonts || patch.neonLineScales || patch.neonLineOffsets || patch.neonAlign!==undefined || patch.neonLetterSpacing!==undefined || patch.neonLineSpacing!==undefined)) next.neonTargetWidth=0;
     const backer = constrainBacker(next.acpWidth, next.acpHeight, next.acpDepth);
     next.acpWidth = backer.width; next.acpHeight = backer.height;
     next.letterDepth = normalizeLetterDepth(next.letterHeight, next.letterDepth);
@@ -602,9 +604,9 @@ export function SignProductConfigurator() {
   ];
   const neonResult = useMemo(() => {
     if(neonFontReady!==neonFontKey) return {design:null,error:neonFontError};
-    try { return { design: createNeonDesign(project.neonText, project.neonHeight, project.neonDiameter, project.neonFont, project.neonAlign, {lineFonts:project.neonLineFonts,lineColors:project.neonLineColors,lineScales:project.neonLineScales,lineOffsets:project.neonLineOffsets,icon:project.neonIcon,targetWidth:project.neonKeepAspect?undefined:project.neonTargetWidth||undefined}), error: "" }; }
+    try { return { design: createNeonDesign(project.neonText, project.neonHeight, project.neonDiameter, project.neonFont, project.neonAlign, {lineFonts:project.neonLineFonts,lineColors:project.neonLineColors,lineScales:project.neonLineScales,lineOffsets:project.neonLineOffsets,icon:project.neonIcon,letterSpacing:project.neonLetterSpacing,lineSpacing:project.neonLineSpacing,targetWidth:project.neonKeepAspect?undefined:project.neonTargetWidth||undefined}), error: "" }; }
     catch(error) { return { design: null, error: error instanceof Error ? error.message : "Проверьте неоновую надпись." }; }
-  }, [project.neonText, project.neonHeight, project.neonDiameter, project.neonFont, project.neonAlign, project.neonLineFonts,project.neonLineColors,project.neonLineScales,project.neonLineOffsets,project.neonIcon,project.neonTargetWidth,project.neonKeepAspect,neonFontReady, neonFontKey,neonFontError]);
+  }, [project.neonText, project.neonHeight, project.neonDiameter, project.neonFont, project.neonAlign, project.neonLineFonts,project.neonLineColors,project.neonLineScales,project.neonLineOffsets,project.neonIcon,project.neonLetterSpacing,project.neonLineSpacing,project.neonTargetWidth,project.neonKeepAspect,neonFontReady, neonFontKey,neonFontError]);
   const requiredNeonBacker=neonResult.design?neonRequiredBacker(neonResult.design):{width:150,height:150};
   const neonWidth = Math.max(project.neonBackerWidth, requiredNeonBacker.width);
   const neonHeight = Math.max(project.neonBackerHeight, requiredNeonBacker.height);
@@ -680,10 +682,10 @@ export function SignProductConfigurator() {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      if (file.size > 6_500_000) throw new Error("Файл проекта слишком большой.");
+      if (file.size > 9_500_000) throw new Error("Файл проекта слишком большой.");
       const nextProject = validateProject(JSON.parse((await file.text()).replace(/^\uFEFF/, "")));
       try {
-        await Promise.all([nextProject.panelImage, nextProject.logoImage, nextProject.backdropImage].filter(Boolean).map(async source => {
+        await Promise.all([nextProject.panelImage, nextProject.logoImage, nextProject.backdropImage, nextProject.neonReferenceImage].filter(Boolean).map(async source => {
           const image = new Image();
           image.src = source;
           await image.decode();
@@ -776,11 +778,11 @@ export function SignProductConfigurator() {
 
         <aside className="builder-controls" id="studio-controls" aria-label="Настройки вывески">
           <header className="controls-heading"><h2>Настройте вывеску</h2><span>Все изменения — на макете</span></header>
-          <nav className="studio-section-tabs" aria-label="Разделы настроек">
-            {productId !== "neon" && SECTION_ITEMS.filter(item => productId === "letters" || ["design", "colors", "mount", "logo"].includes(item.id)).map(item => <button type="button" key={item.id} aria-pressed={activeSection === item.id} className={activeSection === item.id ? "active" : ""} onClick={() => setActiveSection(item.id)}><item.icon size={18} /><span>{productId === "panel" && item.id === "design" ? "Форма" : item.label}</span></button>)}
-          </nav>
+          {productId !== "neon" && <nav className="studio-section-tabs" aria-label="Разделы настроек">
+            {SECTION_ITEMS.filter(item => productId === "letters" || ["design", "colors", "mount", "logo"].includes(item.id)).map(item => <button type="button" key={item.id} aria-pressed={activeSection === item.id} className={activeSection === item.id ? "active" : ""} onClick={() => setActiveSection(item.id)}><item.icon size={18} /><span>{productId === "panel" && item.id === "design" ? "Форма" : item.label}</span></button>)}
+          </nav>}
           <div className="controls-body"><SectionContext.Provider value={activeSection}>
-          {productId === "neon" ? <NeonControls project={project} measuredWidth={neonResult.design?.width} onChange={patchProject} onUndo={undoNeon} canUndo={canUndo} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/> : productId === "panel" ? (
+          {productId === "neon" ? <NeonControls project={project} measuredWidth={neonResult.design?.width} requiredBacker={requiredNeonBacker} onReferenceChange={event=>void handleImageUpload(event,value=>patchProject({neonReferenceImage:value}))} onChange={patchProject} onUndo={undoNeon} canUndo={canUndo} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/> : productId === "panel" ? (
             <PanelControls
               faceColor={panelFaceColor}
               imageScale={panelImageScale}
@@ -892,6 +894,12 @@ export function SignProductConfigurator() {
             <button type="button" onClick={() => { patchProject({ secondLineText: project.secondLineText || "НОВАЯ СТРОКА" }); setActiveSection("design"); }}>+ Строка ниже</button>
             <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
           </div>}
+          {productId === "neon" && viewMode === "2d" && editing && <div className="editor-toolbar neon-inline-toolbar" aria-label="Настройки выбранной строки на макете">
+            <label><span>Строка</span><select aria-label="Выбранная строка на макете" value={selectedNeonLine} onChange={event=>setSelectedNeonLine(Number(event.target.value))}>{project.neonText.split('\n').map((_,index)=><option key={index} value={index}>{index+1}</option>)}</select></label>
+            <label><span>Шрифт</span><select aria-label="Шрифт выбранной строки" value={project.neonLineFonts[selectedNeonLine]||project.neonFont} onChange={event=>patchProject({neonLineFonts:Array.from({length:3},(_,index)=>index===selectedNeonLine?event.target.value:project.neonLineFonts[index]||project.neonFont)})}>{NEON_FONTS.map(font=><option key={font.id} value={font.id} disabled={neonUnsupportedCharacters(project.neonText.split('\n')[selectedNeonLine]||'',font.id).length>0}>{font.label}</option>)}</select></label>
+            <input type="color" aria-label="Цвет выбранной строки" value={project.neonLineColors[selectedNeonLine]||project.neonColor} onChange={event=>patchProject({neonLineColors:Array.from({length:3},(_,index)=>index===selectedNeonLine?event.target.value:project.neonLineColors[index]||project.neonColor)})}/>
+            <button type="button" onClick={()=>patchProject({neonLineOffsets:Array.from({length:3},(_,index)=>index===selectedNeonLine?{x:0,y:0}:project.neonLineOffsets[index]||{x:0,y:0})})}>Центровать</button>
+          </div>}
         <section
           className={`builder-preview ${sceneMode} glow-${glowMode} view-mode-${viewMode}`}
           aria-label="Визуализация"
@@ -979,7 +987,7 @@ export function SignProductConfigurator() {
           </div>
           <div className="summary-block">
             <span>{productId === "neon" ? "Цвет неона" : "Лицевая пленка"}</span>
-            <strong>{productId === "neon" ? [...new Set(project.neonLineColors.length?project.neonLineColors:[project.neonColor])].join(' · ') : currentFaceColor.code + " " + currentFaceColor.name}</strong>
+            <strong>{productId === "neon" ? [...new Set(project.neonText.split('\n').flatMap((text,index)=>text.trim()?[project.neonLineColors[index]||project.neonColor]:[]))].join(' · ') : currentFaceColor.code + " " + currentFaceColor.name}</strong>
           </div>
           <div className="summary-block">
             <span>{productId === "neon" ? "Подложка" : "Борт"}</span>
