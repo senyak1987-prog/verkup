@@ -59,9 +59,10 @@ const schemaSource = projectSource.slice(projectSource.indexOf('const ORACAL_850
 const schemaCompiled = ts.transpileModule(schemaSource, { compilerOptions: {
   target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS,
 } }).outputText;
-const validateProject = new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS',
+const panel = load('panelConstruction');
+const validateProject = new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS','normalizePanelSize','normalizePanelDepth',
   schemaCompiled + ';return validateProject;')(contours.SIGN_FONTS, contours.resolveSignFont,
-  construction.normalizeLetterDepth, load('backerConstraints').constrainBacker, []);
+  construction.normalizeLetterDepth, load('backerConstraints').constrainBacker, [],panel.normalizePanelSize,panel.normalizePanelDepth);
 test('Восстановление проекта считает глубину по активным строкам вместо скрытой базовой высоты', () => {
   const restore = project => validateProject({ version: 1, project });
   const short = restore({ lettersText: 'КОФЕ', letterHeight: 220, letterLineHeights: [100], letterDepth: 60 });

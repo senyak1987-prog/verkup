@@ -10,7 +10,7 @@ export type LetterRowLayout = {
 };
 export type LetterRowsLayoutConfig = {
   height:number; contours?:LetterContours|null; lineSettings:LetterRowSetting[];
-  logoEnabled?:boolean; logoScale:number; logoShape:string; letterOutlineEnabled:boolean;
+  logoEnabled?:boolean; logoScale:number; logoSizeMm?:number; logoShape:string; letterOutlineEnabled:boolean;
   widthOverride?:number; logoOffsetX?:number; logoOffsetY?:number; textOffsetX?:number; textOffsetY?:number;
   mountMode:string; acpLayout:{faceWidth:number;faceHeight:number}; frameTopPosition:number;frameBottomPosition:number;
 };
@@ -40,7 +40,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   for(const row of draft){row.y=previous?previous.y+previous.height+Math.max(Math.max(previous.height,row.height)*.35,previous.overBottom+row.overTop+15):0;previous=row;}
   const textNaturalWidth=Math.max(1,...draft.map(r=>r.width));
   const textNaturalHeight=draft.length?Math.max(...draft.map(r=>r.y+r.height)):0;
-  const logoSize=config.logoEnabled?baseHeight*clamp(config.logoScale,45,130)/100:0;
+  const logoSize=config.logoEnabled?(config.logoSizeMm===undefined?baseHeight*clamp(config.logoScale,45,130)/100:clamp(config.logoSizeMm,20,90)):0;
   const gap=config.logoEnabled&&draft.length?baseHeight*.16:0;
   const widthRequested=draft.length?(config.widthOverride?Math.max(logoSize+gap+20,config.widthOverride):logoSize+gap+textNaturalWidth):Math.max(1,logoSize);
   const stretch=Math.max(1,widthRequested-logoSize-gap)/textNaturalWidth;

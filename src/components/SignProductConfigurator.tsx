@@ -2,12 +2,13 @@ import { ArrowUpRight, Check, ChevronRight, Download, Eraser, FolderOpen, ImageP
 import { Component, createContext, lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 import { createPanelSvgMarkup, panelSvgFaceBox } from "../lib/signPanelExport";
-import { panelMountLayout, isPanelCornerMount } from "../lib/panelConstruction";
+import { panelMountLayout, isPanelCornerMount, PANEL_SIZES, PANEL_DEPTHS, normalizePanelSize, normalizePanelDepth } from "../lib/panelConstruction";
 import type { PanelMountMode } from "../lib/panelConstruction";
-import { calculateLetterPrice, hasUnpricedSymbols, requiresFrameApproval, useSignCart } from "../lib/signCommerce";
+import { calculateLetterPrice, calculateLogoPrice, hasUnpricedSymbols, requiresFrameApproval, useSignCart } from "../lib/signCommerce";
 import { systemFontAvailable } from "../lib/systemFontContours";
 import { SIGN_FONTS, loadLetterContours, resolveSignFont, combineLetterLines } from "../lib/letterContours";
 import type { LetterContours } from "../lib/letterContours";
+import { haloBackerContour } from "../lib/haloBackerContour";
 import { createLetterRowsLayout } from "../lib/letterRowsLayout";
 import type { LetterRowLayout, LetterRowSetting } from "../lib/letterRowsLayout";
 import type { LetterFrameSegment } from "../lib/letterFrame";
@@ -98,6 +99,7 @@ type LettersSvgLayout = {
   railHeight: number;
   panelBox: SvgBox;
   panelCornerRadius: number;
+  haloBackerPath?:string;
   haloBackerBox: SvgBox;
   haloBackerRadius: number;
   seamXs: number[];
@@ -115,6 +117,7 @@ type LettersSvgLayoutConfig = {
   height: number;
   letterOutlineEnabled: boolean;
   logoScale: number;
+  logoSizeMm?:number;
   logoShape: LogoShape;
   mountMode: MountMode;
   text: string;
@@ -143,7 +146,6 @@ type LettersSvgMarkupConfig = LettersSvgLayoutConfig & {
   sideColor: string;
 };
 
-const PANEL_SIZES = Array.from({ length: 7 }, (_, index) => 400 + index * 50);
 const ACP_SHEET_WIDTH_MM = 4000;
 const ACP_SHEET_HEIGHT_MM = 1500;
 const ACP_SECOND_RETURN_MM = 25;
@@ -257,7 +259,7 @@ const DEFAULT_PROJECT = {
   facadePalette: "stone" as "stone" | "brick" | "charcoal",
   panelShape: "circle" as PanelShape,
   panelSize: 500,
-  panelDepth: 60,
+  panelDepth: 130,
   panelWallGap: 120,
   panelMountMode: "wall" as PanelMountMode,
   panelCornerRadius: 60,
@@ -287,10 +289,12 @@ const DEFAULT_PROJECT = {
   logoImage: "",
   logoEnabled: false,
   logoScale: 86,
+  logoSizeMm: 90,
   letterOutlineEnabled: false,
   logoOutlineEnabled: false,
   outlineColor: ORACAL_641_COLORS[1] as ColorOption,
   haloBackerEnabled: false,
+  haloBackerOffsetMm: 20,
   haloBackerColor: ACP_COLORS[0] as ColorOption,
   mountMode: "frame" as MountMode,
   frameProfile: 15 as FrameProfile,
@@ -329,9 +333,9 @@ const PROJECT_RANGES: Record<string, [number, number]> = {
   logoOffsetX: [-20000, 20000], logoOffsetY: [-10000, 10000], textOffsetX: [-20000, 20000], textOffsetY: [-10000, 10000],
   neonHeight: [40, 800], neonBrightness: [10, 100], neonBackerWidth: [150, 3950], neonBackerHeight: [150, 1450],
   neonLetterSpacing: [0, 100], neonLineSpacing: [0, 300], neonTargetWidth: [0, 3800], backdropWidth:[500,20000],
-  letterHeight: [40, 1200], letterDepth: [40, 60], logoScale: [45, 130],
+  letterHeight: [40, 1200], letterDepth: [40, 60], logoScale: [45, 130], logoSizeMm: [20,90], haloBackerOffsetMm: [15,25],
   letterWidth: [0, 20000],
-  panelSize: [200, 2000], panelDepth: [30, 160],
+  panelSize: [350, 700], panelDepth: [130, 150],
   panelWallGap: [60, 400], panelCornerRadius: [0, 300],
   frameEdgeInset: [0, 120], frameTopPosition: [10, 20], frameBottomPosition: [10, 20],
   acpWidth: [400, 20000], acpHeight: [250, 10000], acpDepth: [30, 100],
@@ -387,6 +391,8 @@ function validateProject(raw: unknown): ProjectState {
     }
   }
   result.frameProfile = 15;
+  result.panelSize=normalizePanelSize(result.panelSize);result.panelDepth=normalizePanelDepth(result.panelDepth);
+  if(input.logoSizeMm===undefined)result.logoSizeMm=Math.max(20,Math.min(90,result.letterHeight*result.logoScale/100));
   if(result.panelMountMode==='corner') result.panelWallGap=Math.max(result.panelWallGap,result.panelDepth/2+20);
   result.letterDepth = normalizeLetterDepth([result.lettersText,result.secondLineText,result.thirdLineText].map((text,index)=>text.trim()?result.letterLineHeights[index]||result.letterHeight:0).filter(Boolean), result.letterDepth);
   if (Number(input.frameTopPosition) > 20) result.frameTopPosition = 15;
@@ -441,7 +447,7 @@ export function SignProductConfigurator() {
   const contourKey = JSON.stringify(lineSettings.map(row=>[row.index,row.font,row.text]));
   const patchProject = (patch: Partial<ProjectState>, remember = true) => {
     const layoutEdit = project.productId === "letters" && Object.keys(patch).some(key =>
-      ["logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "letterWidth", "letterHeight", "lettersText", "letterFont", "secondLineText", "thirdLineText", "letterLineFonts", "letterLineHeights", "letterLineOffsets"].includes(key));
+      ["logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "logoSizeMm", "letterWidth", "letterHeight", "lettersText", "letterFont", "secondLineText", "thirdLineText", "letterLineFonts", "letterLineHeights", "letterLineOffsets"].includes(key));
     if (remember && (layoutEdit || project.productId === 'neon' && Object.keys(patch).some(key=>key.startsWith('neon')))) {
       if (layoutInteraction.current === "start" || layoutInteraction.current !== "active" && (Date.now()-lastUndoEdit.current > 800 || !undoHistory.current.length)) {
         undoHistory.current.push(project); if (undoHistory.current.length>30) undoHistory.current.shift(); setCanUndo(true);
@@ -491,8 +497,8 @@ export function SignProductConfigurator() {
   const setProductId = (value: ProjectState["productId"]) => setProject(previous => ({ ...previous, productId: value }));
   const setSceneMode = (value: ProjectState["sceneMode"]) => setProject(previous => ({ ...previous, sceneMode: value }));
   const setPanelShape = (value: ProjectState["panelShape"]) => setProject(previous => ({ ...previous, panelShape: value }));
-  const setPanelSize = (value: ProjectState["panelSize"]) => setProject(previous => ({ ...previous, panelSize: value }));
-  const setPanelDepth = (value: number) => setProject(previous => ({ ...previous, panelDepth: value, panelWallGap:previous.panelMountMode==='corner'?Math.max(previous.panelWallGap,value/2+20):previous.panelWallGap }));
+  const setPanelSize = (value: ProjectState["panelSize"]) => setProject(previous => ({ ...previous, panelSize: normalizePanelSize(value) }));
+  const setPanelDepth = (value: number) => setProject(previous => ({ ...previous, panelDepth: normalizePanelDepth(value), panelWallGap:previous.panelMountMode==='corner'?Math.max(previous.panelWallGap,normalizePanelDepth(value)/2+20):previous.panelWallGap }));
   const setPanelImage = (value: ProjectState["panelImage"]) => setProject(previous => ({ ...previous, panelImage: value }));
   const setPanelImageScale = (value: ProjectState["panelImageScale"]) => setProject(previous => ({ ...previous, panelImageScale: value }));
   const setPanelImageX = (value: ProjectState["panelImageX"]) => setProject(previous => ({ ...previous, panelImageX: value }));
@@ -516,7 +522,7 @@ export function SignProductConfigurator() {
   const setLogoShape = (value: ProjectState["logoShape"]) => setProject(previous => ({ ...previous, logoShape: value }));
   const setLogoImage = (value: ProjectState["logoImage"]) => setProject(previous => ({ ...previous, logoImage: value }));
   const setLogoEnabled = (value: boolean) => setProject(previous => ({ ...previous, logoEnabled: value }));
-  const setLogoScale = (value: ProjectState["logoScale"]) => setProject(previous => ({ ...previous, logoScale: value }));
+  const setLogoSize = (value:number) => setProject(previous => ({ ...previous, logoSizeMm: Math.max(20,Math.min(90,value)) }));
   const setLetterOutlineEnabled = (value: ProjectState["letterOutlineEnabled"]) => setProject(previous => ({ ...previous, letterOutlineEnabled: value }));
   const setLogoOutlineEnabled = (value: ProjectState["logoOutlineEnabled"]) => setProject(previous => ({ ...previous, logoOutlineEnabled: value }));
   const setOutlineColor = (value: ProjectState["outlineColor"]) => setProject(previous => ({ ...previous, outlineColor: value }));
@@ -700,7 +706,7 @@ export function SignProductConfigurator() {
     acpHeight,
     acpWidth,
   ]);
-  const lettersLayout = useMemo(() => createLettersSvgLayout({
+  const lettersLayout = useMemo(() => { const layout=createLettersSvgLayout({
     lineSettings,
     acpLayout,
     estimatedWidth: lettersWidth,
@@ -711,6 +717,7 @@ export function SignProductConfigurator() {
     height: letterHeight,
     letterOutlineEnabled,
     logoScale,
+    logoSizeMm:project.logoSizeMm,
     logoShape,
     mountMode,
     text: lettersText,
@@ -719,7 +726,8 @@ export function SignProductConfigurator() {
     widthOverride: letterWidth,
     logoEnabled,
     logoOffsetX: project.logoOffsetX, logoOffsetY: project.logoOffsetY, textOffsetX: project.textOffsetX, textOffsetY: project.textOffsetY,
-  }), [
+  }); return {...layout,haloBackerPath:haloBackerEnabled&&hasHaloGlow(glowMode)?haloBackerContour(layout.textRows??[],project.haloBackerOffsetMm):undefined}; }, [
+    haloBackerEnabled,glowMode,project.haloBackerOffsetMm,project.logoSizeMm,
     acpLayout,
     frameBottomPosition,
     frameEdgeInset,
@@ -764,10 +772,14 @@ export function SignProductConfigurator() {
   const mountLabel = MOUNT_MODES.find((item) => item.id === mountMode)?.label || "";
   const rowPrices = (lettersLayout.textRows ?? []).filter(row=>row.text.trim()).map(row=>({...calculateLetterPrice(row.text,row.box.height),index:row.index}));
   const letterPrice = { letterCount:rowPrices.reduce((sum,row)=>sum+row.letterCount,0), total:rowPrices.reduce((sum,row)=>sum+row.total,0) };
+  const logoPrice=calculateLogoPrice(lettersLayout.logoBox.height,logoEnabled);
+  const pricedTotal=letterPrice.total+logoPrice.total;
+  const hasPricedArtwork=letterPrice.letterCount>0||logoPrice.heightCm>0;
+  const objectDimensions=(lettersLayout.textRows??[]).filter(row=>row.text.trim()).map(row=>({id:row.id,label:`Строка ${row.index+1}`,width:row.box.width,height:row.box.height}));
+  if(logoEnabled)objectDimensions.push({id:"logo",label:"Логотип",width:lettersLayout.logoBox.width,height:lettersLayout.logoBox.height});
   const maximumRowHeight = Math.max(...lineSettings.map(row=>row.height));
   const frameNeedsApproval = mountMode === "frame" && requiresFrameApproval(maximumRowHeight);
   const priceNotes = productId === "neon" ? ["Неоновая вывеска — по согласованию."] : productId === "panel" ? ["Панель-кронштейн — по согласованию."] : [
-    ...(logoEnabled ? ["Логотип — по согласованию."] : []),
     ...(hasUnpricedSymbols(combinedText) ? ["Специальные символы — по согласованию."] : []),
     ...(maximumRowHeight > 550 ? ["Глубина букв выше 55 см — по согласованию."] : []),
     ...(lineSettings.some(row=>row.height<=550&&!allowedLetterDepths(row.height).includes(letterDepth)) ? ["Общая глубина для строк разной высоты — по согласованию."] : []),
@@ -782,6 +794,7 @@ export function SignProductConfigurator() {
   const neonWidth = Math.max(project.neonBackerWidth, requiredNeonBacker.width);
   const neonHeight = Math.max(project.neonBackerHeight, requiredNeonBacker.height);
   const neonFits = neonWidth <= 3950 && neonHeight <= 1450;
+  const visibleObjectDimensions=productId==='neon'?(neonResult.design?.lines??[]).map(row=>({id:`neon-line-${row.index}`,label:`Строка ${row.index+1}`,width:row.width,height:row.height})):objectDimensions;
   const blankSign = isProjectBlank(project);
   const canOutputSign = !blankSign && (productId === "letters" ? !fontPending && Boolean(letterContours)
     : productId === "neon" ? Boolean(neonResult.design) && neonFits : true);
@@ -809,8 +822,8 @@ export function SignProductConfigurator() {
     const added = cart.addItem({
       project, label: productId === "neon" ? "Неон · " + project.neonText : productId === "letters" ? lettersText.trim() || "Объемные буквы" : "Панель-кронштейн",
       widthMm: signWidth, heightMm: signHeight, depthMm: signDepth,
-      price: productId === "letters" && letterPrice.letterCount > 0 ? letterPrice.total : null,
-      requiresApproval: priceNotes.length > 0 || productId === "letters" && letterPrice.letterCount === 0,
+      price: productId === "letters" && hasPricedArtwork ? pricedTotal : null,
+      requiresApproval: priceNotes.length > 0 || productId === "letters" && !hasPricedArtwork,
       approvalNote: priceNotes.join(" "),
       thumbnailSvg: createCurrentSvg(false),
     });
@@ -908,7 +921,7 @@ export function SignProductConfigurator() {
       frameTopPosition,
       glowMode,
       haloBackerColor: haloBackerColor.value,
-      haloBackerEnabled: glowHasHalo && haloBackerEnabled && mountMode === "wall",
+      haloBackerEnabled: glowHasHalo && haloBackerEnabled,
       logoEnabled,
       showDimensions: withDimensions,
       height: letterHeight,
@@ -1021,6 +1034,8 @@ export function SignProductConfigurator() {
               glowMode={glowMode}
               haloBackerColor={haloBackerColor}
               haloBackerEnabled={haloBackerEnabled}
+              haloBackerOffsetMm={project.haloBackerOffsetMm}
+              onHaloBackerOffsetChange={value=>patchProject({haloBackerOffsetMm:value})}
               height={letterHeight}
               width={measuredLettersWidth}
               widthAuto={letterWidth === 0}
@@ -1028,7 +1043,7 @@ export function SignProductConfigurator() {
               letterOutlineEnabled={letterOutlineEnabled}
               logoImage={logoImage}
               logoOutlineEnabled={logoOutlineEnabled}
-              logoScale={logoScale}
+              logoSizeMm={project.logoSizeMm}
               logoShape={logoShape}
               mountMode={mountMode}
               outlineColor={outlineColor}
@@ -1052,7 +1067,7 @@ export function SignProductConfigurator() {
               onLetterOutlineEnabledChange={setLetterOutlineEnabled}
               onLogoChange={(event) => void handleImageUpload(event, value => { setLogoImage(value); setLogoEnabled(true); })}
               onLogoOutlineEnabledChange={setLogoOutlineEnabled}
-              onLogoScaleChange={setLogoScale}
+              onLogoSizeChange={setLogoSize}
               onLogoShapeChange={setLogoShape}
               onMountModeChange={setMountMode}
               onOutlineColorChange={setOutlineColor}
@@ -1150,7 +1165,7 @@ export function SignProductConfigurator() {
                 frameProfile={frameProfile}
                 glowMode={glowMode}
                 haloBackerColor={haloBackerColor.value}
-                haloBackerEnabled={glowHasHalo && haloBackerEnabled && mountMode === "wall"}
+                haloBackerEnabled={glowHasHalo && haloBackerEnabled}
                 logoEnabled={logoEnabled}
                 showDimensions={showDimensions}
                 height={letterHeight}
@@ -1168,6 +1183,7 @@ export function SignProductConfigurator() {
           </div></div>}
           {showDimensions && !blankSign && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
         </section>
+          {showDimensions && !blankSign && (productId!=="panel" || viewMode==="3d"&&placement!=="none"&&showFacadeSign) && <div className="canvas-object-dimensions" aria-label="Размеры элементов вывески">{visibleObjectDimensions.map(item=><span key={item.id}><strong>{item.label}</strong> {Math.round(item.width)} × {Math.round(item.height)} мм</span>)}</div>}
           <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `${letterDepth} мм — до передней плоскости рамы` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
         </section>
 
@@ -1223,8 +1239,8 @@ export function SignProductConfigurator() {
           )}
 
           <div className="studio-purchase">
-            <div className="price-details"><span>{productId === "letters" ? "Стоимость букв" : "Стоимость вывески"}</span><strong className="price-total">{blankSign ? "—" : productId === "letters" && letterPrice.letterCount > 0 ? formatMoney(letterPrice.total) : "По согласованию"}</strong>
-            {productId === "letters" && letterPrice.letterCount > 0 && rowPrices.map(row=><p key={row.index} className="price-formula">Строка {row.index+1}: {row.letterCount} букв × {Number(row.heightCm.toFixed(1))} см × 120 ₽</p>)}</div>
+            <div className="price-details"><span>{productId === "letters" ? "Буквы и логотип" : "Стоимость вывески"}</span><strong className="price-total">{blankSign ? "—" : productId === "letters" && hasPricedArtwork ? formatMoney(pricedTotal) : "По согласованию"}</strong>
+            {productId === "letters" && letterPrice.letterCount > 0 && rowPrices.map(row=><p key={row.index} className="price-formula">Строка {row.index+1}: {row.letterCount} букв × {Number(row.heightCm.toFixed(1))} см × 120 ₽</p>)}{productId === "letters" && logoEnabled && <p className="price-formula">Логотип: {Number(logoPrice.heightCm.toFixed(1))} см × 180 ₽ = {formatMoney(logoPrice.total)}</p>}</div>
             <button className="studio-add-cart" type="button" onClick={handleAddToCart} disabled={!canOutputSign}><ShoppingCart size={18} />В корзину</button>
             {priceNotes.length > 0 && <p className="price-notes">{priceNotes.join(" ")}</p>}
             <p className="purchase-basis">{productId === "letters" ? "120 ₽ за 1 см высоты каждой буквы. Пробелы не считаются. Монтаж, подложка и доставка рассчитываются отдельно." : "Сохраните макет в корзину для согласования стоимости."}</p>
@@ -1308,7 +1324,7 @@ function PanelControls({
       </ControlSection>
 
       <ControlSection title="Размер">
-        <div className="dimension-number-grid"><NumberField label="Размер панели, мм" min={200} max={2000} value={size} onChange={onSizeChange} /><NumberField label="Глубина панели, мм" min={30} max={160} value={depth} onChange={onDepthChange} /></div>
+        <p className="control-note">Размер панели, мм</p>
         <div className="size-grid">
           {PANEL_SIZES.map((item) => (
             <button
@@ -1317,10 +1333,11 @@ function PanelControls({
               onClick={() => onSizeChange(item)}
               type="button"
             >
-              {item}
+              {item} мм
             </button>
           ))}
         </div>
+        <p className="control-note">Глубина панели</p><div className="option-grid two" role="group" aria-label="Глубина панели">{PANEL_DEPTHS.map(value=><button key={value} type="button" aria-pressed={depth===value} className={depth===value?"active":""} onClick={()=>onDepthChange(value)}>{value} мм</button>)}</div>
       </ControlSection>
 
       <ControlSection title="Крепление к стене">
@@ -1379,6 +1396,7 @@ function LettersControls({
   glowMode,
   haloBackerColor,
   haloBackerEnabled,
+  haloBackerOffsetMm,onHaloBackerOffsetChange,
   height,
   width,
   widthAuto,
@@ -1386,7 +1404,7 @@ function LettersControls({
   letterOutlineEnabled,
   logoImage,
   logoOutlineEnabled,
-  logoScale,
+  logoSizeMm,
   logoShape,
   mountMode,
   outlineColor,
@@ -1410,7 +1428,7 @@ function LettersControls({
   onLetterOutlineEnabledChange,
   onLogoChange,
   onLogoOutlineEnabledChange,
-  onLogoScaleChange,
+  onLogoSizeChange,
   onLogoShapeChange,
   onMountModeChange,
   onOutlineColorChange,
@@ -1432,6 +1450,7 @@ function LettersControls({
   glowMode: GlowMode;
   haloBackerColor: ColorOption;
   haloBackerEnabled: boolean;
+  haloBackerOffsetMm:number;onHaloBackerOffsetChange:(value:number)=>void;
   height: number;
   width: number;
   widthAuto: boolean;
@@ -1439,7 +1458,7 @@ function LettersControls({
   letterOutlineEnabled: boolean;
   logoImage: string;
   logoOutlineEnabled: boolean;
-  logoScale: number;
+  logoSizeMm: number;
   logoShape: LogoShape;
   mountMode: MountMode;
   outlineColor: ColorOption;
@@ -1463,7 +1482,7 @@ function LettersControls({
   onLetterOutlineEnabledChange: (value: boolean) => void;
   onLogoChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onLogoOutlineEnabledChange: (value: boolean) => void;
-  onLogoScaleChange: (value: number) => void;
+  onLogoSizeChange: (value: number) => void;
   onLogoShapeChange: (shape: LogoShape) => void;
   onMountModeChange: (mode: MountMode) => void;
   onOutlineColorChange: (color: ColorOption) => void;
@@ -1479,7 +1498,7 @@ function LettersControls({
       <ControlSection title="Надпись">
         {lineEditor}
         <div className="dimension-number-grid">
-          <NumberField label="Ширина вывески, мм" min={Math.round(height * (logoEnabled ? Math.min(1.3, Math.max(0.45, logoScale / 100)) + 0.46 : 0.3))} max={20000} onChange={onWidthChange} value={width} />
+          <NumberField label="Ширина вывески, мм" min={Math.round(logoEnabled ? logoSizeMm+height*.16+20 : height*.3)} max={20000} onChange={onWidthChange} value={width} />
 
         </div>
         <label className={"width-auto-checkbox " + (widthAuto ? "checked" : "")}><input type="checkbox" checked={widthAuto} onChange={event => onWidthChange(event.target.checked ? 0 : width)}/><span><strong>Ширина по пропорциям</strong><small>{widthAuto ? "Сохраняем естественные пропорции шрифта" : "Ширину можно менять вручную"}</small></span></label>
@@ -1501,6 +1520,11 @@ function LettersControls({
           ))}
         </div>
       </ControlSection>
+
+      {hasHaloGlow(glowMode) && <ControlSection title="Контражурная подложка">
+        <label className="dimensions-toggle"><input type="checkbox" checked={haloBackerEnabled} onChange={event=>onHaloBackerEnabledChange(event.target.checked)} />Контурная подложка</label>
+        {haloBackerEnabled && <><RangeField label="Отступ от букв, мм" min={15} max={25} step={5} value={haloBackerOffsetMm} onChange={onHaloBackerOffsetChange} /><ColorGrid colors={ACP_COLORS} selected={haloBackerColor} onSelect={onHaloBackerColorChange} compact /><p className="control-note">Плоская подложка повторяет наружный контур букв со скруглёнными углами.</p></>}
+      </ControlSection>}
 
       <ControlSection title="Размещение">
         <div className="option-grid mount-grid">
@@ -1581,8 +1605,8 @@ function LettersControls({
           <input accept="image/png,image/jpeg,image/webp" onChange={onLogoChange} type="file" />
         </label>
         <small className="control-note">PNG, JPG или WebP · до 2 МБ</small>
-        {logoEnabled && <RangeField label="Масштаб логотипа" max={130} min={45} onChange={onLogoScaleChange} value={logoScale} />}
-        <small className="control-note">Стоимость логотипа согласуем отдельно.</small>
+        {logoEnabled && <NumberField label="Размер логотипа, мм" max={90} min={20} onChange={onLogoSizeChange} value={logoSizeMm} />}
+        <small className="control-note">Логотип: 180 ₽ за сантиметр высоты. Максимум 90 мм.</small>
       </ControlSection>
 
       <ControlSection title="Лицо Oracal 8500">
@@ -1874,7 +1898,7 @@ function createLettersSvgLayout(config: LettersSvgLayoutConfig): LettersSvgLayou
   const factor = config.contours?.lineFactor ?? 1;
   const natural = config.contours?.mainBox ?? config.textBox ?? { x: 0, y: -714, width: Math.max(1, config.text.length) * 640, height: 714 };
   const logoEnabled = Boolean(config.logoEnabled);
-  const requestedLogo = logoEnabled ? requestedHeight * clamp(config.logoScale, 45, 130) / 100 : 0;
+  const requestedLogo = logoEnabled ? (config.logoSizeMm===undefined ? requestedHeight * clamp(config.logoScale,45,130)/100 : clamp(config.logoSizeMm,20,90)) : 0;
   const requestedGap = logoEnabled ? requestedHeight * LETTER_GAP_FACTOR : 0;
   const outline = config.letterOutlineEnabled ? Math.max(4, requestedHeight * .035) : 0;
   const requestedTextHeight = (requestedHeight - outline * 2) * factor;
@@ -2067,14 +2091,22 @@ function createLettersSvgMarkup(
     mix(config.sideColor, "#ffffff", 0.4) + '" flood-opacity="0.72" /></filter>' +
     '<filter id="letters-halo" x="-45%" y="-80%" width="200%" height="260%">' +
     '<feGaussianBlur stdDeviation="' + n(Math.max(10, config.height * 0.055)) + '" /></filter>' +
-    "</defs>\n" + panelMarkup + "\n" + frameMarkup + "\n" + haloMarkup + "\n" +
+    "</defs>\n" + (config.haloBackerEnabled && layout.haloBackerPath ? `<path id="halo-contour-backer" d="${layout.haloBackerPath}" fill="${escapeXml(config.haloBackerColor)}" filter="url(#letters-cast-shadow)" />` : "") + panelMarkup + "\n" + frameMarkup + "\n" + haloMarkup + "\n" +
     '<g id="sign-side"' + (sideLit ? ' filter="url(#letters-side-light)"' : ' filter="url(#letters-cast-shadow)"') +
     ">" + sideMarkup + "</g>\n" +
     '<g id="sign-face"' + (faceLit ? ' filter="url(#letters-face-light)"' : "") + ">" +
     logoGeometry("url(#letters-face-material)", config.logoOutlineEnabled ? escapeXml(config.outlineColor) : "none", logoStrokeWidth) +
     imageMarkup +
     textGeometry("url(#letters-face-material)", config.letterOutlineEnabled ? escapeXml(config.outlineColor) : "none", textStrokeWidth, true) +
-    "</g>\n" + (config.showDimensions ? createSvgDimensions(config.mountMode === "acp" ? layout.panelBox : layout.signBox, Math.max(120, Math.min(550, layout.viewHeight * 0.12)), night ? "#dce5e0" : "#1b322b") : "") + "</svg>";
+    "</g>\n" + (config.showDimensions ? createSvgDimensions(config.mountMode === "acp" ? layout.panelBox : layout.signBox, Math.max(120, Math.min(550, layout.viewHeight * 0.12)), night ? "#dce5e0" : "#1b322b") + createSvgObjectDimensions(layout,config.logoEnabled!==false,night ? "#dce5e0" : "#1b322b") : "") + "</svg>";
+}
+
+function createSvgObjectDimensions(layout:LettersSvgLayout,logoEnabled:boolean,color:string){
+  const font=Math.max(14,Math.min(40,layout.viewWidth*.012));
+  const objects=(layout.textRows??[]).map(row=>({id:row.id,label:`Строка ${row.index+1}`,box:row.box}));
+  if(logoEnabled&&layout.logoBox.width>0)objects.push({id:'logo',label:'Логотип',box:layout.logoBox});
+  return `<g data-object-dimensions="true" fill="${color}" font-family="Arial,sans-serif" font-size="${roundSvg(font)}">`+objects.map(item=>
+    `<text data-object="${item.id}" x="${roundSvg(item.box.x+item.box.width/2)}" y="${roundSvg(item.box.y-font*.7)}" text-anchor="middle">${item.label}: ${Math.round(item.box.width)} × ${Math.round(item.box.height)} мм</text>`).join('')+'</g>';
 }
 
 function createSvgDimensions(box: SvgBox, margin: number, color: string) {

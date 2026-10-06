@@ -145,7 +145,7 @@ const contourApi = load('letterContours', { './glyphPath': load('glyphPath'), '.
 const scene = load('signSceneGeometry', { three: THREE, './letterContours': contourApi, './glyphShapes': load('glyphShapes', { three: THREE }),
   './neonScene': {}, './panelConstruction': load('panelConstruction'), 'three/examples/jsm/loaders/SVGLoader.js': svgLoader });
 
-test('Wall-mounted letters never gain the old automatic plate, including saved projects with halo backer enabled', async () => {
+test('Wall-mounted letters never gain a plate without an explicit contour path', async () => {
   const box = {x:0,y:0,width:1000,height:300};
   const row = {id:'line-0',index:0,font:'test',text:'A',box,pathBox:box,pathData:'M0 0L1000 0L1000 300L0 300Z',naturalBox:box};
   const project = {productId:'letters',sceneMode:'day',letterHeight:300,letterDepth:50,mountMode:'wall',glowMode:'faceHalo',
@@ -157,6 +157,23 @@ test('Wall-mounted letters never gain the old automatic plate, including saved p
   assert.equal(bounds.min.z,30,'Actual wall spacers remain for rear illumination');
   assert.equal(bounds.max.z,80,'The letter body retains its requested depth');
   scene.disposeSignObject(model);
+});
+
+test('Контурная подложка имеет толщину 3 мм и появляется только при контражуре и включённой опции',async()=>{
+  const box={x:0,y:0,width:1000,height:300};
+  const row={id:'line-0',index:0,font:'test',text:'A',box,pathBox:box,pathData:'M0 0L1000 0L1000 300L0 300Z',naturalBox:box};
+  const project={productId:'letters',sceneMode:'day',letterHeight:300,letterDepth:50,mountMode:'wall',logoEnabled:false,
+    letterFaceColor:{value:'#ffffff'},letterSideColor:{value:'#222222'},haloBackerColor:{value:'#888888'}};
+  const path='M-20 0Q-20 -20 0 -20L1000 -20Q1020 -20 1020 0L1020 300Q1020 320 1000 320L0 320Q-20 320 -20 300Z';
+  const layout={textRows:[row],signBox:box,textX:0,textTop:0,textWidth:1000,textHeight:300,haloBackerPath:path};
+  for(const mode of ['face','faceSide','halo','faceHalo'])for(const enabled of [false,true]){
+    const model=await scene.buildSignModel({...project,glowMode:mode,haloBackerEnabled:enabled},layout,1000,300,50,false);
+    const plate=model.getObjectByName('halo-contour-backer');
+    assert.equal(Boolean(plate),enabled&&['halo','faceHalo'].includes(mode));
+    if(plate){const bounds=new THREE.Box3().setFromObject(plate);assert.ok(Math.abs(bounds.getSize(new THREE.Vector3()).z-3)<.00001);
+      assert.equal(bounds.min.x,-520);assert.equal(bounds.max.x,520);assert.equal(bounds.min.y,-170);assert.equal(bounds.max.y,170);}
+    scene.disposeSignObject(model);
+  }
 });
 test('3D builds each independently fonted row and the exact shared welded-frame rectangles', async () => {
   const configurations = [

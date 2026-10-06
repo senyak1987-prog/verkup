@@ -13,7 +13,7 @@ function simplify(points: Point[], tolerance = 0.7): Point[] {
   return split < 0 ? [a, b] : [...simplify(points.slice(0, split + 1), tolerance).slice(0, -1), ...simplify(points.slice(split), tolerance)];
 }
 // Trace oriented pixel boundaries, including counters. The same paths feed SVG and WebGL.
-export function traceAlpha(data: Uint8ClampedArray, width: number, height: number): string {
+export function traceAlpha(data: Uint8ClampedArray, width: number, height: number, tolerance=0.7): string {
   const edges = new Map<string, Point[]>();
   const ink = (x: number, y: number) => x >= 0 && y >= 0 && x < width && y < height && data[(y * width + x) * 4 + 3] >= 128;
   const add = (a: Point, b: Point) => { const key = a.join(','); const list = edges.get(key) ?? []; list.push(b); edges.set(key, list); };
@@ -35,7 +35,7 @@ export function traceAlpha(data: Uint8ClampedArray, width: number, height: numbe
       if (!destinations.length) edges.delete(currentKey);
       points.push(next);
     } while (next[0] !== start[0] || next[1] !== start[1]);
-    if (points.length > 3) paths.push('M' + simplify(points).map(p => p.join(' ')).join('L') + 'Z');
+    if (points.length > 3) paths.push('M' + simplify(points,tolerance).map(p => p.join(' ')).join('L') + 'Z');
   }
   return paths.join('');
 }

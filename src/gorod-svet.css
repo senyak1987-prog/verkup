@@ -390,3 +390,6 @@ main.public-sign-configurator.sign-studio .facade-context-toolbar label { displa
 main.public-sign-configurator.sign-studio .facade-context-toolbar input { width:16px; height:16px; accent-color:#d3bc84; }
 main.public-sign-configurator.sign-studio .facade-context-toolbar span { margin-left:auto; color:#b8cebf; }
 @media(max-width:767px) { main.public-sign-configurator.sign-studio .facade-context-toolbar { padding:7px 10px; gap:3px 14px; } main.public-sign-configurator.sign-studio .facade-context-toolbar label { min-height:40px; } main.public-sign-configurator.sign-studio .facade-context-toolbar span { width:100%; margin-left:0; } }
+main.public-sign-configurator.sign-studio .canvas-object-dimensions { display:flex; flex-wrap:wrap; gap:6px 18px; padding:8px 14px; background:#eff2ee; color:#273c34; border-top:1px solid #c6d1c8; font-size:12px; line-height:1.5; }
+main.public-sign-configurator.sign-studio .canvas-object-dimensions strong { font-weight:600; margin-right:4px; }
+main.public-sign-configurator.sign-studio .scene-night .canvas-object-dimensions { background:#2f3230; color:#e2e6e2; border-color:#525753; }
