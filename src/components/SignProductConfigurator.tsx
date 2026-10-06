@@ -391,6 +391,7 @@ function validateProject(raw: unknown): ProjectState {
     }
   }
   result.frameProfile = 15;
+  if(result.haloBackerEnabled && ["halo","faceHalo"].includes(result.glowMode))result.mountMode="frame";
   result.panelSize=normalizePanelSize(result.panelSize);result.panelDepth=normalizePanelDepth(result.panelDepth);
   if(input.logoSizeMm===undefined)result.logoSizeMm=Math.max(20,Math.min(90,result.letterHeight*result.logoScale/100));
   if(result.panelMountMode==='corner') result.panelWallGap=Math.max(result.panelWallGap,result.panelDepth/2+20);
@@ -526,9 +527,9 @@ export function SignProductConfigurator() {
   const setLetterOutlineEnabled = (value: ProjectState["letterOutlineEnabled"]) => setProject(previous => ({ ...previous, letterOutlineEnabled: value }));
   const setLogoOutlineEnabled = (value: ProjectState["logoOutlineEnabled"]) => setProject(previous => ({ ...previous, logoOutlineEnabled: value }));
   const setOutlineColor = (value: ProjectState["outlineColor"]) => setProject(previous => ({ ...previous, outlineColor: value }));
-  const setHaloBackerEnabled = (value: ProjectState["haloBackerEnabled"]) => setProject(previous => ({ ...previous, haloBackerEnabled: value }));
+  const setHaloBackerEnabled = (value: ProjectState["haloBackerEnabled"]) => setProject(previous => ({ ...previous, haloBackerEnabled: value, ...(value ? { mountMode: "frame" as const } : {}) }));
   const setHaloBackerColor = (value: ProjectState["haloBackerColor"]) => setProject(previous => ({ ...previous, haloBackerColor: value }));
-  const setMountMode = (value: ProjectState["mountMode"]) => setProject(previous => ({ ...previous, mountMode: value }));
+  const setMountMode = (value: ProjectState["mountMode"]) => setProject(previous => ({ ...previous, mountMode: value, ...(value !== "frame" ? { haloBackerEnabled: false } : {}) }));
   const setFrameTopPosition = (value: ProjectState["frameTopPosition"]) => setProject(previous => ({ ...previous, frameTopPosition: value }));
   const setFrameBottomPosition = (value: ProjectState["frameBottomPosition"]) => setProject(previous => ({ ...previous, frameBottomPosition: value }));
   const setAcpColor = (value: ProjectState["acpColor"]) => setProject(previous => ({ ...previous, acpColor: value }));
@@ -726,7 +727,7 @@ export function SignProductConfigurator() {
     widthOverride: letterWidth,
     logoEnabled,
     logoOffsetX: project.logoOffsetX, logoOffsetY: project.logoOffsetY, textOffsetX: project.textOffsetX, textOffsetY: project.textOffsetY,
-  }); return {...layout,haloBackerPath:haloBackerEnabled&&hasHaloGlow(glowMode)?haloBackerContour(layout.textRows??[],project.haloBackerOffsetMm):undefined}; }, [
+  }); return {...layout,haloBackerPath:haloBackerEnabled&&mountMode==="frame"&&hasHaloGlow(glowMode)?haloBackerContour(layout.textRows??[],project.haloBackerOffsetMm):undefined}; }, [
     haloBackerEnabled,glowMode,project.haloBackerOffsetMm,project.logoSizeMm,
     acpLayout,
     frameBottomPosition,
@@ -921,7 +922,7 @@ export function SignProductConfigurator() {
       frameTopPosition,
       glowMode,
       haloBackerColor: haloBackerColor.value,
-      haloBackerEnabled: glowHasHalo && haloBackerEnabled,
+      haloBackerEnabled: glowHasHalo && haloBackerEnabled && mountMode === "frame",
       logoEnabled,
       showDimensions: withDimensions,
       height: letterHeight,
@@ -1165,7 +1166,7 @@ export function SignProductConfigurator() {
                 frameProfile={frameProfile}
                 glowMode={glowMode}
                 haloBackerColor={haloBackerColor.value}
-                haloBackerEnabled={glowHasHalo && haloBackerEnabled}
+                haloBackerEnabled={glowHasHalo && haloBackerEnabled && mountMode === "frame"}
                 logoEnabled={logoEnabled}
                 showDimensions={showDimensions}
                 height={letterHeight}
@@ -1522,8 +1523,8 @@ function LettersControls({
       </ControlSection>
 
       {hasHaloGlow(glowMode) && <ControlSection title="Контражурная подложка">
-        <label className="dimensions-toggle"><input type="checkbox" checked={haloBackerEnabled} onChange={event=>onHaloBackerEnabledChange(event.target.checked)} />Контурная подложка</label>
-        {haloBackerEnabled && <><RangeField label="Отступ от букв, мм" min={15} max={25} step={5} value={haloBackerOffsetMm} onChange={onHaloBackerOffsetChange} /><ColorGrid colors={ACP_COLORS} selected={haloBackerColor} onSelect={onHaloBackerColorChange} compact /><p className="control-note">Плоская подложка повторяет наружный контур букв со скруглёнными углами.</p></>}
+        <label className="dimensions-toggle"><input type="checkbox" checked={haloBackerEnabled} onChange={event=>onHaloBackerEnabledChange(event.target.checked)} />Контурная подложка на раме</label>
+        {haloBackerEnabled && <><RangeField label="Отступ от букв, мм" min={15} max={25} step={5} value={haloBackerOffsetMm} onChange={onHaloBackerOffsetChange} /><ColorGrid colors={ACP_COLORS} selected={haloBackerColor} onSelect={onHaloBackerColorChange} compact /><p className="control-note">Плоская подложка крепится перед рамой и повторяет контур букв. Монтаж — на раму.</p></>}
       </ControlSection>}
 
       <ControlSection title="Размещение">
@@ -2091,7 +2092,7 @@ function createLettersSvgMarkup(
     mix(config.sideColor, "#ffffff", 0.4) + '" flood-opacity="0.72" /></filter>' +
     '<filter id="letters-halo" x="-45%" y="-80%" width="200%" height="260%">' +
     '<feGaussianBlur stdDeviation="' + n(Math.max(10, config.height * 0.055)) + '" /></filter>' +
-    "</defs>\n" + (config.haloBackerEnabled && layout.haloBackerPath ? `<path id="halo-contour-backer" d="${layout.haloBackerPath}" fill="${escapeXml(config.haloBackerColor)}" filter="url(#letters-cast-shadow)" />` : "") + panelMarkup + "\n" + frameMarkup + "\n" + haloMarkup + "\n" +
+    "</defs>\n" + panelMarkup + "\n" + frameMarkup + "\n" + (config.haloBackerEnabled && layout.haloBackerPath ? `<path id="halo-contour-backer" d="${layout.haloBackerPath}" fill="${escapeXml(config.haloBackerColor)}" filter="url(#letters-cast-shadow)" />` : "") + haloMarkup + "\n" +
     '<g id="sign-side"' + (sideLit ? ' filter="url(#letters-side-light)"' : ' filter="url(#letters-cast-shadow)"') +
     ">" + sideMarkup + "</g>\n" +
     '<g id="sign-face"' + (faceLit ? ' filter="url(#letters-face-light)"' : "") + ">" +
