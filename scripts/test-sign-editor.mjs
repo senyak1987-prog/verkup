@@ -16,6 +16,7 @@ const backer=load('backerConstraints'), neon=load('neonConstruction',{'./neonFon
 for(const font of neonFonts.EXTERNAL_NEON_FONTS)neonFonts.registerNeonFont(font.id,fs.readFileSync(new URL('../public/neon-fonts/'+font.file,import.meta.url),'utf8'));
 const contours=load('letterContours',{'./glyphPath':load('glyphPath'),'./systemFontContours':system});
 const construction=load('letterConstruction');
+const alignment=load('signLayoutAlignment');
 const source=fs.readFileSync(new URL('../src/components/SignProductConfigurator.tsx',import.meta.url),'utf8');
 const start=source.indexOf('function createLettersSvgLayout('),end=source.indexOf('\nfunction createLettersSvgMarkup',start);
 const compiled=ts.transpileModule(source.slice(start,end),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
@@ -25,6 +26,97 @@ const schemaSource=source.slice(source.indexOf('const ORACAL_8500_COLORS'),sourc
   source.slice(source.indexOf('const PROJECT_ENUMS'),source.indexOf('function loadSavedProject'));
 const schemaCompiled=ts.transpileModule(schemaSource,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
 const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS',schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker,neon.NEON_FONTS);
+
+const near=(actual,expected,message)=>assert.ok(Math.abs(actual-expected)<.002,message+': '+actual+' / '+expected);
+const alignmentFixture=()=>({viewWidth:2300,viewHeight:550,panelBox:{x:100,y:110,width:2000,height:300},
+  defaultTextX:800,defaultTextY:180,defaultLogoX:600,defaultLogoY:160,
+  textX:1400,textTop:118,textWidth:500,textHeight:150,textInkBox:{x:1400,y:116,width:500,height:168},
+  logoBox:{x:106,y:130,width:200,height:200}});
+function applyAlignment(current,patch) {
+  const textX=patch.textOffsetX===undefined?current.textX:current.defaultTextX+patch.textOffsetX;
+  const textTop=patch.textOffsetY===undefined?current.textTop:current.defaultTextY+patch.textOffsetY;
+  return {...current,textX,textTop,textInkBox:{...current.textInkBox,x:current.textInkBox.x+textX-current.textX,y:current.textInkBox.y+textTop-current.textTop},
+    logoBox:{...current.logoBox,x:patch.logoOffsetX===undefined?current.logoBox.x:current.defaultLogoX+patch.logoOffsetX,
+      y:patch.logoOffsetY===undefined?current.logoBox.y:current.defaultLogoY+patch.logoOffsetY}};
+}
+test('Object centering uses the actual non-origin 2000 × 300 panel and preserves the other axis and object',()=>{
+  for(const selected of ['text','logo'])for(const axis of ['x','y']) {
+    const before=alignmentFixture(),patch=alignment.centerLayoutSelection(before,selected,true,axis,true);
+    const after=applyAlignment(before,patch),a=alignment.layoutSelectionBox(after,selected,true),b=alignment.layoutSelectionBox(before,selected,true);
+    near(axis==='x'?a.x+a.width/2:a.y+a.height/2,axis==='x'?1100:260,'Selected object center');
+    near(axis==='x'?a.y:a.x,axis==='x'?b.y:b.x,'Other axis remains in place');
+    if(selected==='text')assert.deepEqual(after.logoBox,before.logoBox); else near(after.textX,before.textX,'Text remains in place');
+  }
+});
+test('Composition centering and bounded dragging preserve the full distance between logo and lettering',()=>{
+  const before=alignmentFixture();
+  let centered=applyAlignment(before,alignment.centerLayoutSelection(before,'composition',true,'x',true));
+  centered=applyAlignment(centered,alignment.centerLayoutSelection(centered,'composition',true,'y',true));
+  const union=alignment.layoutSelectionBox(centered,'composition',true);
+  near(union.x+union.width/2,1100,'Composition X');near(union.y+union.height/2,260,'Composition Y');
+  near(centered.textX-centered.logoBox.x,before.textX-before.logoBox.x,'Horizontal spacing');
+  near(centered.textTop-centered.logoBox.y,before.textTop-before.logoBox.y,'Vertical spacing');
+  const moved=applyAlignment(before,alignment.moveLayoutSelection(before,'composition',true,5000,-5000,{constrainToPanel:true}).patch);
+  const movedUnion=alignment.layoutSelectionBox(moved,'composition',true);
+  near(movedUnion.x+movedUnion.width,2094,'Right fabrication margin');near(movedUnion.y,116,'Top fabrication margin');
+  near(moved.textX-moved.logoBox.x,before.textX-before.logoBox.x,'Bounded horizontal spacing');
+  near(moved.textTop-moved.logoBox.y,before.textTop-before.logoBox.y,'Bounded vertical spacing');
+});
+test('Drag snaps to each panel center only within its threshold; fine keyboard steps remain free',()=>{
+  const before=alignmentFixture(),box=alignment.layoutSelectionBox(before,'text',true);
+  const target=1100-box.x-box.width/2;
+  const snapped=alignment.moveLayoutSelection(before,'text',true,target+5,10,{constrainToPanel:true,snapTolerance:6});
+  assert.equal(snapped.snappedX,true);assert.equal(snapped.snappedY,false);
+  const centered=applyAlignment(before,snapped.patch);near(centered.textX+box.width/2,1100,'Snapped center');
+  const free=alignment.moveLayoutSelection(before,'text',true,target+7,10,{constrainToPanel:true,snapTolerance:6});
+  assert.equal(free.snappedX,false);near(applyAlignment(before,free.patch).textX+box.width/2,1107,'Outside snapping threshold');
+  const step=alignment.moveLayoutSelection(centered,'text',true,1,0,{constrainToPanel:true});
+  near(applyAlignment(centered,step.patch).textX,centered.textX+1,'One millimetre keyboard step');
+  assert.equal(alignment.moveLayoutSelection(before,'text',true,target+5,10,{constrainToPanel:true,snapTolerance:0}).snappedX,false);
+});
+test('Center commands recover clamped saved offsets and center the full real Cyrillic ink after layout recomputation',()=>{
+  const bytes=fs.readFileSync(new URL('../public/fonts/Manrope-Variable.ttf',import.meta.url));
+  const font=opentype.parse(bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+  const data=contours.combineLetterLines(['ДЦЩЙ','СВЕТ'].map(text=>contours.contoursFromFont(font,text,800)));
+  const config={height:110,logoEnabled:true,logoScale:90,logoShape:'circle',mountMode:'acp',letterOutlineEnabled:false,
+    text:'ДЦЩЙ\nСВЕТ',contours:data,textBox:data.mainBox,acpLayout:{faceWidth:2000,faceHeight:300},widthOverride:1000,
+    textOffsetX:5000,textOffsetY:-5000,logoOffsetX:-5000,logoOffsetY:5000,frameTopPosition:15,frameBottomPosition:15,frameEdgeInset:0};
+  const before=layout(config),xPatch=alignment.centerLayoutSelection(before,'text',true,'x',true);
+  const horizontal=layout({...config,...xPatch}),yPatch=alignment.centerLayoutSelection(horizontal,'text',true,'y',true);
+  const centered=layout({...config,...xPatch,...yPatch});
+  near(centered.textInkBox.x+centered.textInkBox.width/2,centered.panelBox.x+1000,'Real ink X');
+  near(centered.textInkBox.y+centered.textInkBox.height/2,centered.panelBox.y+150,'Real ink Y');
+  assert.deepEqual(centered.logoBox,before.logoBox,'Centering lettering does not move the logo');
+  const step=alignment.moveLayoutSelection(before,'text',true,-10,10,{constrainToPanel:true}).patch;
+  const dragged=layout({...config,...step});near(dragged.textX,before.textX-10,'Dragging starts from the visible constrained location');
+  const packed=layout({...config,...alignment.packLayoutComposition(before,true,true)});
+  near(packed.textInkBox.y+packed.textInkBox.height/2,packed.panelBox.y+150,'Packed Cyrillic ink Y');
+  near(packed.logoBox.y+packed.logoBox.height/2,packed.panelBox.y+150,'Packed logo Y');
+  near(packed.textInkBox.x-packed.logoBox.x-packed.logoBox.width,before.defaultTextX-before.defaultLogoX-before.logoBox.width,'Packed construction gap');
+  const packedBox=alignment.layoutSelectionBox(packed,'composition',true);near(packedBox.x+packedBox.width/2,packed.panelBox.x+1000,'Packed real composition X');
+  const restored=schema.validate({version:1,project:{logoOffsetX:75.123,textOffsetY:-35.456}});
+  assert.equal(restored.logoOffsetX,75.123);assert.equal(restored.textOffsetY,-35.456);
+});
+test('Composition selection without a logo centers only the lettering and does not invent logo offsets',()=>{
+  const before=alignmentFixture(),patch=alignment.centerLayoutSelection(before,'composition',false,'x',true);
+  assert.equal(patch.logoOffsetX,undefined);assert.equal(patch.logoOffsetY,undefined);
+  const after=applyAlignment(before,patch);near(after.textX+after.textWidth/2,1100,'Lettering center');
+  assert.deepEqual(after.logoBox,before.logoBox);
+});
+test('One-click assembly repairs a separated edge-to-edge composition with the standard gap and centered real ink',()=>{
+  const before=alignmentFixture();
+  const after=applyAlignment(before,alignment.packLayoutComposition(before,true,true));
+  const expectedGap=before.defaultTextX-before.defaultLogoX-before.logoBox.width;
+  near(after.textInkBox.x-after.logoBox.x-after.logoBox.width,expectedGap,'Standard row gap');
+  near(after.textInkBox.y+after.textInkBox.height/2,260,'Ink vertically centered');
+  near(after.logoBox.y+after.logoBox.height/2,260,'Logo vertically centered');
+  const union=alignment.layoutSelectionBox(after,'composition',true);near(union.x+union.width/2,1100,'Packed composition centered');
+  for(const box of [after.textInkBox,after.logoBox]) {
+    assert.ok(box.x>=106 && box.x+box.width<=2094);assert.ok(box.y>=116 && box.y+box.height<=404);
+  }
+  const onlyText=applyAlignment(before,alignment.packLayoutComposition(before,false,true));
+  near(onlyText.textInkBox.x+onlyText.textInkBox.width/2,1100,'No-logo X');near(onlyText.textInkBox.y+onlyText.textInkBox.height/2,260,'No-logo Y');
+});
 
 test('Saved neon and editor projects restore safely, while old projects receive compatible defaults',()=>{
   const old=schema.validate({version:1,project:{lettersText:'ЦВЕТЫ',letterFont:'Montserrat, sans-serif'}});
