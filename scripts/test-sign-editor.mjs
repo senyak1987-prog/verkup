@@ -11,7 +11,9 @@ function load(name, dependencies={}) {
   const compiled=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
   const exports={}; new Function('exports','require',compiled)(exports,key=>dependencies[key]??require(key)); return exports;
 }
-const backer=load('backerConstraints'), neon=load('neonConstruction'), system=load('systemFontContours');
+const neonFonts=load('neonFonts'),handwriting=load('neonHandwriting');
+const backer=load('backerConstraints'), neon=load('neonConstruction',{'./neonFonts':neonFonts,'./neonHandwriting':handwriting}), system=load('systemFontContours');
+for(const font of neonFonts.EXTERNAL_NEON_FONTS)neonFonts.registerNeonFont(font.id,fs.readFileSync(new URL('../public/neon-fonts/'+font.file,import.meta.url),'utf8'));
 const contours=load('letterContours',{'./glyphPath':load('glyphPath'),'./systemFontContours':system});
 const construction=load('letterConstruction');
 const source=fs.readFileSync(new URL('../src/components/SignProductConfigurator.tsx',import.meta.url),'utf8');
@@ -22,7 +24,7 @@ const schemaSource=source.slice(source.indexOf('const ORACAL_8500_COLORS'),sourc
   source.slice(source.indexOf('const DEFAULT_PROJECT'),source.indexOf('type ProjectState'))+
   source.slice(source.indexOf('const PROJECT_ENUMS'),source.indexOf('function loadSavedProject'));
 const schemaCompiled=ts.transpileModule(schemaSource,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
-const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker',schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker);
+const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS',schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker,neon.NEON_FONTS);
 
 test('Saved neon and editor projects restore safely, while old projects receive compatible defaults',()=>{
   const old=schema.validate({version:1,project:{lettersText:'ЦВЕТЫ',letterFont:'Montserrat, sans-serif'}});
@@ -75,8 +77,8 @@ test('Raster outline tracing preserves the hole and opposite contour winding',()
   assert.ok(signed[0]*signed[1]<0);
 });
 test('All neon alphabets and styles produce contained centerlines and 1 cm cuts',()=>{
-  for(const font of neon.NEON_FONTS) for(const diameter of [6,8]) for(const text of ['АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ','ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789','Город\nСВЕТ']) {
-    const design=neon.createNeonDesign(text,120,diameter,font.id);
+  for(const font of neon.NEON_FONTS) for(const diameter of [6,8]) for(const text of (font.cyrillic?['АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ','ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789','Город\nСВЕТ']:['Neon Coffee','ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'])) {
+    let design;try {design=neon.createNeonDesign(text,300,diameter,font.id);} catch(error){throw new Error(font.id+" "+diameter+" "+text+": "+error.message);}
     assert.equal(design.radius,diameter/2);
     for(const cut of design.cuts){assert.equal(cut.cutMm%10,0);assert.ok(cut.cutMm>=cut.visibleMm-.001);assert.ok(cut.hiddenTailMm<10.001);}
     for(const [x,y] of design.paths.flat()){assert.ok(x>=diameter/2-.01 && y>=diameter/2-.01); assert.ok(x<=design.width-diameter/2+.01 && y<=design.height-diameter/2+.01);}
@@ -94,8 +96,39 @@ test('Neon 3D has four 20 mm standoffs, a 3 mm transparent backer, and physical 
   for(const diameter of [6,8]) {
     const model=scene.createNeonModel({neonText:'СВЕТ',neonHeight:200,neonDiameter:diameter,neonFont:'rounded'},1000,350);
     assert.equal(model.children.filter(child=>child.name==='neon-standoff-20mm').length,4);
-    const plate=model.getObjectByName('transparent-acrylic-backer'); assert.equal(plate.geometry.parameters.depth,3); assert.ok(plate.material.transparent);
+    const plate=model.getObjectByName('transparent-acrylic-backer'); plate.geometry.computeBoundingBox(); assert.equal(plate.geometry.boundingBox.max.z-plate.geometry.boundingBox.min.z,3); assert.ok(plate.material.transparent);
     for(const tube of model.children.filter(child=>child.name==='neon-tube')) assert.equal(tube.geometry.parameters.radius,diameter/2);
     model.traverse(child=>{child.geometry?.dispose();if(child.material)for(const m of Array.isArray(child.material)?child.material:[child.material])m.dispose();});
+  }
+});
+
+test('Every neon font supports its stated alphabet at the allowed size extremes without silent substitution',()=>{
+  for(const font of neon.NEON_FONTS)for(const diameter of [6,8])for(const height of [120,800]) {
+    const design=neon.createNeonDesign(font.cyrillic?'Город Свет':'Neon Coffee',height,diameter,font.id);
+    assert.ok(design.paths.length && design.cuts.every(c=>Number.isFinite(c.cutMm)&&c.cutMm%10===0),font.id);
+    if(!font.cyrillic)assert.throws(()=>neon.createNeonDesign('Свет',height,diameter,font.id),/не содержит/);
+  }
+});
+test('All transparent backer shapes enclose the tubing and place holders inside the same outline used in 3D',()=>{
+  const inside=(p,polygon)=>{let result=false;for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){const a=polygon[i],b=polygon[j];if((a[1]>p[1])!==(b[1]>p[1])&&p[0]<(b[0]-a[0])*(p[1]-a[1])/(b[1]-a[1])+a[0])result=!result;}return result;};
+  for(const font of neon.NEON_FONTS) {
+    const design=neon.createNeonDesign(font.cyrillic?'Город\nСвет':'Neon\nCoffee',200,8,font.id),w=design.width+60,h=design.height+60;
+    for(const shape of ['rectangle','rounded','contour']) {
+      const outline=neon.neonBackerOutline(design,w,h,shape);
+      for(const [x,y] of design.paths.flat()) assert.ok(inside([x+30,y+30],outline),font.id+' '+shape);
+      for(const p of neon.neonHolderPositions(outline,w,h))assert.ok(inside(p,outline),font.id+' holder '+shape);
+    }
+  }
+});
+test('The same four facade compositions render in 2D and as a separate rotatable 3D assembly',()=>{
+  const facade=load('signFacade'),threeFacade=load('signFacade3D',{three:THREE,'./signFacade':facade});
+  assert.equal(threeFacade.createFacadeModel('none',1000,300).children.length,0);
+  for(const place of facade.SIGN_PLACEMENTS.filter(p=>p.id!=='none')) {
+    const svg=facade.createFacadeSvg(place.id,'<svg viewBox="0 0 100 100"><path id="face" d="M0 0H100"/></svg>',true);
+    assert.match(svg,/main-facade-face/);assert.doesNotMatch(svg,/NaN|undefined|Infinity/);
+    const model=threeFacade.createFacadeModel(place.id,1000,300);
+    assert.equal(model.children.length,facade.facadeRects(place.id,false).length);
+    assert.ok(model.getObjectByName('facade-wall').receiveShadow);
+    model.traverse(child=>{child.geometry?.dispose();child.material?.dispose();});
   }
 });
