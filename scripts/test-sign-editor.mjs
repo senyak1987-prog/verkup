@@ -37,6 +37,22 @@ test('Saved neon and editor projects restore safely, while old projects receive 
     assert.throws(()=>schema.validate({version:1,project}));
 });
 
+test('Panel mounting restores a compatible wall default and validates the saved building-corner option',()=>{
+  const old=schema.validate({version:1,project:{productId:'panel',panelSize:500}});
+  assert.equal(old.panelMountMode,'wall','Existing projects keep the wall installation');
+  for(const mode of ['wall','corner']) {
+    const saved=schema.validate({version:1,project:{productId:'panel',panelMountMode:mode,panelSize:500,panelDepth:60,panelWallGap:120}});
+    assert.equal(saved.panelMountMode,mode);
+    assert.equal(saved.panelSize,500);
+    assert.equal(saved.panelDepth,60);
+    assert.equal(saved.panelWallGap,120);
+  }
+  for(const mode of ['parallel','roof','',0,null])
+    assert.throws(()=>schema.validate({version:1,project:{productId:'panel',panelMountMode:mode}}),'Unsupported attachment modes must not silently change the mounting geometry');
+  const deepCorner=schema.validate({version:1,project:{productId:'panel',panelMountMode:'corner',panelDepth:160,panelWallGap:60}});
+  assert.equal(deepCorner.panelWallGap,100,'The restored wall-gap control reports the actual thickness-dependent construction clearance');
+});
+
 test('ACP fabrication limits include both depths and returns at every supported depth',()=>{
   for(const depth of [30,50,100]) {
     const bounded=backer.constrainBacker(20000,10000,depth);
@@ -122,7 +138,7 @@ test('All transparent backer shapes enclose the tubing and place holders inside 
   }
 });
 test('The same four facade compositions render in 2D and as a separate rotatable 3D assembly',()=>{
-  const facade=load('signFacade'),threeFacade=load('signFacade3D',{three:THREE,'./signFacade':facade});
+  const panelMount=load('panelConstruction'),facade=load('signFacade',{'./panelConstruction':panelMount}),threeFacade=load('signFacade3D',{three:THREE,'./signFacade':facade,'./panelConstruction':panelMount});
   assert.equal(threeFacade.createFacadeModel('none',1000,300).children.length,0);
   for(const place of facade.SIGN_PLACEMENTS.filter(p=>p.id!=='none')) {
     const svg=facade.createFacadeSvg(place.id,'<svg viewBox="0 0 100 100"><path id="face" d="M0 0H100"/></svg>',true);

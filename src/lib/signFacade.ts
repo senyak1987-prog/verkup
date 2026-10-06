@@ -15,7 +15,7 @@ export type FacadePalette = typeof FACADE_PALETTES[number]['id'];
 export const FACADE_SIGN_ANCHOR = { x: 3900, y: 800 } as const;
 export const FACADE_VIEWBOX = { x: 0, y: 0, width: 7800, height: 4050 } as const;
 export type FacadeSignBox = { x: number; y: number; width: number; height: number };
-export type FacadeOptions = { palette?: FacadePalette; signBackMm?: number; signBox?: FacadeSignBox };
+export type FacadeOptions = { palette?: FacadePalette; signBackMm?: number; signBox?: FacadeSignBox; panelMount?: ReturnType<typeof panelMountLayout> };
 export type FacadeRect = {
   x: number; y: number; w: number; h: number; color: string;
   /** Millimetres. Front surface relative to the sign mounting surface. */
@@ -140,7 +140,7 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
   if (place === 'none') return markup;
   const safePrefix = prefix.replace(/[^a-zA-Z0-9_-]/g, '-');
   const palette = options.palette ?? 'stone', c = FACADE_COLORS[palette];
-  const rects = facadeRects(place, night, options);
+  const rects = facadeRects(place, night, options).filter(r=>!options.panelMount||!['sign-mounting-band','sign-band-bottom','canopy-sign-upright'].includes(r.name??''));
   const glass = night ? ['#bba078', '#75674e', '#d6bc8c'] : ['#5e7d8e', '#8498a0', '#354c5a'];
   const defs = `<defs>
     <linearGradient id="${safePrefix}-glass" x1="0" y1="0" x2=".9" y2="1"><stop stop-color="${glass[0]}"/><stop offset=".47" stop-color="${glass[1]}"/><stop offset="1" stop-color="${glass[2]}"/></linearGradient>
@@ -155,6 +155,7 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
     if (r.kind === 'glass') return `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="url(#${safePrefix}-glass)"/><path d="M${r.x + r.w * .17} ${r.y}L${r.x + r.w * .50} ${r.y + r.h}M${r.x + r.w * .26} ${r.y}L${r.x + r.w * .59} ${r.y + r.h}" stroke="${night ? '#fff2cf' : '#dce5e8'}" stroke-width="${r.w * .055}" opacity="${night ? '.045' : '.09'}"/>`;
     return `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="${r.color}" data-facade-part="${r.name}"${r.kind === 'lamp' ? ' rx="7"' : ''}/>`;
   }).join('');
+  if(options.panelMount) return createPanelFacadeSvg(place,markup,night,safePrefix,options,defs,rendered);
   const view = markup.match(/\bviewBox=["']([^"']+)["']/)?.[1].trim().split(/[\s,]+/).map(Number);
   const [vx, vy, vw, vh] = view?.length === 4 && view.every(Number.isFinite) && view[2] > 0 && view[3] > 0 ? view : [0, 0, 1800, 300];
   const signBox = options.signBox ?? { x: vx, y: vy, width: vw, height: vh };
@@ -167,3 +168,50 @@ export function createFacadeSvg(place: SignPlacement, markup: string, night: boo
   const width = Math.max(FACADE_VIEWBOX.width, x + vw) - left, height = Math.max(FACADE_VIEWBOX.height, y + vh) - top;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${left} ${top} ${width} ${height}" data-facade-mm="true" role="img" aria-label="Размещение: ${SIGN_PLACEMENTS.find(p => p.id === place)?.title}. Дверь 1100 на 2100 мм${place === 'canopy' ? ', козырёк с выносом 1500 мм' : ''}">${defs}${rendered}${inner}</svg>`;
 }
+
+/** Axonometric construction view, using the same wall planes and panel pose as WebGL. */
+function createPanelFacadeSvg(place:SignPlacement,markup:string,night:boolean,prefix:string,options:FacadeOptions,defs:string,facade:string) {
+  const mount=options.panelMount!,box=options.signBox??{x:0,y:0,width:mount.size,height:mount.size};
+  const n=(v:number)=>Number(v.toFixed(3));
+  const project=([x,y,z]:[number,number,number])=>[.94*x-.342*z,-y+.041*x+.113*z];
+  const rename=(value:string)=>value.replace(/id="([^"]+)"/g,(_a,id:string)=>`id="${prefix}-panel-${id}"`).replace(/url\(#([^\)]+)\)/g,(_a,id:string)=>`url(#${prefix}-panel-${id})`);
+  const artwork=rename(markup.match(/<!--panel-face-start-->([\s\S]*?)<!--panel-face-end-->/)?.[1]??'');
+  const faceDefs=rename(markup.match(/<defs>[\s\S]*?<\/defs>/)?.[0]??'');
+  const corner=mount.mode==='corner',anchorX=corner?7800:FACADE_SIGN_ANCHOR.x;
+  const front=`<g data-mount-wall="front" transform="matrix(.94 .041 0 1 ${n(-.94*anchorX)} ${n(-FACADE_SIGN_ANCHOR.y-.041*anchorX)})">${facade}</g>`;
+  const side=corner?`<g data-mount-wall="side" transform="matrix(.342 -.113 0 1 0 ${-FACADE_SIGN_ANCHOR.y})">${facade}</g>`:'';
+  const c=Math.cos(mount.rotationY),s=Math.sin(mount.rotationY),back=mount.mode==='wall',z=back?0:mount.depth;
+  const origin=project(panelMountPoint(mount,[0,0,z]));
+  const vector=project([c,0,-s]),centerX=box.x+box.width/2,centerY=box.y+box.height/2;
+  // The visible reverse face carries its own artwork, rather than mirrored front artwork.
+  const a=back?-vector[0]:vector[0],b=back?-vector[1]:vector[1];
+  const face=`<g data-panel-face-world="${back?'back':'front'}" transform="matrix(${n(a)} ${n(b)} 0 1 ${n(origin[0]-a*centerX)} ${n(origin[1]-b*centerX-centerY)})">${artwork}</g>`;
+  const steel=night?'#7c8b97':'#34414a';
+  const supports=[...mount.arms,...mount.ties].map(segment=>{
+    const start=panelMountPoint(mount,segment.start),end=panelMountPoint(mount,segment.end),p=project(start),q=project(end);
+    return `<path data-panel-support="true" data-world-start="${start.map(n).join(' ')}" data-world-end="${end.map(n).join(' ')}" d="M${p.map(n).join(' ')}L${q.map(n).join(' ')}" stroke="${steel}" stroke-width="${mount.armProfile}" fill="none"/>`;
+  }).join('');
+  const plates=mount.plates.map(plate=>{
+    const tangent=[-plate.normal[2]*mount.plateWidth/2,0,plate.normal[0]*mount.plateWidth/2];
+    const points=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([u,v])=>project(panelMountPoint(mount,[plate.center[0]+u*tangent[0],plate.center[1]+v*mount.plateHeight/2,plate.center[2]+u*tangent[2]])));
+    return `<polygon data-mount-plane="${plate.wall}" points="${points.map(p=>p.map(n).join(',')).join(' ')}" fill="${steel}"/>`;
+  }).join('');
+  const half=mount.size/2,r=mount.shape==='circle'?half:mount.radius;
+  const outline=mount.shape==='square'||!r?[[-half,-half],[half,-half],[half,half],[-half,half]]:Array.from({length:64},(_,i)=>{
+    const angle=i*Math.PI/32,x=Math.cos(angle),y=Math.sin(angle);return [Math.sign(x)*(half-r)+r*x,Math.sign(y)*(half-r)+r*y];
+  });
+  const physical=outline.flatMap(([x,y])=>[project(panelMountPoint(mount,[x,y,0])),project(panelMountPoint(mount,[x,y,mount.depth]))]);
+  const sorted=physical.sort((p,q)=>p[0]-q[0]||p[1]-q[1]);
+  const cross=(o:number[],p:number[],q:number[])=>(p[0]-o[0])*(q[1]-o[1])-(p[1]-o[1])*(q[0]-o[0]);
+  const lower:number[][]=[],upper:number[][]=[];
+  for(const p of sorted){while(lower.length>=2&&cross(lower[lower.length-2],lower[lower.length-1],p)<=0)lower.pop();lower.push(p);}
+  for(const p of [...sorted].reverse()){while(upper.length>=2&&cross(upper[upper.length-2],upper[upper.length-1],p)<=0)upper.pop();upper.push(p);}
+  const hull=[...lower.slice(0,-1),...upper.slice(0,-1)];
+  const body=`<polygon data-panel-housing="true" points="${hull.map(p=>p.map(n).join(',')).join(' ')}" fill="${night?'#35414a':'#45525c'}"/>`;
+  const bounds=[...physical,...[[corner?-7800:-3900,800,0],[corner?0:3900,800,0],[corner?0:3900,-3250,0],[corner?-7800:-3900,-3250,0]].map(p=>project(p as [number,number,number])),...(corner?[[0,800,-7800],[0,-3250,-7800]].map(p=>project(p as [number,number,number])):[])];
+  const left=Math.min(...bounds.map(p=>p[0]))-180,top=Math.min(...bounds.map(p=>p[1]))-120;
+  const width=Math.max(...bounds.map(p=>p[0]))-left+180,height=Math.max(...bounds.map(p=>p[1]))-top+160;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${[left,top,width,height].map(n).join(' ')}" data-facade-mm="true" data-panel-mount="${mount.mode}" data-panel-pose="${[mount.rotationY,mount.position.x,mount.position.y,mount.position.z].map(n).join(' ')}" role="img" aria-label="Панель-кронштейн ${corner?'на наружном углу здания':'перпендикулярно стене'}, дверь 1100 на 2100 мм">${defs}${faceDefs}${side}${front}${plates}${supports}${body}${face}</svg>`;
+}
+import { panelMountPoint } from './panelConstruction';
+import type { panelMountLayout } from './panelConstruction';
