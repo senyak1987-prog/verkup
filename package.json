@@ -21,10 +21,12 @@
     "worker:deploy": "npx --yes wrangler@4.97.0 deploy --config worker/wrangler.toml",
     "test:letter-construction": "node scripts/test-letter-construction.mjs",
     "test:panel-construction": "node scripts/test-panel-construction.mjs",
-    "test:sign-editor": "node scripts/test-sign-editor.mjs"
+    "test:sign-editor": "node scripts/test-sign-editor.mjs",
+    "test:font-surfaces": "node scripts/test-font-surfaces.mjs"
   },
   "dependencies": {
     "framer-motion": "^12.41.0",
+    "libtess": "1.2.2",
     "lucide-react": "^0.468.0",
     "opentype.js": "^2.0.0",
     "react": "^18.3.1",

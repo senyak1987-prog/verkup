@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { loadLetterContours } from "./letterContours";
+import { filledGlyphShapes } from "./glyphShapes";
 import { createNeonModel } from "./neonScene";
 import { panelConstruction } from "./panelConstruction";
 
@@ -216,7 +217,7 @@ async function glyphData(project: SignSceneProject, layout: SignSceneLayout): Pr
   const cached = glyphCache.get(key); if (cached) return cached;
   const data = new SVGLoader().parse('<svg xmlns="http://www.w3.org/2000/svg"><path fill="#ffffff" d="' + contours.pathData + '" /></svg>');
   const result = { pathData: contours.pathData, box: { x1: box.x, y1: box.y, x2: box.x + box.width, y2: box.y + box.height },
-    shapes: data.paths.flatMap(shapePath => shapePath.toShapes()) };
+    shapes: filledGlyphShapes(data.paths) };
   if (glyphCache.size >= 24) glyphCache.delete(glyphCache.keys().next().value!);
   glyphCache.set(key, result);
   return result;
