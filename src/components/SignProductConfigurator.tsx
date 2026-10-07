@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, ChevronRight, Download, Eraser, FolderOpen, ImagePlus, Lightbulb, Maximize, Minus, Moon, Plus, Power, RotateCcw, Save, Settings2, ShoppingCart, Sun, Type, Upload, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Download, Eraser, FolderOpen, ImagePlus, Lightbulb, Maximize, Minus, Moon, Plus, Power, RotateCcw, Save, Settings2, ShoppingCart, Sun, Type, Upload, X } from "lucide-react";
 import { Component, createContext, lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 import { createPanelSvgMarkup, panelSvgFaceBox } from "../lib/signPanelExport";
@@ -723,63 +723,49 @@ export function SignProductConfigurator() {
     return () => { cancelAnimationFrame(frame); observer.disconnect(); changes.disconnect(); };
   }, [viewMode, placement, productId]);
   const previewTranslation = signZoomTranslation(previewFocus, previewFocus, zoom / 100);
-  const revealPreviewFrame = useRef(0);
-  const revealPreview = () => {
-    cancelAnimationFrame(revealPreviewFrame.current);
-    revealPreviewFrame.current = requestAnimationFrame(() => {
-      revealPreviewFrame.current = requestAnimationFrame(() => {
-        const host = workspaceRef.current; if (!host) return;
-        const bounds = host.getBoundingClientRect(), height = window.visualViewport?.height ?? window.innerHeight;
-        const edge = window.matchMedia("(max-width: 767px)").matches ? 0 : 12;
-        if (bounds.height <= height - edge * 2 && (bounds.top < edge || bounds.bottom > height - edge))
-          host.scrollIntoView({ block: "start", behavior: "instant" });
-      });
-    });
-  };
-  useEffect(() => () => cancelAnimationFrame(revealPreviewFrame.current), []);
   useEffect(()=>{const host=workspaceRef.current;if(!host||viewMode!=="2d")return;const wheel=(event:WheelEvent)=>{if(!(event.target as Element).closest(".builder-preview"))return;event.preventDefault();setZoom(value=>Math.max(25,Math.min(400,Math.round(value*Math.exp(-event.deltaY*.0015)))));};host.addEventListener("wheel",wheel,{passive:false});return()=>host.removeEventListener("wheel",wheel);},[viewMode]);
-  const [previewBounds, setPreviewBounds] = useState(() => {
-    const width = Math.max(1, Math.min(600, window.innerWidth - 32, (window.innerHeight - 180) * 1.5));
-    const previewHeight = width / 1.5;
-    return { width, previewHeight, height: previewHeight + 180, sticky: true };
-  });
+  const [previewBounds, setPreviewBounds] = useState({ width: 600, previewHeight: 400 });
   useEffect(() => {
+    const surface = workspaceRef.current?.querySelector<HTMLElement>(".studio-preview-surface");
+    if (!surface) return;
     let frame = 0;
     const update = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        const host = workspaceRef.current; if (!host) return;
-        const mobile = window.matchMedia("(max-width: 767px)").matches;
-        const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-        const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-        const style = getComputedStyle(host);
-        const borders = (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0);
-        const rows = Array.from(host.children).filter(child => !child.classList.contains("builder-preview"));
-        const chromeHeight = rows.reduce((height, row) => height + row.getBoundingClientRect().height, borders) +
-          (parseFloat(style.rowGap) || 0) * rows.length;
-        const availableWidth=parseFloat(getComputedStyle(host.parentElement!).gridTemplateColumns) || host.parentElement!.clientWidth;
-        // Width follows the available browser column; viewport height must not create side gutters.
-        const width = Math.max(1, Math.floor(Math.min(availableWidth-2, viewportWidth-16)));
+        // The canvas fits the space left by the tools, without moving the page or changing its 3:2 ratio.
+        const width = Math.max(1, Math.min(surface.clientWidth, surface.clientHeight * 1.5));
         const previewHeight = width / 1.5;
-        const height = previewHeight + chromeHeight;
-        // A full-width 3:2 canvas can exceed a short viewport: keep its controls reachable by scrolling.
-        const sticky = height <= viewportHeight - (mobile ? 120 : 24);
-        setPreviewBounds(previous => previous.width === width && previous.previewHeight === previewHeight && previous.height === height && previous.sticky === sticky
-          ? previous : { width, previewHeight, height, sticky });
+        setPreviewBounds(previous => Math.abs(previous.width - width) + Math.abs(previous.previewHeight - previewHeight) < .1
+          ? previous : { width, previewHeight });
       });
     };
-    const host = workspaceRef.current;
     const observer = new ResizeObserver(update);
-    if (host) {
-      observer.observe(host);
-      if (host.parentElement) observer.observe(host.parentElement);
-      for (const row of Array.from(host.children)) if (!row.classList.contains("builder-preview")) observer.observe(row);
-    }
+    observer.observe(surface);
     update();
-    window.addEventListener("resize", update);
-    window.visualViewport?.addEventListener("resize", update);
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); window.removeEventListener("resize", update); window.visualViewport?.removeEventListener("resize", update); };
-  }, [editing, viewMode, project.productId]);
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); };
+  }, []);
+  const fileMenuRef = useRef<HTMLDetailsElement>(null);
+  const cartToggleRef = useRef<HTMLButtonElement>(null);
+  const cartCloseRef = useRef<HTMLButtonElement>(null);
+  const closeFileMenu = (restoreFocus = false) => {
+    fileMenuRef.current?.removeAttribute("open");
+    if (restoreFocus) fileMenuRef.current?.querySelector("summary")?.focus();
+  };
+  const closeCart = () => { setCartOpen(false); cartToggleRef.current?.focus(); };
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      if (!fileMenuRef.current?.contains(event.target as Node)) closeFileMenu();
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (fileMenuRef.current?.open) { closeFileMenu(); fileMenuRef.current?.querySelector("summary")?.focus(); }
+      else if (cartOpen) { setCartOpen(false); cartToggleRef.current?.focus(); }
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
+  }, [cartOpen]);
+  useEffect(() => { if (cartOpen) cartCloseRef.current?.focus(); }, [cartOpen]);
   const [saveStatus, setSaveStatus] = useState("Сохранено на устройстве");
   const projectFileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -956,8 +942,6 @@ export function SignProductConfigurator() {
   }
 
   const visualStyle = {
-    "--workspace-height": `${previewBounds.height}px`,
-    "--workspace-sticky-offset": previewBounds.sticky ? `${previewBounds.height}px` : "0px",
     "--face-color": currentFaceColor.value,
     "--side-color": currentSideColor.value,
     "--outline-color": outlineColor.value,
@@ -1096,22 +1080,27 @@ export function SignProductConfigurator() {
         </a>
         <div className="studio-header-meta"><Check size={14} /><span role="status">{saveStatus}</span></div>
         <div className="studio-actions">
-          <button className="studio-button studio-reset-all" type="button" onClick={handleResetSettings} title="Сбросить надписи, изображения, размеры, материалы и настройки просмотра к исходным значениям"><RotateCcw size={16} /><span>Сбросить всё</span></button>
+          <button className="studio-button studio-reset-all" type="button" aria-label="Сбросить всё" onClick={handleResetSettings} title="Сбросить надписи, изображения, размеры, материалы и настройки просмотра к исходным значениям"><RotateCcw size={16} /><span className="studio-action-label">Сбросить всё</span></button>
           <input hidden ref={projectFileRef} type="file" accept=".json,application/json" onChange={event => void handleOpenProject(event)} />
-          <button className="studio-button" type="button" onClick={() => projectFileRef.current?.click()}><FolderOpen size={16} /><span>Открыть</span></button>
-          <button className="studio-button" type="button" onClick={handleSaveProject}><Save size={16} /><span>Сохранить проект</span></button>
-          <button className="studio-button" type="button" onClick={handleExportVector} disabled={!canOutputSign}><Download size={16} /><span>SVG</span></button>
-          <button className="studio-button primary" type="button" onClick={() => void handleExportPdf()} disabled={!canOutputSign} title="Плоский векторный макет 1:1: буквы, рама и контуры подложки"><Download size={16} /><span>Сохранить PDF</span></button>
-          <button className="studio-button studio-cart-toggle" type="button" aria-expanded={cartOpen} aria-controls="sign-cart" onClick={() => setCartOpen(value => !value)}><ShoppingCart size={17} /><span>Корзина</span><span className="cart-count">{cartQuantity}</span></button>
+          <details className="studio-file-menu" ref={fileMenuRef}>
+            <summary className="studio-button"><FolderOpen size={16} /><span>Файлы</span><ChevronDown size={14} /></summary>
+            <div className="studio-file-menu-items">
+              <button className="studio-button" type="button" onClick={() => { closeFileMenu(true); projectFileRef.current?.click(); }}><FolderOpen size={16} /><span>Открыть проект</span></button>
+              <button className="studio-button" type="button" onClick={() => { closeFileMenu(true); handleSaveProject(); }}><Save size={16} /><span>Сохранить проект</span></button>
+              <button className="studio-button" type="button" onClick={() => { closeFileMenu(true); handleExportVector(); }} disabled={!canOutputSign}><Download size={16} /><span>Сохранить SVG</span></button>
+            </div>
+          </details>
+          <button className="studio-button primary" type="button" aria-label="Сохранить PDF" onClick={() => void handleExportPdf()} disabled={!canOutputSign} title="Плоский векторный макет 1:1: буквы, рама и контуры подложки"><Download size={16} /><span className="studio-action-label">Сохранить PDF</span></button>
+          <button ref={cartToggleRef} className="studio-button studio-cart-toggle" type="button" aria-label={`Корзина ${cartQuantity}`} aria-expanded={cartOpen} aria-controls="sign-cart" onClick={() => setCartOpen(value => !value)}><ShoppingCart size={17} /><span className="studio-action-label">Корзина</span><span className="cart-count">{cartQuantity}</span></button>
         </div>
       </header>
       {notice && <div className="studio-notice" role="status"><span>{notice}</span><button type="button" aria-label="Закрыть сообщение" onClick={() => setNotice("")}><X size={16} /></button></div>}
-      {cartOpen && <div><SignCart items={cart.items} onQuantityChange={cart.updateQuantity} onRemove={cart.removeItem} onClear={cart.clear} error={cart.error} onDismissError={cart.dismissError} onEdit={item => {
-        try { setProject(validateProject({ version: 1, project: item.project })); setActiveSection("design"); setZoom(100); setCartOpen(false); setNotice("Макет открыт из корзины. Изменения можно добавить отдельной позицией."); }
+      {cartOpen && <aside className="studio-cart-panel" aria-label="Корзина макетов"><button ref={cartCloseRef} className="studio-cart-close studio-button" type="button" aria-label="Закрыть корзину" onClick={closeCart}><X size={16} /></button><SignCart items={cart.items} onQuantityChange={cart.updateQuantity} onRemove={cart.removeItem} onClear={cart.clear} error={cart.error} onDismissError={cart.dismissError} onEdit={item => {
+        try { setProject(validateProject({ version: 1, project: item.project })); setActiveSection("design"); setZoom(100); closeCart(); setNotice("Макет открыт из корзины. Изменения можно добавить отдельной позицией."); }
         catch { setNotice("Этот проект не удалось открыть. Остальные позиции корзины доступны."); }
-      }} /></div>}
+      }} /></aside>}
       {cart.error && !cartOpen && <div className="studio-notice" role="alert">{cart.error}<button type="button" aria-label="Закрыть ошибку корзины" onClick={cart.dismissError}><X size={16} /></button></div>}
-      <div className="studio-heading"><div><h1>Конструктор вывесок</h1><p>Создайте макет с размерами. Затем примерьте вывеску и кронштейн на фасаде в 3D.</p></div><span>Город Свет<ArrowUpRight size={16} /></span></div>
+      <div className="studio-heading"><div><h1>Конструктор вывесок</h1><p>Создайте макет с размерами. Затем примерьте вывеску и кронштейн на фасаде в 3D.</p></div></div>
       <section className="product-tabs" aria-label="Тип вывески">
         {[...PRODUCTS].reverse().map(product => <button type="button" key={product.id} aria-pressed={productId === product.id} className={productId === product.id ? "active" : ""} onClick={() => { setProductId(product.id); setActiveSection("design"); setZoom(100); }}>
           {product.id === "letters" ? <Type size={24} /> : <Maximize size={24} />}
@@ -1120,7 +1109,110 @@ export function SignProductConfigurator() {
       </section>
       <section className="sign-builder-layout">
 
-        <aside className="builder-controls" id="studio-controls" aria-label="Настройки вывески">
+        <section ref={workspaceRef} style={{ "--preview-width": `${previewBounds.width}px`, "--preview-height": `${previewBounds.previewHeight}px` } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет">
+          <header className="canvas-toolbar"><div className="canvas-title"><strong>Предпросмотр</strong><span>{sceneMode === "day" ? "Дневное освещение" : "Ночное освещение"}</span></div>
+            <button type="button" className={"sign-power-switch "+(project.lightsOn?'on':'off')} role="switch" aria-checked={project.lightsOn} aria-label="Свет вывески" title={project.lightsOn?'Выключить свет вывески':'Включить свет вывески'} onClick={()=>patchProject({lightsOn:!project.lightsOn})}><Power size={15}/><span className="power-caption">Свет</span><span className="power-lever" aria-hidden="true"/><span className="power-state">{project.lightsOn?'Вкл':'Выкл'}</span></button>
+            <div className={"scene-switch " + sceneMode} role="group" aria-label="Режим визуализации">
+              <span className="celestial-track" aria-hidden="true"><Sun className="celestial-sun" size={19}/><Moon className="celestial-moon" size={19}/></span>
+              <button type="button" aria-pressed={sceneMode === "day"} className={sceneMode === "day" ? "active" : ""} onClick={() => setSceneMode("day")}><Sun size={16} />День</button>
+              <button type="button" aria-pressed={sceneMode === "night"} className={sceneMode === "night" ? "active" : ""} onClick={() => setSceneMode("night")}><Moon size={16} />Ночь</button>
+            </div><div className="canvas-tools"><button type="button" aria-label="Уменьшить макет" disabled={zoom <= 25} onClick={() => setZoom(value => Math.max(25, value - 10))}><Minus size={16} /></button><span className="zoom-value" title="100% — масштаб после подгонки">{zoom}%</span><button type="button" aria-label="Увеличить макет" disabled={zoom >= 400} onClick={() => setZoom(value => Math.min(400, value + 10))}><Plus size={16} /></button><button type="button" aria-label="Подогнать макет" onClick={handleFitPreview}><Maximize size={16} /></button></div>
+          </header>
+          <div className="canvas-mode-toolbar">
+            <div className="view-switch" role="group" aria-label="Вид макета"><button type="button" aria-pressed={viewMode === "2d"} className={viewMode === "2d" ? "active" : ""} onClick={() => { setViewMode("2d"); setZoom(100); setPlacement('none'); setEditing(true); }} aria-label="Конструктор · 2D"><span className="view-caption">Конструктор · </span>2D</button><button type="button" aria-pressed={viewMode === "3d"} className={viewMode === "3d" ? "active" : ""} onClick={() => { setViewMode("3d"); setZoom(100); setEditing(false); if (placement === 'none') setPlacement('windows'); }} aria-label="Примерка · 3D"><span className="view-caption">Примерка · </span>3D</button></div>
+            {productId !== "panel" && viewMode === "2d" && <button className={"editor-toggle " + (editing ? "active" : "")} type="button" aria-label="Редактировать макет" title="Редактировать макет" aria-pressed={editing} onClick={() => { setPlacement("none"); setEditing(!editing); }}><Settings2 className="mobile-editor-icon" size={16}/><span className="editor-caption">Редактировать макет</span></button>}
+            <label className="placement-select"><span>Размещение</span><select aria-label="Размещение в основном просмотре" value={placement} onChange={e=>{setPlacement(e.target.value as SignPlacement);setEditing(false);}}>{SIGN_PLACEMENTS.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
+            <label className="dimensions-toggle" onMouseDown={event => event.preventDefault()}><input type="checkbox" checked={showDimensions} onChange={event => setShowDimensions(event.target.checked)} />Размеры</label>
+          </div>
+          {viewMode === '3d' && placement !== 'none' && <div className="facade-context-toolbar" role="group" aria-label="Общий вид фасада">
+            <label><input type="checkbox" checked={showFacadeSign} onChange={event => setShowFacadeSign(event.target.checked)} />{productId === 'neon' ? 'Неоновая вывеска' : 'Вывеска'}</label>
+            <label><input type="checkbox" checked={showFacadePanel} onChange={event => setShowFacadePanel(event.target.checked)} />Панель-кронштейн</label>
+            <label><input type="checkbox" checked={showScalePerson} onChange={event => setShowScalePerson(event.target.checked)} />Человек 175 см</label>
+            <span>Параметры каждого изделия — в его вкладке</span>
+          </div>}
+          {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar layout-alignment-toolbar" aria-label="Выбор и выравнивание объектов макета">
+            <button className="layout-pack-button" type="button" title="Собрать логотип и надпись в ряд с обычным промежутком и центрировать по обеим осям" disabled={fontPending} onClick={packLayout}>Собрать и центрировать</button>
+            <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => setLayoutSelection(event.target.value as LayoutObject)}><option value="text">Все строки</option>{lineSettings.filter(row=>row.text.trim()).map(row=><option key={row.index} value={`line-${row.index}`}>Строка {row.index+1}</option>)}<option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
+            <div className="alignment-actions" role="group" aria-label={mountMode === "acp" ? "Центрирование по подложке" : "Центрирование по макету"}>
+              <button type="button" title={mountMode === "acp" ? "По центру подложки по горизонтали" : "По центру макета по горизонтали"} disabled={fontPending} onClick={() => alignLayoutSelection("x")}><AlignHorizontalJustifyCenter size={16}/>Центр X</button>
+              <button type="button" title={mountMode === "acp" ? "По центру подложки по вертикали" : "По центру макета по вертикали"} disabled={fontPending} onClick={() => alignLayoutSelection("y")}><AlignVerticalJustifyCenter size={16}/>Центр Y</button>
+            </div>
+            <span className="alignment-reference">{mountMode === "acp" ? "По подложке" : "По макету"}</span>
+            <button type="button" aria-label="Отменить изменение макета" title="Отменить изменение макета (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={16}/></button>
+            <button type="button" disabled={!!project.secondLineText.trim()&&!!project.thirdLineText.trim()} onClick={addLetterLine}>+ Строка ниже</button>
+            <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
+          </div>}
+          {productId === "neon" && viewMode === "2d" && editing && <div className="editor-toolbar neon-inline-toolbar" aria-label="Настройки выбранной строки на макете">
+            <label><span>Строка</span><select aria-label="Выбранная строка на макете" value={selectedNeonLine} onChange={event=>setSelectedNeonLine(Number(event.target.value))}>{project.neonText.split('\n').map((_,index)=><option key={index} value={index}>{index+1}</option>)}</select></label>
+            <label><span>Шрифт</span><select aria-label="Шрифт выбранной строки" value={project.neonLineFonts[selectedNeonLine]||project.neonFont} onChange={event=>patchProject({neonLineFonts:Array.from({length:3},(_,index)=>index===selectedNeonLine?event.target.value:project.neonLineFonts[index]||project.neonFont)})}>{NEON_FONTS.map(font=><option key={font.id} value={font.id} disabled={neonUnsupportedCharacters(project.neonText.split('\n')[selectedNeonLine]||'',font.id).length>0}>{font.label}</option>)}</select></label>
+            <input type="color" aria-label="Цвет выбранной строки" value={project.neonLineColors[selectedNeonLine]||project.neonColor} onChange={event=>patchProject({neonLineColors:Array.from({length:3},(_,index)=>index===selectedNeonLine?event.target.value:project.neonLineColors[index]||project.neonColor)})}/>
+            <button type="button" onClick={()=>patchProject({neonLineOffsets:Array.from({length:3},(_,index)=>index===selectedNeonLine?{x:0,y:0}:project.neonLineOffsets[index]||{x:0,y:0})})}>Центровать</button>
+          </div>}
+        <div className="studio-preview-surface"><section
+          className={`builder-preview ${sceneMode} glow-${glowMode} view-mode-${viewMode}`}
+          aria-label="Визуализация"
+        >
+          {!blankSign && (fontPending && productId === "letters" || productId === "neon" && neonFontReady!==neonFontKey && !neonFontError) && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
+          {blankSign ? <div className="studio-empty-preview" role="status"><Type size={34} aria-hidden="true" /><strong>Макет пуст</strong>
+            <p>{productId === "neon" ? "Добавьте надпись или фигуру в настройках." : "Добавьте надпись или логотип в настройках."}</p>
+            <a className="studio-button" href="#studio-controls" onClick={() => setActiveSection("design")}>Добавить надпись</a>
+          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showPerson={showScalePerson} showSign={showFacadeSign} showPanel={showFacadePanel} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
+            {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
+              <PanelPreview
+                lightsOn={project.lightsOn}
+                image={panelImage}
+                shape={panelShape}
+                sideColor={panelSideColor.value}
+                faceColor={panelFaceColor.value}
+                imageScale={panelImageScale}
+                imageX={panelImageX}
+                imageY={panelImageY}
+                sceneMode={sceneMode}
+                size={panelSize}
+                depth={project.panelDepth}
+                wallGap={project.panelWallGap}
+                mountMode={project.panelMountMode}
+                cornerRadius={project.panelCornerRadius}
+                showDimensions={showDimensions}
+              />
+            ) : (
+              <LettersPreview
+                objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value,faceNoFilm:letterFaceColor.code==="none",logoNoFilm:project.logoFaceColor.code==="none"}}
+                lightsOn={project.lightsOn}
+                editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={project} selection={layoutSelection} onSelect={setLayoutSelection} onChange={patchProject} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
+                sceneMode={sceneMode}
+                acpDepth={acpDepth}
+                acpColor={acpColor.value}
+                depth={letterDepth}
+                faceColor={letterFaceColor.value}
+                font={letterFont}
+                frameProfile={frameProfile}
+                glowMode={glowMode}
+                haloBackerColor={haloBackerColor.value}
+                haloBackerEnabled={glowHasHalo && haloBackerEnabled && mountMode === "frame"}
+                logoEnabled={logoEnabled}
+                showDimensions={showDimensions}
+                height={letterHeight}
+                layout={lettersLayout}
+                letterOutlineEnabled={letterOutlineEnabled}
+                logoImage={logoImage}
+                logoOutlineEnabled={logoOutlineEnabled}
+                logoShape={logoShape}
+                mountMode={mountMode}
+                outlineColor={outlineColor.value}
+                sideColor={letterSideColor.value}
+                text={lettersText}
+              />
+            )}
+          </div></div>}
+          {showDimensions && !blankSign && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
+        </section></div>
+          {!blankSign && (productId!=="panel" || viewMode==="3d"&&placement!=="none"&&showFacadeSign) && <div className="canvas-object-dimensions" aria-label="Размеры элементов вывески" aria-hidden={!showDimensions} style={{ visibility: showDimensions ? "visible" : "hidden" }}>{visibleObjectDimensions.map(item=><span key={item.id}><strong>{item.label}</strong> {Math.round(item.width)} × {Math.round(item.height)} мм</span>)}</div>}
+          <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `Борт ${letterDepth} мм${glowHasHalo && mountMode === "acp" ? " · проставки 20 мм" : glowHasHalo && haloBackerEnabled && mountMode === "frame" ? " · проставки 20 мм · подложка 3 мм" : ""}` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
+        </section>
+
+        <section className="studio-settings-pane" aria-label="Настройки и расчёт" tabIndex={0}>
+        <aside className="builder-controls" id="studio-controls" tabIndex={-1} aria-label="Настройки вывески">
           <header className="controls-heading"><h2>Настройте вывеску</h2><span>Все изменения — на макете</span></header>
           <div className="studio-project-actions" role="group" aria-label="Действия с макетом">
             <button type="button" onClick={handleClearLayout}><Eraser size={14} />Очистить макет</button>
@@ -1226,114 +1318,6 @@ export function SignProductConfigurator() {
           </div>
           <details className="studio-help"><summary>Как пользоваться студией<ChevronRight size={14} /></summary><p>Выберите тип вывески и настройте параметры по разделам. Переключайте день и ночь, чтобы оценить свечение. Проект сохраняется в этом браузере. Скачайте JSON для переноса на другое устройство.</p><p>Макет дает представление о конструкции. Цвета на экране могут отличаться от физических образцов Oracal; производственную документацию нужно подготовить отдельно.</p></details>
         </aside>
-        <section ref={workspaceRef} style={{ top: previewBounds.sticky ? undefined : 0, "--preview-width": `${previewBounds.width}px`, "--preview-height": `${previewBounds.previewHeight}px`, "--workspace-position": previewBounds.sticky ? "sticky" : "relative" } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет"
-          onFocusCapture={event => { if (!(event.target as Element).closest(".dimensions-toggle") && (event.target as Element).closest(".canvas-toolbar,.canvas-mode-toolbar,.editor-toolbar,.neon-inline-toolbar,.canvas-footer")) revealPreview(); }}
-          onPointerDownCapture={event => { if (!(event.target as Element).closest(".dimensions-toggle") && (event.target as Element).closest(".canvas-toolbar,.canvas-mode-toolbar,.editor-toolbar,.neon-inline-toolbar,.canvas-footer")) revealPreview(); }}
-          onWheelCapture={revealPreview}>
-          <header className="canvas-toolbar"><div className="canvas-title"><strong>Предпросмотр</strong><span>{sceneMode === "day" ? "Дневное освещение" : "Ночное освещение"}</span></div>
-            <button type="button" className={"sign-power-switch "+(project.lightsOn?'on':'off')} role="switch" aria-checked={project.lightsOn} aria-label="Свет вывески" title={project.lightsOn?'Выключить свет вывески':'Включить свет вывески'} onClick={()=>patchProject({lightsOn:!project.lightsOn})}><Power size={15}/><span className="power-caption">Свет</span><span className="power-lever" aria-hidden="true"/><span className="power-state">{project.lightsOn?'Вкл':'Выкл'}</span></button>
-            <div className={"scene-switch " + sceneMode} role="group" aria-label="Режим визуализации">
-              <span className="celestial-track" aria-hidden="true"><Sun className="celestial-sun" size={19}/><Moon className="celestial-moon" size={19}/></span>
-              <button type="button" aria-pressed={sceneMode === "day"} className={sceneMode === "day" ? "active" : ""} onClick={() => setSceneMode("day")}><Sun size={16} />День</button>
-              <button type="button" aria-pressed={sceneMode === "night"} className={sceneMode === "night" ? "active" : ""} onClick={() => setSceneMode("night")}><Moon size={16} />Ночь</button>
-            </div><div className="canvas-tools"><button type="button" aria-label="Уменьшить макет" disabled={zoom <= 25} onClick={() => setZoom(value => Math.max(25, value - 10))}><Minus size={16} /></button><span className="zoom-value" title="100% — масштаб после подгонки">{zoom}%</span><button type="button" aria-label="Увеличить макет" disabled={zoom >= 400} onClick={() => setZoom(value => Math.min(400, value + 10))}><Plus size={16} /></button><button type="button" aria-label="Подогнать макет" onClick={handleFitPreview}><Maximize size={16} /></button></div>
-          </header>
-          <div className="canvas-mode-toolbar">
-            <div className="view-switch" role="group" aria-label="Вид макета"><button type="button" aria-pressed={viewMode === "2d"} className={viewMode === "2d" ? "active" : ""} onClick={() => { setViewMode("2d"); setZoom(100); setPlacement('none'); setEditing(true); }}>Конструктор · 2D</button><button type="button" aria-pressed={viewMode === "3d"} className={viewMode === "3d" ? "active" : ""} onClick={() => { setViewMode("3d"); setZoom(100); setEditing(false); if (placement === 'none') setPlacement('windows'); }}>Примерка · 3D</button></div>
-            {productId !== "panel" && viewMode === "2d" && <button className={"editor-toggle " + (editing ? "active" : "")} type="button" aria-pressed={editing} onClick={() => { setPlacement("none"); setEditing(!editing); }}>Редактировать макет</button>}
-            <label className="placement-select"><span>Размещение</span><select aria-label="Размещение в основном просмотре" value={placement} onChange={e=>{setPlacement(e.target.value as SignPlacement);setEditing(false);}}>{SIGN_PLACEMENTS.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
-            <label className="dimensions-toggle" onMouseDown={event => event.preventDefault()}><input type="checkbox" checked={showDimensions} onChange={event => setShowDimensions(event.target.checked)} />Размеры</label>
-          </div>
-          {viewMode === '3d' && placement !== 'none' && <div className="facade-context-toolbar" role="group" aria-label="Общий вид фасада">
-            <label><input type="checkbox" checked={showFacadeSign} onChange={event => setShowFacadeSign(event.target.checked)} />{productId === 'neon' ? 'Неоновая вывеска' : 'Вывеска'}</label>
-            <label><input type="checkbox" checked={showFacadePanel} onChange={event => setShowFacadePanel(event.target.checked)} />Панель-кронштейн</label>
-            <label><input type="checkbox" checked={showScalePerson} onChange={event => setShowScalePerson(event.target.checked)} />Человек 175 см</label>
-            <span>Параметры каждого изделия — в его вкладке</span>
-          </div>}
-          {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar layout-alignment-toolbar" aria-label="Выбор и выравнивание объектов макета">
-            <button className="layout-pack-button" type="button" title="Собрать логотип и надпись в ряд с обычным промежутком и центрировать по обеим осям" disabled={fontPending} onClick={packLayout}>Собрать и центрировать</button>
-            <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => setLayoutSelection(event.target.value as LayoutObject)}><option value="text">Все строки</option>{lineSettings.filter(row=>row.text.trim()).map(row=><option key={row.index} value={`line-${row.index}`}>Строка {row.index+1}</option>)}<option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
-            <div className="alignment-actions" role="group" aria-label={mountMode === "acp" ? "Центрирование по подложке" : "Центрирование по макету"}>
-              <button type="button" title={mountMode === "acp" ? "По центру подложки по горизонтали" : "По центру макета по горизонтали"} disabled={fontPending} onClick={() => alignLayoutSelection("x")}><AlignHorizontalJustifyCenter size={16}/>Центр X</button>
-              <button type="button" title={mountMode === "acp" ? "По центру подложки по вертикали" : "По центру макета по вертикали"} disabled={fontPending} onClick={() => alignLayoutSelection("y")}><AlignVerticalJustifyCenter size={16}/>Центр Y</button>
-            </div>
-            <span className="alignment-reference">{mountMode === "acp" ? "По подложке" : "По макету"}</span>
-            <button type="button" aria-label="Отменить изменение макета" title="Отменить изменение макета (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={16}/></button>
-            <button type="button" disabled={!!project.secondLineText.trim()&&!!project.thirdLineText.trim()} onClick={addLetterLine}>+ Строка ниже</button>
-            <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
-          </div>}
-          {productId === "neon" && viewMode === "2d" && editing && <div className="editor-toolbar neon-inline-toolbar" aria-label="Настройки выбранной строки на макете">
-            <label><span>Строка</span><select aria-label="Выбранная строка на макете" value={selectedNeonLine} onChange={event=>setSelectedNeonLine(Number(event.target.value))}>{project.neonText.split('\n').map((_,index)=><option key={index} value={index}>{index+1}</option>)}</select></label>
-            <label><span>Шрифт</span><select aria-label="Шрифт выбранной строки" value={project.neonLineFonts[selectedNeonLine]||project.neonFont} onChange={event=>patchProject({neonLineFonts:Array.from({length:3},(_,index)=>index===selectedNeonLine?event.target.value:project.neonLineFonts[index]||project.neonFont)})}>{NEON_FONTS.map(font=><option key={font.id} value={font.id} disabled={neonUnsupportedCharacters(project.neonText.split('\n')[selectedNeonLine]||'',font.id).length>0}>{font.label}</option>)}</select></label>
-            <input type="color" aria-label="Цвет выбранной строки" value={project.neonLineColors[selectedNeonLine]||project.neonColor} onChange={event=>patchProject({neonLineColors:Array.from({length:3},(_,index)=>index===selectedNeonLine?event.target.value:project.neonLineColors[index]||project.neonColor)})}/>
-            <button type="button" onClick={()=>patchProject({neonLineOffsets:Array.from({length:3},(_,index)=>index===selectedNeonLine?{x:0,y:0}:project.neonLineOffsets[index]||{x:0,y:0})})}>Центровать</button>
-          </div>}
-        <section
-          className={`builder-preview ${sceneMode} glow-${glowMode} view-mode-${viewMode}`}
-          aria-label="Визуализация"
-        >
-          {!blankSign && (fontPending && productId === "letters" || productId === "neon" && neonFontReady!==neonFontKey && !neonFontError) && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
-          {blankSign ? <div className="studio-empty-preview" role="status"><Type size={34} aria-hidden="true" /><strong>Макет пуст</strong>
-            <p>{productId === "neon" ? "Добавьте надпись или фигуру в настройках." : "Добавьте надпись или логотип в настройках."}</p>
-            <a className="studio-button" href="#studio-controls" onClick={() => setActiveSection("design")}>Добавить надпись</a>
-          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showPerson={showScalePerson} showSign={showFacadeSign} showPanel={showFacadePanel} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
-            {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
-              <PanelPreview
-                lightsOn={project.lightsOn}
-                image={panelImage}
-                shape={panelShape}
-                sideColor={panelSideColor.value}
-                faceColor={panelFaceColor.value}
-                imageScale={panelImageScale}
-                imageX={panelImageX}
-                imageY={panelImageY}
-                sceneMode={sceneMode}
-                size={panelSize}
-                depth={project.panelDepth}
-                wallGap={project.panelWallGap}
-                mountMode={project.panelMountMode}
-                cornerRadius={project.panelCornerRadius}
-                showDimensions={showDimensions}
-              />
-            ) : (
-              <LettersPreview
-                objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value,faceNoFilm:letterFaceColor.code==="none",logoNoFilm:project.logoFaceColor.code==="none"}}
-                lightsOn={project.lightsOn}
-                editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={project} selection={layoutSelection} onSelect={setLayoutSelection} onChange={patchProject} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
-                sceneMode={sceneMode}
-                acpDepth={acpDepth}
-                acpColor={acpColor.value}
-                depth={letterDepth}
-                faceColor={letterFaceColor.value}
-                font={letterFont}
-                frameProfile={frameProfile}
-                glowMode={glowMode}
-                haloBackerColor={haloBackerColor.value}
-                haloBackerEnabled={glowHasHalo && haloBackerEnabled && mountMode === "frame"}
-                logoEnabled={logoEnabled}
-                showDimensions={showDimensions}
-                height={letterHeight}
-                layout={lettersLayout}
-                letterOutlineEnabled={letterOutlineEnabled}
-                logoImage={logoImage}
-                logoOutlineEnabled={logoOutlineEnabled}
-                logoShape={logoShape}
-                mountMode={mountMode}
-                outlineColor={outlineColor.value}
-                sideColor={letterSideColor.value}
-                text={lettersText}
-              />
-            )}
-          </div></div>}
-          {showDimensions && !blankSign && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
-        </section>
-          {!blankSign && (productId!=="panel" || viewMode==="3d"&&placement!=="none"&&showFacadeSign) && <div className="canvas-object-dimensions" aria-label="Размеры элементов вывески" aria-hidden={!showDimensions} style={{ visibility: showDimensions ? "visible" : "hidden" }}>{visibleObjectDimensions.map(item=><span key={item.id}><strong>{item.label}</strong> {Math.round(item.width)} × {Math.round(item.height)} мм</span>)}</div>}
-          <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `Борт ${letterDepth} мм${glowHasHalo && mountMode === "acp" ? " · проставки 20 мм" : glowHasHalo && haloBackerEnabled && mountMode === "frame" ? " · проставки 20 мм · подложка 3 мм" : ""}` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
-        </section>
-
-        <SignPlacements panelMount={panelMount} markup={createCurrentSvg(false)} signBox={facadeSignBox} night={sceneMode === "night"} selected={placement} palette={project.facadePalette} onPaletteChange={value=>patchProject({facadePalette:value})} onChange={value=>{setPlacement(value);setEditing(false);}}>
-          <details className="photo-backdrop-controls"><summary>Примерить на своём фото</summary><label className="studio-button photo-upload"><ImagePlus size={16}/>Загрузить фасад<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event=>void handleImageUpload(event,value=>{patchProject({backdropImage:value});setPlacement('none');setEditing(false);})}/></label><p>PNG, JPG или WebP до 2 МБ. Укажите ширину участка на фотографии для примерного масштаба.</p>{project.backdropImage&&<><label className="builder-field"><span>Ширина участка на фото, мм</span><input type="number" min={500} max={20000} step={100} value={project.backdropWidth} onChange={event=>patchProject({backdropWidth:Math.max(500,Math.min(20000,Number(event.target.value)||500))})}/></label><button type="button" className="studio-remove" onClick={()=>patchProject({backdropImage:''})}><X size={14}/>Убрать фото</button></>}</details>
-        </SignPlacements>
         <aside className="builder-summary" aria-label="Структура проекта"><header className="summary-heading"><h2>Ваш проект</h2><p>Параметры конструкции</p></header>
           <div className="summary-block">
             <span>Продукт</span>
@@ -1390,6 +1374,10 @@ export function SignProductConfigurator() {
             <p className="purchase-basis">{productId === "letters" ? "120 ₽ за 1 см высоты каждой буквы. Пробелы не считаются. Монтаж, подложка и доставка рассчитываются отдельно." : "Сохраните макет в корзину для согласования стоимости."}</p>
           </div>
         </aside>
+        <SignPlacements panelMount={panelMount} markup={createCurrentSvg(false)} signBox={facadeSignBox} night={sceneMode === "night"} selected={placement} palette={project.facadePalette} onPaletteChange={value=>patchProject({facadePalette:value})} onChange={value=>{setPlacement(value);setEditing(false);}}>
+          <details className="photo-backdrop-controls"><summary>Примерить на своём фото</summary><label className="studio-button photo-upload"><ImagePlus size={16}/>Загрузить фасад<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event=>void handleImageUpload(event,value=>{patchProject({backdropImage:value});setPlacement('none');setEditing(false);})}/></label><p>PNG, JPG или WebP до 2 МБ. Укажите ширину участка на фотографии для примерного масштаба.</p>{project.backdropImage&&<><label className="builder-field"><span>Ширина участка на фото, мм</span><input type="number" min={500} max={20000} step={100} value={project.backdropWidth} onChange={event=>patchProject({backdropWidth:Math.max(500,Math.min(20000,Number(event.target.value)||500))})}/></label><button type="button" className="studio-remove" onClick={()=>patchProject({backdropImage:''})}><X size={14}/>Убрать фото</button></>}</details>
+        </SignPlacements>
+        </section>
       </section>
     </main>
   );
