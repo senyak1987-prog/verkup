@@ -1067,6 +1067,19 @@ export function SignProductConfigurator() {
   }
   function handle3DUnavailable() { setViewMode("2d"); setNotice("3D недоступен в этом браузере. Макет и размеры доступны в 2D."); }
   function handleFitPreview() { setZoom(100); setFitSignal(value => value + 1); }
+  async function handleExportPdf() {
+    if (!canOutputSign) return;
+    try {
+      const { createSignVectorPdf } = await import('../lib/signVectorPdf');
+      const content = createSignVectorPdf(project, lettersLayout, neonResult.design ? { design: neonResult.design, width: neonWidth, height: neonHeight } : undefined);
+      const url = URL.createObjectURL(new Blob([content], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url; link.download = `gorod-svet-${productId}-${Date.now()}-1-1.pdf`;
+      document.body.appendChild(link); link.click(); link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+      setNotice('PDF 1:1 сохранён: плоские векторные контуры букв, рамы и выбранной подложки в отдельных слоях. Логотип — контур корпуса.');
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Не удалось сохранить PDF. Повторите попытку.'); }
+  }
   function handleExportVector() {
     if (!canOutputSign) return;
     downloadTextFile(`gorod-svet-${productId}-${Date.now()}.svg`, createCurrentSvg(), "image/svg+xml;charset=utf-8");
@@ -1087,7 +1100,8 @@ export function SignProductConfigurator() {
           <input hidden ref={projectFileRef} type="file" accept=".json,application/json" onChange={event => void handleOpenProject(event)} />
           <button className="studio-button" type="button" onClick={() => projectFileRef.current?.click()}><FolderOpen size={16} /><span>Открыть</span></button>
           <button className="studio-button" type="button" onClick={handleSaveProject}><Save size={16} /><span>Сохранить проект</span></button>
-          <button className="studio-button primary" type="button" onClick={handleExportVector} disabled={!canOutputSign}><Download size={16} /><span>Скачать SVG</span></button>
+          <button className="studio-button" type="button" onClick={handleExportVector} disabled={!canOutputSign}><Download size={16} /><span>SVG</span></button>
+          <button className="studio-button primary" type="button" onClick={() => void handleExportPdf()} disabled={!canOutputSign} title="Плоский векторный макет 1:1: буквы, рама и контуры подложки"><Download size={16} /><span>Сохранить PDF</span></button>
           <button className="studio-button studio-cart-toggle" type="button" aria-expanded={cartOpen} aria-controls="sign-cart" onClick={() => setCartOpen(value => !value)}><ShoppingCart size={17} /><span>Корзина</span><span className="cart-count">{cartQuantity}</span></button>
         </div>
       </header>
