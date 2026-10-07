@@ -80,6 +80,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
   const companionKey = companion ? JSON.stringify({ ...companion, project: { ...companion.project, sceneMode: undefined, lightsOn: undefined } }) : '';
   const modelCompanion = useMemo(() => companion ? { ...companion, project: { ...companion.project, sceneMode: 'night' as const, lightsOn: true } } : undefined, [companionKey]);
   lightsOnRef.current=project.lightsOn!==false;
+  const dimensionsVisibleRef = useRef(showDimensions); dimensionsVisibleRef.current = showDimensions;
   const lightFraction = useRef(project.sceneMode === 'night' ? 1 : 0);
   const windowFraction = useRef(lightFraction.current);
   const [sunMarker, setSunMarker] = useState<DaylightMarker>({ x: .18, y: .2 });
@@ -370,7 +371,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     if (hostRef.current) delete hostRef.current.dataset.renderedFont;
     setLoading(true);
     // The facade keeps its physical scale; construction labels stay in the screen-pinned size bar.
-    void buildSignModel(modelProject, layout, width, height, depth, showDimensions && placement === 'none').then(async(model) => {
+    void buildSignModel(modelProject, layout, width, height, depth, placement === 'none').then(async(model) => {
       if (modelCompanion && placement !== 'none') {
         try {
           const paired = await buildSignModel(modelCompanion.project, layout, modelCompanion.width, modelCompanion.height, modelCompanion.depth, false);
@@ -430,6 +431,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         if (person) { person.visible = showPersonRef.current; facade.add(person); }
         else brand?.dispose();
       }
+      // Measurements are a persistent overlay: toggling them must not rebuild or reframe the scene.
+      model.traverse(child => { if (child.name === "dimensions") child.visible = dimensionsVisibleRef.current; });
       runtime.model = model;
       if (hostRef.current) {
         hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId;
@@ -454,7 +457,13 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       unavailableRef.current?.();
     });
     return () => { if (version === buildRef.current) buildRef.current++; };
-  }, [modelProject, modelCompanion, layout, width, height, depth, showDimensions, placement, unavailable]);
+  }, [modelProject, modelCompanion, layout, width, height, depth, placement, unavailable]);
+
+  useEffect(() => {
+    const runtime = runtimeRef.current;
+    runtime?.model?.traverse(child => { if (child.name === "dimensions") child.visible = showDimensions; });
+    runtime?.requestRender();
+  }, [showDimensions]);
 
   useEffect(() => {
     const runtime = runtimeRef.current, person = runtime?.model?.getObjectByName('scale-person');

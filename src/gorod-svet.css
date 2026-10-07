@@ -40,6 +40,8 @@ main.public-sign-configurator.sign-studio ::selection { background: #d3bc84; col
 main.public-sign-configurator.sign-studio .studio-workspace,
 main.public-sign-configurator.sign-studio .studio-workspace.is-3d {
   position: var(--workspace-position, sticky);
+  /* Annotation visibility must not make browser scroll anchoring move the sticky canvas. */
+  overflow-anchor: none;
   top: 12px;
   z-index: 5;
   min-height: 0;
