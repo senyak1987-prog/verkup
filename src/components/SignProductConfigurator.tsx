@@ -1802,11 +1802,12 @@ function SvgMarkupPreview({ className, markup, children }: { className: string; 
   useEffect(() => {
     if (lastWindowMode.current === facadeNight) return;
     lastWindowMode.current = facadeNight;
-    if (!facadeNight || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setWindowsLit(facadeNight); return;
     }
-    setWindowsLit(false);
-    const timer = window.setTimeout(() => setWindowsLit(true), SCENE_LIGHTING_TIMING.windowsDelayMs);
+    // Hold the current window state through the exterior fade, including quick reversals.
+    const delay=facadeNight?SCENE_LIGHTING_TIMING.windowsDelayMs:SCENE_LIGHTING_TIMING.windowsOffDelayMs;
+    const timer = window.setTimeout(() => setWindowsLit(facadeNight), delay);
     return () => window.clearTimeout(timer);
   }, [facadeNight]);
   useEffect(() => {

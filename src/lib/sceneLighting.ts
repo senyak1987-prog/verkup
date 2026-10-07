@@ -4,7 +4,8 @@ export const SCENE_LIGHTING_TIMING = {
   sceneMs: 750,
   windowsDelayMs: 950,
   windowsFadeMs: 500,
-  windowsOffMs: 260,
+  windowsOffDelayMs: 1000,
+  windowsOffMs: 400,
 } as const;
 
 function progress(elapsed: number, duration: number) {
@@ -19,7 +20,7 @@ export function sceneLightingAt(from: SceneLightingState, targetNight: boolean, 
   const scene = progress(elapsedMs, SCENE_LIGHTING_TIMING.sceneMs);
   const interior = targetNight
     ? progress(elapsedMs - SCENE_LIGHTING_TIMING.windowsDelayMs, SCENE_LIGHTING_TIMING.windowsFadeMs)
-    : progress(elapsedMs, SCENE_LIGHTING_TIMING.windowsOffMs);
+    : progress(elapsedMs - SCENE_LIGHTING_TIMING.windowsOffDelayMs, SCENE_LIGHTING_TIMING.windowsOffMs);
   return {
     night: from.night + (target - from.night) * scene,
     windows: from.windows + (target - from.windows) * interior,
@@ -29,5 +30,5 @@ export function sceneLightingAt(from: SceneLightingState, targetNight: boolean, 
 export function sceneLightingDuration(targetNight: boolean, reducedMotion = false) {
   return reducedMotion ? 0 : targetNight
     ? SCENE_LIGHTING_TIMING.windowsDelayMs + SCENE_LIGHTING_TIMING.windowsFadeMs
-    : SCENE_LIGHTING_TIMING.sceneMs;
+    : SCENE_LIGHTING_TIMING.windowsOffDelayMs + SCENE_LIGHTING_TIMING.windowsOffMs;
 }
