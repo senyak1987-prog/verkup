@@ -12,7 +12,7 @@ function load(name, dependencies={}) {
   const exports={}; new Function('exports','require',compiled)(exports,key=>dependencies[key]??require(key)); return exports;
 }
 const neonFonts=load('neonFonts'),handwriting=load('neonHandwriting');
-const backer=load('backerConstraints'), neon=load('neonConstruction',{'./neonFonts':neonFonts,'./neonHandwriting':handwriting}), system=load('systemFontContours');
+const backer=load('backerConstraints'), neon=load('neonConstruction',{'./neonFonts':neonFonts,'./neonHandwriting':handwriting}), system=load('systemFontContours', { './contourCurves': load('contourCurves') });
 for(const font of neonFonts.EXTERNAL_NEON_FONTS)neonFonts.registerNeonFont(font.id,fs.readFileSync(new URL('../public/neon-fonts/'+font.file,import.meta.url),'utf8'));
 const contours=load('letterContours',{'./glyphPath':load('glyphPath'),'./systemFontContours':system});
 const construction=load('letterConstruction');

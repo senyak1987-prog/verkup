@@ -14,7 +14,7 @@ function load(name, dependencies = {}) {
   return exports;
 }
 const glyph = load('glyphPath');
-const contours = load('letterContours', { './glyphPath': glyph, './systemFontContours': load('systemFontContours') });
+const contours = load('letterContours', { './glyphPath': glyph, './systemFontContours': load('systemFontContours', { './contourCurves': load('contourCurves') }) });
 const construction = load('letterConstruction');
 const commerceSource = fs.readFileSync(new URL('../src/lib/signCommerce.ts', import.meta.url), 'utf8');
 const requiresFrameApproval = new Function(ts.transpileModule(
