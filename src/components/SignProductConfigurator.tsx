@@ -724,26 +724,6 @@ export function SignProductConfigurator() {
   }, [viewMode, placement, productId]);
   const previewTranslation = signZoomTranslation(previewFocus, previewFocus, zoom / 100);
   useEffect(()=>{const host=workspaceRef.current;if(!host||viewMode!=="2d")return;const wheel=(event:WheelEvent)=>{if(!(event.target as Element).closest(".builder-preview"))return;event.preventDefault();setZoom(value=>Math.max(25,Math.min(400,Math.round(value*Math.exp(-event.deltaY*.0015)))));};host.addEventListener("wheel",wheel,{passive:false});return()=>host.removeEventListener("wheel",wheel);},[viewMode]);
-  const [previewBounds, setPreviewBounds] = useState({ width: 600, previewHeight: 400 });
-  useEffect(() => {
-    const surface = workspaceRef.current?.querySelector<HTMLElement>(".studio-preview-surface");
-    if (!surface) return;
-    let frame = 0;
-    const update = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        // The canvas fits the space left by the tools, without moving the page or changing its 3:2 ratio.
-        const width = Math.max(1, Math.min(surface.clientWidth, surface.clientHeight * 1.5));
-        const previewHeight = width / 1.5;
-        setPreviewBounds(previous => Math.abs(previous.width - width) + Math.abs(previous.previewHeight - previewHeight) < .1
-          ? previous : { width, previewHeight });
-      });
-    };
-    const observer = new ResizeObserver(update);
-    observer.observe(surface);
-    update();
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); };
-  }, []);
   const fileMenuRef = useRef<HTMLDetailsElement>(null);
   const cartToggleRef = useRef<HTMLButtonElement>(null);
   const cartCloseRef = useRef<HTMLButtonElement>(null);
@@ -1109,7 +1089,7 @@ export function SignProductConfigurator() {
       </section>
       <section className="sign-builder-layout">
 
-        <section ref={workspaceRef} style={{ "--preview-width": `${previewBounds.width}px`, "--preview-height": `${previewBounds.previewHeight}px` } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет">
+        <section ref={workspaceRef} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет">
           <header className="canvas-toolbar"><div className="canvas-title"><strong>Предпросмотр</strong><span>{sceneMode === "day" ? "Дневное освещение" : "Ночное освещение"}</span></div>
             <button type="button" className={"sign-power-switch "+(project.lightsOn?'on':'off')} role="switch" aria-checked={project.lightsOn} aria-label="Свет вывески" title={project.lightsOn?'Выключить свет вывески':'Включить свет вывески'} onClick={()=>patchProject({lightsOn:!project.lightsOn})}><Power size={15}/><span className="power-caption">Свет</span><span className="power-lever" aria-hidden="true"/><span className="power-state">{project.lightsOn?'Вкл':'Выкл'}</span></button>
             <div className={"scene-switch " + sceneMode} role="group" aria-label="Режим визуализации">
