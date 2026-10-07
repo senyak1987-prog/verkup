@@ -129,18 +129,17 @@ main.public-sign-configurator.sign-studio .studio-preview-surface {
   overflow: hidden;
   background: linear-gradient(145deg, #e6e6e6, #bcbcbc);
 }
-main.public-sign-configurator.sign-studio .studio-preview-surface::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 80% 5%, #505050, transparent 75%), linear-gradient(135deg, #343434, #1e1e1e); opacity: 0; transition: opacity 750ms ease; pointer-events: none; }
-main.public-sign-configurator.sign-studio .scene-night .studio-preview-surface::before { opacity: 1; }
 main.public-sign-configurator.sign-studio .studio-workspace :is(.builder-preview, .builder-preview.day, .builder-preview.night),
 main.public-sign-configurator.sign-studio .studio-workspace.is-3d :is(.builder-preview, .builder-preview.day, .builder-preview.night) {
-  flex: 0 0 auto;
-  width: var(--preview-width, 100%);
-  height: var(--preview-height, auto);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   max-width: 100%;
   max-height: 100%;
-  aspect-ratio: 3 / 2;
+  aspect-ratio: auto;
   margin: 0;
   padding: 0;
   border: 0;
@@ -268,10 +267,6 @@ main.public-sign-configurator.sign-studio .studio-cart-panel .sign-cart-header {
   main.public-sign-configurator.sign-studio .sign-scene-3d-actions button { min-height: 36px; padding: 6px 8px; font-size: 10px; }
   main.public-sign-configurator.sign-studio .studio-cart-panel { top: 60px; max-height: calc(100dvh - 66px); }
   main.public-sign-configurator.sign-studio .studio-cart-close { min-height: 44px; width: 44px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  main.public-sign-configurator.sign-studio .studio-preview-surface::before { transition: none; }
 }
 
 /* File actions stay on one line even under the legacy phone rules. */
