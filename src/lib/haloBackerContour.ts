@@ -27,7 +27,7 @@ export function haloBackerContour(rows:Row[], requestedOffset:number):string {
     }
     // Separate contours attach to the steel frame; do not bridge counters or word spaces.
   }
-  const traced=traceAlpha(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height,Math.max(1.2,scale*.8),true);
+  const traced=traceAlpha(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height,Math.max(.2,Math.min(.8,scale*.35)),true);
   const n=(value:number)=>Number(value.toFixed(3));
   const path=traced.replace(/([MLQC])([^MLQCZ]+)/g,(_match,command:string,coordinates:string)=>
     command+coordinates.trim().split(/[\s,]+/).map((value,index)=>n(Number(value)/scale+(index%2?top:left))).join(' '));
