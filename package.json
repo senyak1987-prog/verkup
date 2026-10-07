@@ -28,7 +28,8 @@
     "test:scene-lighting": "node scripts/test-scene-lighting.mjs",
     "test:daylight": "node scripts/test-daylight.mjs",
     "test:letter-frame": "node scripts/test-letter-frame.mjs",
-    "test:letter-rows": "node scripts/test-letter-rows.mjs"
+    "test:letter-rows": "node scripts/test-letter-rows.mjs",
+    "test:vector-pdf": "node scripts/test-vector-pdf.mjs"
   },
   "dependencies": {
     "framer-motion": "^12.41.0",
