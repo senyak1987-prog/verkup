@@ -39,6 +39,7 @@ jobs:
           npm run test:daylight
           npm run test:letter-frame
           npm run test:letter-rows
+          npm run test:vector-pdf
       - name: Build site
         env:
           VITE_SAVE_API_URL: ${{ vars.VITE_SAVE_API_URL }}
