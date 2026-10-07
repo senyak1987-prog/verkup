@@ -1,5 +1,7 @@
 /* Город Свет: the work surface stays neutral so material colours remain readable. */
 main.public-sign-configurator.sign-studio {
+  --studio-page-edge: clamp(8px, 1vw, 12px);
+  padding-inline: var(--studio-page-edge);
   --studio-accent: #d3bc84;
   --studio-accent-hover: #c0a667;
   --studio-accent-soft: #f4eddd;
@@ -45,8 +47,8 @@ main.public-sign-configurator.sign-studio .studio-workspace.is-3d {
   top: 12px;
   z-index: 5;
   min-height: 0;
-  width: min(100%, calc(var(--preview-width, 600px) + 2px));
-  justify-self: center;
+  width: 100%;
+  justify-self: stretch;
   height: auto;
   grid-template-rows: none;
   grid-auto-rows: max-content;
@@ -109,7 +111,7 @@ main.public-sign-configurator.sign-studio .sign-scene-3d-hint { bottom: 24px; }
 }
 
 /* Official GorodSvet palette: evergreen, leaf green and warm gold. */
-main.public-sign-configurator.sign-studio .studio-header { margin-inline:calc(-1 * clamp(20px,3.3vw,56px)); padding-inline:clamp(20px,3.3vw,56px); background:#073c2d; border-color:#315746; }
+main.public-sign-configurator.sign-studio .studio-header { margin-inline:calc(-1 * var(--studio-page-edge)); padding-inline:var(--studio-page-edge); background:#073c2d; border-color:#315746; }
 main.public-sign-configurator.sign-studio .studio-header :is(.studio-brand,.studio-header-meta,.studio-save-status,.save-status,.studio-button) { color:#e6efe7; }
 main.public-sign-configurator.sign-studio .studio-header .studio-button { border-color:#638173; }
 main.public-sign-configurator.sign-studio .studio-header .studio-button.primary { color:#233c2d; border-color:#d3bc84; }
@@ -167,7 +169,7 @@ main.public-sign-configurator.sign-studio .studio-svg-previous { position:absolu
 @keyframes light-fade { from {opacity:1} to {opacity:0} }
 @media(max-width:1000px) { main.public-sign-configurator.sign-studio .placements-grid {grid-template-columns:repeat(2,minmax(0,1fr));} }
 @media(max-width:767px) {
-  main.public-sign-configurator.sign-studio .studio-header { margin-inline:-14px; padding-inline:14px; }
+  main.public-sign-configurator.sign-studio .studio-header { margin-inline:calc(-1 * var(--studio-page-edge)); padding-inline:var(--studio-page-edge); }
   main.public-sign-configurator.sign-studio .builder-controls { grid-row:2; }
   main.public-sign-configurator.sign-studio .sign-placements { grid-column:1; grid-row:3; }
   main.public-sign-configurator.sign-studio .builder-summary { grid-row:4; }
@@ -407,3 +409,6 @@ main.public-sign-configurator.sign-studio .white-light-options button[aria-press
 main.public-sign-configurator.sign-studio .white-light-options i { width:28px; height:18px; border:1px solid #c0c8c2; border-radius:2px; }
 main.public-sign-configurator.sign-studio .white-light-options small { color:#41664b; font-size:10px; }
 main.public-sign-configurator.sign-studio :is(.face-no-film,.white-light-options button):focus-visible { outline:2px solid #167c3e; outline-offset:3px; }
+
+/* The preview and settings use the browser width rather than a height-limited centred card. */
+main.public-sign-configurator.sign-studio .sign-builder-layout { column-gap: 16px; }

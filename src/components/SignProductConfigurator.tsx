@@ -758,12 +758,12 @@ export function SignProductConfigurator() {
         const chromeHeight = rows.reduce((height, row) => height + row.getBoundingClientRect().height, borders) +
           (parseFloat(style.rowGap) || 0) * rows.length;
         const availableWidth=parseFloat(getComputedStyle(host.parentElement!).gridTemplateColumns) || host.parentElement!.clientWidth;
-        const width = Math.max(1, Math.floor(Math.min(availableWidth-2, viewportWidth - (mobile ? 28 : 24),
-          mobile ? Infinity : Math.max(180, viewportHeight - chromeHeight - 24) * 1.5)));
+        // Width follows the available browser column; viewport height must not create side gutters.
+        const width = Math.max(1, Math.floor(Math.min(availableWidth-2, viewportWidth-16)));
         const previewHeight = width / 1.5;
         const height = previewHeight + chromeHeight;
-        // Short mobile viewports must let the workspace scroll away so settings remain reachable.
-        const sticky = !mobile || height <= viewportHeight - 120;
+        // A full-width 3:2 canvas can exceed a short viewport: keep its controls reachable by scrolling.
+        const sticky = height <= viewportHeight - (mobile ? 120 : 24);
         setPreviewBounds(previous => previous.width === width && previous.previewHeight === previewHeight && previous.height === height && previous.sticky === sticky
           ? previous : { width, previewHeight, height, sticky });
       });
@@ -1212,7 +1212,7 @@ export function SignProductConfigurator() {
           </div>
           <details className="studio-help"><summary>Как пользоваться студией<ChevronRight size={14} /></summary><p>Выберите тип вывески и настройте параметры по разделам. Переключайте день и ночь, чтобы оценить свечение. Проект сохраняется в этом браузере. Скачайте JSON для переноса на другое устройство.</p><p>Макет дает представление о конструкции. Цвета на экране могут отличаться от физических образцов Oracal; производственную документацию нужно подготовить отдельно.</p></details>
         </aside>
-        <section ref={workspaceRef} style={{ "--preview-width": `${previewBounds.width}px`, "--preview-height": `${previewBounds.previewHeight}px`, "--workspace-position": previewBounds.sticky ? "sticky" : "relative" } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет"
+        <section ref={workspaceRef} style={{ top: previewBounds.sticky ? undefined : 0, "--preview-width": `${previewBounds.width}px`, "--preview-height": `${previewBounds.previewHeight}px`, "--workspace-position": previewBounds.sticky ? "sticky" : "relative" } as CSSProperties} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет"
           onFocusCapture={event => { if (!(event.target as Element).closest(".dimensions-toggle") && (event.target as Element).closest(".canvas-toolbar,.canvas-mode-toolbar,.editor-toolbar,.neon-inline-toolbar,.canvas-footer")) revealPreview(); }}
           onPointerDownCapture={event => { if (!(event.target as Element).closest(".dimensions-toggle") && (event.target as Element).closest(".canvas-toolbar,.canvas-mode-toolbar,.editor-toolbar,.neon-inline-toolbar,.canvas-footer")) revealPreview(); }}
           onWheelCapture={revealPreview}>
