@@ -16,7 +16,7 @@ function load(name, dependencies = {}) {
   new Function('exports', 'require', compiled)(exports, key => dependencies[key] ?? require(key));
   return exports;
 }
-const contours = load('letterContours', { './glyphPath': load('glyphPath'), './systemFontContours': load('systemFontContours') });
+const contours = load('letterContours', { './glyphPath': load('glyphPath'), './systemFontContours': load('systemFontContours', { './contourCurves': load('contourCurves') }) });
 const { filledGlyphShapes } = load('glyphShapes', { three: THREE });
 
 // The serializer only emits these absolute SVG commands. Retain curves and
@@ -128,6 +128,27 @@ for (const entry of fonts) test(entry.label + ': all letter faces match the SVG 
     assert.ok(Array.from(solid.attributes.position.array).every(Number.isFinite));
     solid.dispose();
   }
+});
+
+test('Smoothed real Arial Black retains counters, SVG/3D agreement and the original letter silhouette', () => {
+  const { smoothContour } = load('contourCurves');
+  const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/arial-black-raster-sign.json', import.meta.url), 'utf8'));
+  const data = fixture.pathData.match(/M[^M]*/g).map(ring => smoothContour([...ring.matchAll(/(-?[\d.]+) (-?[\d.]+)/g)].map(m => [Number(m[1]), Number(m[2])]), 1.2)).join('');
+  const original = shapePathFromData(fixture.pathData), curved = shapePathFromData(data);
+  const shapes = filledGlyphShapes([curved]);
+  assert.equal(shapes.reduce((sum, s) => sum + s.holes.length, 0), filledGlyphShapes([original]).reduce((sum, s) => sum + s.holes.length, 0));
+  assert.ok(surfaceDifference(curved, shapes) < .00001);
+  const before = original.subPaths.map(p => p.getPoints(48)), after = curved.subPaths.map(p => p.getPoints(48));
+  let difference = 0;
+  for (let i = 0; i < 97; i++) {
+    const y = fixture.inkBox.y + (i + .371) / 97 * fixture.inkBox.height;
+    difference += differenceLength(scanIntervals(before, y, true), scanIntervals(after, y, true));
+  }
+  const changedFraction = difference / (97 * fixture.inkBox.width);
+  // This archived 384px capture has quantised pixel edges on dozens of stems.
+  // Across all letters, the symmetric difference must occupy under 1% of its
+  // bounding rectangle; live short inscriptions now use 1024px samples.
+  assert.ok(changedFraction < .01, `Curve fitting must not redraw the letter shapes: ${changedFraction}`);
 });
 
 test('Actual browser-traced Arial Black at 80 mm keeps the SVG holes and flat, finite 3D faces', () => {

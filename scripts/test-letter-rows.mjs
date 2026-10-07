@@ -11,7 +11,7 @@ function load(name, dependencies = {}) {
   const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
   const result = {}; new Function('exports', 'require', compiled)(result, id => dependencies[id] ?? require(id)); return result;
 }
-const contourApi = load('letterContours', { './glyphPath': load('glyphPath'), './systemFontContours': load('systemFontContours') });
+const contourApi = load('letterContours', { './glyphPath': load('glyphPath'), './systemFontContours': load('systemFontContours', { './contourCurves': load('contourCurves') }) });
 const backer = load('backerConstraints'), frame = load('letterFrame');
 const { createLetterRowsLayout: layout } = load('letterRowsLayout', { './backerConstraints': backer, './letterFrame': frame });
 const alignment = load('signLayoutAlignment');
