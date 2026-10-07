@@ -354,11 +354,11 @@ main.public-sign-configurator.sign-studio .neon-inline-toolbar input[type=color]
 @media(max-width:767px) {main.public-sign-configurator.sign-studio .neon-inline-toolbar {gap:5px;padding:5px;}main.public-sign-configurator.sign-studio .neon-inline-toolbar select {max-width:123px;}main.public-sign-configurator.sign-studio .neon-inline-toolbar label span {display:none;}main.public-sign-configurator.sign-studio .neon-inline-toolbar button {font-size:10px;padding:5px;}}
 
 /* The facade darkens before its interiors wake up; window glass stays reflective. */
-main.public-sign-configurator.sign-studio .facade-svg-render [data-window-light] { transition:opacity 260ms ease; }
+main.public-sign-configurator.sign-studio .facade-svg-render [data-window-light] { transition:opacity 400ms ease; }
 main.public-sign-configurator.sign-studio .facade-svg-render.windows-dark [data-window-light] { opacity:0; }
-main.public-sign-configurator.sign-studio .facade-svg-render.windows-lit [data-window-light] { transition-duration:500ms; transition-delay:calc(var(--window-order,0) * 25ms); }
+main.public-sign-configurator.sign-studio .facade-svg-render.windows-lit [data-window-light] { opacity:1; transition-duration:500ms; transition-delay:calc(var(--window-order,0) * 25ms); }
 @media(prefers-reduced-motion:reduce) {
-  main.public-sign-configurator.sign-studio .facade-svg-render [data-window-light] { transition:none; }
+  main.public-sign-configurator.sign-studio .facade-svg-render [data-window-light] { transition:none!important; }
 }
 
 main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.day,
