@@ -29,7 +29,8 @@
     "test:daylight": "node scripts/test-daylight.mjs",
     "test:letter-frame": "node scripts/test-letter-frame.mjs",
     "test:letter-rows": "node scripts/test-letter-rows.mjs",
-    "test:vector-pdf": "node scripts/test-vector-pdf.mjs"
+    "test:vector-pdf": "node scripts/test-vector-pdf.mjs",
+    "test:backer-contours": "node scripts/test-backer-contours.mjs"
   },
   "dependencies": {
     "framer-motion": "^12.41.0",

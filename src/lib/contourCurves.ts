@@ -5,6 +5,21 @@ const unit = ([x, y]: Point): Point => { const d = Math.hypot(x, y) || 1; return
 const sub = (a: Point, b: Point): Point => [a[0] - b[0], a[1] - b[1]];
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
 const fmt = (p: Point) => `${n(p[0])} ${n(p[1])}`;
+const tangentAt = (before: Point, at: Point, after: Point): Point => {
+  const incoming = unit(sub(at, before)), outgoing = unit(sub(after, at));
+  return unit([incoming[0] + outgoing[0], incoming[1] + outgoing[1]]);
+};
+
+function sampleEdges(points: Point[], step: number): Point[] {
+  const sampled: Point[] = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i], distance = Math.hypot(...sub(b, a));
+    const count = Math.max(1, Math.ceil(distance / step));
+    for (let j = 1; j <= count; j++) sampled.push(j === count ? b :
+      [a[0] + (b[0] - a[0]) * j / count, a[1] + (b[1] - a[1]) * j / count]);
+  }
+  return sampled;
+}
 
 function simplify(points: Point[], tolerance: number): Point[] {
   if (points.length < 3) return points;
@@ -48,7 +63,7 @@ function fit(points: Point[], start: Point, end: Point, tolerance: number): stri
     if (d > error) { error = d; split = i; }
   });
   if (error <= tolerance * tolerance) return `C${fmt(p)} ${fmt(q)} ${fmt(b)}`;
-  const tangent = unit(sub(points[split + 1], points[split - 1]));
+  const tangent = tangentAt(points[split - 1], points[split], points[split + 1]);
   return fit(points.slice(0, split + 1), start, [-tangent[0], -tangent[1]], tolerance) + fit(points.slice(split), tangent, end, tolerance);
 }
 
@@ -58,7 +73,7 @@ export function smoothContour(points: Point[], tolerance = 1): string {
   const ring = simplify(closed, tolerance);
   if (ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]) ring.pop();
   if (ring.length < 3) return '';
-  const tangent = (i: number) => unit(sub(ring[(i + 1) % ring.length], ring[(i - 1 + ring.length) % ring.length]));
+  const tangent = (i: number) => tangentAt(ring[(i - 1 + ring.length) % ring.length], ring[i], ring[(i + 1) % ring.length]);
   const corners = ring.map((p, i) => dot(unit(sub(p, ring[(i - 1 + ring.length) % ring.length])), unit(sub(ring[(i + 1) % ring.length], p))) < Math.SQRT1_2 ? i : -1).filter(i => i >= 0);
   // Smooth rings need two anchored halves so a closed curve never has a zero chord.
   if (!corners.length) corners.push(0, Math.floor(ring.length / 2));
@@ -72,6 +87,9 @@ export function smoothContour(points: Point[], tolerance = 1): string {
     const sharp = (i: number) => dot(unit(sub(ring[i], ring[(i - 1 + ring.length) % ring.length])), unit(sub(ring[(i + 1) % ring.length], ring[i]))) < Math.SQRT1_2;
     const start = sharp(first) ? unit(sub(segment[1], segment[0])) : tangent(first);
     const end = sharp(last) ? unit(sub(segment[segment.length - 2], segment[segment.length - 1])) : tangent(last).map(v => -v) as Point;
-    return fit(segment, start, end, tolerance);
+    // Sparse corner vertices cannot constrain a cubic between them: a rounded
+    // corner could otherwise bend an entire straight baseline outwards. Keep
+    // dense constraints along every reduced edge, including long flat runs.
+    return fit(sampleEdges(segment, Math.max(1, tolerance)), start, end, tolerance);
   }).join('') + 'Z';
 }

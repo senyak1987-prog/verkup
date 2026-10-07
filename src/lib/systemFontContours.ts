@@ -37,8 +37,9 @@ export function traceAlpha(data: Uint8ClampedArray, width: number, height: numbe
       points.push(next);
     } while (next[0] !== start[0] || next[1] !== start[1]);
     if (points.length > 3) {
-      const reduced = simplify(points, tolerance);
-      paths.push(curves ? smoothContour(reduced, tolerance) : 'M' + reduced.map(p => p.join(' ')).join('L') + 'Z');
+      // Curve fitting performs its own reduction; reducing twice compounds the
+      // error and removes the constraints that keep straight edges straight.
+      paths.push(curves ? smoothContour(points, tolerance) : 'M' + simplify(points, tolerance).map(p => p.join(' ')).join('L') + 'Z');
     }
   }
   return paths.join('');
