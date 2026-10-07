@@ -27,21 +27,9 @@ export function haloBackerContour(rows:Row[], requestedOffset:number):string {
     }
     // Separate contours attach to the steel frame; do not bridge counters or word spaces.
   }
-  const traced=traceAlpha(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height,Math.max(.7,scale*.8));
+  const traced=traceAlpha(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height,Math.max(1.2,scale*.8),true);
   const n=(value:number)=>Number(value.toFixed(3));
-  const path=(traced.match(/M[^M]*/g)??[]).map(part=>{
-    const points=Array.from(part.matchAll(/(-?[\d.]+) (-?[\d.]+)/g),m=>({x:Number(m[1])/scale+left,y:Number(m[2])/scale+top}));
-    if(points.length>1 && points[0].x===points[points.length-1].x && points[0].y===points[points.length-1].y)points.pop();
-    if(points.length<3)return '';
-    const radius=1/scale, corner=(a:typeof points[number],b:typeof points[number])=>{
-      const distance=Math.hypot(b.x-a.x,b.y-a.y),t=Math.min(.45,radius/Math.max(distance,.001));
-      return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};
-    };
-    const start=corner(points[0],points[points.length-1]);
-    return `M${n(start.x)} ${n(start.y)}`+points.map((p,i)=>{
-      const before=corner(p,points[(i+points.length-1)%points.length]),after=corner(p,points[(i+1)%points.length]);
-      return `L${n(before.x)} ${n(before.y)}Q${n(p.x)} ${n(p.y)} ${n(after.x)} ${n(after.y)}`;
-    }).join('')+'Z';
-  }).join('');
+  const path=traced.replace(/([MLQC])([^MLQCZ]+)/g,(_match,command:string,coordinates:string)=>
+    command+coordinates.trim().split(/[\s,]+/).map((value,index)=>n(Number(value)/scale+(index%2?top:left))).join(' '));
   if(cache.size>=12)cache.delete(cache.keys().next().value!);cache.set(key,path);return path;
 }

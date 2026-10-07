@@ -565,7 +565,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       for (const part of textParts) if (part.glyph.shapes.length) {
         const box = part.glyph.box;
         const sx = part.box.width / Math.max(1, box.x2 - box.x1), sy = part.box.height / Math.max(1, box.y2 - box.y1);
-        const text = extrude(part.glyph.shapes, bodyDepth, face, side, backMaterial, { frontSeam });
+        const text = extrude(part.glyph.shapes, bodyDepth, face, side, backMaterial, { frontSeam, curveSegments: 48 });
         seamUsed = true;
         text.geometry.scale(sx, -sy, 1);
         // Reflecting Y changes winding; restore each face before culling and lighting.
