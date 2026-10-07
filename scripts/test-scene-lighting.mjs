@@ -61,23 +61,28 @@ test('The scene reaches night before the warm window lights fade in',()=>{
   assert.deepEqual(sceneLightingAt(from,true,duration),{night:1,windows:1});
 });
 
-test('Window interiors turn off before the scene completes its return to day',()=>{
+test('Daylight settles first, then windows remain lit through a short pause and fade out smoothly',()=>{
   const from={night:1,windows:1};
   assert.deepEqual(sceneLightingAt(from,false,0),from);
-  const halfway=sceneLightingAt(from,false,SCENE_LIGHTING_TIMING.windowsOffMs/2);
-  close(halfway.windows,.5);
-  assert.ok(halfway.night>.5,'The window lights fade while the exterior remains predominantly dark');
-  const off=sceneLightingAt(from,false,SCENE_LIGHTING_TIMING.windowsOffMs);
-  close(off.windows,0);assert.ok(off.night>0);
-  assert.equal(sceneLightingDuration(false),SCENE_LIGHTING_TIMING.sceneMs);
+  const halfway=sceneLightingAt(from,false,SCENE_LIGHTING_TIMING.sceneMs/2);
+  close(halfway.night,.5);close(halfway.windows,1);
+  assert.deepEqual(sceneLightingAt(from,false,SCENE_LIGHTING_TIMING.sceneMs),{night:0,windows:1});
+  assert.ok(SCENE_LIGHTING_TIMING.windowsOffDelayMs>SCENE_LIGHTING_TIMING.sceneMs);
+  assert.ok(SCENE_LIGHTING_TIMING.windowsOffDelayMs-SCENE_LIGHTING_TIMING.sceneMs<=350,'The daylight pause remains short');
+  assert.deepEqual(sceneLightingAt(from,false,SCENE_LIGHTING_TIMING.windowsOffDelayMs),{night:0,windows:1});
+  const dimming=sceneLightingAt(from,false,SCENE_LIGHTING_TIMING.windowsOffDelayMs+SCENE_LIGHTING_TIMING.windowsOffMs/2);
+  close(dimming.night,0);close(dimming.windows,.5);
+  assert.equal(sceneLightingDuration(false),SCENE_LIGHTING_TIMING.windowsOffDelayMs+SCENE_LIGHTING_TIMING.windowsOffMs);
   assert.deepEqual(sceneLightingAt(from,false,sceneLightingDuration(false)),{night:0,windows:0});
 });
 
 test('Interrupted day/night transitions continue from both current light levels without a jump',()=>{
+  const dawn=sceneLightingAt({night:1,windows:1},false,SCENE_LIGHTING_TIMING.sceneMs/2);
+  close(dawn.windows,1);assert.deepEqual(sceneLightingAt(dawn,true,0),dawn,'Reversing during dawn preserves the lit windows');
   const interrupted=sceneLightingAt({night:0,windows:0},true,SCENE_LIGHTING_TIMING.windowsDelayMs+SCENE_LIGHTING_TIMING.windowsFadeMs*.35);
   assert.ok(interrupted.windows>0&&interrupted.windows<1);
   assert.deepEqual(sceneLightingAt(interrupted,false,0),interrupted,'Reversing direction preserves the displayed frame');
-  const reversing=sceneLightingAt(interrupted,false,SCENE_LIGHTING_TIMING.windowsOffMs*.3);
+  const reversing=sceneLightingAt(interrupted,false,SCENE_LIGHTING_TIMING.windowsOffDelayMs+SCENE_LIGHTING_TIMING.windowsOffMs*.3);
   assert.ok(reversing.windows<interrupted.windows&&reversing.windows>0);
   assert.deepEqual(sceneLightingAt(reversing,true,0),reversing,'A second reversal preserves the current window illumination too');
   const waiting=sceneLightingAt(reversing,true,SCENE_LIGHTING_TIMING.windowsDelayMs);
