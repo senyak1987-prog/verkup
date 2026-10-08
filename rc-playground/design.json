@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-08T08:13:42.132Z",
+  "title": "Design System: Маленький заезд",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "help-panel",
+        "value": "0 10px 36px #183d2926",
+        "purpose": "Open help above the settings row."
+      },
+      {
+        "name": "resume-action",
+        "value": "0 10px 32px #123e2629",
+        "purpose": "Centered resume action over a paused scene."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-state",
+        "value": "150ms ease",
+        "purpose": "Color, background and swatch-outline changes."
+      },
+      {
+        "name": "suspension-telemetry",
+        "value": "100ms linear",
+        "purpose": "Height of each of the four wheel-travel bars."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "wide-padding",
+        "value": "1700px"
+      },
+      {
+        "name": "compact",
+        "value": "760px"
+      },
+      {
+        "name": "narrow",
+        "value": "480px"
+      },
+      {
+        "name": "smallest",
+        "value": "360px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Driving mode",
+      "kind": "button",
+      "refersTo": "mode-selected",
+      "description": "Dark selected mode inside a pale segmented container.",
+      "html": "<div class=\"ds-mode-group\" role=\"group\" aria-label=\"Режим заезда\"><button class=\"ds-mode\" aria-pressed=\"true\">Свободный заезд</button><button class=\"ds-mode\" aria-pressed=\"false\">На время</button></div>",
+      "css": ".ds-mode-group{display:inline-flex;gap:3px;padding:3px;border-radius:9px;background:#f0f4ef}.ds-mode{min-height:34px;padding:7px 13px;border:0;border-radius:7px;background:transparent;color:#466354;font:650 12px/1.2 Manrope,\"Segoe UI\",sans-serif;cursor:pointer;transition:color 150ms ease,background-color 150ms ease}.ds-mode:hover{color:#073c2d;background:#e1eadf}.ds-mode[aria-pressed=\"true\"]{color:#fff;background:#073c2d}.ds-mode[aria-pressed=\"true\"]:hover{background:#0e513d}.ds-mode:active{transform:translateY(1px)}.ds-mode:focus-visible,.ds-camera:focus-visible,.ds-action:focus-visible,.ds-resume:focus-visible,.ds-swatch:focus-visible{outline:3px solid #16803d;outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-mode{transition:none}}"
+    },
+    {
+      "name": "Camera selection",
+      "kind": "button",
+      "refersTo": "camera-selected",
+      "description": "A softer selected camera state without a filled outer container.",
+      "html": "<div class=\"ds-camera-group\" role=\"group\" aria-label=\"Положение камеры\"><button class=\"ds-camera\" aria-pressed=\"true\">Полигон</button><button class=\"ds-camera\" aria-pressed=\"false\">Следом</button><button class=\"ds-camera\" aria-pressed=\"false\">Детали</button></div>",
+      "css": ".ds-camera-group{display:inline-flex;gap:3px}.ds-camera{min-height:32px;padding:7px 11px;border:0;border-radius:7px;background:transparent;color:#466354;font:650 11px/1.2 Manrope,\"Segoe UI\",sans-serif;cursor:pointer;transition:color 150ms ease,background-color 150ms ease}.ds-camera:hover{color:#073c2d;background:#e1eadf}.ds-camera[aria-pressed=\"true\"]{color:#073c2d;background:#eaf1e6}.ds-camera[aria-pressed=\"true\"]:hover{background:#e1eadb}.ds-camera:active{transform:translateY(1px)}.ds-mode:focus-visible,.ds-camera:focus-visible,.ds-action:focus-visible,.ds-resume:focus-visible,.ds-swatch:focus-visible{outline:3px solid #16803d;outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-camera{transition:none}}"
+    },
+    {
+      "name": "Quiet action",
+      "kind": "button",
+      "description": "Pause/reset action in the toolbar; icons in the app use Lucide at 16px.",
+      "html": "<button class=\"ds-action\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><rect x=\"6\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\"/><rect x=\"14\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\"/></svg><span>Пауза</span></button>",
+      "css": ".ds-action{display:flex;align-items:center;justify-content:center;gap:7px;min-height:37px;padding:8px 11px;border:0;border-radius:8px;background:transparent;color:#073c2d;font:600 12px/1.5 Manrope,\"Segoe UI\",sans-serif;cursor:pointer;transition:background-color 150ms ease}.ds-action:hover,.ds-action[aria-pressed=\"true\"]{background:#eef3eb}.ds-action:active{transform:translateY(1px)}.ds-action:disabled{opacity:.45;cursor:default}.ds-mode:focus-visible,.ds-camera:focus-visible,.ds-action:focus-visible,.ds-resume:focus-visible,.ds-swatch:focus-visible{outline:3px solid #16803d;outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-action{transition:none}}"
+    },
+    {
+      "name": "Resume action",
+      "kind": "button",
+      "refersTo": "resume",
+      "description": "The raised, centered primary action on the paused stage.",
+      "html": "<button class=\"ds-resume\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><path d=\"M6 3 20 12 6 21Z\"/></svg>Продолжить заезд</button>",
+      "css": ".ds-resume{display:flex;align-items:center;justify-content:center;gap:11px;min-height:52px;padding:15px 24px;border:0;border-radius:12px;background:#073c2d;color:#fff;font:650 14px/1.5 Manrope,\"Segoe UI\",sans-serif;box-shadow:0 10px 32px #123e2629;cursor:pointer}.ds-resume:hover{background:#0e513d}.ds-resume:active{transform:translateY(1px)}.ds-mode:focus-visible,.ds-camera:focus-visible,.ds-action:focus-visible,.ds-resume:focus-visible,.ds-swatch:focus-visible{outline:3px solid #16803d;outline-offset:4px}"
+    },
+    {
+      "name": "Car color swatch",
+      "kind": "button",
+      "description": "A circular car-material choice with both outer outline and center dot when selected.",
+      "html": "<button class=\"ds-swatch\" aria-label=\"Медовый\" aria-pressed=\"true\"><span></span></button>",
+      "css": ".ds-swatch{display:grid;place-items:center;width:23px;height:23px;padding:0;border:3px solid #fff;border-radius:50%;background:#e8bc45;outline:1px solid transparent;cursor:pointer;transition:outline-color 150ms ease}.ds-swatch:hover,.ds-swatch[aria-pressed=\"true\"]{outline-color:#7c8f7e}.ds-swatch>span{width:5px;height:5px;border-radius:50%;background:#fff;opacity:0}.ds-swatch[aria-pressed=\"true\"]>span{opacity:1}.ds-swatch:active{transform:translateY(1px)}.ds-mode:focus-visible,.ds-camera:focus-visible,.ds-action:focus-visible,.ds-resume:focus-visible,.ds-swatch:focus-visible{outline:3px solid #16803d;outline-offset:4px}@media(prefers-reduced-motion:reduce){.ds-swatch{transition:none}}"
+    }
+  ]
+}
