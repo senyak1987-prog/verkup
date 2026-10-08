@@ -10,6 +10,7 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, "index.html"),
         signConfigurator: path.resolve(__dirname, "sign-configurator/index.html"),
+        rcPlayground: path.resolve(__dirname, "rc-playground/index.html"),
       },
     },
   },
