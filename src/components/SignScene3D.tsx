@@ -14,6 +14,9 @@ import type { DaylightMarker } from "../lib/signDaylight";
 import { sceneLightingAt, sceneLightingDuration } from "../lib/sceneLighting";
 import { panelMountLayout } from "../lib/panelConstruction";
 import type { SignPlacement } from "../lib/signFacade";
+import { createFacadeRcGame, type FacadeRcGame, type FacadeRcCamera } from "../rc-game/facadeGame";
+import { FacadeRcControls } from "../rc-game/FacadeRcControls";
+import type { RcMode, RcTelemetry } from "../rc-game/world";
 import "../sign-scene-3d.css";
 
 export type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
@@ -33,6 +36,7 @@ export type SignScene3DProps = {
   onZoomChange?: (value: number) => void;
   resetKey?: number;
   onUnavailable?: () => void;
+  onGameActiveChange?: (active: boolean) => void;
 };
 
 /** Cube shadow depth is measured along its face axis, rather than radial distance. */
@@ -54,6 +58,7 @@ type SceneRuntime = {
   scene: THREE.Scene;
   camera: THREE.OrthographicCamera;
   controls: OrbitControls;
+  rc: FacadeRcGame | null;
   model: THREE.Group | null;
   ambient: THREE.HemisphereLight;
   key: THREE.PointLight;
@@ -71,7 +76,7 @@ type SceneRuntime = {
   source: (marker: DaylightMarker) => void;
 };
 
-export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', companion, showPerson = true, showSign = true, showPanel = true, onZoomChange, resetKey = 0, onUnavailable }: SignScene3DProps) {
+export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', companion, showPerson = true, showSign = true, showPanel = true, onZoomChange, resetKey = 0, onUnavailable, onGameActiveChange }: SignScene3DProps) {
   const geometryKey = JSON.stringify({ ...project, sceneMode: undefined, lightsOn:undefined });
   const modelProject = useMemo(() => ({ ...project, sceneMode: 'night' as const, lightsOn:true }), [geometryKey]);
   const lightsOnRef=useRef(project.lightsOn!==false);
@@ -98,9 +103,16 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
   const zoomRef = useRef(zoom);
   const zoomChangeRef = useRef(onZoomChange);
   zoomChangeRef.current = onZoomChange;
+  const gameActiveChangeRef = useRef(onGameActiveChange);
+  gameActiveChangeRef.current = onGameActiveChange;
   const buildRef = useRef(0);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
+  const [rcAvailable, setRcAvailable] = useState(false);
+  const [rcActive, setRcActive] = useState(false);
+  const [rcTelemetry, setRcTelemetry] = useState<RcTelemetry | null>(null);
+  const [rcMode, setRcMode] = useState<RcMode>('free');
+  const [rcCamera, setRcCamera] = useState<FacadeRcCamera>('arena');
   unavailableRef.current = onUnavailable;
   zoomRef.current = zoom;
 
@@ -159,32 +171,38 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       key.shadow.radius = 1;
       const fill = new THREE.DirectionalLight("#dce9ef", DAYLIGHT_LEVELS.fill);
       scene.add(ambient, key, fill, fill.target);
+      for (const light of [ambient, key, fill]) light.layers.enable(1);
+      key.shadow.camera.layers.enable(1);
       host.appendChild(renderer.domElement);
       const currentRenderer = renderer;
       const currentControls = controls;
       const motionPreference=window.matchMedia('(prefers-reduced-motion: reduce)');
-      let motionTimer:ReturnType<typeof setTimeout>|undefined,hostInView=true,lastPersonShadow=0;
+      let motionTimer:ReturnType<typeof setTimeout>|undefined,hostInView=true,lastPersonShadow=0,skipFitAfterGameExit=false;
       const render = () => {
         frameId = 0;
         clearTimeout(motionTimer);motionTimer=undefined;
-        if (disposed || !hostInView || document.visibilityState === "hidden") return;
+        if (disposed || !hostInView || document.visibilityState === "hidden") { runtime.rc?.suspend(); return; }
         try {
           const person=runtime.model?.getObjectByName('scale-person');
           const now=performance.now();
+          const rcAnimating = runtime.rc?.update(now) ?? false;
           const animated=person?.visible&&animateScalePerson(person,now/1000,motionPreference.matches);
-          if(animated&&now-lastPersonShadow>500){key.shadow.needsUpdate=true;lastPersonShadow=now;}
+          if((rcAnimating||animated)&&now-lastPersonShadow>(rcAnimating?100:500)){key.shadow.needsUpdate=true;lastPersonShadow=now;}
           host.dataset.personAnimation=person?.visible?(animated?'standing-cape':'still'):'';
           if(animated)host.dataset.personMotionTime=(now/1000).toFixed(3);
           currentRenderer.render(scene, camera);
           host.dataset.cameraZoom = String(camera.zoom);
           host.dataset.cameraViewHeight = String(camera.top - camera.bottom);
+          host.dataset.cameraViewWidth = String(camera.right - camera.left);
           host.dataset.cameraTarget = currentControls.target.toArray().map(value => value.toFixed(3)).join(",");
           host.dataset.signAnchor = runtime.signAnchor.toArray().map(value => value.toFixed(3)).join(",");
           const signScreen = runtime.signAnchor.clone().project(camera);
           host.dataset.signScreen = `${signScreen.x.toFixed(4)},${signScreen.y.toFixed(4)}`;
           const value = Math.round(camera.zoom * 100);
-          if (value !== zoomRef.current) zoomChangeRef.current?.(value);
-          if(animated)motionTimer=setTimeout(requestRender,32);
+          if (!runtime.rc?.active && value !== zoomRef.current) zoomChangeRef.current?.(value);
+          host.dataset.rcActive = runtime.rc?.active ? 'true' : 'false';
+          host.dataset.rcAvailable = runtime.rc?.available ? 'true' : 'false';
+          if(rcAnimating)requestRender();else if(animated)motionTimer=setTimeout(requestRender,32);
         } catch { fail(); }
       };
       const requestRender = () => {
@@ -192,10 +210,11 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       };
       let daylightIntensity = 1;
       const runtime: SceneRuntime = {
-        renderer, scene, camera, controls, model: null, ambient, key, fill,
+        renderer, scene, camera, controls, rc: null, model: null, ambient, key, fill,
         distance: 1800, requestRender, bounds: new THREE.Box3(),
         fitCenter: new THREE.Vector3(), signAnchor: new THREE.Vector3(),
         focusZoom() {
+          if (runtime.rc?.active) return;
           const target = runtime.fitCenter.clone().lerp(runtime.signAnchor, zoomFocusWeight(camera.zoom));
           const delta = target.sub(currentControls.target);
           if (delta.lengthSq() < 1e-10) return;
@@ -230,12 +249,14 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           scene.environmentIntensity = DAYLIGHT_LEVELS.environment + (.07 - DAYLIGHT_LEVELS.environment) * night;
           currentRenderer.toneMappingExposure = DAYLIGHT_LEVELS.exposure;
           if (runtime.model) applySignLighting(runtime.model, night, lightsOn, windows);
+          runtime.rc?.setLighting(night);
           host.dataset.nightFraction = night.toFixed(3);
           host.dataset.windowLightFraction = windows.toFixed(3);
           host.dataset.lightingPhase = night === 0 ? "day" : windows === 1 ? "night" : "dusk";
           requestRender();
         },
         fitToView() {
+          if (runtime.rc?.active) { runtime.rc.resize(); return; }
           if (!runtime.model || runtime.bounds.isEmpty()) return;
           camera.updateMatrixWorld();
           const right = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
@@ -269,6 +290,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           camera.updateProjectionMatrix();
         },
         frame(front, preserveOrbit = false) {
+          if (runtime.rc?.active) { runtime.rc.resize(); requestRender(); return; }
           if (!runtime.model) return;
           const box = new THREE.Box3();
           for (const child of runtime.model.children) {
@@ -276,6 +298,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
               for (const part of child.children) if (part.name !== 'dimensions') box.expandByObject(part);
             } else if (child.name !== 'dimensions') box.expandByObject(child);
           }
+          if (runtime.rc?.available) box.expandByObject(runtime.rc.group);
           if (box.isEmpty()) return;
           const center = panelRef.current || runtime.model.getObjectByName('facade') ? box.getCenter(new THREE.Vector3()) : new THREE.Vector3(0, 0, box.max.z / 2);
           const view = layoutRef.current;
@@ -297,7 +320,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
             : runtime.model.userData.placement === 'none' && panelPose ? new THREE.Vector3(-1, .15, .65) : new THREE.Vector3(.85, .12, 1);
           const direction = preserveOrbit
             ? camera.position.clone().sub(currentControls.target).normalize()
-            : front ? panelFront : (panelPose ? panelDefault : runtime.model.userData.contextProducts
+            : front ? panelFront : runtime.rc?.available ? new THREE.Vector3(.5, .42, 1).normalize()
+            : (panelPose ? panelDefault : runtime.model.userData.contextProducts
               ? new THREE.Vector3(.75, .16, 1) : new THREE.Vector3(panelRef.current ? 0.68 : canopyView ? 0.55 : 0.3, canopyView ? 0.3 : 0.12, 1)).normalize();
           runtime.fitCenter.copy(center);
           const focus = center.clone().lerp(runtime.signAnchor, zoomFocusWeight(camera.zoom));
@@ -316,21 +340,36 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const canvasHeight = Math.max(1, Math.round(box.height));
           currentRenderer.setSize(canvasWidth, canvasHeight, false);
           camera.updateProjectionMatrix();
-          if (runtime.model) runtime.fitToView();
+          if (skipFitAfterGameExit) {
+            const halfWidth = (camera.top - camera.bottom) * canvasWidth / canvasHeight / 2;
+            const centerX = (camera.left + camera.right) / 2;
+            camera.left = centerX - halfWidth; camera.right = centerX + halfWidth;
+            camera.updateProjectionMatrix(); skipFitAfterGameExit = false;
+          } else if (runtime.model) runtime.fitToView();
           requestRender();
         },
       };
       runtimeRef.current = runtime;
+      runtime.rc = createFacadeRcGame({ scene, camera, controls: currentControls, canvas: currentRenderer.domElement,
+        requestRender, onActive: value => {
+          if (!disposed) {
+            skipFitAfterGameExit = !value;
+            setRcActive(value); gameActiveChangeRef.current?.(value);
+            if (!value) requestAnimationFrame(() => host.parentElement?.querySelector<HTMLButtonElement>('.facade-rc-start')?.focus({ preventScroll: true }));
+          }
+        },
+        onGeometryChange: () => { key.shadow.needsUpdate = true; },
+        onTelemetry: value => { if (!disposed) setRcTelemetry(value); } });
       const controlsChanged = () => { runtime.focusZoom(); requestRender(); };
       currentControls.addEventListener("change", controlsChanged);
       const contextLost = (event: Event) => { event.preventDefault(); fail(); };
       renderer.domElement.addEventListener("webglcontextlost", contextLost);
-      const visible = () => { if (document.visibilityState === "visible") requestRender(); };
+      const visible = () => { runtime.rc?.suspend(); if (document.visibilityState === "visible") requestRender(); };
       document.addEventListener("visibilitychange", visible);
       const motionChanged=()=>requestRender();motionPreference.addEventListener('change',motionChanged);
       const visibilityObserver=new IntersectionObserver(entries=>{
         hostInView=entries.some(entry=>entry.isIntersecting);
-        if(hostInView)requestRender();else{clearTimeout(motionTimer);motionTimer=undefined;}
+        if(hostInView)requestRender();else{runtime.rc?.suspend();clearTimeout(motionTimer);motionTimer=undefined;}
       });visibilityObserver.observe(host);
       observer = new ResizeObserver(runtime.resize);
       observer.observe(host);
@@ -344,6 +383,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         document.removeEventListener("visibilitychange", visible);
         currentRenderer.domElement.removeEventListener("webglcontextlost", contextLost);
         currentControls.removeEventListener("change", controlsChanged);
+        runtime.rc?.dispose();
+        gameActiveChangeRef.current?.(false);
         currentControls.dispose();
         if (runtime.model) disposeSignObject(runtime.model);
         environment.dispose();
@@ -401,6 +442,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const preserveOrbit = runtime.model?.userData.productId === project.productId && runtime.model?.userData.placement === placement
         && runtime.model?.userData.panelPose?.mode === (project.productId === 'panel' ? project.panelMountMode ?? 'wall' : undefined);
       model.userData.placement = placement;
+      runtime.rc?.exit();
       if (runtime.model) {
         runtime.scene.remove(runtime.model);
         disposeSignObject(runtime.model);
@@ -442,13 +484,16 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         hostRef.current.dataset.scalePersonSource = facade?.getObjectByName('scale-person')?.userData.assetSource ?? '';
       }
       runtime.scene.add(model);
+      runtime.rc?.setFacade(facade ?? null);
+      setRcAvailable(runtime.rc?.available ?? false);
       runtime.bounds.setFromObject(model);
+      if (runtime.rc?.available) runtime.bounds.expandByObject(runtime.rc.group);
       const focusBounds = signFocusBounds(model);
       if (focusBounds.isEmpty()) runtime.signAnchor.set(0, 0, 0);
       else focusBounds.getCenter(runtime.signAnchor);
       runtime.source(sunMarkerRef.current);
       runtime.light(lightFraction.current, windowFraction.current, lightsOnRef.current);
-      runtime.frame(!modelCompanion && project.productId !== "panel" && placement !== 'canopy', preserveOrbit);
+      runtime.frame(!runtime.rc?.available && !modelCompanion && project.productId !== "panel" && placement !== 'canopy', preserveOrbit);
       runtime.requestRender();
       setLoading(false);
     }).catch(() => {
@@ -505,6 +550,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
   useEffect(() => {
     const runtime = runtimeRef.current;
     if (!runtime) return;
+    if (runtime.rc?.active) return;
     runtime.camera.zoom = Math.max(0.25, Math.min(4, zoom / 100));
     runtime.camera.updateProjectionMatrix();
     runtime.focusZoom();
@@ -532,8 +578,18 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       y: Math.max(.06, Math.min(.94, value.y + (event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0))) }));
   };
 
-  const changeView = (front: boolean) => runtimeRef.current?.frame(front);
+  const changeView = (front: boolean) => { runtimeRef.current?.rc?.exit(); runtimeRef.current?.frame(front); };
   const keyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (runtimeRef.current?.rc?.active) {
+      if (event.key === 'Escape') { event.preventDefault(); runtimeRef.current.rc.exit(); }
+      if (event.key === 'Tab') {
+        const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), canvas[tabindex="0"]')];
+        const first = focusable[0], last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }
+      return;
+    }
     if ((event.target as HTMLElement).closest("button")) return;
     const runtime = runtimeRef.current;
     if (!runtime) return;
@@ -556,34 +612,41 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
   };
 
   return (
-    <div className={"sign-scene-3d " + project.sceneMode} onKeyDown={keyboard} tabIndex={0}
-      role="group" aria-label="Интерактивная 3D-модель вывески. Стрелки вращают модель, плюс и минус меняют масштаб, F — вид спереди, R — сброс ракурса."
-      aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown + - F R Home">
-      <div className="sign-scene-3d-viewport" ref={hostRef} aria-hidden="true" />
-      <button type="button" className="daylight-source" style={{ left: `${sunMarker.x * 100}%`, top: `${sunMarker.y * 100}%` }}
+    <div className={"sign-scene-3d " + project.sceneMode + (rcActive ? ' is-rc-playing' : '')} onKeyDown={keyboard} tabIndex={0}
+      role={rcActive ? 'dialog' : 'group'} aria-modal={rcActive || undefined} aria-label={rcActive ? 'Мини-игра у здания. Удерживайте левую кнопку мыши или палец, чтобы ехать. Стрелки или WASD — управление. Escape — к вывеске.' : 'Интерактивная 3D-модель вывески. Стрелки вращают модель, плюс и минус меняют масштаб, F — вид спереди, R — сброс ракурса.'}
+      aria-keyshortcuts={rcActive ? 'ArrowLeft ArrowRight ArrowUp ArrowDown W A S D Space Escape' : 'ArrowLeft ArrowRight ArrowUp ArrowDown + - F R Home'}>
+      <div className="sign-scene-3d-viewport" ref={hostRef} aria-hidden={!rcActive} />
+      {!rcActive && <button type="button" className="daylight-source" style={{ left: `${sunMarker.x * 100}%`, top: `${sunMarker.y * 100}%` }}
         aria-label="Источник дневного света. Перетащите или используйте стрелки; Home — исходное положение."
         title="Переместите источник света для изменения теней и бликов" disabled={unavailable || project.sceneMode === "night"}
         aria-hidden={project.sceneMode === "night"}
         onPointerDown={event => { event.preventDefault(); event.stopPropagation(); event.currentTarget.focus(); event.currentTarget.setPointerCapture(event.pointerId); }}
         onPointerMove={placeSun} onPointerUp={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
         onPointerCancel={event => { if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }}
-        onKeyDown={sunKeyboard}><Sun size={17} /><span>Свет</span></button>
-      <div className="sign-scene-3d-actions">
+        onKeyDown={sunKeyboard}><Sun size={17} /><span>Свет</span></button>}
+      {!rcActive && <div className="sign-scene-3d-actions">
         <button type="button" onClick={() => changeView(true)} title="Вид спереди (F)" disabled={unavailable}>
           <ScanLine size={15} /><span>Спереди</span>
         </button>
         <button type="button" onClick={() => changeView(false)} title="Сбросить ракурс (R)" disabled={unavailable}>
           <RotateCcw size={15} /><span>Сбросить ракурс</span>
         </button>
-      </div>
+      </div>}
       {loading && <div className="sign-scene-3d-status" role="status">Готовим объемную модель…</div>}
       {unavailable && <div className="sign-scene-3d-status" role="status">3D сейчас недоступно. Открываем плоский вид.</div>}
-      {!loading && !unavailable && <p className="sign-scene-3d-hint">Перетащите для вращения · колесо или два пальца для масштаба</p>}
-      <div className="sign-scene-3d-notices" aria-live="polite">
+      {!loading && !unavailable && !rcActive && <p className="sign-scene-3d-hint">Перетащите для вращения · колесо или два пальца для масштаба</p>}
+      {!rcActive && <div className="sign-scene-3d-notices" aria-live="polite">
         {placement !== 'none' && showPerson && <span className="scale-person-note">Человек 175 см · дверь 110 × 210 см</span>}
         {project.productId === "letters" && project.mountMode === "frame" && project.letterHeight > 550 &&
           <span>Рама 15 × 15 мм показана в масштабе. Для букв выше 550 мм профиль требует проверки.</span>}
-      </div>
+      </div>}
+      {rcAvailable && !unavailable && <FacadeRcControls active={rcActive} paused={rcTelemetry?.paused ?? false} loading={loading}
+        telemetry={rcTelemetry} mode={rcMode} camera={rcCamera}
+        onStart={() => runtimeRef.current?.rc?.start()} onExit={() => runtimeRef.current?.rc?.exit()}
+        onPause={() => runtimeRef.current?.rc?.setPaused(!runtimeRef.current.rc.paused)}
+        onReset={() => runtimeRef.current?.rc?.reset()}
+        onMode={value => { setRcMode(value); runtimeRef.current?.rc?.setMode(value); }}
+        onCamera={value => { setRcCamera(value); runtimeRef.current?.rc?.setCamera(value); }} />}
     </div>
   );
 }

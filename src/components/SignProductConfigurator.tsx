@@ -669,6 +669,7 @@ export function SignProductConfigurator() {
   useEffect(()=>{let active=true;setNeonFontError("");void Promise.all([...new Set([project.neonFont,...project.neonLineFonts])].map(id=>loadNeonFont(id))).then(()=>{if(active)setNeonFontReady(neonFontKey);}).catch(error=>{if(active)setNeonFontError(error.message);});return()=>{active=false;};},[neonFontKey]);
   const [fitSignal, setFitSignal] = useState(0);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
+  const [rcPlaying, setRcPlaying] = useState(false);
   const [showDimensions, setShowDimensions] = useState(true);
   const [showFacadeSign, setShowFacadeSign] = useState(true);
   const [showFacadePanel, setShowFacadePanel] = useState(true);
@@ -1051,7 +1052,7 @@ export function SignProductConfigurator() {
   }
 
   return (
-    <main className="public-sign-configurator sign-studio" style={visualStyle}>
+    <main className={"public-sign-configurator sign-studio" + (rcPlaying ? " is-rc-playing" : "")} style={visualStyle}>
       <a className="studio-skip" href="#studio-controls">К настройкам вывески</a>
       <header className="studio-header">
         <a className="studio-brand" href="./" aria-label="Город Свет — конструктор вывесок">
@@ -1089,7 +1090,7 @@ export function SignProductConfigurator() {
       </section>
       <section className="sign-builder-layout">
 
-        <section ref={workspaceRef} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""}`} aria-label="Рабочий макет">
+        <section ref={workspaceRef} className={`studio-workspace scene-${sceneMode} ${viewMode === "3d" ? "is-3d" : ""} ${rcPlaying ? "is-rc-playing" : ""}`} aria-label="Рабочий макет">
           <header className="canvas-toolbar"><div className="canvas-title"><strong>Предпросмотр</strong><span>{sceneMode === "day" ? "Дневное освещение" : "Ночное освещение"}</span></div>
             <button type="button" className={"sign-power-switch "+(project.lightsOn?'on':'off')} role="switch" aria-checked={project.lightsOn} aria-label="Свет вывески" title={project.lightsOn?'Выключить свет вывески':'Включить свет вывески'} onClick={()=>patchProject({lightsOn:!project.lightsOn})}><Power size={15}/><span className="power-caption">Свет</span><span className="power-lever" aria-hidden="true"/><span className="power-state">{project.lightsOn?'Вкл':'Выкл'}</span></button>
             <div className={"scene-switch " + sceneMode} role="group" aria-label="Режим визуализации">
@@ -1136,7 +1137,7 @@ export function SignProductConfigurator() {
           {blankSign ? <div className="studio-empty-preview" role="status"><Type size={34} aria-hidden="true" /><strong>Макет пуст</strong>
             <p>{productId === "neon" ? "Добавьте надпись или фигуру в настройках." : "Добавьте надпись или логотип в настройках."}</p>
             <a className="studio-button" href="#studio-controls" onClick={() => setActiveSection("design")}>Добавить надпись</a>
-          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showPerson={showScalePerson} showSign={showFacadeSign} showPanel={showFacadePanel} resetKey={fitSignal} onUnavailable={handle3DUnavailable} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
+          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showPerson={showScalePerson} showSign={showFacadeSign} showPanel={showFacadePanel} resetKey={fitSignal} onUnavailable={handle3DUnavailable} onGameActiveChange={setRcPlaying} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
             {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
               <PanelPreview
                 lightsOn={project.lightsOn}
