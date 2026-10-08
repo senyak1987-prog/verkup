@@ -33,7 +33,7 @@ test('Reset yields a resting chassis and grounded wheels without stale momentum'
   close(car.state.y, BODY_REST_HEIGHT);
   close(car.state.yaw, Math.PI / 2);
   for (const wheel of car.state.wheels) close(car.state.y + wheel.height, 0.19);
-  close(car.state.antenna.at(-1).y, 1.45);
+  close(car.state.antenna.at(-1).y, ANTENNA_BASE.y + 1.09);
   simulate(car, 3);
   close(car.state.y, BODY_REST_HEIGHT);
   close(tipFlex(car), 0);
@@ -114,7 +114,7 @@ test('Antenna flexes under acceleration and collision, keeps connected segments,
   }
   simulate(car, 6, { ...idle, brake: true });
   assert.ok(tipFlex(car) < 0.008);
-  close(car.state.antenna.at(-1).y, 1.45, 0.012);
+  close(car.state.antenna.at(-1).y, ANTENNA_BASE.y + 1.09, 0.012);
 });
 
 test('Walls bounce inward, bound speed and expose a fading collision envelope', () => {
