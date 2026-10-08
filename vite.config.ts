@@ -5,11 +5,15 @@ import path from "node:path";
 export default defineConfig({
   plugins: [react()],
   base: process.env.VITE_BASE_PATH || "/verkup/",
+  server: {
+    watch: { ignored: ["**/.tools/**", "**/.impeccable/**"] },
+  },
   build: {
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, "index.html"),
         signConfigurator: path.resolve(__dirname, "sign-configurator/index.html"),
+        rcPlayground: path.resolve(__dirname, "rc-playground/index.html"),
       },
     },
   },

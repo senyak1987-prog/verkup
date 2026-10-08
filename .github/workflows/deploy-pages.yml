@@ -41,12 +41,15 @@ jobs:
           npm run test:letter-rows
           npm run test:vector-pdf
           npm run test:backer-contours
+          npm run test:rc-game
+          npm run test:facade-rc
       - name: Build site
         env:
-          VITE_SAVE_API_URL: ${{ vars.VITE_SAVE_API_URL }}
-          VITE_BASE_PATH: ${{ vars.VITE_BASE_PATH }}
-          VITE_PUSH_PUBLIC_KEY: ${{ vars.VITE_PUSH_PUBLIC_KEY }}
+          VITE_BASE_PATH: /verkup/
         run: npm run build
+
+      - name: Build embeddable RC game
+        run: npm run build:rc-embed
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
