@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Конструктор вывесок — Город Свет</title>
+    <script>
+      (function () {
+        var githubBase = "/verkup/";
+        var path = window.location.pathname;
+        var base = path === "/verkup" || path.indexOf(githubBase) === 0 ? githubBase : "/";
+        var route = path.slice(base.length).replace(/^\/+|\/+$/g, "");
+        var target = base;
+
+        if (route === "sign-configurator" || route === "rc-playground") {
+          target += route + "/";
+        }
+
+        var query = new URLSearchParams(window.location.search);
+        query.delete("mode");
+        query.delete("route");
+        if (query.toString()) target += "?" + query.toString();
+        target += window.location.hash || "";
+        window.location.replace(target);
+      })();
+    </script>
+  </head>
+  <body>
+    <p><a href="/verkup/">Открыть конструктор вывесок Город Свет</a></p>
+  </body>
+</html>
