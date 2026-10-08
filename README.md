@@ -1,283 +1,107 @@
-# Verkup себестоимость
+# Город Свет — конструктор вывесок и мини-игра
 
-Статическое приложение для GitHub Pages: забирает сделки Bitrix24 на стадии `Запустить в производство`, показывает список сделок и хранит расчеты себестоимости в репозитории.
+Публичный конструктор объёмных букв, панелей-кронштейнов и неона. Настройте текст, размеры, материалы, свечение и монтаж, посмотрите вывеску в 2D и 3D, сохраните проект и добавьте макет в локальную корзину.
 
-## Что уже заложено
+Перед зданием с вывеской находится площадка с маленькой радиоуправляемой машинкой. Мини-игра использует физику корпуса, независимую подвеску четырёх колёс и гибкую антенну; управление — мышью, касанием или клавиатурой. Есть свободный заезд, прохождение ворот на время, пауза и игровые камеры.
 
-- импорт сделок из Bitrix24 в `public/data/deals.json`;
-- расчет по позициям: материалы, сборка, расходники, подряд, фрезеровка, печать, плоттер, монтаж, косяки;
-- два итога себестоимости: чистый и итоговый с учетом косяков;
-- доставка и аренда не входят в себестоимость;
-- для агентов целевой коэффициент себестоимости `0.58`: изготовление считается от себестоимости изделия, монтаж - от себестоимости монтажных позиций;
-- сохранение расчетов в `public/data/calculations.json` через закрытый API-посредник;
-- редактируемый справочник позиций в `public/data/catalogs.json` через закрытый API-посредник;
-- мобильный цеховой режим: сотрудники, назначения, старт работы, обязательные фото и статус `Готово к отгрузке` в `public/data/production.json`;
-- деплой на GitHub Pages;
-- ручной запуск GitHub workflow для разовой синхронизации Bitrix24.
+Приложение работает как статический сайт. Проекты, корзина и рекорды хранятся в браузере на устройстве пользователя. Аккаунт и сервер для работы конструктора и игры не требуются.
 
-## GitHub Secrets
+## Адреса
 
-В репозитории откройте `Settings -> Secrets and variables -> Actions` и добавьте:
+При стандартном базовом пути `/verkup/` сборка содержит три страницы:
 
-- `BITRIX_WEBHOOK_URL` - входящий webhook Bitrix24.
-- `BITRIX_STAGE_ID` - точный ID стадии `Запустить в производство`.
-- `BITRIX_PRODUCTION_STAGE_ID` - точный ID стадии `В производстве`.
-- `BITRIX_CATEGORY_ID` - ID воронки, если сделка не в общей воронке.
-- `BITRIX_FIELD_CLASSIFICATION` - код пользовательского поля классификации заявки.
-- `BITRIX_FIELD_INSTALL_AMOUNT` - код пользовательского поля стоимости монтажа.
-- `BITRIX_FIELD_START_DATE` - код пользовательского поля даты запуска.
-- `BITRIX_FIELD_EXPECTED_FINISH_DATE` - код пользовательского поля предполагаемой даты завершения.
+| Страница | Путь |
+| --- | --- |
+| Главный конструктор | `/verkup/` |
+| Прямая ссылка на конструктор | `/verkup/sign-configurator/` |
+| Отдельная мини-игра | `/verkup/rc-playground/` |
 
-Webhook нельзя коммитить в репозиторий.
+Главная страница и прямая ссылка открывают один и тот же конструктор. Для игры у здания выберите «Примерка · 3D», затем «Поиграть с машинкой». Кнопка «К вывеске» или Escape завершает заезд и возвращает исходный ракурс вывески.
 
-Webhook должен иметь права CRM. Если запросы `crm.deal.fields` или `crm.status.list` отвечают `401`, создайте новый входящий webhook в Bitrix24 с доступом к CRM.
+Публикация GitHub Pages настроена для репозитория `senyak1987-prog/verkup`:
 
-## Как узнать коды полей
+- [Конструктор](https://senyak1987-prog.github.io/verkup/)
+- [Прямая ссылка на конструктор](https://senyak1987-prog.github.io/verkup/sign-configurator/)
+- [Отдельная мини-игра](https://senyak1987-prog.github.io/verkup/rc-playground/)
 
-Через GitHub Actions:
-
-1. Добавьте `BITRIX_WEBHOOK_URL` в `Settings -> Secrets and variables -> Actions`.
-2. Откройте `Actions -> Inspect Bitrix metadata`.
-3. Нажмите `Run workflow`.
-4. В логах шага `Print deal fields` будут коды `UF_CRM_...`, типы и названия полей.
-
-Локально:
-
-```bash
-BITRIX_WEBHOOK_URL="https://.../" npm run bitrix:fields
-```
-
-В выводе будут коды вида `UF_CRM_...`. Их нужно перенести в GitHub Secrets.
-
-Для стадий:
-
-```bash
-BITRIX_WEBHOOK_URL="https://.../" npm run bitrix:stages
-```
-
-Для текущего портала Verkup уже определены основные значения:
-
-- `BITRIX_STAGE_ID` = `4` (`Запустить в Производство`)
-- `BITRIX_PRODUCTION_STAGE_ID` = `10` (`В ПРОИЗВОДСТВЕ`)
-- `BITRIX_FIELD_CLASSIFICATION` = `UF_CRM_6512B7A78D965`
-- `BITRIX_FIELD_INSTALL_AMOUNT` = `UF_CRM_1547662428256`
-
-Дата запуска и предполагаемая дата завершения сейчас берутся из стандартных полей Bitrix24 `BEGINDATE` и `CLOSEDATE`. Если позже появятся отдельные производственные даты, их можно подключить через `BITRIX_FIELD_START_DATE` и `BITRIX_FIELD_EXPECTED_FINISH_DATE`.
-
-## Моментальный запуск из Bitrix24
-
-На боевом домене `manager.verkup.ru` сделки обновляются серверным PHP API, поэтому старый GitHub workflow `Sync Bitrix deals` больше не запускается по расписанию каждые 5 минут. Его можно запускать вручную из GitHub Actions или дергать через `repository_dispatch`, если нужно обновить статические данные GitHub Pages.
-
-Для моментальной выгрузки добавьте робота на стадиях `Запустить в производство` и `В производстве`, который отправляет webhook в GitHub `repository_dispatch`. После этого сделка не будет ждать расписание 5 минут: Bitrix сразу запустит workflow `Sync Bitrix deals`.
-
-URL:
-
-```text
-https://api.github.com/repos/senyak1987-prog/verkup/dispatches
-```
-
-Метод: `POST`.
-
-Headers:
-
-```text
-Accept: application/vnd.github+json
-Authorization: Bearer GITHUB_TOKEN
-X-GitHub-Api-Version: 2022-11-28
-```
-
-Body:
-
-```json
-{
-  "event_type": "bitrix_deal_stage_changed",
-  "client_payload": {
-    "deal_id": "{{ID}}"
-  }
-}
-```
-
-`{{ID}}` - ID сделки в роботе Bitrix24. Если Bitrix не подставляет это выражение в вашем шаблоне робота, можно убрать `client_payload` полностью:
-
-```json
-{
-  "event_type": "bitrix_deal_stage_changed"
-}
-```
-
-`GITHUB_TOKEN` для робота Bitrix должен быть fine-grained token с доступом к репозиторию и правом `Contents: Read and write` или классический token с `repo`. Этот token нужен только в настройках робота Bitrix и не вводится на сайте.
-
-При настроенном `VITE_SAVE_API_URL` сайт читает сделки через серверный API/Worker напрямую из Bitrix24, поэтому ручной откат стадии в Bitrix24 отражается в открытой странице почти сразу.
-
-## API сохранения без GitHub token на сайте
-
-Чтобы сайт мог сохранять расчеты и справочник без GitHub token в браузере, используется Cloudflare Worker из папки:
-
-```text
-worker/
-```
-
-GitHub token хранится в секретах Worker и не попадает в интерфейс. На сайте ничего дополнительно вводить не нужно.
-
-Для Worker нужны секреты:
-
-- `GITHUB_TOKEN` - fine-grained token GitHub для репозитория `senyak1987-prog/verkup` с правами `Contents: Read and write` и `Actions: Read and write`.
-- `BITRIX_WEBHOOK_URL` - входящий webhook Bitrix24 для live-загрузки сделок.
-
-Деплой Worker:
-
-```bash
-cd worker
-npx wrangler secret put GITHUB_TOKEN
-npx wrangler secret put BITRIX_WEBHOOK_URL
-npx wrangler deploy
-```
-
-После деплоя Worker выдаст адрес вида:
-
-```text
-https://verkup-save-api.<ваш-аккаунт>.workers.dev
-```
-
-Добавьте этот адрес в GitHub: `Settings -> Secrets and variables -> Actions -> Variables -> New repository variable`.
-
-```text
-VITE_SAVE_API_URL = https://verkup-save-api.<ваш-аккаунт>.workers.dev
-```
-
-После следующего деплоя поле адреса API исчезнет с сайта, сохранение будет работать без дополнительных полей, а сделки будут обновляться через Worker без ожидания деплоя GitHub Pages.
-
-Если приложение будет размещено не на GitHub Pages, а на вашем домене, добавьте этот домен в `ALLOWED_ORIGIN` в `worker/wrangler.toml`, например `https://ваш-сайт.ru`.
-
-## Тестовое приложение на Cloudflare Pages
-
-Для проверки мобильного приложения на iOS/Android можно выкладывать сборку на бесплатный Cloudflare Pages. В репозитории добавлен workflow:
-
-```text
-.github/workflows/deploy-cloudflare-test.yml
-```
-
-Он деплоит:
-
-- Cloudflare Worker `verkup-save-api`;
-- Cloudflare Pages проект `verkup-test`;
-- сборку с `VITE_BASE_PATH=/`, чтобы приложение работало в корне `pages.dev`.
-
-Тестовый адрес после деплоя:
-
-```text
-https://verkup-test.pages.dev/
-```
-
-В GitHub нужно добавить секреты `Settings -> Secrets and variables -> Actions -> Secrets`:
-
-- `CLOUDFLARE_API_TOKEN` - токен Cloudflare с правами на Workers и Pages;
-- `CLOUDFLARE_ACCOUNT_ID` - Account ID из Cloudflare;
-- `WORKER_GITHUB_TOKEN` - GitHub token с доступом к содержимому репозитория;
-- `BITRIX_WEBHOOK_URL` - webhook Bitrix24.
-
-В GitHub Variables добавьте:
-
-```text
-VITE_SAVE_API_URL = https://verkup-save-api.<ваш-аккаунт>.workers.dev
-VITE_BASE_PATH = /verkup/
-```
-
-Для push-уведомлений позже добавьте:
-
-```text
-VITE_PUSH_PUBLIC_KEY = <публичный VAPID ключ>
-```
-
-Если используется другой Pages-проект, поменяйте `CLOUDFLARE_PAGES_PROJECT` в workflow и добавьте его домен в `ALLOWED_ORIGIN` в `worker/wrangler.toml`.
-
-## Сохранение расчетов
-
-Если `VITE_SAVE_API_URL` задан в GitHub Variables, расчет сохраняется кнопкой `Сохранить расчет` без дополнительных полей. Если переменная еще не задана, временно вставьте адрес Worker в поле `Адрес API сохранения`.
-
-Кнопки `Перевести в производство` и `Откатить в запуск` сохраняют расчет в GitHub, запускают workflow `Move Bitrix deal stage`, меняют стадию сделки в Bitrix24 и затем обновляют `public/data/deals.json`. На сайте сделка сразу переносится в нужную вкладку, а синхронизация из Bitrix24 подтверждает состояние после завершения GitHub Actions.
-
-Для агентских сделок приложение показывает продажу отдельно по изготовлению и монтажу:
-
-- изготовление = себестоимость всех позиций, кроме `Монтаж` и `Косяки`, деленная на `0.58`;
-- монтаж = себестоимость позиций `Монтаж`, деленная на `0.58`;
-- косяки добавляются в себестоимость и уменьшают прибыль, но не увеличивают продажу.
-
-## Редактирование справочника
-
-Основной справочник хранится в репозитории:
-
-```text
-public/data/catalogs.json
-```
-
-В верхней панели приложения нажмите `Справочник`. В редакторе можно выбрать позицию из списка, изменить раздел, название, единицу, цену и источник, добавить новую позицию или удалить существующую.
-
-После изменений нажмите `Сохранить справочник`. Если `VITE_SAVE_API_URL` задан, справочник сохраняется без дополнительных полей.
-
-Поле `Источник` - это справочная подпись, откуда позиция была импортирована или кем добавлена. Оно не создает живую связь с Excel-файлом. Если в исходном прайсе появятся новые строки, на сайт они попадут только после повторного импорта и сохранения `public/data/catalogs.json` в GitHub.
-
-## Обновление справочников из Excel
-
-Локально:
-
-```bash
-npm run catalogs:build
-```
-
-По умолчанию скрипт читает:
-
-- `O:/Производство/Таблицы/Прайс сборка.xlsx`
-- `O:/Производство/Таблицы/ПРАЙС ФРЕЗЕРОВКА ПЕЧАТЬ ПЛОТТЕР.xlsx`
-- `C:/Users/Семен/Desktop/Прайс по материалам.xlsx`
-
-Пути можно переопределить переменными:
-
-- `ASSEMBLY_PRICE_PATH`
-- `MILLING_PRICE_PATH`
-- `MATERIALS_PRICE_PATH`
+Новая версия появляется по этим адресам после успешного выполнения workflow `Deploy GitHub Pages` в ветке `main`.
 
 ## Локальный запуск
 
-```bash
-npm install
+В каталоге репозитория:
+
+```powershell
+npm ci
 npm run dev
 ```
 
-## Перенос на свой сервер или существующий сайт
+При свободном стандартном порте откройте `http://localhost:5173/verkup/`. Если порт занят, Vite напечатает фактический адрес. Отдельная игра находится по адресу `http://localhost:5173/verkup/rc-playground/`.
 
-Приложение собирается как обычная статическая папка:
+## Сборка и публикация
 
-```bash
+```powershell
 npm run build
+npm run build:rc-embed
 ```
 
-Готовые файлы будут в `dist/`. Их можно загрузить на любой сервер.
+`build` проверяет TypeScript и собирает три HTML-страницы в `dist/`. Следующая команда добавляет `dist/rc-embed/rc-game.js` — самостоятельный ES-модуль игры для других сайтов. Выполняйте её после основной сборки, которая очищает `dist/`.
 
-Текущая настройка рассчитана на размещение в подпапке `/verkup/`. Поэтому самый простой вариант интеграции в существующий сайт - загрузить содержимое `dist/` в раздел:
+Загрузите содержимое `dist/` на статический хостинг. Для GitHub Pages workflow `.github/workflows/deploy-pages.yml` выполняет проверки конструктора и физики, собирает страницы и модуль игры, затем публикует результат при обновлении `main` или ручном запуске.
 
-```text
-https://ваш-сайт.ru/verkup/
+Для размещения в корне другого сайта задайте базовый путь перед сборкой:
+
+```powershell
+$env:VITE_BASE_PATH = '/'
+npm run build
+npm run build:rc-embed
+Remove-Item Env:VITE_BASE_PATH
 ```
 
-Если нужно поставить приложение в корень сайта или в другую папку, задайте базовый путь перед сборкой:
+Для собственной подпапки используйте соответствующий путь, например `/signs/`. Тогда адреса страниц и ресурсов получат этот префикс.
 
-```bash
-VITE_BASE_PATH=/ npm run build
-```
+## Встраивание на сайт
 
-или для подпапки:
-
-```bash
-VITE_BASE_PATH=/crm/verkup/ npm run build
-```
-
-В GitHub Actions это можно сделать через repository variable `VITE_BASE_PATH`.
-
-Для быстрого встраивания в существующую страницу можно использовать iframe:
+Конструктор можно открыть отдельным разделом или встроить:
 
 ```html
-<iframe src="https://senyak1987-prog.github.io/verkup/" style="width:100%;height:100vh;border:0"></iframe>
+<iframe
+  src="https://senyak1987-prog.github.io/verkup/"
+  title="Конструктор вывесок Город Свет"
+  style="width:100%;height:100vh;border:0"
+></iframe>
 ```
 
-Для полноценной интеграции лучше держать приложение отдельным разделом сайта, потому что ему нужны свои таблицы, правая панель расчета и модальное окно справочника.
+Отдельная игра имеет компактный режим для iframe:
+
+```html
+<iframe
+  src="https://senyak1987-prog.github.io/verkup/rc-playground/?embed=1"
+  title="Мини-игра с радиоуправляемой машинкой"
+  width="100%"
+  height="560"
+  loading="lazy"
+  style="display:block;border:0;border-radius:16px"
+></iframe>
+```
+
+Для интеграции в React или через `mountRcGame` из ES-модуля смотрите [документацию игры](rc-playground/README.md). Встроенный заезд у фасада подключается к существующим сцене, камере и canvas конструктора.
+
+## Проверки и документация
+
+```powershell
+npm run test:sign-studio
+npm run test:sign-scene
+npm run test:rc-game
+npm run test:facade-rc
+npm run build
+npm run build:rc-embed
+```
+
+Полный набор проверок конструктора перечислен в workflow GitHub Pages и в `package.json`. Браузерные сценарии `scripts/test-rc-browser.mjs` и `scripts/test-configurator-rc-browser.mjs` используют отдельный тестовый Chrome; запуск описан в документации игры.
+
+- [Конструкции, размеры, экспорт и локальное сохранение](SIGN-STUDIO.md)
+- [Игра, управление, физика и интеграция](rc-playground/README.md)
+- [Источники фирменных материалов](public/brand-sources.md)
+- [Модель персонажа у фасада](public/models/README.md)
+
+Лицензии встроенных шрифтов и геометрических библиотек сохранены рядом с ресурсами в `public/fonts/`, `public/neon-fonts/` и `public/licenses/`.

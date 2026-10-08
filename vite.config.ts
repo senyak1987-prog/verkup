@@ -5,6 +5,9 @@ import path from "node:path";
 export default defineConfig({
   plugins: [react()],
   base: process.env.VITE_BASE_PATH || "/verkup/",
+  server: {
+    watch: { ignored: ["**/.tools/**", "**/.impeccable/**"] },
+  },
   build: {
     rollupOptions: {
       input: {

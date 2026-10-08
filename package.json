@@ -1,5 +1,5 @@
 {
-  "name": "verkup-costing",
+  "name": "gorod-svet-sign-studio",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,16 +12,6 @@
     "test:facade-rc": "node scripts/test-facade-rc.mjs",
     "build:rc-embed": "node scripts/build-rc-embed.mjs",
     "preview": "vite preview --host 0.0.0.0",
-    "sync:bitrix": "node scripts/sync-bitrix-deals.mjs",
-    "validate:data": "node scripts/validate-data.mjs",
-    "bitrix:move-stage": "node scripts/move-bitrix-deal-stage.mjs",
-    "bitrix:fields": "node scripts/inspect-bitrix-fields.mjs",
-    "bitrix:stages": "node scripts/inspect-bitrix-stages.mjs",
-    "catalogs:build": "node scripts/build-catalogs.mjs",
-    "catalogs:remex-images": "node scripts/enrich-remex-images.mjs",
-    "realtime:server": "node server/realtime-server.mjs",
-    "pages:deploy": "npx --yes wrangler@4.97.0 pages deploy dist --project-name verkup-test --branch main",
-    "worker:deploy": "npx --yes wrangler@4.97.0 deploy --config worker/wrangler.toml",
     "test:letter-construction": "node scripts/test-letter-construction.mjs",
     "test:panel-construction": "node scripts/test-panel-construction.mjs",
     "test:sign-editor": "node scripts/test-sign-editor.mjs",
@@ -36,14 +26,12 @@
     "test:backer-contours": "node scripts/test-backer-contours.mjs"
   },
   "dependencies": {
-    "framer-motion": "^12.41.0",
     "libtess": "1.2.2",
     "lucide-react": "^0.468.0",
     "opentype.js": "^2.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "three": "^0.186.1",
-    "ws": "^8.21.0"
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@types/opentype.js": "^1.3.10",
@@ -52,7 +40,6 @@
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^5.0.4",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11",
-    "xlsx": "^0.18.5"
+    "vite": "^5.4.11"
   }
 }
