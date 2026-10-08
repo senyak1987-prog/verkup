@@ -1,0 +1,157 @@
+.facade-rc-controls {
+  --facade-rc-ink: #073c2d;
+  --facade-rc-muted: #466455;
+  --facade-rc-panel: #fff;
+  --facade-rc-soft: #edf3ee;
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  container: facade-rc / inline-size;
+  color: var(--facade-rc-ink);
+  font: inherit;
+  pointer-events: none;
+}
+
+.facade-rc-controls *,
+.facade-rc-controls *::before,
+.facade-rc-controls *::after { box-sizing: border-box; }
+
+.facade-rc-controls button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 7px;
+  min-width: 44px;
+  min-height: 44px;
+  margin: 0;
+  border: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.facade-rc-controls button:focus-visible { outline: 3px solid #16803d; outline-offset: 3px; }
+.facade-rc-controls button:disabled { cursor: default; opacity: .62; }
+.facade-rc-controls svg { flex: none; stroke-width: 1.8; }
+.facade-rc-controls ::selection { background: var(--facade-rc-ink); color: #fff; }
+
+.facade-rc-launch { position: absolute; right: 16px; bottom: 16px; }
+
+.facade-rc-controls .facade-rc-start {
+  gap: 9px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: var(--facade-rc-ink);
+  color: #fff;
+  box-shadow: 0 4px 16px #153b2c26;
+}
+
+.facade-rc-toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--facade-rc-panel);
+  box-shadow: 0 3px 16px #173b2921;
+}
+
+.facade-rc-controls .facade-rc-exit { padding: 10px 13px; border-radius: 6px; background: var(--facade-rc-ink); color: #fff; }
+.facade-rc-title { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.facade-rc-paused { color: var(--facade-rc-muted); font-weight: 500; }
+.facade-rc-actions { display: flex; gap: 4px; margin-left: auto; }
+.facade-rc-controls .facade-rc-action { padding: 10px; border-radius: 6px; background: var(--facade-rc-panel); color: var(--facade-rc-ink); }
+.facade-rc-controls .facade-rc-action[aria-pressed="true"] { background: var(--facade-rc-soft); }
+
+.facade-rc-telemetry {
+  position: absolute;
+  top: 72px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--facade-rc-panel);
+  box-shadow: 0 3px 14px #173b2917;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.facade-rc-speed,
+.facade-rc-time,
+.facade-rc-gates { display: inline-flex; align-items: baseline; gap: 5px; white-space: nowrap; }
+.facade-rc-telemetry strong { font-size: 12px; font-weight: 700; }
+.facade-rc-speed strong { font-size: 16px; line-height: 1; }
+.facade-rc-speed > span,
+.facade-rc-time > span,
+.facade-rc-gates-label,
+.facade-rc-gates strong > span { color: var(--facade-rc-muted); }
+.facade-rc-gates { align-items: center; }
+.facade-rc-gates strong > span { font-size: 10px; font-weight: 500; }
+.facade-rc-pause-status { display: none; color: var(--facade-rc-muted); font-weight: 650; }
+
+.facade-rc-bottom { position: absolute; right: 12px; bottom: 10px; left: 12px; }
+.facade-rc-settings { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.facade-rc-segmented { display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; background: var(--facade-rc-panel); box-shadow: 0 3px 16px #173b2921; }
+.facade-rc-controls .facade-rc-segmented button { padding: 10px 12px; border-radius: 6px; background: var(--facade-rc-panel); color: var(--facade-rc-muted); white-space: nowrap; }
+.facade-rc-controls .facade-rc-segmented button[aria-pressed="true"] { background: var(--facade-rc-ink); color: #fff; }
+.facade-rc-instructions { margin: 7px 0 0; color: var(--facade-rc-ink); font-size: 10px; font-weight: 550; line-height: 1.5; text-align: center; }
+.facade-rc-instructions > span { display: inline-block; padding: 3px 8px; border-radius: 4px; background: var(--facade-rc-panel); }
+.facade-rc-instructions > .facade-rc-touch-copy { display: none; }
+
+@media (hover: hover) {
+  .facade-rc-controls .facade-rc-start:hover:not(:disabled),
+  .facade-rc-controls .facade-rc-exit:hover { background: #0d573e; }
+  .facade-rc-controls .facade-rc-action:hover,
+  .facade-rc-controls .facade-rc-segmented button:hover { background: var(--facade-rc-soft); color: var(--facade-rc-ink); }
+  .facade-rc-controls .facade-rc-segmented button[aria-pressed="true"]:hover { background: #0d573e; color: #fff; }
+}
+
+@container facade-rc (max-width: 520px) {
+  .facade-rc-settings { gap: 6px; }
+  .facade-rc-controls .facade-rc-segmented button { gap: 5px; padding-inline: 10px; font-size: 11px; }
+  .facade-rc-camera svg { display: none; }
+  .facade-rc-paused { display: none; }
+  .facade-rc-pause-status { display: inline; }
+  .facade-rc-telemetry { gap: 10px; padding-inline: 10px; }
+  .facade-rc-gates-label { display: none; }
+}
+
+@container facade-rc (max-width: 390px) {
+  .facade-rc-toolbar { top: 8px; right: 8px; left: 8px; gap: 8px; }
+  .facade-rc-title { font-size: 11px; }
+  .facade-rc-telemetry { top: 68px; right: 8px; font-size: 9px; }
+  .facade-rc-bottom { right: 8px; bottom: 8px; left: 8px; }
+  .facade-rc-controls .facade-rc-segmented button { padding-inline: 8px; font-size: 10px; }
+  .facade-rc-instructions { font-size: 9px; }
+  .facade-rc-launch { right: auto; left: 10px; bottom: 32px; }
+  .facade-rc-controls .facade-rc-start { gap: 6px; padding: 10px; font-size: 11px; }
+  .facade-rc-start > svg:last-child { display: none; }
+}
+
+@container facade-rc (max-width: 320px) {
+  .facade-rc-title { display: none; }
+  .facade-rc-controls .facade-rc-segmented button { padding-inline: 6px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .facade-rc-instructions > .facade-rc-desktop-copy { display: none; }
+  .facade-rc-instructions > .facade-rc-touch-copy { display: inline-block; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .facade-rc-controls button { transition: none; }
+}
