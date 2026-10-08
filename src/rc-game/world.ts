@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { RcPhysics, TRACK_WIDTH, WHEEL_BASE, type CarInput } from './physics';
-import { CHECKPOINTS, OBSTACLES, terrainHeight } from './terrain';
+import { createDefaultRcSurface, type RcSurface } from './terrainSurface';
+import { RcPropsPhysics } from './propsPhysics';
+import { createTrxTruck, createTrxWheel } from './trxTruck';
 
 export type RcMode = 'free' | 'trial';
 export interface RcTelemetry {
@@ -10,11 +12,14 @@ export interface RcTelemetry {
 }
 export interface RcWorldOptions {
   onLap?: (seconds: number) => void;
+  surface?: RcSurface;
 }
 export interface RcWorld {
   /** Arena and vehicle in arena-local metres; apply placement and scale to this group. */
   group: THREE.Group;
   physics: RcPhysics;
+  props: RcPropsPhysics;
+  surface: RcSurface;
   step(dt: number, input: CarInput): void;
   update(input: CarInput, dt: number, showTarget?: boolean): void;
   reset(): void;
@@ -31,12 +36,18 @@ const NEUTRAL_INPUT: CarInput = { target: null, throttle: 0, brake: false, rever
 
 /** Shared RC arena without a renderer, camera, events, lights or animation loop. */
 export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
+  const surface = options.surface ?? createDefaultRcSurface();
+  const terrainHeight = surface.height;
+  const CHECKPOINTS = surface.checkpoints;
   const group = new THREE.Group();
   group.name = 'rc-playground';
   group.userData.kind = 'rc-playground';
-  group.userData.arenaSize = 22.7;
+  group.userData.arenaSize = Math.max(surface.width, surface.depth);
+  group.userData.arenaWidth = surface.width;
+  group.userData.arenaDepth = surface.depth;
   group.userData.forward = '+Z';
-  const physics = new RcPhysics(terrainHeight);
+  const physics = new RcPhysics(terrainHeight, { bounds: surface.bounds, spawn: surface.spawn });
+  const props = new RcPropsPhysics(surface.props, { height: terrainHeight, bounds: surface.bounds, barriers: surface.barriers });
   const materials = {
     body: new THREE.MeshStandardMaterial({ color: '#e8bc45', roughness: .3, metalness: .15 }),
     dark: new THREE.MeshStandardMaterial({ color: '#233a33', roughness: .52 }),
@@ -54,18 +65,27 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
   const box = (parent: THREE.Object3D, w:number,h:number,d:number, material:THREE.Material,x=0,y=0,z=0,r=.035) =>
     addMesh(parent, new RoundedBoxGeometry(w,h,d,3,r),material,x,y,z);
 
-  // A low tabletop with a real height field, including the two ramps and the rumble strip.
-  const table = box(group,22.7,.36,22.7,new THREE.MeshStandardMaterial({color:'#c6d4c8',roughness:.75}),0,-.24,0,.2);
-  table.receiveShadow = true;
-  const groundGeometry = new THREE.PlaneGeometry(22,22,180,180);
-  groundGeometry.rotateX(-Math.PI/2);
-  const positions = groundGeometry.attributes.position;
-  for(let i=0;i<positions.count;i++) positions.setY(i,terrainHeight(positions.getX(i),positions.getZ(i)));
-  groundGeometry.computeVertexNormals();
-  const ground = addMesh(group,groundGeometry,new THREE.MeshStandardMaterial({color:'#c3d3bf',roughness:1}));
-  ground.castShadow = false;
-  for (const axis of [0,1]) for(const side of [-1,1]) {
-    box(group,axis ? .12:22.1,.17,axis ? 22.1:.12,materials.white,axis ? side*11:0,.085,axis ? 0:side*11);
+  // Facade ground stops at the real pavement; its existing staircase stays visible.
+  const regions = surface.floorRegions ?? [{ minX: -surface.width / 2, maxX: surface.width / 2,
+    minZ: -surface.depth / 2, maxZ: surface.depth / 2 }];
+  const groundGeometries: THREE.BufferGeometry[] = [];
+  for (const region of regions) {
+    const width = region.maxX - region.minX, depth = region.maxZ - region.minZ;
+    const cx = (region.minX + region.maxX) / 2, cz = (region.minZ + region.maxZ) / 2;
+    const table = box(group,width,.36,depth,new THREE.MeshStandardMaterial({color:'#c6d4c8',roughness:.75}),cx,-.24,cz,.15);
+    table.name = 'rc-courtyard'; table.receiveShadow = true;
+    const geometry = new THREE.PlaneGeometry(width,depth,Math.ceil(width * 7),Math.ceil(depth * 7));
+    geometry.rotateX(-Math.PI/2); geometry.translate(cx,0,cz);
+    const positions = geometry.attributes.position;
+    for(let i=0;i<positions.count;i++) positions.setY(i,terrainHeight(positions.getX(i),positions.getZ(i)));
+    geometry.computeVertexNormals(); groundGeometries.push(geometry);
+    const ground = addMesh(group,geometry,new THREE.MeshStandardMaterial({color:'#c3d3bf',roughness:1}));
+    ground.name = 'rc-driveable-ground'; ground.castShadow = false;
+    for (const side of [-1,1]) {
+      box(group,.12,.12,depth,materials.white,side < 0 ? region.minX : region.maxX,.06,cz);
+    }
+    box(group,width,.12,.12,materials.white,cx,.06,region.maxZ);
+    if (!surface.floorRegions) box(group,width,.12,.12,materials.white,cx,.06,region.minZ);
   }
   // Printed lanes are a canvas texture, not thousands of group meshes.
   const decalCanvas=document.createElement('canvas'); decalCanvas.width=decalCanvas.height=1024;
@@ -87,10 +107,12 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
   const decalTexture=new THREE.CanvasTexture(decalCanvas);
   decalTexture.colorSpace=THREE.SRGBColorSpace;
   const decalMat=new THREE.MeshBasicMaterial({map:decalTexture,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
-  const decalGeometry=groundGeometry.clone();
-  const decal = addMesh(group,decalGeometry,decalMat,0,.008,0); decal.castShadow=decal.receiveShadow=false;
+  for (const geometry of groundGeometries) {
+    const decal = addMesh(group,geometry.clone(),decalMat,0,.008,0); decal.castShadow=decal.receiveShadow=false;
+  }
 
   const checkpointGroups:THREE.Group[]=[];
+  const checkpointRings:THREE.Mesh[]=[];
   const checkpointMats:THREE.MeshStandardMaterial[]=[];
   const markerLabels:THREE.Sprite[]=[];
   function label(text:string,color:string) {
@@ -107,73 +129,51 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
     const next=CHECKPOINTS[(index+1)%CHECKPOINTS.length];
     gate.rotation.y=Math.atan2(next.x-point.x,next.z-point.z);
     const mat=new THREE.MeshStandardMaterial({color:'#a5b9a8',roughness:.5});checkpointMats.push(mat);
-    for(const side of [-1,1]) {
-      addMesh(gate,new THREE.CylinderGeometry(.15,.22,.08,16),materials.white,side*1.1,.04,0);
-      addMesh(gate,new THREE.CylinderGeometry(.065,.075,.75,16),mat,side*1.1,.42,0);
-      addMesh(gate,new THREE.SphereGeometry(.075,16,8),materials.white,side*1.1,.80,0);
-    }
     const ring=addMesh(gate,new THREE.RingGeometry(.55,.64,48),new THREE.MeshBasicMaterial({color:'#16803d',transparent:true,opacity:.5,side:THREE.DoubleSide}),0,.016,0);
+    ring.name = 'rc-checkpoint-ring'; checkpointRings.push(ring);
     ring.rotation.x=-Math.PI/2;
     const sprite=label(String(index+1),'#497257');sprite.position.set(-1.1,1.25,0);gate.add(sprite);markerLabels.push(sprite);
     checkpointGroups.push(gate);
   });
-  for (const point of OBSTACLES) {
-    const y=terrainHeight(point.x,point.z);
-    // Stacks of rubber tires are collision objects.
-    for(let i=0;i<3;i++) {
-      const tire=addMesh(group,new THREE.TorusGeometry(point.radius-.15,.15,10,32),materials.dark,point.x,y+.15+i*.23,point.z);
-      tire.rotation.x=Math.PI/2;
+  const propMeshes: THREE.Group[] = [];
+  for (const { spec } of props.bodies) {
+    const object = new THREE.Group(); object.name = 'rc-prop-' + spec.id;
+    object.userData.kind = spec.kind; object.userData.physical = true; group.add(object); propMeshes.push(object);
+    const { radius, height } = spec;
+    if (spec.kind === 'cone') {
+      box(object,radius*2,.055,radius*2,materials.red,0,-height/2+.0275,0,.018);
+      addMesh(object,new THREE.CylinderGeometry(.025,radius*.82,height-.055,20),materials.red,0,.0275,0);
+      addMesh(object,new THREE.CylinderGeometry(.077,.115,.12,20),materials.white,0,.115,0);
+    } else if (spec.kind === 'tire') {
+      const rubber = addMesh(object,new THREE.TorusGeometry(radius-height/2,height/2,12,36),materials.tire);
+      rubber.rotation.x=Math.PI/2;
+      for (const side of [-1,1]) {
+        const bead=addMesh(object,new THREE.TorusGeometry(radius*.64,.018,6,32),materials.dark,0,side*height*.43,0);
+        bead.rotation.x=Math.PI/2;
+      }
+      for(let i=0;i<18;i++) {
+        const a=i*Math.PI/9;
+        const tread=box(object,.06,height*.78,.09,materials.tire,Math.cos(a)*(radius-.018),0,Math.sin(a)*(radius-.018),.008);
+        tread.rotation.y=-a;
+      }
+    } else {
+      const index=Number(spec.id.split('-')[1]);
+      const mat=checkpointMats[index] ?? materials.dark;
+      addMesh(object,new THREE.CylinderGeometry(radius,radius,.08,16),materials.white,0,-height/2+.04,0);
+      addMesh(object,new THREE.CylinderGeometry(.065,.075,height-.14,16),mat,0,0,0);
+      addMesh(object,new THREE.SphereGeometry(.075,16,8),materials.white,0,height/2-.075,0);
     }
-  }
-  for(const [x,z] of [[8,0],[-8,-5],[3,-7],[-3,6.5]]) {
-    const y=terrainHeight(x,z);
-    box(group,.48,.055,.48,materials.red,x,y+.028,z);
-    addMesh(group,new THREE.CylinderGeometry(.025,.19,.52,20),materials.red,x,y+.3,z);
-    addMesh(group,new THREE.CylinderGeometry(.075,.11,.12,20),materials.white,x,y+.39,z);
   }
 
   // Suspension anchors belong to the sprung chassis; each hub has independent travel.
   const car=new THREE.Group();car.name='rc-car';car.userData.kind='rc-car';group.add(car);
-  const chassis=new THREE.Group();chassis.name='rc-chassis';car.add(chassis);
-  box(chassis,.76,.10,1.25,materials.dark,0,-.13,0);
-  box(chassis,.83,.23,1.32,materials.body,0,.02,0,.09);
-  box(chassis,.70,.34,.64,materials.body,0,.27,-.11,.095);
-  box(chassis,.605,.21,.035,materials.window,0,.29,.22,.02);
-  box(chassis,.605,.20,.035,materials.window,0,.29,-.445,.02);
-  for(const side of [-1,1]) {
-    box(chassis,.025,.21,.46,materials.window,side*.354,.29,-.1,.025);
-    box(chassis,.037,.25,.028,materials.body,side*.373,.28,-.07,.009);
-    box(chassis,.11,.06,.13,materials.dark,side*.46,.23,.19,.024);
-    // White race stripes wrap the hood and roof.
-    box(chassis,.10,.009,.34,materials.white,side*.12,.141,.43,.003);
-    box(chassis,.10,.008,.49,materials.white,side*.12,.445,-.11,.003);
-    box(chassis,.20,.10,.035,materials.white,side*.25,-.006,.68,.025);
-    box(chassis,.15,.065,.03,materials.red,side*.27,-.015,-.68,.014);
-  }
-  box(chassis,.89,.09,.10,materials.dark,0,-.08,.75);
-  box(chassis,.89,.09,.10,materials.dark,0,-.08,-.75);
-  box(chassis,.78,.05,.16,materials.dark,0,.32,-.52);
-  box(chassis,.16,.026,.038,materials.dark,0,.455,-.03,.006);
-  for(const side of [-1,1]) box(chassis,.11,.025,.026,materials.silver,side*.22,.145,.51,.005);
-  const badge=label('8','#244d3c');badge.position.set(.435,.05,0);badge.scale.set(.22,.22,.22);chassis.add(badge);
+  const { chassis } = createTrxTruck(materials); car.add(chassis);
 
   const wheels:THREE.Group[]=[];const shocks:THREE.Group[]=[];const arms:THREE.Mesh[]=[];
   const wheelAnchors=[[-TRACK_WIDTH/2,WHEEL_BASE/2],[TRACK_WIDTH/2,WHEEL_BASE/2],[-TRACK_WIDTH/2,-WHEEL_BASE/2],[TRACK_WIDTH/2,-WHEEL_BASE/2]];
   for(const [x,z] of wheelAnchors) {
     const wheel=new THREE.Group();chassis.add(wheel);wheels.push(wheel);
-    const rotor=new THREE.Group();wheel.add(rotor);
-    const tire=addMesh(rotor,new THREE.CylinderGeometry(.19,.19,.16,32),materials.tire);tire.rotation.z=Math.PI/2;
-    for(const side of [-1,1]) {
-      const rim=addMesh(rotor,new THREE.CylinderGeometry(.115,.115,.013,24),materials.silver,side*.087,0,0);rim.rotation.z=Math.PI/2;
-      const hub=addMesh(rotor,new THREE.CylinderGeometry(.038,.038,.021,16),materials.dark,side*.099,0,0);hub.rotation.z=Math.PI/2;
-    }
-    for(let i=0;i<18;i++) {
-      const a=i*Math.PI/9;
-      const tread=box(rotor,.17,.028,.063,materials.tire,0,Math.cos(a)*.185,Math.sin(a)*.185,.008);tread.rotation.x=a;
-    }
-    for(let i=0;i<5;i++) {
-      const a=i*Math.PI*2/5;const spoke=box(rotor,.19,.015,.095,materials.dark,0,Math.cos(a)*.060,Math.sin(a)*.060,.004);spoke.rotation.x=a;
-    }
+    const rotor=createTrxWheel(materials);wheel.add(rotor);
     // A metal piston inside a real coiled spring, stretched by the wheel's travel.
     const shock=new THREE.Group();chassis.add(shock);shock.position.set(x*.8,-.035,z);shocks.push(shock);
     box(chassis,.14,.05,.10,materials.dark,x*.72,-.045,z,.01);
@@ -186,7 +186,8 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
   // Each cylinder follows a simulated chain segment; no per-frame geometry allocation.
   for(let i=0;i<10;i++) antennaLinks.push(addMesh(chassis,new THREE.CylinderGeometry(.008,.008,1,6),materials.dark));
   const antennaTip=addMesh(chassis,new THREE.SphereGeometry(.035,12,8),materials.red);
-  addMesh(chassis,new THREE.CylinderGeometry(.038,.05,.08,12),materials.dark,-.12,.365,-.40);
+  const antennaBase=physics.state.antenna[0];
+  addMesh(chassis,new THREE.CylinderGeometry(.038,.05,.08,12),materials.dark,antennaBase.x,antennaBase.y+.005,antennaBase.z);
 
   const targetMarker=new THREE.Group();targetMarker.name='rc-target';group.add(targetMarker);targetMarker.visible=false;
   const targetMat=new THREE.MeshBasicMaterial({color:'#16803d',transparent:true,opacity:.7,depthWrite:false,side:THREE.DoubleSide});
@@ -211,14 +212,27 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
   const segment=new THREE.Vector3();const pointA=new THREE.Vector3();const pointB=new THREE.Vector3();
   try {const stored=Number(localStorage.getItem(BEST_KEY));if(Number.isFinite(stored)&&stored>0)best=stored;}catch{/* storage can be blocked in an embedded site */}
 
-  function collide() {
-    for(const obstacle of OBSTACLES){
-      const state=physics.state;let dx=state.x-obstacle.x,dz=state.z-obstacle.z;const distance=Math.hypot(dx,dz);const radius=obstacle.radius+.5;
-      if(distance<radius){if(distance<.0001){dx=1;dz=0;}const nx=dx/(distance||1),nz=dz/(distance||1);
-        state.x=obstacle.x+nx*(radius+.01);state.z=obstacle.z+nz*(radius+.01);
-        const approach=Math.max(0,-(state.vx*nx+state.vz*nz));physics.bump(nx,nz,approach*1.5+.2);
-      }
+  function collideArchitecture() {
+    const state=physics.state;
+    const marginX=Math.abs(Math.cos(state.yaw))*.71+Math.abs(Math.sin(state.yaw))*1.04;
+    const marginZ=Math.abs(Math.sin(state.yaw))*.71+Math.abs(Math.cos(state.yaw))*1.04;
+    for (const barrier of surface.barriers ?? []) {
+      if (state.y-.1 > barrier.height) continue;
+      const minX=barrier.minX-marginX,maxX=barrier.maxX+marginX,minZ=barrier.minZ-marginZ,maxZ=barrier.maxZ+marginZ;
+      if(state.x<=minX||state.x>=maxX||state.z<=minZ||state.z>=maxZ)continue;
+      const distances=[state.x-minX,maxX-state.x,state.z-minZ,maxZ-state.z];
+      const side=distances.indexOf(Math.min(...distances));
+      const nx=side===0?-1:side===1?1:0,nz=side===2?-1:side===3?1:0;
+      if(nx)state.x=nx<0?minX:maxX;else state.z=nz<0?minZ:maxZ;
+      const approach=Math.max(0,-(state.vx*nx+state.vz*nz));
+      physics.bump(nx,nz,approach*1.15);
     }
+  }
+  function renderProps() {
+    props.bodies.forEach((body,i)=>{
+      propMeshes[i].position.set(body.position.x,body.position.y,body.position.z);
+      propMeshes[i].quaternion.set(body.quaternion.x,body.quaternion.y,body.quaternion.z,body.quaternion.w);
+    });
   }
   function updateCheckpoints(dt:number,driving:boolean) {
     if(mode!=='trial')return;
@@ -267,7 +281,7 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
     checkpointGroups.forEach((group,i)=>{
       const active=mode==='trial'&&i===checkpoint;
       checkpointMats[i].color.set(active?'#16803d':'#a5b9a8');
-      group.children[6].visible=active;
+      checkpointRings[i].visible=active;
       markerLabels[i].visible=active;
     });
     const state=physics.state;
@@ -282,24 +296,26 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
 
   function reset() {
     if(disposed)return;
-    physics.reset();checkpoint=lap=elapsed=0;trialStarted=false;accumulator=0;
+    physics.reset();props.reset();checkpoint=lap=elapsed=0;trialStarted=false;accumulator=0;
     skidCount=0;lastSkid=null;skidGeometry.setDrawRange(0,0);
-    renderCar();visualFeedback(NEUTRAL_INPUT,0,false);
+    renderCar();renderProps();visualFeedback(NEUTRAL_INPUT,0,false);
   }
 
   const world:RcWorld={
     group,
     physics,
+    props,
+    surface,
     step(dt,input){
       if(disposed||!Number.isFinite(dt)||dt<=0)return;
       accumulator=Math.min(accumulator+Math.min(dt,.05),.075);
       while(accumulator>=1/120){
-        physics.step(1/120,input);collide();updateCheckpoints(1/120,input.throttle>0);accumulator-=1/120;
+        physics.step(1/120,input);collideArchitecture();props.step(1/120,physics);updateCheckpoints(1/120,input.throttle>0);accumulator-=1/120;
       }
     },
     update(input,dt,showTarget=true){
       if(disposed)return;
-      renderCar();visualFeedback(input,Number.isFinite(dt)?clamp(dt,0,.05):0,showTarget);
+      renderCar();renderProps();visualFeedback(input,Number.isFinite(dt)?clamp(dt,0,.05):0,showTarget);
     },
     reset,
     setMode(value){if(disposed)return;mode=value;reset();},
@@ -309,6 +325,7 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
     },
     dispose(){
       if(disposed)return;disposed=true;
+      props.dispose();
       const geometries=new Set<THREE.BufferGeometry>(),mats=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();
       group.traverse(object=>{
         const mesh=object as THREE.Mesh;if(mesh.geometry)geometries.add(mesh.geometry);

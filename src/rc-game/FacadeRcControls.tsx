@@ -13,8 +13,8 @@ export interface FacadeRcControlsProps {
   onReset: () => void;
   onMode: (mode: "free" | "trial") => void;
   mode: "free" | "trial";
-  onCamera: (camera: "arena" | "car") => void;
-  camera: "arena" | "car";
+  onCamera: (camera: "arena" | "car" | "rear") => void;
+  camera: "arena" | "car" | "rear";
 }
 
 function formatTime(seconds: number) {
@@ -104,6 +104,9 @@ export function FacadeRcControls({
             </button>
             <button type="button" aria-pressed={camera === "car"} onClick={() => onCamera("car")} title="Камера следует за машинкой">
               <CarFront size={15} aria-hidden="true" /><span>Машинка</span>
+            </button>
+            <button type="button" aria-pressed={camera === "rear"} onClick={() => onCamera("rear")} title="Вид сзади машинки">
+              <CarFront size={15} aria-hidden="true" /><span>Сзади</span>
             </button>
           </div>
         </div>

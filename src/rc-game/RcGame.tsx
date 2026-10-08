@@ -25,6 +25,7 @@ const INITIAL_TELEMETRY: RcTelemetry = {
 const CAMERAS = [
   { value: "overview", label: "Полигон" },
   { value: "follow", label: "Следом" },
+  { value: "rear", label: "Сзади" },
   { value: "detail", label: "Детали" },
 ] as const;
 

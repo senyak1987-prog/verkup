@@ -4,7 +4,7 @@ import { createRcWorld, type RcMode, type RcTelemetry } from './world';
 import type { CarInput } from './physics';
 import { facadeRcPlacement } from './facadePlacement';
 
-export type FacadeRcCamera = 'arena' | 'car';
+export type FacadeRcCamera = 'arena' | 'car' | 'rear';
 export interface FacadeRcGame {
   group: THREE.Group;
   active: boolean;
@@ -32,34 +32,32 @@ type Options = {
 /** RC input and camera takeover for an existing renderer; never creates another canvas. */
 export function createFacadeRcGame(options: Options): FacadeRcGame {
   const { scene, camera, controls, canvas, requestRender } = options;
-  const world = createRcWorld();
-  const group = world.group;
+  let world = createRcWorld();
+  const group = new THREE.Group(); group.name='rc-facade-playground';group.add(world.group);
   group.visible = false;
   group.traverse(object => object.layers.set(1));
   scene.add(group);
   camera.layers.enable(1);
-  // A narrow apron joins the existing pavement to the inset RC mat.
-  const apronGeometry = new THREE.BoxGeometry(24, .12, 24.3);
-  const apronMaterial = new THREE.MeshStandardMaterial({ color: '#b7beb5', roughness: .95 });
-  const apron = new THREE.Mesh(apronGeometry, apronMaterial);
-  apron.name = 'rc-courtyard'; apron.position.set(0, -.48, -.45); apron.receiveShadow = true; apron.layers.set(1); group.add(apron);
   // Camera layers do not scope Three.js lights to individual objects. A small
   // emissive lift keeps only these toy materials readable in the existing night scene.
   const nightMaterials = new Map<THREE.MeshStandardMaterial, { emissive: THREE.Color; intensity: number }>();
-  group.traverse(object => {
+  function collectMaterials() { group.traverse(object => {
+    object.layers.set(1);
     const material = (object as THREE.Mesh).material;
     if (!material) return;
     for (const item of Array.isArray(material) ? material : [material]) {
       const lit = item as THREE.MeshStandardMaterial;
       if (lit.emissive && !nightMaterials.has(lit)) nightMaterials.set(lit, { emissive: lit.emissive.clone(), intensity: lit.emissiveIntensity });
     }
-  });
+  }); }
+  collectMaterials();
   const signalController = new AbortController(); const signal = signalController.signal;
   const keys = new Set<string>();
   const pointer = new THREE.Vector2(); let hasPointer = false, pressed = false, braking = false, pointerId: number | null = null;
   const raycaster = new THREE.Raycaster(), plane = new THREE.Plane(), intersection = new THREE.Vector3();
   let disposed = false, lastTime = 0, lastTelemetry = 0, nightFraction = -1;
   let view: FacadeRcCamera = 'arena';
+  let currentMode: RcMode = 'free';
   let snapshot: { position: THREE.Vector3; quaternion: THREE.Quaternion; up: THREE.Vector3; target: THREE.Vector3;
     left: number; right: number; top: number; bottom: number; zoom: number; near: number; far: number; enabled: boolean;
     width: number; height: number } | null = null;
@@ -84,7 +82,9 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
       raycaster.setFromCamera(pointer, camera);
       if (raycaster.ray.intersectPlane(plane, intersection)) {
         group.worldToLocal(intersection);
-        target = { x: THREE.MathUtils.clamp(intersection.x, -10.3, 10.3), z: THREE.MathUtils.clamp(intersection.z, -10.3, 10.3) };
+        const bounds=world.surface.bounds;
+        target = { x: THREE.MathUtils.clamp(intersection.x, bounds.minX+.7, bounds.maxX-.7),
+          z: THREE.MathUtils.clamp(intersection.z, bounds.minZ+1, bounds.maxZ-1) };
       }
     }
     const keyboardDrive = keys.has('w') || keys.has('arrowup') || keys.has('s') || keys.has('arrowdown');
@@ -97,12 +97,15 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
     group.updateWorldMatrix(true, true);
     const physicalScale = group.getWorldScale(new THREE.Vector3()).x;
     const carPosition = group.localToWorld(new THREE.Vector3(world.physics.state.x, world.physics.state.y, world.physics.state.z));
-    const target = view === 'car' ? carPosition.add(new THREE.Vector3(0, physicalScale * .35, 0))
-      : group.localToWorld(new THREE.Vector3(-2, 10, -4));
-    const direction = new THREE.Vector3(.45, view === 'car' ? .55 : .95, 1).normalize();
+    const close=view==='car'||view==='rear';
+    const target = close ? carPosition.add(new THREE.Vector3(0, physicalScale * .35, 0))
+      : group.localToWorld(new THREE.Vector3(0, 8, -3));
+    const direction = view==='rear'
+      ? new THREE.Vector3(-Math.sin(world.physics.state.yaw),.35,-Math.cos(world.physics.state.yaw)).transformDirection(group.matrixWorld)
+      : new THREE.Vector3(.45, view === 'car' ? .55 : .95, 1).normalize();
     const aspect = Math.max(.25, canvas.clientWidth / Math.max(1, canvas.clientHeight));
-    const viewHeight = view === 'car' ? Math.max(physicalScale * 5, physicalScale * 6 / aspect)
-      : Math.max(physicalScale * 54, physicalScale * 36 / aspect);
+    const viewHeight = close ? Math.max(physicalScale * (view==='rear'?3.7:5), physicalScale * 6 / aspect)
+      : Math.max(physicalScale * (world.surface.depth+24), physicalScale * (world.surface.width+8) / aspect);
     camera.left = -viewHeight * aspect / 2; camera.right = -camera.left;
     camera.top = viewHeight / 2; camera.bottom = -camera.top; camera.zoom = 1;
     camera.position.copy(target).addScaledVector(direction, Math.max(18000, viewHeight * 3));
@@ -147,6 +150,9 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
       const placement = facade ? facadeRcPlacement(facade) : null;
       game.available = !!placement; group.visible = game.available;
       if (placement) {
+        world.dispose();nightMaterials.clear();world=createRcWorld({surface:placement.surface});
+        group.add(world.group);collectMaterials();world.setMode(currentMode);
+        const lighting=nightFraction;nightFraction=-1;game.setLighting(Math.max(0,lighting));
         scene.updateWorldMatrix(true, false);
         const local = scene.matrixWorld.clone().invert().multiply(placement.matrix);
         local.decompose(group.position, group.quaternion, group.scale); group.updateWorldMatrix(true, true);
@@ -181,7 +187,7 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
     },
     reset() { if (disposed) return; clearInput(); lastTime = 0; world.reset(); frameGame(); emit(); geometryChanged(); },
     setPaused(value) { if (disposed) return; game.paused = value; clearInput(); lastTime = 0; emit(); geometryChanged(); },
-    setMode(value) { if (disposed) return; clearInput(); lastTime = 0; world.setMode(value); frameGame(); emit(); geometryChanged(); },
+    setMode(value) { if (disposed) return; currentMode=value;clearInput(); lastTime = 0; world.setMode(value); frameGame(); emit(); geometryChanged(); },
     setCamera(value) { if (disposed) return; view = value; clearInput(); frameGame(); geometryChanged(); },
     setLighting(night) {
       if (disposed) return;
@@ -205,7 +211,7 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
       const control = input();
       if (!game.paused) world.step(dt, control);
       world.update(control, game.paused ? 0 : dt, !game.paused);
-      if (view === 'car') frameGame();
+      if (view === 'car' || view === 'rear') frameGame();
       if (now - lastTelemetry > 100) { lastTelemetry = now; emit(); }
       return !game.paused;
     },
@@ -213,6 +219,7 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
     dispose() {
       if (disposed) return; game.exit(); disposed = true; signalController.abort(); clearInput(); world.dispose();
       nightMaterials.clear();
+      group.removeFromParent();group.clear();
       if (originalTabIndex === null) canvas.removeAttribute('tabindex'); else canvas.setAttribute('tabindex', originalTabIndex);
     },
   };

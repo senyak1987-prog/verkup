@@ -4,7 +4,7 @@ import type { CarInput } from './physics';
 import { createRcWorld, type RcMode, type RcTelemetry } from './world';
 export type { RcMode, RcTelemetry } from './world';
 
-export type RcCamera = 'overview' | 'follow' | 'detail';
+export type RcCamera = 'overview' | 'follow' | 'rear' | 'detail';
 export interface RcGameOptions {
   onTelemetry?: (telemetry: RcTelemetry) => void;
   onLap?: (seconds: number) => void;
@@ -126,12 +126,16 @@ export function mountRcGame(host: HTMLElement, options: RcGameOptions = {}): RcG
     } else if(cameraMode==='follow') {
       desiredCamera.set(state.x-Math.sin(state.yaw)*5.3,5.3,state.z-Math.cos(state.yaw)*5.3);
       cameraTarget.set(state.x,state.y+.1,state.z);
+    } else if(cameraMode==='rear') {
+      const distance=Math.max(4.6,3.8/camera.aspect);
+      desiredCamera.set(state.x-Math.sin(state.yaw)*distance,state.y+1.55,state.z-Math.cos(state.yaw)*distance);
+      cameraTarget.set(state.x+Math.sin(state.yaw)*1.25,state.y+.65,state.z+Math.cos(state.yaw)*1.25);
     } else {
       const scale=Math.max(1,.8/camera.aspect);
-      desiredCamera.set(state.x+2.5*scale,state.y+1.4*scale,state.z+3.4*scale);
-      cameraTarget.set(state.x,state.y+.25,state.z);
+      desiredCamera.set(state.x+2.5*scale,state.y+1.7*scale,state.z+3.4*scale);
+      cameraTarget.set(state.x,state.y+.65,state.z);
     }
-    const a=instant?1:1-Math.exp(-dt*(cameraMode==='follow'?4:7));
+    const a=instant?1:1-Math.exp(-dt*(cameraMode==='follow'||cameraMode==='rear'?5:7));
     camera.position.lerp(desiredCamera,a);lookAt.lerp(cameraTarget,a);camera.lookAt(lookAt);
   }
   function input():CarInput {
