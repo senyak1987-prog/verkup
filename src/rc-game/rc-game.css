@@ -173,11 +173,13 @@ body.rc-standalone--embedded .rc-page--embedded { min-height: 100%; }
   .rc-suspension-hud { bottom: 21px; right: 16px; gap: 5px; }
   .rc-suspension-caption { display: none; }
   .rc-drive-prompt { bottom: 85px; width: max-content; max-width: calc(100% - 32px); padding: 9px 12px; font-size: 10px; }
-  .rc-settings-bar { min-height: 61px; gap: 9px; padding: 9px 10px; }
-  .rc-camera-setting { gap: 5px; }
+  .rc-settings-bar { min-height: 91px; gap: 8px 9px; padding: 9px 10px; flex-wrap: wrap; }
+  .rc-camera-setting { gap: 5px; flex: 1 1 100%; }
+  .rc-camera-selector { display: flex; flex: 1; }
+  .rc-camera-selector button { flex: 1; }
   .rc-camera-setting > .rc-setting-label { display: none; }
   .rc-camera-selector button { min-height: 32px; padding: 7px 9px; font-size: 10px; }
-  .rc-color-setting { gap: 6px; padding-left: 8px; border-left: 1px solid var(--rc-line); }
+  .rc-color-setting { gap: 6px; }
   .rc-color-setting > .rc-setting-label { display: none; }
   .rc-color-swatches { gap: 5px; }
   .rc-color-swatch { width: 21px; height: 21px; }
@@ -186,7 +188,7 @@ body.rc-standalone--embedded .rc-page--embedded { min-height: 100%; }
   .rc-trial-hud strong { font-size: 20px; }
   .rc-trial-hud .rc-best strong { font-size: 13px; }
   .rc-trial-hud .rc-laps { display: none; }
-  .rc-help-panel { right: 10px; bottom: 73px; width: calc(100% - 20px); padding: 19px; }
+  .rc-help-panel { right: 10px; bottom: 103px; width: calc(100% - 20px); padding: 19px; }
   .rc-footer { padding: 0 3px; font-size: 9px; }
   .rc-page--embedded { padding: 0; gap: 0; }
   .rc-page--embedded .rc-game-shell { border-radius: 0; }
@@ -204,7 +206,6 @@ body.rc-standalone--embedded .rc-page--embedded { min-height: 100%; }
   .rc-camera-selector button { padding-inline: 7px; font-size: 9px; }
   .rc-color-swatches { gap: 4px; }
   .rc-color-swatch { width: 23px; height: 23px; }
-  .rc-color-setting { padding-left: 6px; }
   .rc-help-button { min-width: 26px; }
 }
 

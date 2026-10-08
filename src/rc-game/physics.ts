@@ -1,6 +1,12 @@
 /** Small, renderer-independent RC vehicle simulation. Distances are metres. */
 export interface Vec2 { x: number; z: number }
 
+export interface RcArenaBounds { minX: number; maxX: number; minZ: number; maxZ: number }
+export interface RcPhysicsOptions {
+  bounds?: RcArenaBounds;
+  spawn?: { x: number; z: number; yaw: number };
+}
+
 export interface CarInput {
   target: Vec2 | null;
   throttle: number;
@@ -47,7 +53,7 @@ export const TRACK_WIDTH = 1.16;
 export const WHEEL_RADIUS = 0.19;
 export const BODY_REST_HEIGHT = 0.48;
 export const MAX_SPEED = 5.5;
-export const ANTENNA_BASE = { x: -0.12, y: 0.36, z: -0.40 };
+export const ANTENNA_BASE = { x: -.17, y: .64, z: -.20 };
 
 const MAX_STEER = 0.56;
 const MAX_STEP = 1 / 120;
@@ -57,7 +63,7 @@ const ANTENNA_LENGTH = 1.09;
 const ANTENNA_SEGMENT_LENGTH = ANTENNA_LENGTH / ANTENNA_SEGMENTS;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const angleDelta = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
-const finite = (value: number, fallback = 0) => Number.isFinite(value) ? value : fallback;
+const finite = (value: number | undefined, fallback = 0) => typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 
 /**
  * Forward is local +Z: world forward = (sin(yaw), cos(yaw)).
@@ -66,7 +72,9 @@ const finite = (value: number, fallback = 0) => Number.isFinite(value) ? value :
  */
 export class RcPhysics {
   readonly state: RcState;
+  readonly bounds: RcArenaBounds;
   private terrain: (x: number, z: number) => number;
+  private spawn: { x: number; z: number; yaw: number };
   private yawVelocity = 0;
   private verticalVelocity = 0;
   private pitchVelocity = 0;
@@ -74,8 +82,18 @@ export class RcPhysics {
   private wheelVelocities = [0, 0, 0, 0];
   private antennaVelocities = Array.from({ length: ANTENNA_SEGMENTS + 1 }, () => ({ x: 0, y: 0, z: 0 }));
 
-  constructor(terrain: (x: number, z: number) => number = () => 0) {
+  constructor(terrain: (x: number, z: number) => number = () => 0, options: RcPhysicsOptions = {}) {
     this.terrain = terrain;
+    const defaults = { minX: -ARENA_LIMIT, maxX: ARENA_LIMIT, minZ: -ARENA_LIMIT, maxZ: ARENA_LIMIT };
+    const requested = options.bounds ?? defaults;
+    this.bounds = Object.values(requested).every(Number.isFinite)
+      && requested.maxX - requested.minX > 1.5 && requested.maxZ - requested.minZ > 1.5
+      ? { ...requested } : defaults;
+    this.spawn = {
+      x: clamp(finite(options.spawn?.x, 0), this.bounds.minX + .62, this.bounds.maxX - .62),
+      z: clamp(finite(options.spawn?.z, 3.6), this.bounds.minZ + .62, this.bounds.maxZ - .62),
+      yaw: finite(options.spawn?.yaw, Math.PI / 2),
+    };
     this.state = {
       x: 0, z: 3.6, y: BODY_REST_HEIGHT, yaw: Math.PI / 2,
       vx: 0, vz: 0, speed: 0, steer: 0, pitch: 0, roll: 0,
@@ -99,9 +117,9 @@ export class RcPhysics {
 
   reset() {
     const s = this.state;
-    s.x = 0;
-    s.z = 3.6;
-    s.yaw = Math.PI / 2;
+    s.x = this.spawn.x;
+    s.z = this.spawn.z;
+    s.yaw = this.spawn.yaw;
     s.vx = s.vz = s.speed = s.steer = s.pitch = s.roll = s.heave = s.wheelSpin = s.collision = 0;
     this.yawVelocity = this.verticalVelocity = this.pitchVelocity = this.rollVelocity = 0;
     this.wheelVelocities.fill(0);
@@ -126,13 +144,15 @@ export class RcPhysics {
     for (let i = 0; i < steps; i++) this.integrate(h, input);
   }
 
-  /** Apply an outward contact normal and a velocity impulse, in metres/second. */
+  /** Apply a contact normal and a signed velocity impulse, in metres/second. */
   bump(nx: number, nz: number, impulse: number) {
     const length = Math.hypot(nx, nz);
     if (!Number.isFinite(length) || length < 1e-6) return;
-    const kick = clamp(finite(impulse), 0, 12);
-    nx /= length;
-    nz /= length;
+    const signedKick = clamp(finite(impulse), -12, 12);
+    const kick = Math.abs(signedKick);
+    const direction = Math.sign(signedKick);
+    nx = nx / length * direction;
+    nz = nz / length * direction;
     const s = this.state;
     s.vx += nx * kick;
     s.vz += nz * kick;
@@ -208,11 +228,13 @@ export class RcPhysics {
     s.x += s.vx * dt;
     s.z += s.vz * dt;
     // A conservative footprint keeps the body and wheels inside the arena walls.
-    const wall = ARENA_LIMIT - 0.62;
-    if (s.x > wall) { s.x = wall; if (s.vx > 0) this.bump(-1, 0, s.vx * 1.24); }
-    if (s.x < -wall) { s.x = -wall; if (s.vx < 0) this.bump(1, 0, -s.vx * 1.24); }
-    if (s.z > wall) { s.z = wall; if (s.vz > 0) this.bump(0, -1, s.vz * 1.24); }
-    if (s.z < -wall) { s.z = -wall; if (s.vz < 0) this.bump(0, 1, -s.vz * 1.24); }
+    const bounds = this.bounds;
+    const marginX = Math.abs(Math.cos(s.yaw)) * .71 + Math.abs(Math.sin(s.yaw)) * 1.04;
+    const marginZ = Math.abs(Math.sin(s.yaw)) * .71 + Math.abs(Math.cos(s.yaw)) * 1.04;
+    if (s.x > bounds.maxX - marginX) { s.x = bounds.maxX - marginX; if (s.vx > 0) this.bump(-1, 0, s.vx * 1.24); }
+    if (s.x < bounds.minX + marginX) { s.x = bounds.minX + marginX; if (s.vx < 0) this.bump(1, 0, -s.vx * 1.24); }
+    if (s.z > bounds.maxZ - marginZ) { s.z = bounds.maxZ - marginZ; if (s.vz > 0) this.bump(0, -1, s.vz * 1.24); }
+    if (s.z < bounds.minZ + marginZ) { s.z = bounds.minZ + marginZ; if (s.vz < 0) this.bump(0, 1, -s.vz * 1.24); }
     s.speed = s.vx * Math.sin(s.yaw) + s.vz * Math.cos(s.yaw);
     s.wheelSpin += s.speed / WHEEL_RADIUS * dt;
     s.collision *= Math.exp(-5 * dt);
@@ -237,6 +259,15 @@ export class RcPhysics {
     s.pitch += this.pitchVelocity * dt;
     s.roll += this.rollVelocity * dt;
     s.y += this.verticalVelocity * dt;
+    // Abrupt stair risers compress a wheel up to its bump stop. Resolve the
+    // remaining vertical contact against the chassis instead of letting the
+    // spring's settling delay bury wheels and body inside a raised platform.
+    const minimumY = Math.max(...grounds.map((ground, i) => ground + WHEEL_RADIUS
+      - (REST_WHEEL_HEIGHT + .14) - s.wheels[i].x * Math.sin(s.roll) + s.wheels[i].z * Math.sin(s.pitch)));
+    if (s.y < minimumY) {
+      s.y = minimumY;
+      this.verticalVelocity = Math.max(0, this.verticalVelocity);
+    }
     s.heave = s.y - averageGround - BODY_REST_HEIGHT;
     for (let i = 0; i < s.wheels.length; i++) {
       const wheel = s.wheels[i];
@@ -245,6 +276,11 @@ export class RcPhysics {
       this.wheelVelocities[i] += ((targetHeight - wheel.height) * 520 - this.wheelVelocities[i] * 31) * dt;
       wheel.height += this.wheelVelocities[i] * dt;
       wheel.height = clamp(wheel.height, REST_WHEEL_HEIGHT - 0.125, REST_WHEEL_HEIGHT + 0.145);
+      const contactHeight = clamp(restHeight, REST_WHEEL_HEIGHT - .125, REST_WHEEL_HEIGHT + .145);
+      if (wheel.height < contactHeight) {
+        wheel.height = contactHeight;
+        this.wheelVelocities[i] = Math.max(0, this.wheelVelocities[i]);
+      }
       wheel.compression = wheel.height - REST_WHEEL_HEIGHT;
     }
     this.integrateAntenna(dt, localAx, localAz, verticalAcceleration, pitchAcceleration, rollAcceleration);

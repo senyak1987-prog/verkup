@@ -9,6 +9,7 @@
     "test:sign-studio": "node scripts/test-sign-studio.mjs",
     "test:sign-scene": "node scripts/test-sign-scene.mjs",
     "test:rc-game": "node scripts/test-rc-physics.mjs",
+    "test:rc-props": "node scripts/test-rc-props.mjs",
     "test:facade-rc": "node scripts/test-facade-rc.mjs",
     "build:rc-embed": "node scripts/build-rc-embed.mjs",
     "preview": "vite preview --host 0.0.0.0",
@@ -26,6 +27,7 @@
     "test:backer-contours": "node scripts/test-backer-contours.mjs"
   },
   "dependencies": {
+    "cannon-es": "^0.20.0",
     "libtess": "1.2.2",
     "lucide-react": "^0.468.0",
     "opentype.js": "^2.0.0",
