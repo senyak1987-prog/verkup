@@ -29,6 +29,47 @@ type Options = {
   onGeometryChange?(): void;
 };
 
+function visibleOpaque(object: THREE.Object3D) {
+  for (let ancestor: THREE.Object3D | null = object; ancestor; ancestor = ancestor.parent) {
+    if (!ancestor.visible) return false;
+  }
+  const material = (object as THREE.Mesh).material;
+  return !!material && (Array.isArray(material) ? material : [material])
+    .some(item => item.visible && (!item.transparent || item.opacity >= .98));
+}
+
+/** Orthographic framing stays constant when a rear camera moves before a wall. */
+export function facadeRearCameraPosition(target: THREE.Vector3, rear: THREE.Vector3, up: THREE.Vector3,
+  right: THREE.Vector3, scale: number, obstacles: THREE.Object3D[], output = new THREE.Vector3(),
+  raycaster = new THREE.Raycaster()) {
+  const minimum = scale * 1.55, clearance = scale * .25;
+  const samples = [target, target.clone().addScaledVector(right, scale * .65),
+    target.clone().addScaledVector(right, -scale * .65), target.clone().addScaledVector(up, -scale * .42),
+    target.clone().addScaledVector(up, scale * .32)];
+  const rayDirection = new THREE.Vector3();
+  // Keep the heading behind the truck, raising only its elevation in tight spaces.
+  for (const slope of [.35, .7, 1.4, 2.8, 5.6, 11.2, 22.4]) {
+    const direction = rear.clone().addScaledVector(up, slope).normalize();
+    let distance = scale * 6;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      output.copy(target).addScaledVector(direction, distance);
+      let allowed = distance;
+      for (const sample of samples) {
+        rayDirection.subVectors(output, sample);
+        const length = rayDirection.length();
+        raycaster.set(sample, rayDirection.multiplyScalar(1 / length));
+        raycaster.near = 0; raycaster.far = length;
+        const hit = raycaster.intersectObjects(obstacles, false).find(item => visibleOpaque(item.object));
+        if (hit) allowed = Math.min(allowed, distance * hit.distance / length - clearance);
+      }
+      if (allowed >= distance) return output;
+      if (allowed < minimum) break;
+      distance = allowed;
+    }
+  }
+  return output;
+}
+
 /** RC input and camera takeover for an existing renderer; never creates another canvas. */
 export function createFacadeRcGame(options: Options): FacadeRcGame {
   const { scene, camera, controls, canvas, requestRender } = options;
@@ -55,6 +96,8 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
   const keys = new Set<string>();
   const pointer = new THREE.Vector2(); let hasPointer = false, pressed = false, braking = false, pointerId: number | null = null;
   const raycaster = new THREE.Raycaster(), plane = new THREE.Plane(), intersection = new THREE.Vector3();
+  const rearRaycaster = new THREE.Raycaster();
+  let facadeMeshes: THREE.Object3D[] = [];
   let disposed = false, lastTime = 0, lastTelemetry = 0, nightFraction = -1;
   let view: FacadeRcCamera = 'arena';
   let currentMode: RcMode = 'free';
@@ -100,15 +143,19 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
     const close=view==='car'||view==='rear';
     const target = close ? carPosition.add(new THREE.Vector3(0, physicalScale * .35, 0))
       : group.localToWorld(new THREE.Vector3(0, 8, -3));
-    const direction = view==='rear'
-      ? new THREE.Vector3(-Math.sin(world.physics.state.yaw),.35,-Math.cos(world.physics.state.yaw)).transformDirection(group.matrixWorld)
-      : new THREE.Vector3(.45, view === 'car' ? .55 : .95, 1).normalize();
+    const direction = new THREE.Vector3(.45, view === 'car' ? .55 : .95, 1).normalize();
     const aspect = Math.max(.25, canvas.clientWidth / Math.max(1, canvas.clientHeight));
     const viewHeight = close ? Math.max(physicalScale * (view==='rear'?3.7:5), physicalScale * 6 / aspect)
       : Math.max(physicalScale * (world.surface.depth+24), physicalScale * (world.surface.width+8) / aspect);
     camera.left = -viewHeight * aspect / 2; camera.right = -camera.left;
     camera.top = viewHeight / 2; camera.bottom = -camera.top; camera.zoom = 1;
-    camera.position.copy(target).addScaledVector(direction, Math.max(18000, viewHeight * 3));
+    if (view === 'rear') {
+      const yaw = world.physics.state.yaw;
+      const rear = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw)).transformDirection(group.matrixWorld);
+      const up = new THREE.Vector3(0, 1, 0).transformDirection(group.matrixWorld);
+      const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)).transformDirection(group.matrixWorld);
+      facadeRearCameraPosition(target, rear, up, right, physicalScale, facadeMeshes, camera.position, rearRaycaster);
+    } else camera.position.copy(target).addScaledVector(direction, Math.max(18000, viewHeight * 3));
     controls.target.copy(target); camera.lookAt(target); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
   }
   canvas.addEventListener('pointerdown', event => {
@@ -148,6 +195,8 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
       if (disposed) return;
       if (game.active) game.exit();
       const placement = facade ? facadeRcPlacement(facade) : null;
+      facadeMeshes = [];
+      facade?.traverse(object => { if ((object as THREE.Mesh).isMesh) facadeMeshes.push(object); });
       game.available = !!placement; group.visible = game.available;
       if (placement) {
         world.dispose();nightMaterials.clear();world=createRcWorld({surface:placement.surface});
@@ -219,6 +268,7 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
     dispose() {
       if (disposed) return; game.exit(); disposed = true; signalController.abort(); clearInput(); world.dispose();
       nightMaterials.clear();
+      facadeMeshes = [];
       group.removeFromParent();group.clear();
       if (originalTabIndex === null) canvas.removeAttribute('tabindex'); else canvas.setAttribute('tabindex', originalTabIndex);
     },
