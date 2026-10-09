@@ -19,6 +19,7 @@ import { fitNeonToWidth } from "../lib/neonSizing";
 import { NeonControls } from "./NeonControls";
 import { NeonStudioEditor } from "./NeonStudioEditor";
 import { SignLayoutEditor } from "./SignLayoutEditor";
+import { SignDimensions2D } from "./SignDimensions2D";
 import { LetterLinesControls } from "./LetterLinesControls";
 import { CanvasTextEditor } from "./CanvasTextEditor";
 import type { CanvasPointerSelection } from "../lib/canvasTextSelection";
@@ -183,9 +184,9 @@ const PANEL_SHAPES: Array<{ id: PanelShape; label: string }> = [
 ];
 
 const LOGO_SHAPES: Array<{ id: LogoShape; label: string }> = [
-  { id: "circle", label: "Круг" },
   { id: "square", label: "Квадрат" },
-  { id: "rounded", label: "Скругление" },
+  { id: "circle", label: "Круг" },
+  { id: "rounded", label: "Скруглённый квадрат" },
 ];
 
 const GLOW_MODES: Array<{ id: GlowMode; label: string; note: string }> = [
@@ -612,6 +613,7 @@ export function SignProductConfigurator() {
   const [selectedNeonLine,setSelectedNeonLine] = useState(0);
   useEffect(() => { setSelectedNeonLine(index => Math.min(index, project.neonText.split('\n').length - 1)); }, [project.neonText]);
   const [editing, setEditing] = useState(true);
+  const [logoPickerOpen, setLogoPickerOpen] = useState(false);
   const [layoutSelection, setLayoutSelection] = useState<LayoutObject>("composition");
   const [canvasTextEdit, setCanvasTextEdit] = useState<{ index: number; originalText: string; pointerSelection?: CanvasPointerSelection } | null>(null);
   const canvasTextUndoBase = useRef<ProjectState | null>(null);
@@ -633,7 +635,7 @@ export function SignProductConfigurator() {
   const contourKey = JSON.stringify(lineSettings.map(row=>[row.index,row.font,row.text]));
   const patchProject = (patch: Partial<ProjectState>, remember = true) => {
     const layoutEdit = project.productId === "letters" && Object.keys(patch).some(key =>
-      ["logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "logoSizeMm", "letterWidth", "letterHeight", "lettersText", "letterFont", "secondLineText", "thirdLineText", "letterLineFonts", "letterLineHeights", "letterLineOffsets", "vectorArtwork"].includes(key));
+      ["logoEnabled", "logoShape", "logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "logoSizeMm", "letterWidth", "letterHeight", "lettersText", "letterFont", "secondLineText", "thirdLineText", "letterLineFonts", "letterLineHeights", "letterLineOffsets", "vectorArtwork"].includes(key));
     if (remember && (layoutEdit || project.productId === 'neon' && Object.keys(patch).some(key=>key.startsWith('neon')))) {
       if (layoutInteraction.current === "start" || layoutInteraction.current !== "active" && (Date.now()-lastUndoEdit.current > 800 || !undoHistory.current.length)) {
         undoHistory.current.push(project); if (undoHistory.current.length>30) undoHistory.current.shift(); setCanUndo(true);
@@ -1265,17 +1267,27 @@ export function SignProductConfigurator() {
             <span>Параметры каждого изделия — в его вкладке</span>
           </div>}
           {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar layout-alignment-toolbar" aria-label="Выбор и выравнивание объектов макета">
+            <button type="button" disabled={!!project.secondLineText.trim()&&!!project.thirdLineText.trim()} onClick={addLetterLine}>+ Строка ниже</button>
+            <button type="button" aria-expanded={logoPickerOpen} aria-controls="canvas-logo-shapes" onClick={() => setLogoPickerOpen(open => !open)}>+ Логотип</button>
             <button className="layout-pack-button" type="button" title="Собрать логотип и надпись в ряд с обычным промежутком и центрировать по обеим осям" disabled={fontPending} onClick={packLayout}>Собрать и центрировать</button>
             <div className="alignment-actions" role="group" aria-label={mountMode === "acp" ? "Центрирование по подложке" : "Центрирование по макету"}>
               <button type="button" title={mountMode === "acp" ? "По центру подложки по горизонтали" : "По центру макета по горизонтали"} disabled={fontPending} onClick={() => alignLayoutSelection("x")}><AlignHorizontalJustifyCenter size={16}/>Центр X</button>
               <button type="button" title={mountMode === "acp" ? "По центру подложки по вертикали" : "По центру макета по вертикали"} disabled={fontPending} onClick={() => alignLayoutSelection("y")}><AlignVerticalJustifyCenter size={16}/>Центр Y</button>
             </div>
-            <span className="alignment-reference">{mountMode === "acp" ? "По подложке" : "По макету"}</span>
             <button type="button" aria-label="Отменить изменение макета" title="Отменить изменение макета (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={16}/></button>
-            <button type="button" disabled={!!project.secondLineText.trim()&&!!project.thirdLineText.trim()} onClick={addLetterLine}>+ Строка ниже</button>
             <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
             <span className="canvas-typing-hint">Текст — выделение · рамка — перемещение</span>
           </div>}
+            {productId === "letters" && viewMode === "2d" && editing && logoPickerOpen && <div id="canvas-logo-shapes" className="canvas-logo-shapes" role="group" aria-label="Форма логотипа" onKeyDown={event => {
+              if (event.key === "Escape") { setLogoPickerOpen(false); event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('[aria-controls="canvas-logo-shapes"]')?.focus(); }
+            }}>
+              {LOGO_SHAPES.map(shape => <button key={shape.id} type="button" aria-pressed={logoEnabled && logoShape === shape.id} onClick={() => {
+                closeCanvasText(); lastUndoEdit.current = 0; patchProject({ logoEnabled: true, logoShape: shape.id });
+                setLayoutSelection("logo"); setPlacement("none"); setLogoPickerOpen(false);
+              }}><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+                {shape.id === "circle" ? <circle cx="10" cy="10" r="7" /> : <rect x="3" y="3" width="14" height="14" rx={shape.id === "rounded" ? 4 : 0} />}
+              </svg>{shape.label}</button>)}
+            </div>}
           {productId === "neon" && viewMode === "2d" && editing && <div className="editor-toolbar neon-inline-toolbar" aria-label="Настройки выбранной строки на макете">
             <label><span>Строка</span><select aria-label="Выбранная строка на макете" value={selectedNeonLine} onChange={event=>setSelectedNeonLine(Number(event.target.value))}>{project.neonText.split('\n').map((_,index)=><option key={index} value={index}>{index+1}</option>)}</select></label>
             <label><span>Шрифт</span><select aria-label="Шрифт выбранной строки" value={project.neonLineFonts[selectedNeonLine]||project.neonFont} onChange={event=>patchProject({neonLineFonts:Array.from({length:3},(_,index)=>index===selectedNeonLine?event.target.value:project.neonLineFonts[index]||project.neonFont)})}>{NEON_FONTS.map(font=><option key={font.id} value={font.id} disabled={neonUnsupportedCharacters(project.neonText.split('\n')[selectedNeonLine]||'',font.id).length>0}>{font.label}</option>)}</select></label>
@@ -1346,6 +1358,7 @@ export function SignProductConfigurator() {
               />
             )}
           </div></div>}
+          {showDimensions && !blankSign && viewMode === "2d" && <SignDimensions2D sourceRef={previewArtRef} />}
           {showDimensions && !blankSign && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
         </section></div>
           {!blankSign && (productId!=="panel" || viewMode==="3d"&&placement!=="none"&&showFacadeSign) && <div className="canvas-object-dimensions" aria-label="Размеры элементов вывески" aria-hidden={!showDimensions} style={{ visibility: showDimensions ? "visible" : "hidden" }}>{visibleObjectDimensions.map(item=><span key={item.id}><strong>{item.label}</strong> {Math.round(item.width)} × {Math.round(item.height)} мм</span>)}</div>}
@@ -1951,7 +1964,6 @@ function PanelPreview({
 
 /** Keep measurement text readable in screen pixels, including a very wide sign on a phone. */
 function SvgMarkupPreview({ className, markup, children }: { className: string; markup: string; children?: ReactNode }) {
-  const host = useRef<HTMLDivElement>(null);
   const prior = useRef(markup);
   const [previous, setPrevious] = useState('');
   const facadeNight = /data-facade-night="true"/.test(markup);
@@ -1979,34 +1991,10 @@ function SvgMarkupPreview({ className, markup, children }: { className: string; 
     }
     prior.current = markup; setPrevious("");
   }, [markup]);
-  const [labels, setLabels] = useState<{text: string; x: number; y: number; vertical: boolean}[]>([]);
-  useEffect(() => {
-    const element = host.current;
-    if (!element) return;
-    const update = () => {
-      const bounds = element.getBoundingClientRect();
-      if (!bounds.width || !bounds.height) return;
-      const scaleX = element.clientWidth / bounds.width, scaleY = element.clientHeight / bounds.height;
-      setLabels(Array.from(element.querySelectorAll<SVGTextElement>(".studio-svg-layer:not(.studio-svg-previous) :is([data-dimensions], [data-object-dimensions]) text")).map(text => {
-        const rect = text.getBoundingClientRect();
-        const vertical = Boolean(text.getAttribute("transform")?.includes("rotate"));
-        const edgeX = vertical ? 10 : 44, edgeY = vertical ? 44 : 10;
-        return { text: text.textContent ?? "", vertical,
-          x: clamp((rect.x + rect.width / 2 - bounds.x) * scaleX, edgeX, element.clientWidth - edgeX),
-          y: clamp((rect.y + rect.height / 2 - bounds.y) * scaleY, edgeY, element.clientHeight - edgeY) };
-      }));
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [markup]);
-  return <div className={className + (windowsLit ? " windows-lit" : " windows-dark")} ref={host} data-window-lights={windowsLit ? "on" : "off"}>
+  return <div className={className + (windowsLit ? " windows-lit" : " windows-dark")} data-window-lights={windowsLit ? "on" : "off"}>
     <div className="studio-svg-layer" dangerouslySetInnerHTML={{ __html: markup }} />
     {previous && <div className="studio-svg-layer studio-svg-previous" aria-hidden="true" dangerouslySetInnerHTML={{__html:previous.replace(/id="([^"]+)"/g, (_a,id:string)=>`id="previous-${id}"`).replace(/url\(#([^\)]+)\)/g, (_a,id:string)=>`url(#previous-${id})`)}}/>}
     {children}
-    <div className="studio-measure-labels" aria-hidden="true">{labels.map((label, index) => <span key={index}
-      style={{ left: label.x, top: label.y, transform: `translate(-50%, -50%)${label.vertical ? " rotate(-90deg)" : ""}` }}>{label.text}</span>)}</div>
   </div>;
 }
 
