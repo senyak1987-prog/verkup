@@ -25,6 +25,8 @@ await fs.mkdir(new URL('../.impeccable/review/',import.meta.url),{recursive:true
 try {
   await call('Runtime.enable');await call('Page.enable');await size(1440,960);await call('Page.navigate',{url});
   await until("!!document.querySelector('[aria-label=\"Примерка · 3D\"]')");await click('Примерка · 3D');
+  assert.equal(await evaluate('document.querySelector(\'[aria-label="Размещение в основном просмотре"]\').value'), 'none', '3D starts without a facade');
+  await evaluate('(()=>{const placement=document.querySelector(\'[aria-label="Размещение в основном просмотре"]\');placement.value="windows";placement.dispatchEvent(new Event("change",{bubbles:true}));})()');
   await until("!!document.querySelector('.facade-rc-start') && !document.querySelector('.facade-rc-start').disabled");
   await wait(1000);assert.equal(await evaluate("document.querySelectorAll('.sign-scene-3d canvas').length"),1,'One shared renderer');
   await screenshot('facade-rc-desktop');const before=await evaluate(snapshot);
