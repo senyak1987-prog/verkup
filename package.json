@@ -24,13 +24,18 @@
     "test:letter-frame": "node scripts/test-letter-frame.mjs",
     "test:letter-rows": "node scripts/test-letter-rows.mjs",
     "test:vector-pdf": "node scripts/test-vector-pdf.mjs",
+    "test:vector-import": "node scripts/test-vector-import.mjs",
+    "test:vector-layout": "node scripts/test-vector-layout.mjs",
+    "test:cdr-import": "node scripts/test-cdr-import.mjs",
     "test:backer-contours": "node scripts/test-backer-contours.mjs"
   },
   "dependencies": {
+    "@bjorn3/browser_wasi_shim": "0.4.2",
     "cannon-es": "^0.20.0",
     "libtess": "1.2.2",
     "lucide-react": "^0.468.0",
     "opentype.js": "^2.0.0",
+    "pdfjs-dist": "6.4.299",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.186.1"
