@@ -61,8 +61,10 @@ const schemaCompiled = ts.transpileModule(schemaSource, { compilerOptions: {
 } }).outputText;
 const panel = load('panelConstruction');
 const validateProject = new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS','normalizePanelSize','normalizePanelDepth',
+  'PANEL_CORNER_RADIUS_MIN','PANEL_CORNER_RADIUS_STEP','panelCornerRadiusLimit','normalizePanelCornerRadius',
   schemaCompiled + ';return validateProject;')(contours.SIGN_FONTS, contours.resolveSignFont,
-  construction.normalizeLetterDepth, load('backerConstraints').constrainBacker, [],panel.normalizePanelSize,panel.normalizePanelDepth);
+  construction.normalizeLetterDepth, load('backerConstraints').constrainBacker, [],panel.normalizePanelSize,panel.normalizePanelDepth,
+  panel.PANEL_CORNER_RADIUS_MIN,panel.PANEL_CORNER_RADIUS_STEP,panel.panelCornerRadiusLimit,panel.normalizePanelCornerRadius);
 test('Восстановление проекта считает глубину по активным строкам вместо скрытой базовой высоты', () => {
   const restore = project => validateProject({ version: 1, project: {glowMode:"face",...project} });
   const short = restore({ lettersText: 'КОФЕ', letterHeight: 220, letterLineHeights: [100], letterDepth: 60 });

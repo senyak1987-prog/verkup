@@ -26,7 +26,10 @@ const schemaSource=source.slice(source.indexOf('const ORACAL_8500_COLORS'),sourc
   source.slice(source.indexOf('const PROJECT_ENUMS'),source.indexOf('function loadSavedProject'));
 const schemaCompiled=ts.transpileModule(schemaSource,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
 const panel=load('panelConstruction');
-const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS','normalizePanelSize','normalizePanelDepth',schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker,neon.NEON_FONTS,panel.normalizePanelSize,panel.normalizePanelDepth);
+const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS','normalizePanelSize','normalizePanelDepth',
+  'PANEL_CORNER_RADIUS_MIN','PANEL_CORNER_RADIUS_STEP','panelCornerRadiusLimit','normalizePanelCornerRadius','validateVectorArtwork',
+  schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker,neon.NEON_FONTS,panel.normalizePanelSize,panel.normalizePanelDepth,
+  panel.PANEL_CORNER_RADIUS_MIN,panel.PANEL_CORNER_RADIUS_STEP,panel.panelCornerRadiusLimit,panel.normalizePanelCornerRadius,load('vectorArtwork').validateVectorArtwork);
 
 const svgSource=source.slice(source.indexOf('function createLettersSvgMarkup('),source.indexOf('\nfunction createSvgObjectDimensions'));
 const svgCompiled=ts.transpileModule(svgSource,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
@@ -53,6 +56,23 @@ test('Импорт ограничивает логотип, отступ кон�
   const imported=schema.validate({version:1,project:{logoSizeMm:9000,panelSize:621,panelDepth:80,haloBackerOffsetMm:100}});
   assert.equal(imported.logoSizeMm,700);assert.equal(imported.panelSize,600);assert.equal(imported.panelDepth,130);assert.equal(imported.haloBackerOffsetMm,25);
   const legacy=schema.validate({version:1,project:{letterHeight:400,logoScale:100}});assert.equal(legacy.logoSizeMm,400);
+});
+
+test('Saved rounded panels migrate to radii from 50 mm in 10 mm steps and retain their artwork',()=>{
+  for(const [radius,expected] of [[0,50],[65,70],[175,170],[300,170]]){
+    const saved={productId:'panel',panelShape:'rounded',panelSize:350,panelCornerRadius:radius,
+      panelImage:'data:image/png;base64,AAAA',panelImageScale:97,panelImageX:12,panelImageY:-8,lettersText:'СВЕТ'};
+    const restored=schema.validate({version:1,project:saved});
+    assert.equal(restored.panelCornerRadius,expected);
+    for(const key of ['panelImage','panelImageScale','panelImageX','panelImageY','lettersText'])assert.equal(restored[key],saved[key]);
+    assert.equal(schema.validate({version:1,project:restored}).panelCornerRadius,expected,'Saving and loading again must not change the migrated radius');
+  }
+  const large=schema.validate({version:1,project:{productId:'panel',panelShape:'rounded',panelSize:700,panelCornerRadius:300}});
+  const smaller=schema.validate({version:1,project:{...large,panelSize:325}});
+  assert.equal(smaller.panelSize,350,'The physical size is normalized before the radius limit is calculated');
+  assert.equal(smaller.panelCornerRadius,170,'A smaller panel never stores a radius above its half-side or between manufacturing steps');
+  const legacy=schema.validate({version:1,project:{productId:'panel',panelShape:'rounded',panelSize:350}});
+  assert.equal(legacy.panelCornerRadius,schema.defaults.panelCornerRadius,'Projects without a radius retain a compatible default');
 });
 
 test('An imported contour backer selects the supporting frame only in halo modes',()=>{

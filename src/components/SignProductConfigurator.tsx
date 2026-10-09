@@ -2,7 +2,7 @@ import { Check, ChevronDown, ChevronRight, Download, Eraser, FolderOpen, ImagePl
 import { Component, createContext, lazy, Suspense, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, ReactNode } from "react";
 import { createPanelSvgMarkup, panelSvgFaceBox } from "../lib/signPanelExport";
-import { panelMountLayout, isPanelCornerMount, PANEL_SIZES, PANEL_DEPTHS, normalizePanelSize, normalizePanelDepth } from "../lib/panelConstruction";
+import { panelMountLayout, isPanelCornerMount, PANEL_SIZES, PANEL_DEPTHS, normalizePanelSize, normalizePanelDepth, PANEL_CORNER_RADIUS_MIN, PANEL_CORNER_RADIUS_STEP, panelCornerRadiusLimit, normalizePanelCornerRadius } from "../lib/panelConstruction";
 import type { PanelMountMode } from "../lib/panelConstruction";
 import { calculateLetterPrice, calculateLogoPrice, hasUnpricedSymbols, requiresFrameApproval, useSignCart } from "../lib/signCommerce";
 import { systemFontAvailable } from "../lib/systemFontContours";
@@ -453,7 +453,7 @@ const PROJECT_RANGES: Record<string, [number, number]> = {
   letterHeight: [100, 700], letterDepth: [40, 60], logoScale: [45, 130], logoSizeMm: [100,700], haloBackerOffsetMm: [15,25],
   letterWidth: [0, 20000],
   panelSize: [350, 700], panelDepth: [130, 150],
-  panelWallGap: [60, 400], panelCornerRadius: [0, 300],
+  panelWallGap: [60, 400], panelCornerRadius: [PANEL_CORNER_RADIUS_MIN, 300],
   frameEdgeInset: [0, 120], frameTopPosition: [10, 20], frameBottomPosition: [10, 20],
   acpWidth: [400, 20000], acpHeight: [250, 10000], acpDepth: [30, 100],
 };
@@ -521,6 +521,7 @@ function validateProject(raw: unknown): ProjectState {
   if(input.haloLightColor===undefined)result.haloLightColor=result.letterFaceColor;
   if(result.haloBackerEnabled && ["halo","faceHalo"].includes(result.glowMode))result.mountMode="frame";
   result.panelSize=normalizePanelSize(result.panelSize);result.panelDepth=normalizePanelDepth(result.panelDepth);
+  result.panelCornerRadius = normalizePanelCornerRadius(result.panelCornerRadius, result.panelSize);
   if(input.logoSizeMm===undefined)result.logoSizeMm=Math.max(100,Math.min(700,result.letterHeight*result.logoScale/100));
   if(result.panelMountMode==='corner') result.panelWallGap=Math.max(result.panelWallGap,result.panelDepth/2+20);
   result.letterDepth = normalizeLetterDepth([result.lettersText,result.secondLineText,result.thirdLineText].map((text,index)=>text.trim()?result.letterLineHeights[index]||result.letterHeight:0).filter(Boolean), result.letterDepth, result.glowMode);
@@ -657,7 +658,7 @@ export function SignProductConfigurator() {
   const setProductId = (value: ProjectState["productId"]) => setProject(previous => ({ ...previous, productId: value }));
   const setSceneMode = (value: ProjectState["sceneMode"]) => setProject(previous => ({ ...previous, sceneMode: value }));
   const setPanelShape = (value: ProjectState["panelShape"]) => setProject(previous => ({ ...previous, panelShape: value }));
-  const setPanelSize = (value: ProjectState["panelSize"]) => setProject(previous => ({ ...previous, panelSize: normalizePanelSize(value) }));
+  const setPanelSize = (value: ProjectState["panelSize"]) => setProject(previous => ({ ...previous, panelSize: normalizePanelSize(value), panelCornerRadius: normalizePanelCornerRadius(previous.panelCornerRadius, normalizePanelSize(value)) }));
   const setPanelDepth = (value: number) => setProject(previous => ({ ...previous, panelDepth: normalizePanelDepth(value), panelWallGap:previous.panelMountMode==='corner'?Math.max(previous.panelWallGap,normalizePanelDepth(value)/2+20):previous.panelWallGap }));
   const setPanelImage = (value: ProjectState["panelImage"]) => setProject(previous => ({ ...previous, panelImage: value }));
   const setPanelImageScale = (value: ProjectState["panelImageScale"]) => setProject(previous => ({ ...previous, panelImageScale: value }));
@@ -1319,7 +1320,7 @@ export function SignProductConfigurator() {
               onMountModeChange={value => patchProject({panelMountMode:value,panelWallGap:value==='corner'?Math.max(project.panelWallGap,project.panelDepth/2+20):project.panelWallGap})}
               cornerRadius={project.panelCornerRadius}
               onWallGapChange={value => setProject(previous => ({ ...previous, panelWallGap:previous.panelMountMode==='corner'?Math.max(value,previous.panelDepth/2+20):value }))}
-              onCornerRadiusChange={value => setProject(previous => ({ ...previous, panelCornerRadius: value }))}
+              onCornerRadiusChange={value => setProject(previous => ({ ...previous, panelCornerRadius: normalizePanelCornerRadius(value, previous.panelSize) }))}
               onDepthChange={setPanelDepth}
               onFaceColorChange={setPanelFaceColor}
               onImageChange={(event) => void handleImageUpload(event, setPanelImage)}
@@ -1539,7 +1540,7 @@ function PanelControls({
             </button>
           ))}
         </div>
-        {shape === "rounded" && <NumberField label="Радиус углов, мм" min={0} max={Math.min(300, size / 2)} value={Math.min(cornerRadius, size / 2)} onChange={onCornerRadiusChange} />}
+        {shape === "rounded" && <NumberField label="Радиус углов, мм" min={PANEL_CORNER_RADIUS_MIN} max={panelCornerRadiusLimit(size)} step={PANEL_CORNER_RADIUS_STEP} value={cornerRadius} onChange={onCornerRadiusChange} />}
       </ControlSection>
 
       <ControlSection title="Размер">
@@ -2109,28 +2110,31 @@ function NumberField({
   label,
   min,
   max: suppliedMax,
+  step = 1,
   value,
   onChange,
 }: {
   label: string;
   min: number;
   max?: number;
+  step?: number;
   value: number;
   onChange: (value: number) => void;
 }) {
   const max = suppliedMax ?? (label.startsWith("Ширина") ? 20000 : 10000);
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
-  const commit = () => { const next = Math.min(max, readPositiveInteger(draft, value, min)); setDraft(String(next)); onChange(next); };
+  const commit = () => { const bounded = Math.min(max, readPositiveInteger(draft, value, min)); const next = Math.min(max, min + Math.round((bounded - min) / step) * step); setDraft(String(next)); onChange(next); };
   return (
     <label className="builder-field">
       <span>{label}</span>
       <input
         min={min}
         max={max}
+        step={step}
         type="number"
         value={draft}
-        onChange={event => { const raw = event.target.value; setDraft(raw); const next = Number(raw); if (raw && Number.isFinite(next) && next >= min && next <= max) onChange(Math.round(next)); }}
+        onChange={event => { const raw = event.target.value; setDraft(raw); const next = Number(raw); if (raw && Number.isFinite(next) && next >= min && next <= max && (step === 1 || (next - min) % step === 0)) onChange(Math.round(next)); }}
         onBlur={commit}
         onKeyDown={event => { if (event.key === "Enter") commit(); }}
       />
