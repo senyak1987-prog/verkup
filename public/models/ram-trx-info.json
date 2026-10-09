@@ -1,0 +1,784 @@
+{
+  "title": "Dodge RAM 1500 TRX",
+  "author": "DR1KING100K",
+  "source": "https://sketchfab.com/3d-models/dodge-ram-1500-trx-d6d548c5fe9f4749813f0a386edfd42c",
+  "license": "CC-BY-4.0",
+  "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+  "generatedBy": "verkup/scripts/build-trx-asset.mjs",
+  "modifications": "Baked transforms, consolidated equal materials, removed TEXCOORD_1..9, normal-aware mesh decimation, normalized uniform scale and wheel pivots.",
+  "sourceTriangles": 498000,
+  "sourceVertices": 407016,
+  "sourceByteLength": 48262160,
+  "discardedUvBytes": 29261648,
+  "cleanedTriangles": 2,
+  "triangles": 99812,
+  "vertices": 110909,
+  "targetTriangles": 100000,
+  "normalization": {
+    "length": 2,
+    "uniformScale": 0.3368205600476654,
+    "sourceOrigin": [
+      -0.020000040531158447,
+      0.7302775979042053,
+      0.03689998388290405
+    ],
+    "sourceWheelPivotMean": [
+      -0.020000040531158447,
+      -0.019999985117465265,
+      0.03689998388290405
+    ],
+    "up": "+Y",
+    "front": "+Z",
+    "units": "metres"
+  },
+  "rootName": "RAM_TRX",
+  "bodyName": "BODY",
+  "wheelNames": [
+    "WHEEL_LF",
+    "WHEEL_RF",
+    "WHEEL_LR",
+    "WHEEL_RR"
+  ],
+  "wheelRuntimeOrder": [
+    "WHEEL_RF",
+    "WHEEL_LF",
+    "WHEEL_RR",
+    "WHEEL_LR"
+  ],
+  "dimensions": [
+    0.8456754088401794,
+    0.7282736274287329,
+    2
+  ],
+  "bounds": {
+    "min": [
+      -0.4225807785987854,
+      -0.4086037847087011,
+      -1.0461677312850952
+    ],
+    "max": [
+      0.42309463024139404,
+      0.31966984272003174,
+      0.9538322687149048
+    ],
+    "size": [
+      0.8456754088401794,
+      0.7282736274287329,
+      2
+    ]
+  },
+  "bodyBounds": {
+    "min": [
+      -0.4225807785987854,
+      -0.34982526302337646,
+      -1.0461677312850952
+    ],
+    "max": [
+      0.42309463024139404,
+      0.31966984272003174,
+      0.9538322687149048
+    ],
+    "size": [
+      0.8456754088401794,
+      0.6694951057434082,
+      2
+    ]
+  },
+  "roofTop": 0.31966984272003174,
+  "wheelBase": 1.2428678456967728,
+  "frontTrackWidth": 0.6264861862787049,
+  "rearTrackWidth": 0.6399590359840666,
+  "trackWidth": 0.6332226111313857,
+  "wheelRadius": 0.15251027420163155,
+  "bodyRestHeight": 0.40521918990619943,
+  "wheels": [
+    {
+      "sourceName": "WHEEL_LF",
+      "nodeName": "WHEEL_LF",
+      "sourcePivot": [
+        0.9099999070167542,
+        -0.029999990016222416,
+        1.8818999528884888
+      ],
+      "pivot": [
+        0.3132431031773874,
+        -0.25607712295504664,
+        0.6214339228483864
+      ],
+      "radius": 0.15251027047634125,
+      "width": 0.11675751209259033,
+      "localBounds": {
+        "min": [
+          -0.06160138174891472,
+          -0.15252666175365448,
+          -0.1521621197462082
+        ],
+        "max": [
+          0.05515613034367561,
+          0.15249387919902802,
+          0.15217356383800507
+        ]
+      },
+      "triangles": 6088,
+      "spinAxis": "+X"
+    },
+    {
+      "sourceName": "WHEEL_RF",
+      "nodeName": "WHEEL_RF",
+      "sourcePivot": [
+        -0.9499999284744263,
+        -0.029999990016222416,
+        1.8818999528884888
+      ],
+      "pivot": [
+        -0.31324308310131754,
+        -0.25607712295504664,
+        0.6214339228483864
+      ],
+      "radius": 0.15251027047634125,
+      "width": 0.11675742268562317,
+      "localBounds": {
+        "min": [
+          -0.055156029760837555,
+          -0.15252666175365448,
+          -0.15217359364032745
+        ],
+        "max": [
+          0.061601392924785614,
+          0.15249387919902802,
+          0.1521621197462082
+        ]
+      },
+      "triangles": 6080,
+      "spinAxis": "+X"
+    },
+    {
+      "sourceName": "WHEEL_LR",
+      "nodeName": "WHEEL_LR",
+      "sourcePivot": [
+        0.9299998879432678,
+        -0.009999980218708114,
+        -1.8080999851226807
+      ],
+      "pivot": [
+        0.3199795079539983,
+        -0.24934070845408907,
+        -0.6214339228483864
+      ],
+      "radius": 0.15251027792692184,
+      "width": 0.11675748229026794,
+      "localBounds": {
+        "min": [
+          -0.061601389199495316,
+          -0.15252667665481567,
+          -0.15216223895549774
+        ],
+        "max": [
+          0.05515609309077263,
+          0.15249387919902802,
+          0.15217344462871552
+        ]
+      },
+      "triangles": 6090,
+      "spinAxis": "+X"
+    },
+    {
+      "sourceName": "WHEEL_RR",
+      "nodeName": "WHEEL_RR",
+      "sourcePivot": [
+        -0.9700000286102295,
+        -0.009999980218708114,
+        -1.8080999851226807
+      ],
+      "pivot": [
+        -0.3199795280300682,
+        -0.24934070845408907,
+        -0.6214339228483864
+      ],
+      "radius": 0.15251027792692184,
+      "width": 0.11675742268562317,
+      "localBounds": {
+        "min": [
+          -0.05515604093670845,
+          -0.15252667665481567,
+          -0.15217368304729462
+        ],
+        "max": [
+          0.06160138174891472,
+          0.15249387919902802,
+          0.15216197073459625
+        ]
+      },
+      "triangles": 6086,
+      "spinAxis": "+X"
+    }
+  ],
+  "materialNames": [
+    "x3_wheel__PAINT_4",
+    "rxx_trx_graymet",
+    "rxx_trx_silvercaps",
+    "x3_wheel",
+    "x3_wheeldisk",
+    "x3_mix",
+    "x3_xalcantara01",
+    "x3_xleather03",
+    "x3_1",
+    "x3_grill07",
+    "x3_grill05",
+    "x3_grill04",
+    "x3_grill03",
+    "x3_bad05",
+    "x3_bad03",
+    "x3_0",
+    "x3_light01",
+    "x3_xleather01",
+    "x3_carbon",
+    "x3_bad01",
+    "x3_xbelt01",
+    "x3_xleather02",
+    "x3_grill09",
+    "x3_bad04",
+    "x3_gls30",
+    "x3_bad06",
+    "x3_grill06",
+    "x3_grill08",
+    "x3_bad02",
+    "x3_null__PAINT_1",
+    "x3_grill01",
+    "toner_ext",
+    "x3_null__PAINT_2",
+    "x3_under",
+    "x3_grill02",
+    "fara_pered_white",
+    "zad_steklo_far",
+    "x3_gls60",
+    "black_sr_ext",
+    "x3_bad07",
+    "black_shild_kapot",
+    "red_kapot",
+    "int_toner",
+    "int_lob",
+    "grey_plastik_pered",
+    "black_mat_kyzov",
+    "plastik_resfar",
+    "material",
+    "preded_steklo_far",
+    "fara_pered_orange",
+    "fara_pered_black",
+    "fara_pered_pov",
+    "fara_pered_white_poloski",
+    "black"
+  ],
+  "spareWheel": "rxx_trx_tire.017..020 remain static in BODY",
+  "simplification": {
+    "algorithm": "meshoptimizer simplifyWithAttributes",
+    "normalWeights": [
+      0.1,
+      0.1,
+      0.1
+    ],
+    "maximumRelativeError": 0.014,
+    "preserves": "material borders, authored normal attributes, mesh extrema and rotor pivots",
+    "detail": [
+      {
+        "group": "BODY",
+        "material": "x3_mix",
+        "before": 40105,
+        "after": 6339,
+        "relativeError": 0.013996287249028683
+      },
+      {
+        "group": "BODY",
+        "material": "x3_xalcantara01",
+        "before": 4888,
+        "after": 2034,
+        "relativeError": 0.013423808850347996
+      },
+      {
+        "group": "BODY",
+        "material": "x3_xleather03",
+        "before": 38444,
+        "after": 7641,
+        "relativeError": 0.01378366444259882
+      },
+      {
+        "group": "BODY",
+        "material": "x3_1",
+        "before": 2799,
+        "after": 1045,
+        "relativeError": 0.006851435173302889
+      },
+      {
+        "group": "BODY",
+        "material": "x3_grill07",
+        "before": 576,
+        "after": 410,
+        "relativeError": 0.013811072334647179
+      },
+      {
+        "group": "BODY",
+        "material": "x3_grill05",
+        "before": 772,
+        "after": 762,
+        "relativeError": 0.0011555951787158847
+      },
+      {
+        "group": "BODY",
+        "material": "x3_grill04",
+        "before": 90,
+        "after": 90,
+        "relativeError": 0
+      },
+      {
+        "group": "BODY",
+        "material": "x3_grill03",
+        "before": 302,
+        "after": 286,
+        "relativeError": 0.00027103355387225747
+      },
+      {
+        "group": "BODY",
+        "material": "x3_bad05",
+        "before": 7588,
+        "after": 5444,
+        "relativeError": 0.012464120984077454
+      },
+      {
+        "group": "BODY",
+        "material": "x3_bad03",
+        "before": 24806,
+        "after": 6078,
+        "relativeError": 0.013621319085359573
+      },
+      {
+        "group": "BODY",
+        "material": "x3_0",
+        "before": 16190,
+        "after": 5390,
+        "relativeError": 0.013752506114542484
+      },
+      {
+        "group": "BODY",
+        "material": "x3_light01",
+        "before": 5078,
+        "after": 1134,
+        "relativeError": 0.011723317205905914
+      },
+      {
+        "group": "BODY",
+        "material": "x3_xleather01",
+        "before": 2724,
+        "after": 592,
+        "relativeError": 0.012818270362913609
+      },
+      {
+        "group": "BODY",
+        "material": "x3_carbon",
+        "before": 1692,
+        "after": 504,
+        "relativeError": 0.011736718937754631
+      },
+      {
+        "group": "BODY",
+        "material": "x3_bad01",
+        "before": 63,
+        "after": 63,
+        "relativeError": 0
+      },
+      {
+        "group": "BODY",
+        "material": "x3_xbelt01",
+        "before": 348,
+        "after": 122,
+        "relativeError": 0.013995031826198101
+      },
+      {
+        "group": "BODY",
+        "material": "x3_xleather02",
+        "before": 981,
+        "after": 981,
+        "relativeError": 0
+      },
+      {
+        "group": "BODY",
+        "material": "x3_grill09",
+        "before": 538,
+        "after": 306,
+        "relativeError": 0.004662397317588329
+      },
+      {
+        "group": "BODY",
+        "material": "x3_bad04",
+        "before": 18,
+        "after": 18,
+        "relativeError": 0
+      },
+      {
+        "group": "BODY",
+        "material": "x3_gls30",
+        "before": 3499,
+        "after": 659,
+        "relativeError": 0.01190156489610672
+      },
+      {
+        "group": "BODY",
+        "material": "x3_bad06",
+        "before": 137,
+        "after": 99,
+        "relativeError": 0.005560045130550861
+      },
+      {
+        "group": "BODY",
+        "material": "x3_grill06",
+        "before": 97,
+        "after": 65,
+        "relativeError": 0.007420598529279232
+      },
+      {
+        "group": "BODY",
+        "material": "x3_grill08",
+        "before": 201,
+        "after": 181,
+        "relativeError": 0.0031684660352766514
+      },
+      {
+        "group": "BODY",
+        "material": "x3_bad02",
+        "before": 1849,
+        "after": 549,
+        "relativeError": 0.009048918262124062
+      },
+      {
+        "group": "BODY",
+        "material": "x3_null__PAINT_1",
+        "before": 30604,
+        "after": 4818,
+        "relativeError": 0.013801580294966698
+      },
+      {
+        "group": "BODY",
+        "material": "x3_grill01",
+        "before": 1812,
+        "after": 248,
+        "relativeError": 0.006619550287723541
+      },
+      {
+        "group": "BODY",
+        "material": "toner_ext",
+        "before": 611,
+        "after": 305,
+        "relativeError": 0.010088722221553326
+      },
+      {
+        "group": "BODY",
+        "material": "x3_null__PAINT_2",
+        "before": 498,
+        "after": 462,
+        "relativeError": 0.0003187038528267294
+      },
+      {
+        "group": "BODY",
+        "material": "x3_under",
+        "before": 4,
+        "after": 4,
+        "relativeError": 0
+      },
+      {
+        "group": "BODY",
+        "material": "x3_grill02",
+        "before": 1075,
+        "after": 815,
+        "relativeError": 0.010199673473834991
+      },
+      {
+        "group": "BODY",
+        "material": "fara_pered_white",
+        "before": 1341,
+        "after": 443,
+        "relativeError": 0.01184047106653452
+      },
+      {
+        "group": "BODY",
+        "material": "zad_steklo_far",
+        "before": 2024,
+        "after": 456,
+        "relativeError": 0.013074317015707493
+      },
+      {
+        "group": "BODY",
+        "material": "x3_gls60",
+        "before": 94,
+        "after": 64,
+        "relativeError": 0.0058558667078614235
+      },
+      {
+        "group": "BODY",
+        "material": "black_sr_ext",
+        "before": 80196,
+        "after": 14336,
+        "relativeError": 0.013019331730902195
+      },
+      {
+        "group": "BODY",
+        "material": "x3_bad07",
+        "before": 100,
+        "after": 64,
+        "relativeError": 0.008064614608883858
+      },
+      {
+        "group": "BODY",
+        "material": "black_shild_kapot",
+        "before": 480,
+        "after": 100,
+        "relativeError": 0.011723469942808151
+      },
+      {
+        "group": "BODY",
+        "material": "red_kapot",
+        "before": 3050,
+        "after": 420,
+        "relativeError": 0.005538169294595718
+      },
+      {
+        "group": "BODY",
+        "material": "int_toner",
+        "before": 232,
+        "after": 198,
+        "relativeError": 0.0024591870605945587
+      },
+      {
+        "group": "BODY",
+        "material": "int_lob",
+        "before": 107,
+        "after": 87,
+        "relativeError": 0.013015172444283962
+      },
+      {
+        "group": "BODY",
+        "material": "grey_plastik_pered",
+        "before": 1520,
+        "after": 248,
+        "relativeError": 0.013777259737253189
+      },
+      {
+        "group": "BODY",
+        "material": "black_mat_kyzov",
+        "before": 8912,
+        "after": 3056,
+        "relativeError": 0.013790263794362545
+      },
+      {
+        "group": "BODY",
+        "material": "plastik_resfar",
+        "before": 3890,
+        "after": 698,
+        "relativeError": 0.013177352026104927
+      },
+      {
+        "group": "BODY",
+        "material": "material",
+        "before": 871,
+        "after": 695,
+        "relativeError": 0.013445517048239708
+      },
+      {
+        "group": "BODY",
+        "material": "preded_steklo_far",
+        "before": 588,
+        "after": 198,
+        "relativeError": 0.013178371824324131
+      },
+      {
+        "group": "BODY",
+        "material": "fara_pered_orange",
+        "before": 310,
+        "after": 84,
+        "relativeError": 0.008571646176278591
+      },
+      {
+        "group": "BODY",
+        "material": "fara_pered_black",
+        "before": 3630,
+        "after": 896,
+        "relativeError": 0.0121869882568717
+      },
+      {
+        "group": "BODY",
+        "material": "fara_pered_pov",
+        "before": 46,
+        "after": 46,
+        "relativeError": 0
+      },
+      {
+        "group": "BODY",
+        "material": "fara_pered_white_poloski",
+        "before": 68,
+        "after": 64,
+        "relativeError": 0.0000045721271817456
+      },
+      {
+        "group": "BODY",
+        "material": "black",
+        "before": 32208,
+        "after": 3617,
+        "relativeError": 0.005691208876669407
+      },
+      {
+        "group": "BODY",
+        "material": "x3_wheel",
+        "before": 7774,
+        "after": 2254,
+        "relativeError": 0.013504484668374062
+      },
+      {
+        "group": "WHEEL_LF",
+        "material": "x3_wheel__PAINT_4",
+        "before": 23240,
+        "after": 2610,
+        "relativeError": 0.0062459977343678474
+      },
+      {
+        "group": "WHEEL_LF",
+        "material": "rxx_trx_graymet",
+        "before": 7112,
+        "after": 798,
+        "relativeError": 0.008254222571849823
+      },
+      {
+        "group": "WHEEL_LF",
+        "material": "rxx_trx_silvercaps",
+        "before": 1856,
+        "after": 208,
+        "relativeError": 0.009692404419183731
+      },
+      {
+        "group": "WHEEL_LF",
+        "material": "x3_wheel",
+        "before": 7774,
+        "after": 2332,
+        "relativeError": 0.01370974350720644
+      },
+      {
+        "group": "WHEEL_LF",
+        "material": "x3_wheeldisk",
+        "before": 560,
+        "after": 140,
+        "relativeError": 0.013657915405929089
+      },
+      {
+        "group": "WHEEL_RF",
+        "material": "x3_wheeldisk",
+        "before": 560,
+        "after": 136,
+        "relativeError": 0.013949421234428883
+      },
+      {
+        "group": "WHEEL_RF",
+        "material": "rxx_trx_silvercaps",
+        "before": 1856,
+        "after": 208,
+        "relativeError": 0.009691872633993626
+      },
+      {
+        "group": "WHEEL_RF",
+        "material": "x3_wheel",
+        "before": 7774,
+        "after": 2328,
+        "relativeError": 0.01370920054614544
+      },
+      {
+        "group": "WHEEL_RF",
+        "material": "rxx_trx_graymet",
+        "before": 7112,
+        "after": 798,
+        "relativeError": 0.008415082469582558
+      },
+      {
+        "group": "WHEEL_RF",
+        "material": "x3_wheel__PAINT_4",
+        "before": 23240,
+        "after": 2610,
+        "relativeError": 0.005856045056134462
+      },
+      {
+        "group": "WHEEL_LR",
+        "material": "x3_wheel",
+        "before": 7774,
+        "after": 2336,
+        "relativeError": 0.013709559105336666
+      },
+      {
+        "group": "WHEEL_LR",
+        "material": "rxx_trx_silvercaps",
+        "before": 1856,
+        "after": 208,
+        "relativeError": 0.009776110760867596
+      },
+      {
+        "group": "WHEEL_LR",
+        "material": "rxx_trx_graymet",
+        "before": 7112,
+        "after": 798,
+        "relativeError": 0.008205597288906574
+      },
+      {
+        "group": "WHEEL_LR",
+        "material": "x3_wheel__PAINT_4",
+        "before": 23240,
+        "after": 2610,
+        "relativeError": 0.006237206980586052
+      },
+      {
+        "group": "WHEEL_LR",
+        "material": "x3_wheeldisk",
+        "before": 560,
+        "after": 138,
+        "relativeError": 0.013660936616361141
+      },
+      {
+        "group": "WHEEL_RR",
+        "material": "x3_wheel__PAINT_4",
+        "before": 23240,
+        "after": 2610,
+        "relativeError": 0.006325792521238327
+      },
+      {
+        "group": "WHEEL_RR",
+        "material": "rxx_trx_graymet",
+        "before": 7112,
+        "after": 798,
+        "relativeError": 0.00846453383564949
+      },
+      {
+        "group": "WHEEL_RR",
+        "material": "rxx_trx_silvercaps",
+        "before": 1856,
+        "after": 208,
+        "relativeError": 0.009647093713283539
+      },
+      {
+        "group": "WHEEL_RR",
+        "material": "x3_wheel",
+        "before": 7774,
+        "after": 2334,
+        "relativeError": 0.01370992325246334
+      },
+      {
+        "group": "WHEEL_RR",
+        "material": "x3_wheeldisk",
+        "before": 560,
+        "after": 136,
+        "relativeError": 0.013949810527265072
+      }
+    ]
+  },
+  "validation": {
+    "triangles": 99812,
+    "vertices": 110909,
+    "invalidNumbers": 0,
+    "invalidIndices": 0,
+    "degenerateTriangles": 0,
+    "invalidNormals": 0,
+    "ok": true
+  }
+}

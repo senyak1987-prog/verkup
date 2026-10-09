@@ -1,4 +1,14 @@
-# Facade scale character
+# Models used in the sign configurator
+
+## RAM TRX
+
+`ram-trx.glb` is adapted from [Dodge RAM 1500 TRX](https://sketchfab.com/3d-models/dodge-ram-1500-trx-d6d548c5fe9f4749813f0a386edfd42c) by [DR1KING100K](https://sketchfab.com/DR1KING100K), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The original has 498,000 triangles; this derivative has 99,812. The original license and full credit are in `ram-trx-license.txt` and `ram-trx-attribution.txt`.
+
+Changes: baked transforms, uniform normalization to a two-metre RC vehicle, normal-aware decimation, material consolidation, removal of redundant UV channels, four independent wheel rotors. `src/rc-game/trxAsset.ts` adds PBR paint/rubber/glass/lighting materials and projected Gorod Svet logos at runtime. The bundled GLB retains named source materials for these finishes. Measured dimensions are in `ram-trx-info.json` and `trxAssetProfile.ts`.
+
+The real model is used by both the standalone game and facade game. Keep the credit when embedding the game elsewhere; the default interfaces display author, source and license links.
+
+## Facade scale character
 
 The character uses the ready-made **Superhero Male** mesh by **Quaternius**, Universal Base Characters (Standard), released under **CC0 1.0**. Original pack and license: https://quaternius.com/packs/universalbasecharacters.html
 
