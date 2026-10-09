@@ -21,6 +21,7 @@ import { NeonStudioEditor } from "./NeonStudioEditor";
 import { SignLayoutEditor } from "./SignLayoutEditor";
 import { LetterLinesControls } from "./LetterLinesControls";
 import { CanvasTextEditor } from "./CanvasTextEditor";
+import type { CanvasPointerSelection } from "../lib/canvasTextSelection";
 import { VectorArtworkControls } from "./VectorArtworkControls";
 import { validateVectorArtwork, vectorArtworkBounds } from "../lib/vectorArtwork";
 import type { VectorArtworkObject } from "../lib/vectorArtwork";
@@ -612,7 +613,7 @@ export function SignProductConfigurator() {
   useEffect(() => { setSelectedNeonLine(index => Math.min(index, project.neonText.split('\n').length - 1)); }, [project.neonText]);
   const [editing, setEditing] = useState(true);
   const [layoutSelection, setLayoutSelection] = useState<LayoutObject>("composition");
-  const [canvasTextEdit, setCanvasTextEdit] = useState<{ index: number; originalText: string; clientX?: number } | null>(null);
+  const [canvasTextEdit, setCanvasTextEdit] = useState<{ index: number; originalText: string; pointerSelection?: CanvasPointerSelection } | null>(null);
   const canvasTextUndoBase = useRef<ProjectState | null>(null);
   const advancedConstructorRef = useRef<HTMLDetailsElement>(null);
   const selectLayoutObject = (selection: LayoutObject) => {
@@ -700,12 +701,13 @@ export function SignProductConfigurator() {
   const setLineFont = (index:number,font:string) => patchProject({...index===0?{letterFont:font}:{},letterLineFonts:Array.from({length:3},(_,i)=>i===index?font:project.letterLineFonts[i]||project.letterFont)});
   const setLineHeight = (index:number,height:number) => patchProject({...index===0?{letterHeight:height}:{},letterLineHeights:Array.from({length:3},(_,i)=>i===index?height:project.letterLineHeights[i]||project.letterHeight)});
   const selectLetterLine = (index:number) => { selectLayoutObject(`line-${index}`);setEditing(true);setViewMode("2d");setPlacement("none"); };
-  const editCanvasLine = (index: number, clientX?: number) => {
+  const editCanvasLine = (index: number, pointerSelection?: CanvasPointerSelection) => {
     const row = lineSettings.find(item => item.index === index);
     if (index < 0 || index > 2 || !row?.text.trim()) return;
     setLayoutSelection(`line-${index}`);
-    canvasTextUndoBase.current = null;
-    setCanvasTextEdit({ index, originalText: row.text, clientX });
+    if (canvasTextEdit?.index !== index) canvasTextUndoBase.current = null;
+    setCanvasTextEdit(previous => previous?.index === index
+      ? { ...previous, pointerSelection } : { index, originalText: row.text, pointerSelection });
   };
   const closeCanvasText = () => {
     if (document.activeElement?.classList.contains("canvas-text-input"))
@@ -1272,7 +1274,7 @@ export function SignProductConfigurator() {
             <button type="button" aria-label="Отменить изменение макета" title="Отменить изменение макета (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={16}/></button>
             <button type="button" disabled={!!project.secondLineText.trim()&&!!project.thirdLineText.trim()} onClick={addLetterLine}>+ Строка ниже</button>
             <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
-            <span className="canvas-typing-hint">Нажмите на надпись и печатайте</span>
+            <span className="canvas-typing-hint">Текст — выделение · рамка — перемещение</span>
           </div>}
           {productId === "neon" && viewMode === "2d" && editing && <div className="editor-toolbar neon-inline-toolbar" aria-label="Настройки выбранной строки на макете">
             <label><span>Строка</span><select aria-label="Выбранная строка на макете" value={selectedNeonLine} onChange={event=>setSelectedNeonLine(Number(event.target.value))}>{project.neonText.split('\n').map((_,index)=><option key={index} value={index}>{index+1}</option>)}</select></label>
@@ -1285,7 +1287,7 @@ export function SignProductConfigurator() {
           aria-label="Визуализация"
         >
           {canvasTextEdit && productId === "letters" && viewMode === "2d" && editing && placement === "none" && <CanvasTextEditor
-            key={canvasTextEdit.index} index={canvasTextEdit.index} clientX={canvasTextEdit.clientX}
+            key={canvasTextEdit.index} index={canvasTextEdit.index} pointerSelection={canvasTextEdit.pointerSelection}
             text={[project.lettersText, project.secondLineText, project.thirdLineText][canvasTextEdit.index]}
             font={project.letterLineFonts[canvasTextEdit.index] || project.letterFont}
             row={lettersLayout.textRows?.find(row => row.index === canvasTextEdit.index)}
@@ -1318,7 +1320,7 @@ export function SignProductConfigurator() {
               <LettersPreview
                 objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value,faceNoFilm:letterFaceColor.code==="none",logoNoFilm:project.logoFaceColor.code==="none"}}
                 lightsOn={project.lightsOn}
-                editor={editing && (!fontPending || canvasTextEdit) ? <SignLayoutEditor layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={selectLayoutObject} onChange={applyLayoutPatch} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon} onEditLine={editCanvasLine}/> : undefined}
+                editor={editing && (!fontPending || canvasTextEdit) ? <SignLayoutEditor zoom={zoom} layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={selectLayoutObject} onChange={applyLayoutPatch} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon} onEditLine={editCanvasLine}/> : undefined}
                 sceneMode={sceneMode}
                 acpDepth={acpDepth}
                 acpColor={acpColor.value}

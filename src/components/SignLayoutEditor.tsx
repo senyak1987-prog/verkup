@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent, KeyboardEvent } from "react";
 import { layoutReferenceBox, layoutSelectionBox, moveLayoutSelection, resizeLayoutLine } from "../lib/signLayoutAlignment";
 import type { AlignmentLayout, LayoutObject } from "../lib/signLayoutAlignment";
+import type { CanvasPointerSelection } from "../lib/canvasTextSelection";
 
 type Layout = AlignmentLayout & { signBox: { x: number; y: number; width: number; height: number } };
 type EditorProject = { logoEnabled: boolean; logoScale: number; logoSizeMm?:number; letterHeight: number; mountMode: string;
@@ -10,11 +11,15 @@ export type LayoutPatch = Partial<{ logoOffsetX: number; logoOffsetY: number; te
   logoScale: number; logoSizeMm:number; letterWidth: number; letterHeight: number; letterLineOffsets: { x: number; y: number }[];
   letterLineHeights: number[] }>;
 
-export function SignLayoutEditor({ layout, project, selection, onSelect, onChange, onInteractionStart, onInteractionEnd, onUndo, onEditLine }:
+export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSelect, onChange, onInteractionStart, onInteractionEnd, onUndo, onEditLine }:
   { layout: Layout; project: EditorProject; selection: LayoutObject; onSelect: (object: LayoutObject) => void;
-    onChange: (patch: LayoutPatch) => void; onInteractionStart?: () => void; onInteractionEnd?: () => void; onUndo?: () => void; onEditLine?: (index: number, clientX?: number) => void }) {
+    zoom?: number; onChange: (patch: LayoutPatch) => void; onInteractionStart?: () => void; onInteractionEnd?: () => void; onUndo?: () => void; onEditLine?: (index: number, pointerSelection?: CanvasPointerSelection) => void }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [handleSize, setHandleSize] = useState(24);
+  const [framePadding, setFramePadding] = useState(12);
+  const textDrag = useRef<{ pointerId: number; index: number; request: CanvasPointerSelection } | null>(null);
+  const lastTextPress = useRef<{ index: number; x: number } | null>(null);
+  const selectionId = useRef(0);
   const [snapped, setSnapped] = useState({ x: false, y: false });
   const drag = useRef<{ point: DOMPoint; inverse: DOMMatrix; pointerId: number; target: LayoutObject; resize: boolean;
     project: EditorProject; layout: Layout; tolerance: number; moved: boolean } | null>(null);
@@ -25,9 +30,13 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
   onInteractionEndRef.current = onInteractionEnd;
   useEffect(() => {
     const svg = svgRef.current; if (!svg) return;
-    const update = () => { const matrix = svg.getScreenCTM(); if (matrix) setHandleSize((svg.clientWidth < 500 ? 24 : 14) / Math.hypot(matrix.a, matrix.b)); };
+    const update = () => { const matrix = svg.getScreenCTM(); if (matrix) {
+      const scale = Math.hypot(matrix.a, matrix.b);
+      setHandleSize((svg.clientWidth < 500 ? 24 : 14) / scale);
+      setFramePadding((svg.clientWidth < 500 ? 10 : 8) / scale);
+    } };
     update(); const observer = new ResizeObserver(update); observer.observe(svg); return () => observer.disconnect();
-  }, [layout.viewWidth, layout.viewHeight]);
+  }, [layout.viewWidth, layout.viewHeight, zoom]);
   const flush = () => {
     if (frame.current) cancelAnimationFrame(frame.current); frame.current = 0;
     if (pending.current) { onChangeRef.current(pending.current); pending.current = null; }
@@ -35,10 +44,20 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
   const schedule = (patch: LayoutPatch) => { pending.current = patch; if (!frame.current) frame.current = requestAnimationFrame(flush); };
   useEffect(() => () => { if (frame.current) cancelAnimationFrame(frame.current); if (drag.current) onInteractionEndRef.current?.(); }, []);
   const start = (event: PointerEvent<SVGSVGElement>) => {
-    if (!event.isPrimary || event.button !== 0 || drag.current) return;
+    if (!event.isPrimary || event.button !== 0 || drag.current || textDrag.current) return;
     const handle = (event.target as SVGElement).closest("[data-object]");
     const matrix = event.currentTarget.getScreenCTM();
-    if (!handle || !matrix) { onSelect("composition"); event.currentTarget.focus(); return; }
+    if (!handle || !matrix) { lastTextPress.current = null; onSelect("composition"); event.currentTarget.focus(); return; }
+    if (handle.hasAttribute("data-text-select")) {
+      event.preventDefault();
+      const index = Number(handle.getAttribute("data-object")!.slice(5));
+      const request = { id: ++selectionId.current, anchorX: event.clientX, focusX: event.clientX, extend: event.shiftKey };
+      textDrag.current = { pointerId: event.pointerId, index, request };
+      lastTextPress.current = { index, x: event.clientX };
+      event.currentTarget.setPointerCapture(event.pointerId);
+      onEditLine?.(index, request); return;
+    }
+    lastTextPress.current = null;
     event.preventDefault(); event.currentTarget.focus();
     const object = handle.getAttribute("data-object") as LayoutObject;
     const resize = handle.hasAttribute("data-resize");
@@ -50,6 +69,10 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const move = (event: PointerEvent<SVGSVGElement>) => {
+    const text = textDrag.current;
+    if (text && text.pointerId === event.pointerId) {
+      event.preventDefault(); onEditLine?.(text.index, { ...text.request, focusX: event.clientX }); return;
+    }
     const active = drag.current; if (!active || active.pointerId !== event.pointerId) return;
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(active.inverse);
     const dx = point.x - active.point.x, dy = point.y - active.point.y;
@@ -72,11 +95,13 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     }
   };
   const finish = (event: PointerEvent<SVGSVGElement>) => {
+    if (textDrag.current?.pointerId === event.pointerId) {
+      const text = textDrag.current; textDrag.current = null;
+      if (event.type === "pointerup") onEditLine?.(text.index, { ...text.request, focusX: event.clientX });
+      return;
+    }
     if (!drag.current || drag.current.pointerId !== event.pointerId) return;
-    const active = drag.current;
     flush(); drag.current = null; setSnapped({ x: false, y: false }); onInteractionEnd?.();
-    if (event.type === "pointerup" && !active.moved && !active.resize && /^line-[012]$/.test(active.target))
-      onEditLine?.(Number(active.target.slice(5)), event.clientX);
   };
   const keyboard = (event: KeyboardEvent<SVGSVGElement>) => {
     if ((event.key === "Enter" || event.key === "F2") && /^line-[012]$/.test(selection) && onEditLine) {
@@ -100,7 +125,9 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
   const alignedX = snapped.x || Math.abs(selectedBox.x + selectedBox.width / 2 - centerX) < .01;
   const alignedY = snapped.y || Math.abs(selectedBox.y + selectedBox.height / 2 - centerY) < .01;
   return <svg ref={svgRef} className="layout-editor-overlay" viewBox={`0 0 ${layout.viewWidth} ${layout.viewHeight}`} tabIndex={0} role="group"
-    aria-label="Редактор макета. Нажмите на надпись и печатайте прямо на макете. Перетащите объект для перемещения, маркер сверху справа меняет размер. Enter завершает ввод, Escape отменяет. Ctrl или Command Z отменяет изменение."
+    aria-label="Редактор макета. Протяните мышью по буквам, чтобы выделить текст. Перетащите рамку для перемещения надписи, маркер сверху справа меняет размер. Двойной щелчок выделяет слово. Enter завершает ввод, Escape отменяет."
+    onClick={event => { const text = lastTextPress.current; if (text && event.detail >= 2) onEditLine?.(text.index,
+      { id: ++selectionId.current, anchorX: text.x, focusX: text.x, mode: event.detail >= 3 ? "line" : "word" }); }}
     onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={finish} onKeyDown={keyboard}>
     <g aria-hidden="true" pointerEvents="none" stroke="#65b787" vectorEffect="non-scaling-stroke">
       <line x1={centerX} y1={reference.y} x2={centerX} y2={reference.y + reference.height} strokeWidth={alignedX ? 2 : 1}
@@ -110,12 +137,15 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
       <circle cx={centerX} cy={centerY} r={handleSize * .22} fill="#124332" stroke="#b5ddc4" strokeWidth={2} vectorEffect="non-scaling-stroke" />
     </g>
     {selection === "composition" && <rect data-object="composition" {...selectedBox} className="editor-selection selected" vectorEffect="non-scaling-stroke" />}
-    {boxes.map(({ id, box }) => <g key={id}>
-      <rect data-object={id} {...box} className={selection === id ? "editor-selection selected" : "editor-selection"} vectorEffect="non-scaling-stroke">
-        {/^line-[012]$/.test(id) && <title>Нажмите и печатайте · перетащите для перемещения</title>}
-      </rect>
-      {selection === id && <rect data-object={id} data-resize="true" x={box.x + box.width - handleSize / 2} y={box.y - handleSize / 2}
+    {boxes.map(({ id, box }) => {
+      const text = /^line-[012]$/.test(id);
+      const frameBox = text ? { x: box.x - framePadding, y: box.y - framePadding, width: box.width + framePadding * 2, height: box.height + framePadding * 2 } : box;
+      return <g key={id}>
+      {text && <rect data-object={id} data-text-select="true" {...box} className="editor-text-hit"><title>Протяните мышью, чтобы выделить текст</title></rect>}
+      <rect data-object={text ? undefined : id} {...frameBox} pointerEvents={text ? "none" : undefined} className={selection === id ? "editor-selection selected" : "editor-selection"} vectorEffect="non-scaling-stroke" />
+      {text && <rect data-object={id} data-move-frame="true" {...frameBox} className="editor-move-frame" vectorEffect="non-scaling-stroke"><title>Перетащите рамку, чтобы переместить надпись</title></rect>}
+      {selection === id && <rect data-object={id} data-resize="true" x={frameBox.x + frameBox.width - handleSize / 2} y={frameBox.y - handleSize / 2}
         width={handleSize} height={handleSize} className="editor-resize" vectorEffect="non-scaling-stroke" />}
-    </g>)}
+    </g>; })}
   </svg>;
 }
