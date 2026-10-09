@@ -142,6 +142,7 @@ main.public-sign-configurator.sign-studio .width-auto-checkbox span { display:gr
 main.public-sign-configurator.sign-studio .width-auto-checkbox strong { font-size:13px; color:#164c31; }
 main.public-sign-configurator.sign-studio .width-auto-checkbox small { font-size:11px; color:#566c5b; }
 main.public-sign-configurator.sign-studio .layout-editor-overlay { position:absolute; inset:0; width:100%; height:100%; touch-action:none; z-index:2; }
+main.public-sign-configurator.sign-studio .letters-svg-render > .layout-editor-overlay { overflow:visible; }
 main.public-sign-configurator.sign-studio .layout-editor-overlay:focus { outline:none; }
 main.public-sign-configurator.sign-studio .layout-editor-overlay:focus-visible { outline:2px solid #65b787; outline-offset:-2px; }
 main.public-sign-configurator.sign-studio .canvas-text-editor { position:absolute; z-index:6; pointer-events:none; }
@@ -150,8 +151,11 @@ main.public-sign-configurator.sign-studio .canvas-text-caret { position:absolute
 main.public-sign-configurator.sign-studio .canvas-text-selection { position:absolute; top:0; bottom:0; background:#2584dc55; outline:1px solid #2584dc; }
 main.public-sign-configurator.sign-studio .canvas-typing-hint { font-size:11px; color:#e0e9e3; white-space:nowrap; }
 main.public-sign-configurator.sign-studio .editor-text-hit { fill:transparent; stroke:none; pointer-events:fill; cursor:text; }
-main.public-sign-configurator.sign-studio .editor-move-frame { fill:none; stroke:transparent; stroke-width:12px; pointer-events:stroke; cursor:move; }
-@media(max-width:600px) { main.public-sign-configurator.sign-studio .editor-move-frame { stroke-width:18px; } }
+main.public-sign-configurator.sign-studio .editor-move-frame { fill:none; stroke:transparent; stroke-width:28px; pointer-events:stroke; cursor:move; }
+main.public-sign-configurator.sign-studio .editor-object-hit { fill:transparent; stroke:none; cursor:move; }
+main.public-sign-configurator.sign-studio .editor-marquee { fill:#2584dc22; stroke:#2584dc; stroke-width:1.5px; }
+main.public-sign-configurator.sign-studio .editor-selection.editor-group-selection { fill:none; stroke-dasharray:none; }
+@media(max-width:600px) { main.public-sign-configurator.sign-studio .editor-move-frame { stroke-width:36px; } }
 @keyframes canvas-caret-blink { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }
 @media(prefers-reduced-motion:reduce) { main.public-sign-configurator.sign-studio .canvas-text-caret { animation:none; } }
 main.public-sign-configurator.sign-studio .editor-selection { fill:transparent; stroke:#337f57; stroke-width:1; stroke-dasharray:5 4; cursor:move; }
