@@ -142,14 +142,14 @@ main.public-sign-configurator.sign-studio .width-auto-checkbox small { font-size
 main.public-sign-configurator.sign-studio .layout-editor-overlay { position:absolute; inset:0; width:100%; height:100%; touch-action:none; z-index:2; }
 main.public-sign-configurator.sign-studio .layout-editor-overlay:focus { outline:none; }
 main.public-sign-configurator.sign-studio .layout-editor-overlay:focus-visible { outline:2px solid #65b787; outline-offset:-2px; }
-main.public-sign-configurator.sign-studio .canvas-text-editor { position:absolute; z-index:6; box-sizing:border-box; width:min(460px,calc(100% - 24px)); padding:12px; display:grid; gap:8px; background:#f6f8f5; color:#073c2d; border-radius:8px; box-shadow:0 5px 22px #082c2938; text-align:left; }
-main.public-sign-configurator.sign-studio .canvas-text-editor-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; }
-main.public-sign-configurator.sign-studio .canvas-text-editor-heading label { font-size:13px; font-weight:700; }
-main.public-sign-configurator.sign-studio .canvas-text-editor .studio-button { min-height:36px; padding:6px 10px; font-size:13px; color:#073c2d; }
-main.public-sign-configurator.sign-studio .canvas-text-editor-input { display:flex; gap:8px; align-items:center; }
-main.public-sign-configurator.sign-studio .canvas-text-editor-input input { box-sizing:border-box; min-width:0; width:100%; height:44px; padding:8px 10px; border:1px solid #8ea699; border-radius:5px; color:#073c2d; background:#fff; font-size:18px; line-height:1.4; }
-main.public-sign-configurator.sign-studio .canvas-text-editor-input .studio-button { flex-shrink:0; min-height:44px; background:#d3bc84; border-color:#d3bc84; }
-main.public-sign-configurator.sign-studio .canvas-text-editor small { font-size:11px; color:#4c6156; }
+main.public-sign-configurator.sign-studio .canvas-text-editor { position:absolute; z-index:6; pointer-events:none; }
+main.public-sign-configurator.sign-studio .canvas-text-input { position:absolute; inset:0; width:100%; min-width:1px; height:100%; padding:0; border:0; opacity:0; font-size:16px; pointer-events:none; }
+main.public-sign-configurator.sign-studio .canvas-text-caret { position:absolute; top:-3px; bottom:-3px; width:2px; background:#073c2d; box-shadow:0 0 0 1px #fff; animation:canvas-caret-blink 1s steps(1,end) infinite; }
+main.public-sign-configurator.sign-studio .canvas-text-selection { position:absolute; top:0; bottom:0; background:#2584dc55; outline:1px solid #2584dc; }
+main.public-sign-configurator.sign-studio .canvas-typing-hint { font-size:11px; color:#e0e9e3; white-space:nowrap; }
+main.public-sign-configurator.sign-studio .editor-selection:is([data-object="line-0"],[data-object="line-1"],[data-object="line-2"]) { cursor:text; }
+@keyframes canvas-caret-blink { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }
+@media(prefers-reduced-motion:reduce) { main.public-sign-configurator.sign-studio .canvas-text-caret { animation:none; } }
 main.public-sign-configurator.sign-studio .editor-selection { fill:transparent; stroke:#337f57; stroke-width:1; stroke-dasharray:5 4; cursor:move; }
 main.public-sign-configurator.sign-studio .editor-selection.selected { stroke:#15834b; stroke-width:2; }
 main.public-sign-configurator.sign-studio .editor-resize { fill:#fff; stroke:#16803d; stroke-width:2; cursor:nesw-resize; }

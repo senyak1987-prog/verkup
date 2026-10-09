@@ -38,6 +38,15 @@ export type LetterContours = {
   lines?: LetterContours[];
 };
 const fonts = new Map<string, Promise<Font>>();
+async function loadSignFont(file: string): Promise<Font> {
+  if (!fonts.has(file)) {
+    fonts.set(file, fetch(import.meta.env.BASE_URL + "fonts/" + file).then(async response => {
+      if (!response.ok) throw new Error("Не удалось загрузить шрифт. Проверьте соединение и попробуйте ещё раз.");
+      return parse(await response.arrayBuffer());
+    }).catch(error => { fonts.delete(file); throw error; }));
+  }
+  return fonts.get(file)!;
+}
 export function resolveSignFont(value: string) {
   const family = value.split(',')[0].replace(/"/g, '').trim().toLowerCase();
   return [...SIGN_FONTS, ...LEGACY_SIGN_FONTS].find(item => family === item.value.split(',')[0].replace(/"/g, '').toLowerCase()) ?? SIGN_FONTS[0];
@@ -77,6 +86,40 @@ export function contoursFromFont(font: Font, text: string, weight: number): Lett
   };
 }
 
+/** Native input uses UTF-16 offsets. Map those offsets to the rendered ink, including spaces and kerning. */
+function caretFractions(text: string, measure: (value: string) => number, left: number, width: number): number[] {
+  const leading = text.length - text.trimStart().length;
+  const origin = measure(text.slice(0, leading));
+  return Array.from({ length: text.length + 1 }, (_, index) =>
+    (measure(text.slice(0, index).normalize("NFC")) - origin - left) / Math.max(1, width));
+}
+
+export function fontCaretFractions(font: Font, text: string, weight: number): number[] {
+  const ink = fontLetterPath(font, text.trim().normalize("NFC"), weight).getBoundingBox();
+  const measure = (value: string) => {
+    if (!value) return 0;
+    try { return font.getAdvanceWidth(value, 1000, { kerning: true, variation: { wght: weight } } as RenderOptions); }
+    catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("substitutionType")) throw error;
+      const glyphs = Array.from(value, character => font.charToGlyph(character));
+      return glyphs.reduce((total, glyph, i) => total + (glyph.advanceWidth || 0) +
+        (glyphs[i + 1] ? font.getKerningValue(glyph, glyphs[i + 1]) : 0), 0) * 1000 / font.unitsPerEm;
+    }
+  };
+  return caretFractions(text, measure, ink.x1, ink.x2 - ink.x1);
+}
+
+export async function loadLetterCaretFractions(value: string, text: string): Promise<number[]> {
+  if (!text.trim()) return Array(text.length + 1).fill(0);
+  const selected = resolveSignFont(value);
+  if (selected.file) return fontCaretFractions(await loadSignFont(selected.file), text, selected.weight);
+  const ctx = document.createElement("canvas").getContext("2d")!;
+  ctx.font = `${selected.weight} 1000px ${selected.value}`;
+  const ink = ctx.measureText(text.trim().normalize("NFC"));
+  return caretFractions(text, prefix => ctx.measureText(prefix).width, -ink.actualBoundingBoxLeft,
+    ink.actualBoundingBoxLeft + ink.actualBoundingBoxRight);
+}
+
 const contourCache = new Map<string, LetterContours>();
 export function combineLetterLines(lines: LetterContours[]): LetterContours {
   if (lines.length === 1) return lines[0];
@@ -103,14 +146,7 @@ export async function loadLetterContours(value: string, text: string): Promise<L
   const lines = text.split('\n').slice(0, 2);
   if (!selected.file) result = combineLetterLines(lines.map(line => systemFontContours(selected.value.split(',')[0].replace(/"/g, ''), line, selected.weight)));
   else {
-  if (!fonts.has(selected.file)) {
-    const pending = fetch(import.meta.env.BASE_URL + "fonts/" + selected.file).then(async response => {
-      if (!response.ok) throw new Error("Не удалось загрузить шрифт. Проверьте соединение и попробуйте ещё раз.");
-      return parse(await response.arrayBuffer());
-    }).catch(error => { fonts.delete(selected.file); throw error; });
-    fonts.set(selected.file, pending);
-  }
-    const font = await fonts.get(selected.file)!;
+    const font = await loadSignFont(selected.file);
     result = combineLetterLines(lines.map(line => contoursFromFont(font, line, selected.weight)));
   }
   if (contourCache.size >= 80) contourCache.delete(contourCache.keys().next().value!);
