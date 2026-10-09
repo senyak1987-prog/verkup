@@ -89,8 +89,8 @@ main.public-sign-configurator.sign-studio .canvas-dimensions .dimension-line { d
 main.public-sign-configurator.sign-studio .studio-svg-layer,
 main.public-sign-configurator.sign-studio .studio-measure-labels { position: absolute; inset: 0; pointer-events: none; }
 main.public-sign-configurator.sign-studio .studio-svg-layer > svg { position: absolute; inset: 0; width: 100%; height: 100%; max-height: none; overflow: hidden; }
-main.public-sign-configurator.sign-studio .studio-svg-layer [data-dimensions] text { visibility: hidden; }
-main.public-sign-configurator.sign-studio .studio-measure-labels > span { position: absolute; font: 600 12px/1.2 Manrope, Arial, sans-serif; color: #41505e; white-space: nowrap; font-variant-numeric: tabular-nums; }
+main.public-sign-configurator.sign-studio .studio-svg-layer :is([data-dimensions], [data-object-dimensions]) text { visibility: hidden; }
+main.public-sign-configurator.sign-studio .studio-measure-labels > span { position: absolute; font: 600 14px/1.2 Manrope, Arial, sans-serif; font-size: calc(14px / var(--preview-zoom, 1)); color: #41505e; white-space: nowrap; font-variant-numeric: tabular-nums; }
 main.public-sign-configurator.sign-studio .builder-preview.night .studio-measure-labels > span { color: #d7e4dc; }
 main.public-sign-configurator.sign-studio .studio-section-tabs:has(button:nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 main.public-sign-configurator.sign-studio .sign-scene-3d-viewport { inset: 0; }
