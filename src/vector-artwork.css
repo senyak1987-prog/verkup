@@ -10,3 +10,14 @@
 .vector-object-fields { margin: 0; padding: 0; border: 0; min-width: 0; }
 .vector-object-fields input[type="color"] { width: 100%; height: 42px; padding: 4px; cursor: pointer; }
 .vector-import-report { color: #24503b; overflow-wrap: anywhere; }
+.studio-advanced-constructor { border-top: 1px solid #dbe5df; }
+.studio-advanced-constructor > summary { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 14px 18px; list-style: none; cursor: pointer; color: #174c39; font: 600 14px/1.4 Manrope, "Segoe UI", Arial, sans-serif; }
+.studio-advanced-constructor > summary::-webkit-details-marker { display: none; }
+.studio-advanced-constructor > summary > span { flex: 1; min-width: 0; }
+.studio-advanced-constructor > summary > svg { flex-shrink: 0; }
+.studio-advanced-constructor[open] > summary > svg { transform: rotate(90deg); }
+.studio-advanced-constructor > summary:hover { background: #f0f5ef; }
+.studio-advanced-constructor > summary:focus-visible { outline: 2px solid #16803d; outline-offset: -2px; }
+.studio-advanced-body { padding: 4px 18px 20px; }
+.studio-advanced-body > .vector-artwork-controls { padding-top: 0; border-top: 0; }
+.studio-advanced-body .studio-button { width: 100%; min-height: 44px; }
