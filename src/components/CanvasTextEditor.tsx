@@ -1,22 +1,24 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { loadLetterCaretFractions } from "../lib/letterContours";
 import type { LetterRowLayout } from "../lib/letterRowsLayout";
+import { caretAtFraction, canvasSelectionRange } from "../lib/canvasTextSelection";
+import type { CanvasPointerSelection } from "../lib/canvasTextSelection";
 
 type Props = {
   index: number; text: string; font: string; row?: LetterRowLayout;
-  geometryKey: string; clientX?: number;
+  geometryKey: string; pointerSelection?: CanvasPointerSelection;
   onChange: (text: string) => void; onFinish: () => void; onCancel: () => void;
 };
 
 /** The native input owns typing/IME/selection; the actual SVG letters remain visible underneath. */
-export function CanvasTextEditor({ index, text, font, row, geometryKey, clientX, onChange, onFinish, onCancel }: Props) {
+export function CanvasTextEditor({ index, text, font, row, geometryKey, pointerSelection, onChange, onFinish, onCancel }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [box, setBox] = useState({ left: 0, top: 0, width: 1, height: 24 });
   const [metrics, setMetrics] = useState<{ text: string; stops: number[] } | null>(null);
   const [selection, setSelection] = useState({ start: text.length, end: text.length });
-  const placed = useRef(false);
-  const initialText = useRef(text);
+  const appliedPointer = useRef<CanvasPointerSelection>();
+  const gestureAnchor = useRef<{ id: number; index: number }>();
   const syncSelection = () => {
     const input = inputRef.current;
     if (input) setSelection({ start: input.selectionStart ?? 0, end: input.selectionEnd ?? 0 });
@@ -47,25 +49,29 @@ export function CanvasTextEditor({ index, text, font, row, geometryKey, clientX,
     return () => observer.disconnect();
   }, [row, geometryKey]);
   useLayoutEffect(() => {
-    if (placed.current || !metrics || metrics.text !== text || !row) return;
-    placed.current = true;
-    // A fast first keystroke wins over the original click's asynchronous font metrics.
-    if (text !== initialText.current) return;
+    if (!pointerSelection || appliedPointer.current === pointerSelection || !metrics || metrics.text !== text || !row) return;
     const bounds = hostRef.current?.getBoundingClientRect();
-    const fraction = clientX === undefined || !bounds ? Infinity : (clientX - bounds.left) / Math.max(1, bounds.width);
-    const caret = Number.isFinite(fraction) ? metrics.stops.reduce((best, stop, i, stops) =>
-      Math.abs(stop - fraction) < Math.abs(stops[best] - fraction) ? i : best, 0) : text.length;
-    inputRef.current?.setSelectionRange(caret, caret); syncSelection();
-  }, [metrics, box, text, clientX, row]);
+    const input = inputRef.current; if (!bounds || !input) return;
+    const caret = (x: number) => caretAtFraction(metrics.stops, (x - bounds.left) / Math.max(1, bounds.width));
+    if (gestureAnchor.current?.id !== pointerSelection.id) {
+      gestureAnchor.current = { id: pointerSelection.id, index: pointerSelection.extend
+        ? (input.selectionDirection === "backward" ? input.selectionEnd : input.selectionStart) ?? 0
+        : caret(pointerSelection.anchorX) };
+    }
+    const next = canvasSelectionRange(text, gestureAnchor.current.index, caret(pointerSelection.focusX), pointerSelection.mode);
+    appliedPointer.current = pointerSelection;
+    input.focus({ preventScroll: true }); input.setSelectionRange(next.start, next.end, next.direction); syncSelection();
+  }, [metrics, box, text, pointerSelection, row]);
   const stops = metrics?.text === text ? metrics.stops : Array.from({ length: text.length + 1 }, (_, i) => i / Math.max(1, text.length));
   const left = (stops[selection.start] ?? 0) * box.width;
   const right = (stops[selection.end] ?? 0) * box.width;
   return <div ref={hostRef} className="canvas-text-editor" style={box}>
     <input ref={inputRef} className="canvas-text-input" type="text" maxLength={60} value={text}
       aria-label={`Текст строки ${index + 1} на макете`} autoComplete="off" spellCheck={false}
-      onSelect={syncSelection} onChange={event => { onChange(event.target.value); syncSelection(); }} onBlur={onFinish}
+      onSelect={syncSelection} onChange={event => { appliedPointer.current = pointerSelection; onChange(event.target.value); syncSelection(); }} onBlur={onFinish}
       onKeyDown={event => {
         event.stopPropagation();
+        appliedPointer.current = pointerSelection;
         if (event.nativeEvent.isComposing) return;
         if (event.key === "Escape") { event.preventDefault(); onCancel(); }
         if (event.key === "Enter") { event.preventDefault(); onFinish(); }
