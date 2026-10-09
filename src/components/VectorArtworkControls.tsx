@@ -15,10 +15,10 @@ type Props = {
 
 export function VectorArtworkControls({ objects, selectedIndex, importing, report, onImport, onSelect, onChange, onRemove }: Props) {
   const selected = objects[selectedIndex];
-  return <section className="vector-artwork-controls control-section" aria-label="Свой вектор">
-    <h3>Свой вектор</h3>
+  return <section className="vector-artwork-controls control-section" aria-label="Свой макет">
+    <h3>Свой макет</h3>
     <button type="button" className="studio-button" disabled={importing} onClick={onImport}>
-      <Upload size={16} />{importing ? 'Читаем контуры…' : 'Добавить свой вектор'}
+      <Upload size={16} />{importing ? 'Читаем контуры…' : 'Добавить свой макет'}
     </button>
     <p className="control-note">PDF, CDR или SVG · до 10 МБ. Объекты добавляются в макет, их можно перемещать, менять размер и цвет.</p>
     <details className="vector-file-requirements">
