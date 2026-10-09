@@ -52,17 +52,19 @@ function applyGroupPatch(config, patch) {
     vectorArtwork: config.vectorArtwork?.map((object, i) => ({ ...object, height: patch.letterLineHeights?.[i + 3] ?? object.height,
       offset: patch.letterLineOffsets?.[i + 3] ?? object.offset })) };
 }
-function checkGroup(config, ids, ratio, expectedRatio = ratio) {
+function checkGroup(config, ids, ratio, expectedRatio = ratio, corner = 'top-right') {
   const before = layout(config), bounds = alignment.layoutSelectionBox(before, ids, !!config.logoEnabled);
-  const patch = resizeLetterGroup(config, ids, bounds.width * (ratio - 1), -bounds.height * (ratio - 1));
+  const directionX = corner.endsWith('right') ? 1 : -1, directionY = corner.startsWith('bottom') ? 1 : -1;
+  const anchor = { x: bounds.x + (directionX < 0 ? bounds.width : 0), y: bounds.y + (directionY < 0 ? bounds.height : 0) };
+  const patch = resizeLetterGroup(config, ids, directionX * bounds.width * (ratio - 1), directionY * bounds.height * (ratio - 1), [], corner);
   const after = layout(applyGroupPatch(config, patch));
   for (const object of alignment.layoutObjectBoxes(before, !!config.logoEnabled)) {
     const actual = alignment.layoutObjectBoxes(after, !!config.logoEnabled).find(o => o.id === object.id).box;
     const scale = ids.includes(object.id) ? expectedRatio : 1, b = object.box;
     near(actual.width, b.width * scale, object.id + ' width', .02);
     near(actual.height, b.height * scale, object.id + ' height', .02);
-    near(actual.x - after.viewWidth / 2, bounds.x + (b.x - bounds.x) * scale - before.viewWidth / 2, object.id + ' anchored X', .02);
-    near(actual.y - after.viewHeight / 2, bounds.y + bounds.height + (b.y - bounds.y - bounds.height) * scale - before.viewHeight / 2, object.id + ' anchored Y', .02);
+    near(actual.x - after.viewWidth / 2, anchor.x + (b.x - anchor.x) * scale - before.viewWidth / 2, object.id + ' anchored X', .02);
+    near(actual.y - after.viewHeight / 2, anchor.y + (b.y - anchor.y) * scale - before.viewHeight / 2, object.id + ' anchored Y', .02);
   }
   return { before, after, patch };
 }
@@ -71,6 +73,31 @@ test('Group corner preserves proportions, spacing, opposite anchor and unselecte
   checkGroup(config, ['line-0', 'logo'], 1.35);
   checkGroup(config, ['line-0', 'line-1'], .8);
   checkGroup(config, ['line-0', 'line-1', 'line-2', 'logo'], 1.5);
+});
+test('All four group corners grow and shrink around their opposite corner, including mixed vectors and unused rows', () => {
+  const config = fixture({ logoOffsetX: -40, logoOffsetY: 80, vectorArtwork: [{ id: 'shape', name: 'Shape', pathData: 'M0 0H80V120H0Z',
+    box: { x: 0, y: 0, width: 80, height: 120 }, height: 120, offset: { x: 45, y: -30 }, color: '#f00' }] });
+  for (const corner of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
+    checkGroup(config, ['line-0', 'line-3', 'logo'], 1.3, 1.3, corner);
+    checkGroup(config, ['line-0', 'line-3', 'logo'], .8, .8, corner);
+    checkGroup(config, ['line-0', 'logo'], .1, 100 / 189, corner);
+  }
+});
+test('Every corner scales proportionally on ACP and stops the entire group at its own panel edge', () => {
+  const config = fixture({ mountMode: 'acp', acpLayout: { faceWidth: 4000, faceHeight: 2000 } });
+  const before = layout(config), ids = ['line-0', 'line-1', 'line-2', 'logo'], bounds = alignment.layoutSelectionBox(before, ids, true);
+  for (const corner of ['top-left', 'top-right', 'bottom-left', 'bottom-right']) {
+    checkGroup(config, ['line-0', 'logo'], 1.15, 1.15, corner);
+    const dx = (corner.endsWith('right') ? 1 : -1) * bounds.width * 4;
+    const dy = (corner.startsWith('bottom') ? 1 : -1) * bounds.height * 4;
+    const after = layout(applyGroupPatch(config, resizeLetterGroup(config, ids, dx, dy, [], corner)));
+    const ratio = after.logoBox.height / before.logoBox.height;
+    assert.ok(ratio > 1 && ratio < 5);
+    for (const { id, box } of alignment.layoutObjectBoxes(after, true)) {
+      inside(box, after.panelBox, corner + ' ' + id);
+      near(box.height / alignment.layoutObjectBoxes(before, true).find(o => o.id === id).box.height, ratio, 'common scale', .001);
+    }
+  }
 });
 test('Group scaling preserves custom text stretch and letter outlines', () => {
   checkGroup(fixture({ widthOverride: 2100, letterOutlineEnabled: true }), ['line-0', 'logo'], 1.3);

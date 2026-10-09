@@ -144,7 +144,9 @@ main.public-sign-configurator.sign-studio .width-auto-checkbox small { font-size
 main.public-sign-configurator.sign-studio .layout-editor-overlay { position:absolute; inset:0; width:100%; height:100%; touch-action:none; z-index:2; }
 main.public-sign-configurator.sign-studio .letters-svg-render > .layout-editor-overlay { overflow:visible; }
 main.public-sign-configurator.sign-studio .layout-editor-overlay:focus { outline:none; }
-main.public-sign-configurator.sign-studio .layout-editor-overlay:focus-visible { outline:2px solid #65b787; outline-offset:-2px; }
+/* Indicate editor focus on its objects, without outlining the entire SVG viewport. */
+main.public-sign-configurator.sign-studio .layout-editor-overlay:focus-visible { outline:none; }
+main.public-sign-configurator.sign-studio .layout-editor-overlay:focus-visible .editor-selection { stroke-width:2; }
 main.public-sign-configurator.sign-studio .canvas-text-editor { position:absolute; z-index:6; pointer-events:none; }
 main.public-sign-configurator.sign-studio .canvas-text-input { position:absolute; inset:0; width:100%; min-width:1px; height:100%; padding:0; border:0; opacity:0; font-size:16px; pointer-events:none; }
 main.public-sign-configurator.sign-studio .canvas-text-caret { position:absolute; top:-3px; bottom:-3px; width:2px; background:#073c2d; box-shadow:0 0 0 1px #fff; animation:canvas-caret-blink 1s steps(1,end) infinite; }
@@ -161,6 +163,7 @@ main.public-sign-configurator.sign-studio .editor-selection.editor-group-selecti
 main.public-sign-configurator.sign-studio .editor-selection { fill:transparent; stroke:#337f57; stroke-width:1; stroke-dasharray:5 4; cursor:move; }
 main.public-sign-configurator.sign-studio .editor-selection.selected { stroke:#15834b; stroke-width:2; }
 main.public-sign-configurator.sign-studio .editor-resize { fill:#fff; stroke:#16803d; stroke-width:2; cursor:nesw-resize; }
+main.public-sign-configurator.sign-studio .editor-resize:is([data-resize-corner="top-left"], [data-resize-corner="bottom-right"]) { cursor:nwse-resize; }
 main.public-sign-configurator.sign-studio .editor-toolbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:7px 12px; border-bottom:1px solid #39624e; background:#184833; }
 main.public-sign-configurator.sign-studio :is(.editor-toolbar button,.editor-toggle) { padding:6px 9px; min-height:30px; font-size:11px; border:1px solid #688774; color:#e8eee8; background:transparent; border-radius:4px; }
 main.public-sign-configurator.sign-studio .editor-toggle.active { background:#d3bc84; color:#233c2d; }
