@@ -360,7 +360,7 @@ const ACP_COLORS: ColorOption[] = [
 ];
 
 
-type StudioSection = "design" | "colors" | "light" | "mount" | "logo";
+type StudioSection = "design" | "colors" | "mount" | "logo";
 const SectionContext = createContext<StudioSection>("design");
 const PROJECT_STORAGE_KEY = "gorod-svet-sign-studio-v1";
 const DEFAULT_PROJECT = {
@@ -426,15 +426,14 @@ const DEFAULT_PROJECT = {
 type ProjectState = typeof DEFAULT_PROJECT;
 const SECTION_ITEMS = [
   { id: "design" as const, label: "Надпись", icon: Type },
-  { id: "colors" as const, label: "Цвета", icon: Settings2 },
-  { id: "light" as const, label: "Свет", icon: Lightbulb },
+  { id: "colors" as const, label: "Цвет и свет", icon: Lightbulb },
   { id: "mount" as const, label: "Монтаж", icon: Maximize },
   { id: "logo" as const, label: "Логотип", icon: ImagePlus },
 ];
 const SECTION_GROUPS: Record<string, StudioSection> = {
   "Надпись": "design", "Форма": "design", "Размер": "design",
   "Лицо Oracal 8500": "colors", "Лицо Oracal 641": "colors", "Борт Oracal 641": "colors", "Кантик": "colors",
-  "Свечение": "light", "Контражурная подложка": "light",
+  "Свечение": "colors", "Цвет контражура": "colors", "Контражурная подложка": "colors",
   "Размещение": "mount", "Рама": "mount", "Подложка АКП": "mount", "Крепление к стене": "mount",
   "Логотип": "design", "Изображение": "logo",
 };
@@ -1335,7 +1334,7 @@ export function SignProductConfigurator() {
             <LettersControls
               faceColors={<FaceFilmControl luminous={glowMode!=="halo"} selected={letterFaceColor} tone={project.letterWhiteTone} label="Тип свечения букв" onSelect={setLetterFaceColor} onToneChange={value=>patchProject({letterWhiteTone:value})} />}
               logoColors={<><h3>Лицо логотипа · Oracal {glowMode === "halo" ? "641" : "8500"}</h3><FaceFilmControl luminous={glowMode!=="halo"} selected={project.logoFaceColor} tone={project.logoWhiteTone} label="Тип свечения логотипа" onSelect={value=>patchProject({logoFaceColor:value})} onToneChange={value=>patchProject({logoWhiteTone:value})} /><h3>Борт логотипа · Oracal 641</h3><ColorGrid colors={ORACAL_641_COLORS} selected={project.logoSideColor} onSelect={value=>patchProject({logoSideColor:value})} compact /></>}
-              haloColors={glowHasHalo && <><h3>Цвет контражура</h3><ColorGrid colors={ORACAL_8500_COLORS} selected={project.haloLightColor} onSelect={value=>patchProject({haloLightColor:value})} compact /><p className="control-note">Цвет подсветки выбирается независимо от лица букв и логотипа.</p></>}
+              haloColors={glowHasHalo && <><ColorGrid colors={ORACAL_8500_COLORS} selected={project.haloLightColor} onSelect={value=>patchProject({haloLightColor:value})} compact /><p className="control-note">Цвет подсветки выбирается независимо от лица букв и логотипа.</p></>}
               lineEditor={<LetterLinesControls rows={[project.lettersText,project.secondLineText,project.thirdLineText].map((text,index)=>({index,text,font:project.letterLineFonts[index]||letterFont,height:project.letterLineHeights[index]||letterHeight})).filter(row=>row.index===0||row.text.trim())} onTextChange={setLineText} onFontChange={setLineFont} onHeightChange={setLineHeight} onSelect={selectLetterLine} onAdd={addLetterLine} onRemove={removeLetterLine}/>}
               rowHeights={lineSettings.map(row=>row.height)}
               acpColor={acpColor}
@@ -1729,7 +1728,7 @@ function LettersControls({
       </ControlSection>
 
       <ControlSection title="Свечение">
-        <div className="option-grid glow-grid">
+        <div className="option-grid glow-grid" role="group" aria-label="Свечение вывески">
           {GLOW_MODES.map((item) => (
             <button
               aria-pressed={glowMode === item.id} className={glowMode === item.id ? "active" : ""}
@@ -1742,8 +1741,19 @@ function LettersControls({
             </button>
           ))}
         </div>
-        {haloColors}
       </ControlSection>
+
+      <ControlSection title={glowMode === "halo" ? "Лицо Oracal 641" : "Лицо Oracal 8500"}>
+        {faceColors}
+      </ControlSection>
+
+      <ControlSection title="Борт Oracal 641">
+        <ColorGrid colors={ORACAL_641_COLORS} selected={sideColor} onSelect={onSideColorChange} compact />
+      </ControlSection>
+
+      {glowHasHalo && <ControlSection title="Цвет контражура">
+        {haloColors}
+      </ControlSection>}
 
       {hasHaloGlow(glowMode) && <ControlSection title="Контражурная подложка">
         <label className="dimensions-toggle"><input type="checkbox" checked={haloBackerEnabled} onChange={event=>onHaloBackerEnabledChange(event.target.checked)} />Контурная подложка на раме</label>
@@ -1835,13 +1845,6 @@ function LettersControls({
         <small className="control-note">Логотип: 180 ₽ за сантиметр высоты. Размер — от 100 до 700 мм.</small>
       </ControlSection>
 
-      <ControlSection title={glowMode === "halo" ? "Лицо Oracal 641" : "Лицо Oracal 8500"}>
-        {faceColors}
-      </ControlSection>
-
-      <ControlSection title="Борт Oracal 641">
-        <ColorGrid colors={ORACAL_641_COLORS} selected={sideColor} onSelect={onSideColorChange} compact />
-      </ControlSection>
     </>
   );
 }
@@ -1919,7 +1922,7 @@ function SvgMarkupPreview({ className, markup, children }: { className: string; 
       const bounds = element.getBoundingClientRect();
       if (!bounds.width || !bounds.height) return;
       const scaleX = element.clientWidth / bounds.width, scaleY = element.clientHeight / bounds.height;
-      setLabels(Array.from(element.querySelectorAll<SVGTextElement>(".studio-svg-layer:not(.studio-svg-previous) [data-dimensions] text")).map(text => {
+      setLabels(Array.from(element.querySelectorAll<SVGTextElement>(".studio-svg-layer:not(.studio-svg-previous) :is([data-dimensions], [data-object-dimensions]) text")).map(text => {
         const rect = text.getBoundingClientRect();
         const vertical = Boolean(text.getAttribute("transform")?.includes("rotate"));
         const edgeX = vertical ? 10 : 44, edgeY = vertical ? 44 : 10;

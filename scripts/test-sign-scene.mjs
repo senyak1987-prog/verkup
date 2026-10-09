@@ -52,13 +52,60 @@ new Function('exports', 'require', focusCompiled)(focusExports, id => {
   if (id === 'three') return THREE;
   assert.equal(id, './signZoomFocus'); return zoomExports;
 });
-const { zoomFocusWeight, signFocusBounds } = focusExports;
+const { zoomFocusWeight, signFocusBounds, scaleDimensionLabels, DIMENSION_LABEL_HEIGHT_PX } = focusExports;
 const { signZoomTranslation } = zoomExports;
 const close = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < 1e-7, `${message}: ${actual} != ${expected}`);
 const boxCorners = box => [box.min.x, box.max.x].flatMap(x => [box.min.y, box.max.y].flatMap(y => [box.min.z, box.max.z].map(z => new THREE.Vector3(x, y, z))));
 const boxMesh = (name, size, position = [0, 0, 0]) => {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size)); mesh.name = name; mesh.position.set(...position); return mesh;
 };
+
+test('Measurement labels keep one readable screen size through zoom, resize and orbit', () => {
+  const labels = [2, 5.7, 10].map(aspect => {
+    const sprite = new THREE.Sprite(); sprite.userData.labelAspect = aspect; return sprite;
+  });
+  const camera = new THREE.OrthographicCamera(-1200, 1200, 800, -800, 1, 100000);
+  for (const viewportHeight of [320, 600, 1000]) for (const zoom of [.25, .5, 1, 2, 4]) {
+    camera.zoom = zoom; camera.updateProjectionMatrix();
+    for (const position of [new THREE.Vector3(0, 0, 5000), new THREE.Vector3(1800, 600, 5000)]) {
+      camera.position.copy(position); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
+      scaleDimensionLabels(labels, camera, viewportHeight);
+      const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+      for (const label of labels) {
+        const top = up.clone().multiplyScalar(label.scale.y / 2).project(camera);
+        const bottom = up.clone().multiplyScalar(-label.scale.y / 2).project(camera);
+        close((top.y - bottom.y) * viewportHeight / 2, DIMENSION_LABEL_HEIGHT_PX, 'Projected label height stays fixed');
+        close(label.scale.x / label.scale.y, label.userData.labelAspect, 'Long and short dimensions preserve text proportions');
+      }
+    }
+  }
+});
+
+test('Readable row and overall labels separate during zoom-out without drifting across renders', () => {
+  const camera = new THREE.OrthographicCamera(-1000, 1000, 600, -600, 1, 10000);
+  camera.position.z = 5000;
+  const parent = new THREE.Group(); parent.position.set(200, -40, 0); parent.rotation.z = .06;
+  const labels = [-160, -190, -220].map(y => {
+    const label = new THREE.Sprite(); label.userData.labelAspect = 7;
+    label.position.set(0, y, 0); label.userData.labelPosition = label.position.clone();
+    label.userData.labelAnchor = new THREE.Vector3(0, y + 15, 0); parent.add(label); return label;
+  });
+  for (const zoom of [.25, .5, 1, 4, .25]) {
+    camera.zoom = zoom; camera.updateProjectionMatrix(); scaleDimensionLabels(labels, camera, 600);
+    const positions = labels.map(label => label.position.clone());
+    const centers = labels.map(label => label.getWorldPosition(new THREE.Vector3()).project(camera));
+    for (let i = 1; i < centers.length; i++) {
+      assert.ok((centers[i - 1].y - centers[i].y) * 300 >= DIMENSION_LABEL_HEIGHT_PX + 3.99,
+        'Adjacent dimension labels never overlap at low zoom');
+    }
+    scaleDimensionLabels(labels, camera, 600);
+    labels.forEach((label, i) => close(label.position.distanceTo(positions[i]), 0, 'Repeated frames cannot accumulate label offsets'));
+    parent.visible = false;
+    scaleDimensionLabels(labels, camera, 600);
+    labels.forEach((label, i) => close(label.position.distanceTo(positions[i]), 0, 'Hidden ancestors do not place or move measurement labels'));
+    parent.visible = true;
+  }
+});
 
 test('Zoom follows the remaining visible product and returns no sign bounds when both are hidden', () => {
   const model = new THREE.Group(), primary = new THREE.Group(), companion = new THREE.Group();
