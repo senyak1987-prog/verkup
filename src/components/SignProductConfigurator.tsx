@@ -1263,7 +1263,12 @@ export function SignProductConfigurator() {
           <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `Борт ${letterDepth} мм${glowHasHalo && mountMode === "acp" ? " · проставки 20 мм" : glowHasHalo && haloBackerEnabled && mountMode === "frame" ? " · проставки 20 мм · подложка 3 мм" : ""}` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
         </section>
 
-        <section className="studio-settings-pane" aria-label="Настройки и расчёт" tabIndex={0}>
+        <section className="studio-settings-column" aria-label="Настройки и расчёт">
+          <section className="studio-purchase studio-purchase-pinned" aria-label="Стоимость и заказ">
+            <div className="price-details"><span>{productId === "letters" ? "Буквы и логотип" : "Стоимость вывески"}</span><strong className={`price-total${!blankSign && !(productId === "letters" && hasPricedArtwork) ? " price-on-request" : ""}`} aria-live="polite" aria-atomic="true">{blankSign ? "—" : productId === "letters" && hasPricedArtwork ? formatMoney(pricedTotal) : "По согласованию"}</strong></div>
+            <button className="studio-add-cart" type="button" onClick={handleAddToCart} disabled={!canOutputSign}><ShoppingCart size={18} />В корзину</button>
+          </section>
+        <div className="studio-settings-pane" role="region" aria-label="Параметры проекта" tabIndex={0}>
         <aside className="builder-controls" id="studio-controls" tabIndex={-1} aria-label="Настройки вывески">
           <header className="controls-heading"><h2>Настройте вывеску</h2><span>Все изменения — на макете</span></header>
           <div className="studio-project-actions" role="group" aria-label="Действия с макетом">
@@ -1425,10 +1430,9 @@ export function SignProductConfigurator() {
             </div>
           )}
 
-          <div className="studio-purchase">
-            <div className="price-details"><span>{productId === "letters" ? "Буквы и логотип" : "Стоимость вывески"}</span><strong className="price-total">{blankSign ? "—" : productId === "letters" && hasPricedArtwork ? formatMoney(pricedTotal) : "По согласованию"}</strong>
-            {productId === "letters" && letterPrice.letterCount > 0 && rowPrices.map(row=><p key={row.index} className="price-formula">Строка {row.index+1}: {row.letterCount} букв × {Number(row.heightCm.toFixed(1))} см × 120 ₽</p>)}{productId === "letters" && logoEnabled && <p className="price-formula">Логотип: {Number(logoPrice.heightCm.toFixed(1))} см × 180 ₽ = {formatMoney(logoPrice.total)}</p>}</div>
-            <button className="studio-add-cart" type="button" onClick={handleAddToCart} disabled={!canOutputSign}><ShoppingCart size={18} />В корзину</button>
+          <div className="studio-price-explanation">
+            <h3>Расчёт стоимости</h3>
+            {productId === "letters" && letterPrice.letterCount > 0 && rowPrices.map(row=><p key={row.index} className="price-formula">Строка {row.index+1}: {row.letterCount} букв × {Number(row.heightCm.toFixed(1))} см × 120 ₽</p>)}{productId === "letters" && logoEnabled && <p className="price-formula">Логотип: {Number(logoPrice.heightCm.toFixed(1))} см × 180 ₽ = {formatMoney(logoPrice.total)}</p>}
             {priceNotes.length > 0 && <p className="price-notes">{priceNotes.join(" ")}</p>}
             <p className="purchase-basis">{productId === "letters" ? "120 ₽ за 1 см высоты каждой буквы. Пробелы не считаются. Монтаж, подложка и доставка рассчитываются отдельно." : "Сохраните макет в корзину для согласования стоимости."}</p>
           </div>
@@ -1436,7 +1440,7 @@ export function SignProductConfigurator() {
         <SignPlacements panelMount={panelMount} markup={createCurrentSvg(false)} signBox={facadeSignBox} night={sceneMode === "night"} selected={placement} palette={project.facadePalette} onPaletteChange={value=>patchProject({facadePalette:value})} onChange={value=>{setPlacement(value);setEditing(false);}}>
           <details className="photo-backdrop-controls"><summary>Примерить на своём фото</summary><label className="studio-button photo-upload"><ImagePlus size={16}/>Загрузить фасад<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event=>void handleImageUpload(event,value=>{patchProject({backdropImage:value});setPlacement('none');setEditing(false);})}/></label><p>PNG, JPG или WebP до 2 МБ. Укажите ширину участка на фотографии для примерного масштаба.</p>{project.backdropImage&&<><label className="builder-field"><span>Ширина участка на фото, мм</span><input type="number" min={500} max={20000} step={100} value={project.backdropWidth} onChange={event=>patchProject({backdropWidth:Math.max(500,Math.min(20000,Number(event.target.value)||500))})}/></label><button type="button" className="studio-remove" onClick={()=>patchProject({backdropImage:''})}><X size={14}/>Убрать фото</button></>}</details>
         </SignPlacements>
-        </section>
+        </div></section>
       </section>
     </main>
   );
