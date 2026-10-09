@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300mm" height="200mm" viewBox="0 0 300 200">
+  <title>Editable two-color contour artwork</title>
+  <g transform="translate(20 30)">
+    <path id="Orange-curved-shape" fill="#ff8000" d="M0 0 C0 100 100 100 100 0 L0 0 Z"/>
+    <path id="Blue-ring-with-hole" fill="#187bcd" fill-rule="evenodd" d="M150 0 H250 V100 H150 Z M175 25 H225 V75 H175 Z"/>
+  </g>
+</svg>

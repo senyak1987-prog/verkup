@@ -1,18 +1,21 @@
 import type { LetterContours } from './letterContours';
 import { containBox, backerSeams } from './backerConstraints';
 import { letterFrameLayout } from './letterFrame';
+import type { VectorArtworkObject } from './vectorArtwork';
 
 type Box = { x:number; y:number; width:number; height:number };
 export type LetterRowSetting = { index:number; text:string; font:string; height:number; offset:{x:number;y:number} };
 export type LetterRowLayout = {
   id:string; index:number; text:string; font:string; box:Box; pathBox:Box; inkBox:Box;
   pathData:string; naturalBox:Box; defaultX:number; defaultY:number;
+  kind?:'vector'; color?:string; name?:string;
 };
 export type LetterRowsLayoutConfig = {
   height:number; contours?:LetterContours|null; lineSettings:LetterRowSetting[];
   logoEnabled?:boolean; logoScale:number; logoSizeMm?:number; logoShape:string; letterOutlineEnabled:boolean;
   widthOverride?:number; logoOffsetX?:number; logoOffsetY?:number; textOffsetX?:number; textOffsetY?:number;
   mountMode:string; acpLayout:{faceWidth:number;faceHeight:number;depth?:number}; frameTopPosition:number;frameBottomPosition:number;
+  vectorArtwork?:VectorArtworkObject[];
 };
 const clamp=(n:number,a:number,b:number)=>Math.max(a,Math.min(b,n));
 const validBox=(box:Box|undefined):box is Box=>!!box&&[box.x,box.y,box.width,box.height].every(Number.isFinite)&&box.width>0&&box.height>0;
@@ -38,21 +41,34 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   }).filter(row=>row.setting.text.trim());
   let previous:typeof draft[number]|undefined;
   for(const row of draft){row.y=previous?previous.y+previous.height+Math.max(Math.max(previous.height,row.height)*.35,previous.overBottom+row.overTop+15):0;previous=row;}
-  const textNaturalWidth=Math.max(1,...draft.map(r=>r.width));
-  const textNaturalHeight=draft.length?Math.max(...draft.map(r=>r.y+r.height)):0;
+  // Imported path coordinates are normalized to physical millimetres once, at import.
+  // Their source anchors remain fixed when one part is independently resized.
+  const vectors=(config.vectorArtwork??[]).map((object,index)=>({object,index}))
+    .filter(({object})=>object.visible!==false&&object.pathData&&validBox(object.box))
+    .map(({object,index})=>{const height=clamp(Number.isFinite(object.height)?object.height:object.box.height,1,700);
+      return{object,index,height,width:object.box.width*height/object.box.height};});
+  const vectorSourceBox=union((config.vectorArtwork??[]).filter(object=>validBox(object.box)).map(object=>object.box));
+  const vectorSpan=union(vectors.map(({object,width,height})=>({x:object.box.x-vectorSourceBox.x,y:object.box.y-vectorSourceBox.y,width,height})));
+  const vectorWidth=vectorSpan.x+vectorSpan.width,vectorHeight=vectorSpan.y+vectorSpan.height;
+  const ordinaryTextHeight=draft.length?Math.max(...draft.map(r=>r.y+r.height)):0;
+  const vectorTop=vectors.length&&draft.length?ordinaryTextHeight+baseHeight*.35:0;
+  const textNaturalWidth=Math.max(1,...draft.map(r=>r.width),...(vectors.length?[vectorWidth]:[]));
+  const textNaturalHeight=Math.max(ordinaryTextHeight,vectors.length?vectorTop+vectorHeight:0);
   const logoSize=config.logoEnabled?(config.logoSizeMm===undefined?clamp(baseHeight*clamp(config.logoScale,45,130)/100,100,700):clamp(config.logoSizeMm,100,700)):0;
-  const gap=config.logoEnabled&&draft.length?baseHeight*.16:0;
-  const widthRequested=draft.length?(config.widthOverride?Math.max(logoSize+gap+20,config.widthOverride):logoSize+gap+textNaturalWidth):Math.max(1,logoSize);
+  const hasArtwork=draft.length>0||vectors.length>0;
+  const gap=config.logoEnabled&&hasArtwork?baseHeight*.16:0;
+  const widthRequested=hasArtwork?(config.widthOverride?Math.max(logoSize+gap+20,config.widthOverride,...(vectors.length?[logoSize+gap+vectorWidth]:[])):logoSize+gap+textNaturalWidth):Math.max(1,logoSize);
   const stretch=Math.max(1,widthRequested-logoSize-gap)/textNaturalWidth;
   const overTop=Math.max(0,...draft.map(r=>r.overTop-r.y));
   const overBottom=Math.max(0,...draft.map(r=>r.y+r.height+r.overBottom-textNaturalHeight));
   const signHeight=Math.max(textNaturalHeight,logoSize);
   const panelRequired=config.mountMode==='acp';
-  const minimumFit=Math.max(0,...draft.map(row=>100/row.height),...(logoSize?[100/logoSize]:[]));
+  const minimumFit=Math.max(0,...draft.map(row=>100/row.height),...vectors.map(row=>1/row.height),...(logoSize?[100/logoSize]:[]));
   const fit=panelRequired?Math.max(minimumFit,Math.min(1,(config.acpLayout.faceWidth-12)/widthRequested,
     (config.acpLayout.faceHeight-12)/(signHeight+overTop+overBottom))):1;
-  const textWidth=draft.length?(widthRequested-logoSize-gap)*fit:0,textHeight=textNaturalHeight*fit;
-  const offsets=config.lineSettings.map(s=>({x:coordinate(s.offset?.x),y:coordinate(s.offset?.y)}));
+  const textWidth=hasArtwork?(widthRequested-logoSize-gap)*fit:0,textHeight=textNaturalHeight*fit;
+  const offsets=[...config.lineSettings.map(s=>({x:coordinate(s.offset?.x),y:coordinate(s.offset?.y)})),
+    ...vectors.map(({object})=>({x:coordinate(object.offset?.x),y:coordinate(object.offset?.y)}))];
   const extraX=panelRequired?0:Math.max(Math.abs(config.logoOffsetX??0),Math.abs(config.textOffsetX??0)+Math.max(0,...offsets.map(o=>Math.abs(o.x))));
   const extraY=panelRequired?0:Math.max(Math.abs(config.logoOffsetY??0),Math.abs(config.textOffsetY??0)+Math.max(0,...offsets.map(o=>Math.abs(o.y))));
   const baseWidth=panelRequired?config.acpLayout.faceWidth:widthRequested*fit+extraX*2;
@@ -77,6 +93,14 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
       box={...box,x:box.x+dx,y:box.y+dy};pathBox={...pathBox,x:pathBox.x+dx,y:pathBox.y+dy};inkBox=bounded;}
     return{id:'line-'+row.setting.index,index:row.setting.index,text:row.setting.text,font:row.setting.font,box,pathBox,inkBox,pathData:row.data.pathData,naturalBox:row.data.mainBox,defaultX,defaultY};
   });
+  for(const {object,index,width,height} of vectors){
+    const defaultX=groupX+(textWidth-vectorWidth*fit)/2+(object.box.x-vectorSourceBox.x)*fit+(config.textOffsetX??0);
+    const defaultY=groupY+(vectorTop+object.box.y-vectorSourceBox.y)*fit+(config.textOffsetY??0);
+    let box={x:defaultX+coordinate(object.offset?.x),y:defaultY+coordinate(object.offset?.y),width:width*fit,height:height*fit};
+    if(panelRequired)box=containBox(box,container);
+    textRows.push({id:'line-'+(3+index),index:3+index,text:object.name||'Вектор '+(index+1),font:'',kind:'vector',name:object.name,color:object.color,
+      box,pathBox:box,inkBox:box,pathData:object.pathData,naturalBox:object.box,defaultX,defaultY});
+  }
   const defaultLogoX=baseX,defaultLogoY=baseY+(signHeight-logoSize)*fit/2;
   let logoBox={x:defaultLogoX+(config.logoOffsetX??0),y:defaultLogoY+(config.logoOffsetY??0),width:logoSize*fit,height:logoSize*fit};
   if(panelRequired)logoBox=containBox(logoBox,container);
@@ -92,7 +116,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
     textX:textBox.x,textTop:textBox.y,textBaseline:textRows[0]?textRows[0].pathBox.y-textRows[0].naturalBox.y*textRows[0].pathBox.height/textRows[0].naturalBox.height:textBox.y+textBox.height,
     textWidth:textBox.width,textHeight:textBox.height,textInkBox,
     defaultTextX:textBox.x-(config.textOffsetX??0),defaultTextY:textBox.y-(config.textOffsetY??0),defaultLogoX,defaultLogoY,
-    letterLineOffsets:Array.from({length:3},(_,index)=>{const row=config.lineSettings.find(s=>s.index===index);return{x:coordinate(row?.offset?.x),y:coordinate(row?.offset?.y)};}),
+    letterLineOffsets:Array.from({length:3+(config.vectorArtwork?.length??0)},(_,index)=>{const row=index<3?config.lineSettings.find(s=>s.index===index):config.vectorArtwork?.[index-3];return{x:coordinate(row?.offset?.x),y:coordinate(row?.offset?.y)};}),
     fontSize:(textRows[0]?.pathBox.height??baseHeight)*1000/(textRows[0]?.naturalBox.height??714),
     textPathData:config.contours?.pathData??'',textNaturalBox:validBox(config.contours?.mainBox)?config.contours!.mainBox:
       textRows[0]?.naturalBox??{x:0,y:-714,width:714,height:714},

@@ -1,0 +1,12 @@
+.vector-artwork-controls { padding-top: 20px; border-top: 1px solid #dce5df; }
+.vector-artwork-controls h3 { margin: 0; color: #174c39; font-size: 15px; }
+.vector-artwork-controls > .control-note { margin: 0; }
+.vector-file-requirements { font-size: 12px; line-height: 1.65; color: #365548; }
+.vector-file-requirements summary { cursor: pointer; color: #174c39; font-weight: 650; padding: 5px 0; }
+.vector-file-requirements ul { margin: 10px 0; padding-left: 18px; }
+.vector-file-requirements li + li { margin-top: 8px; }
+.vector-file-requirements p { margin: 10px 0; }
+.vector-file-requirements summary:focus-visible { outline: 2px solid #16803d; outline-offset: 3px; }
+.vector-object-fields { margin: 0; padding: 0; border: 0; min-width: 0; }
+.vector-object-fields input[type="color"] { width: 100%; height: 42px; padding: 4px; cursor: pointer; }
+.vector-import-report { color: #24503b; overflow-wrap: anywhere; }

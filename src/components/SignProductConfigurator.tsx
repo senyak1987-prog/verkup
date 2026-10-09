@@ -20,6 +20,10 @@ import { NeonControls } from "./NeonControls";
 import { NeonStudioEditor } from "./NeonStudioEditor";
 import { SignLayoutEditor } from "./SignLayoutEditor";
 import { LetterLinesControls } from "./LetterLinesControls";
+import { VectorArtworkControls } from "./VectorArtworkControls";
+import { validateVectorArtwork, vectorArtworkBounds } from "../lib/vectorArtwork";
+import type { VectorArtworkObject } from "../lib/vectorArtwork";
+import type { LayoutPatch } from "./SignLayoutEditor";
 import { AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, Undo2 } from "lucide-react";
 import { centerLayoutSelection, packLayoutComposition } from "../lib/signLayoutAlignment";
 import type { AlignmentAxis, LayoutObject } from "../lib/signLayoutAlignment";
@@ -107,6 +111,7 @@ type LettersSvgLayout = {
 };
 
 type LettersSvgLayoutConfig = {
+  vectorArtwork?: VectorArtworkObject[];
   lineSettings?: LetterRowSetting[];
   acpLayout: AcpLayout;
   estimatedWidth: number;
@@ -379,6 +384,7 @@ const DEFAULT_PROJECT = {
   secondLineText: "",
   thirdLineText: "",
   letterLineFonts: [] as string[], letterLineHeights: [] as number[], letterLineOffsets: [] as {x:number;y:number}[],
+  vectorArtwork: [] as VectorArtworkObject[],
   logoOffsetX: 0, logoOffsetY: 0, textOffsetX: 0, textOffsetY: 0,
   neonText: "ГОРОД СВЕТ", neonFont: "rounded", neonHeight: 200, neonDiameter: 6, neonColor: "#ffa658", neonBackerWidth: 1900, neonBackerHeight: 350, neonBackerShape: "rectangle", neonBrightness: 85, neonAlign: "center",
   neonLineFonts: [] as string[], neonLineColors: [] as string[], neonLineScales: [] as number[], neonLineOffsets: [] as {x:number;y:number}[],
@@ -463,6 +469,7 @@ function validateProject(raw: unknown): ProjectState {
     const value = input[key];
     const initial = output[key];
     if (value === undefined) continue;
+    if (key === "vectorArtwork") { output[key] = validateVectorArtwork(value); continue; }
     if (Array.isArray(initial)) {
       if (!Array.isArray(value) || value.length > 3) throw new Error("Некорректные настройки строк.");
       output[key] = value.map(item => {
@@ -539,6 +546,7 @@ function resetProjectSettings(): ProjectState {
 function clearProjectArtwork(current: ProjectState): ProjectState {
   return {
     ...current, lettersText: "", secondLineText: "", thirdLineText: "", neonText: "",
+    vectorArtwork: [],
     logoEnabled: false, logoImage: "", panelImage: "", backdropImage: "", neonReferenceImage: "", neonIcon: "none",
     logoOffsetX: 0, logoOffsetY: 0, textOffsetX: 0, textOffsetY: 0, panelImageX: 0, panelImageY: 0,
     letterLineOffsets: [], neonLineOffsets: [],
@@ -547,7 +555,7 @@ function clearProjectArtwork(current: ProjectState): ProjectState {
 
 function isProjectBlank(project: ProjectState) {
   return project.productId === "letters"
-    ? ![project.lettersText, project.secondLineText, project.thirdLineText].some(text => text.trim()) && !project.logoEnabled
+    ? ![project.lettersText, project.secondLineText, project.thirdLineText].some(text => text.trim()) && !project.logoEnabled && !project.vectorArtwork.some(object => object.visible)
     : project.productId === "neon" && !project.neonText.trim() && project.neonIcon === "none";
 }
 
@@ -570,7 +578,7 @@ export function SignProductConfigurator() {
   const contourKey = JSON.stringify(lineSettings.map(row=>[row.index,row.font,row.text]));
   const patchProject = (patch: Partial<ProjectState>, remember = true) => {
     const layoutEdit = project.productId === "letters" && Object.keys(patch).some(key =>
-      ["logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "logoSizeMm", "letterWidth", "letterHeight", "lettersText", "letterFont", "secondLineText", "thirdLineText", "letterLineFonts", "letterLineHeights", "letterLineOffsets"].includes(key));
+      ["logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "logoSizeMm", "letterWidth", "letterHeight", "lettersText", "letterFont", "secondLineText", "thirdLineText", "letterLineFonts", "letterLineHeights", "letterLineOffsets", "vectorArtwork"].includes(key));
     if (remember && (layoutEdit || project.productId === 'neon' && Object.keys(patch).some(key=>key.startsWith('neon')))) {
       if (layoutInteraction.current === "start" || layoutInteraction.current !== "active" && (Date.now()-lastUndoEdit.current > 800 || !undoHistory.current.length)) {
         undoHistory.current.push(project); if (undoHistory.current.length>30) undoHistory.current.shift(); setCanUndo(true);
@@ -679,10 +687,14 @@ export function SignProductConfigurator() {
   const latestProject = useRef(project);
   latestProject.current = project;
   const [notice, setNotice] = useState("");
+  const [vectorImporting, setVectorImporting] = useState(false);
+  const [vectorImportReport, setVectorImportReport] = useState("");
+  const [selectedVector, setSelectedVector] = useState(0);
+  const vectorFileRef = useRef<HTMLInputElement>(null);
   const pendingFileVersion = useRef(0);
   const workspaceRef = useRef<HTMLElement>(null);
   const replaceProjectWithUndo = (next: ProjectState, message: string) => {
-    undoHistory.current.push(project);
+    undoHistory.current.push(latestProject.current);
     if (undoHistory.current.length > 30) undoHistory.current.shift();
     setCanUndo(true); lastUndoEdit.current = 0; layoutInteraction.current = "idle";
     pendingFileVersion.current++;
@@ -799,6 +811,7 @@ export function SignProductConfigurator() {
   ]);
   const lettersLayout = useMemo(() => { const layout=createLettersSvgLayout({
     lineSettings,
+    vectorArtwork: project.vectorArtwork,
     acpLayout,
     estimatedWidth: lettersWidth,
     frameBottomPosition,
@@ -834,16 +847,32 @@ export function SignProductConfigurator() {
     logoShape,
     mountMode,
     letterWidth,
-    logoEnabled, project.logoOffsetX, project.logoOffsetY, project.textOffsetX, project.textOffsetY, lineSettings,
+    logoEnabled, project.logoOffsetX, project.logoOffsetY, project.textOffsetX, project.textOffsetY, lineSettings, project.vectorArtwork,
   ]);
+  const applyLayoutPatch = (patch: LayoutPatch) => {
+    const { letterLineOffsets, letterLineHeights, ...rest } = patch;
+    patchProject({ ...rest,
+      ...(letterLineOffsets ? { letterLineOffsets: letterLineOffsets.slice(0, 3) } : {}),
+      ...(letterLineHeights ? { letterLineHeights: letterLineHeights.slice(0, 3) } : {}),
+      ...((letterLineOffsets || letterLineHeights) ? { vectorArtwork: project.vectorArtwork.map((object, index) => ({ ...object,
+        ...(letterLineOffsets?.[index + 3] ? { offset: letterLineOffsets[index + 3] } : {}),
+        ...(letterLineHeights?.[index + 3] ? { height: letterLineHeights[index + 3] } : {}),
+      })) } : {}),
+    });
+  };
+  const selectVector = (index: number) => { setSelectedVector(index); selectLetterLine(index + 3); };
+  const changeVector = (index: number, patch: Partial<VectorArtworkObject>) => patchProject({ vectorArtwork: project.vectorArtwork.map((object, i) => i === index ? { ...object, ...patch,
+    ...(patch.name !== undefined ? { name: patch.name.trim() ? patch.name : `Объект ${i + 1}` } : {}),
+  } : object) });
+  const removeVector = (index: number) => { patchProject({ vectorArtwork: project.vectorArtwork.filter((_, i) => i !== index) }); setSelectedVector(0); setLayoutSelection("composition"); };
   const alignLayoutSelection = (axis: AlignmentAxis) => {
     lastUndoEdit.current = 0;
-    patchProject(centerLayoutSelection(lettersLayout, layoutSelection, logoEnabled, axis, mountMode === "acp"));
+    applyLayoutPatch(centerLayoutSelection(lettersLayout, layoutSelection, logoEnabled, axis, mountMode === "acp"));
     lastUndoEdit.current = 0;
   };
   const packLayout = () => {
     lastUndoEdit.current = 0;
-    patchProject(packLayoutComposition(lettersLayout, logoEnabled, mountMode === "acp"));
+    applyLayoutPatch(packLayoutComposition(lettersLayout, logoEnabled, mountMode === "acp"));
     lastUndoEdit.current = 0;
     setLayoutSelection("composition");
   };
@@ -861,16 +890,17 @@ export function SignProductConfigurator() {
   const glowHasHalo = hasHaloGlow(glowMode);
   const glowLabel = GLOW_MODES.find((item) => item.id === glowMode)?.label || "";
   const mountLabel = MOUNT_MODES.find((item) => item.id === mountMode)?.label || "";
-  const rowPrices = (lettersLayout.textRows ?? []).filter(row=>row.text.trim()).map(row=>({...calculateLetterPrice(row.text,row.box.height),index:row.index}));
+  const rowPrices = (lettersLayout.textRows ?? []).filter(row=>row.text.trim()&&row.kind!=="vector").map(row=>({...calculateLetterPrice(row.text,row.box.height),index:row.index}));
   const letterPrice = { letterCount:rowPrices.reduce((sum,row)=>sum+row.letterCount,0), total:rowPrices.reduce((sum,row)=>sum+row.total,0) };
   const logoPrice=calculateLogoPrice(lettersLayout.logoBox.height,logoEnabled);
   const pricedTotal=letterPrice.total+logoPrice.total;
   const hasPricedArtwork=letterPrice.letterCount>0||logoPrice.heightCm>0;
-  const objectDimensions=(lettersLayout.textRows??[]).filter(row=>row.text.trim()).map(row=>({id:row.id,label:`Строка ${row.index+1}`,width:row.box.width,height:row.box.height}));
+  const objectDimensions=(lettersLayout.textRows??[]).filter(row=>row.text.trim()).map(row=>({id:row.id,label:row.kind==="vector"?row.name||row.text:`Строка ${row.index+1}`,width:row.box.width,height:row.box.height}));
   if(logoEnabled)objectDimensions.push({id:"logo",label:"Логотип",width:lettersLayout.logoBox.width,height:lettersLayout.logoBox.height});
   const maximumRowHeight = Math.max(...lineSettings.map(row=>row.height));
   const frameNeedsApproval = mountMode === "frame" && requiresFrameApproval(maximumRowHeight);
   const priceNotes = productId === "neon" ? ["Неоновая вывеска — по согласованию."] : productId === "panel" ? ["Панель-кронштейн — по согласованию."] : [
+    ...(project.vectorArtwork.some(object=>object.visible) ? ["Изготовление по своему вектору — по согласованию; в цену букв не включено."] : []),
     ...(hasUnpricedSymbols(combinedText) ? ["Специальные символы — по согласованию."] : []),
     ...(maximumRowHeight > 550 ? ["Глубина букв выше 55 см — по согласованию."] : []),
     ...(lineSettings.some(row=>row.height<=550&&!allowedLetterDepths(row.height).includes(letterDepth)) ? ["Общая глубина для строк разной высоты — по согласованию."] : []),
@@ -888,7 +918,7 @@ export function SignProductConfigurator() {
   const visibleObjectDimensions=productId==='neon'?(neonResult.design?.lines??[]).map(row=>({id:`neon-line-${row.index}`,label:`Строка ${row.index+1}`,width:row.width,height:row.height})):objectDimensions;
   const blankSign = isProjectBlank(project);
   const lettersFit = mountMode !== "acp" || [...(lettersLayout.textRows??[]).map(row=>row.inkBox),...(logoEnabled?[lettersLayout.logoBox]:[])].every(box=>box.x>=lettersLayout.panelBox.x+6-.01&&box.y>=lettersLayout.panelBox.y+6-.01&&box.x+box.width<=lettersLayout.panelBox.x+lettersLayout.panelBox.width-6+.01&&box.y+box.height<=lettersLayout.panelBox.y+lettersLayout.panelBox.height-6+.01);
-  const canOutputSign = !blankSign && (productId === "letters" ? !fontPending && Boolean(letterContours) && lettersFit
+  const canOutputSign = !blankSign && (productId === "letters" ? !fontPending && (Boolean(letterContours) || project.vectorArtwork.some(object=>object.visible)) && lettersFit
     : productId === "neon" ? Boolean(neonResult.design) && neonFits : true);
   useEffect(() => {
     if (neonFits && productId === 'neon' && (project.neonBackerWidth < neonWidth || project.neonBackerHeight < neonHeight))
@@ -970,7 +1000,7 @@ export function SignProductConfigurator() {
   async function handleOpenProject(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
-    const fileVersion = pendingFileVersion.current;
+    const fileVersion = ++pendingFileVersion.current;
     try {
       if (file.size > 9_500_000) throw new Error("Файл проекта слишком большой.");
       const nextProject = validateProject(JSON.parse((await file.text()).replace(/^\uFEFF/, "")));
@@ -988,6 +1018,37 @@ export function SignProductConfigurator() {
       setNotice("Проект открыт.");
     } catch (error) { if (fileVersion === pendingFileVersion.current) setNotice(error instanceof Error && !(error instanceof SyntaxError) ? error.message : "Не удалось открыть проект. Выберите сохраненный файл JSON."); }
     finally { event.target.value = ""; }
+  }
+  async function handleVectorImport(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]; event.target.value = "";
+    if (!file || vectorImporting) return;
+    const fileVersion = ++pendingFileVersion.current;
+    setVectorImporting(true); setVectorImportReport("");
+    try {
+      const { importVectorFile } = await import("../lib/vectorFileImport");
+      const imported = await importVectorFile(file);
+      if (fileVersion !== pendingFileVersion.current) return;
+      const current = latestProject.current;
+      const bounds = vectorArtworkBounds(imported.objects);
+      const scale = Math.min(300 / bounds.height, 8000 / bounds.width);
+      const previousBounds = current.vectorArtwork.length ? vectorArtworkBounds(current.vectorArtwork) : null;
+      const y = previousBounds ? previousBounds.y + previousBounds.height + 50 : 0;
+      const transformed = imported.objects.map(object => {
+        const pathData = object.pathData.replace(/([MLQC])([^MLQCZ]+)/g, (_match, command: string, coords: string) =>
+          command + coords.trim().split(/[\s,]+/).map((value, index) => Number(((Number(value) - (index % 2 ? bounds.y : bounds.x)) * scale + (index % 2 ? y : 0)).toFixed(5))).join(" "));
+        const box = { x: (object.box.x - bounds.x) * scale, y: (object.box.y - bounds.y) * scale + y, width: object.box.width * scale, height: object.box.height * scale };
+        if (box.height < 1) throw new Error("В макете есть контуры меньше 1 мм после масштабирования. Уберите слишком мелкие детали и загрузите файл снова.");
+        return { ...object, id: `vector-${crypto.randomUUID()}`, pathData, box, height: box.height, offset: { x: 0, y: 0 } };
+      });
+      const artwork = validateVectorArtwork([...current.vectorArtwork, ...transformed]);
+      replaceProjectWithUndo({ ...current, productId: "letters", letterWidth: 0, vectorArtwork: artwork }, `Добавлен ${file.name}: ${transformed.length} векторных объектов. Импорт можно отменить.`);
+      setEditing(true); setSelectedVector(current.vectorArtwork.length); setLayoutSelection(`line-${3 + current.vectorArtwork.length}`);
+      setVectorImportReport([`${file.name}: добавлено объектов — ${transformed.length}.`, ...imported.warnings].join(" "));
+    } catch (error) {
+      if (fileVersion !== pendingFileVersion.current) return;
+      const message = error instanceof Error ? error.message : "Не удалось прочитать контуры. Экспортируйте макет в PDF или SVG с текстом в кривых.";
+      setVectorImportReport(message); setNotice(message); setActiveSection("design");
+    } finally { setVectorImporting(false); }
   }
   function createCurrentSvg(withDimensions = showDimensions) {
     if (blankSign) return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"><title>Пустой макет</title></svg>';
@@ -1063,9 +1124,11 @@ export function SignProductConfigurator() {
         <div className="studio-actions">
           <button className="studio-button studio-reset-all" type="button" aria-label="Сбросить всё" onClick={handleResetSettings} title="Сбросить надписи, изображения, размеры, материалы и настройки просмотра к исходным значениям"><RotateCcw size={16} /><span className="studio-action-label">Сбросить всё</span></button>
           <input hidden ref={projectFileRef} type="file" accept=".json,application/json" onChange={event => void handleOpenProject(event)} />
+          <input hidden ref={vectorFileRef} type="file" accept=".pdf,.cdr,.svg,application/pdf,image/svg+xml,application/vnd.corel-draw,application/x-coreldraw" onChange={event => void handleVectorImport(event)} />
           <details className="studio-file-menu" ref={fileMenuRef}>
             <summary className="studio-button"><FolderOpen size={16} /><span>Файлы</span><ChevronDown size={14} /></summary>
             <div className="studio-file-menu-items">
+              <button className="studio-button" type="button" disabled={vectorImporting} onClick={() => { closeFileMenu(true); setActiveSection("design"); vectorFileRef.current?.click(); }}><Upload size={16} /><span>Добавить свой вектор</span></button>
               <button className="studio-button" type="button" onClick={() => { closeFileMenu(true); projectFileRef.current?.click(); }}><FolderOpen size={16} /><span>Открыть проект</span></button>
               <button className="studio-button" type="button" onClick={() => { closeFileMenu(true); handleSaveProject(); }}><Save size={16} /><span>Сохранить проект</span></button>
               <button className="studio-button" type="button" onClick={() => { closeFileMenu(true); handleExportVector(); }} disabled={!canOutputSign}><Download size={16} /><span>Сохранить SVG</span></button>
@@ -1113,7 +1176,7 @@ export function SignProductConfigurator() {
           </div>}
           {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar layout-alignment-toolbar" aria-label="Выбор и выравнивание объектов макета">
             <button className="layout-pack-button" type="button" title="Собрать логотип и надпись в ряд с обычным промежутком и центрировать по обеим осям" disabled={fontPending} onClick={packLayout}>Собрать и центрировать</button>
-            <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => setLayoutSelection(event.target.value as LayoutObject)}><option value="text">Все строки</option>{lineSettings.filter(row=>row.text.trim()).map(row=><option key={row.index} value={`line-${row.index}`}>Строка {row.index+1}</option>)}<option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
+            <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => setLayoutSelection(event.target.value as LayoutObject)}><option value="text">Все строки и векторы</option>{lineSettings.filter(row=>row.text.trim()).map(row=><option key={row.index} value={`line-${row.index}`}>Строка {row.index+1}</option>)}{project.vectorArtwork.map((object,index)=>object.visible&&<option key={object.id} value={`line-${index+3}`}>{object.name}</option>)}<option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
             <div className="alignment-actions" role="group" aria-label={mountMode === "acp" ? "Центрирование по подложке" : "Центрирование по макету"}>
               <button type="button" title={mountMode === "acp" ? "По центру подложки по горизонтали" : "По центру макета по горизонтали"} disabled={fontPending} onClick={() => alignLayoutSelection("x")}><AlignHorizontalJustifyCenter size={16}/>Центр X</button>
               <button type="button" title={mountMode === "acp" ? "По центру подложки по вертикали" : "По центру макета по вертикали"} disabled={fontPending} onClick={() => alignLayoutSelection("y")}><AlignVerticalJustifyCenter size={16}/>Центр Y</button>
@@ -1135,7 +1198,7 @@ export function SignProductConfigurator() {
         >
           {!blankSign && (fontPending && productId === "letters" || productId === "neon" && neonFontReady!==neonFontKey && !neonFontError) && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
           {blankSign ? <div className="studio-empty-preview" role="status"><Type size={34} aria-hidden="true" /><strong>Макет пуст</strong>
-            <p>{productId === "neon" ? "Добавьте надпись или фигуру в настройках." : "Добавьте надпись или логотип в настройках."}</p>
+            <p>{productId === "neon" ? "Добавьте надпись или фигуру в настройках." : "Добавьте надпись, логотип или свой вектор в настройках."}</p>
             <a className="studio-button" href="#studio-controls" onClick={() => setActiveSection("design")}>Добавить надпись</a>
           </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showPerson={showScalePerson} showSign={showFacadeSign} showPanel={showFacadePanel} resetKey={fitSignal} onUnavailable={handle3DUnavailable} onGameActiveChange={setRcPlaying} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
             {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
@@ -1160,7 +1223,7 @@ export function SignProductConfigurator() {
               <LettersPreview
                 objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value,faceNoFilm:letterFaceColor.code==="none",logoNoFilm:project.logoFaceColor.code==="none"}}
                 lightsOn={project.lightsOn}
-                editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={project} selection={layoutSelection} onSelect={setLayoutSelection} onChange={patchProject} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
+                editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={setLayoutSelection} onChange={applyLayoutPatch} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
                 sceneMode={sceneMode}
                 acpDepth={acpDepth}
                 acpColor={acpColor.value}
@@ -1235,7 +1298,7 @@ export function SignProductConfigurator() {
               faceColors={<FaceFilmControl luminous={glowMode!=="halo"} selected={letterFaceColor} tone={project.letterWhiteTone} label="Тип свечения букв" onSelect={setLetterFaceColor} onToneChange={value=>patchProject({letterWhiteTone:value})} />}
               logoColors={<><h3>Лицо логотипа · Oracal {glowMode === "halo" ? "641" : "8500"}</h3><FaceFilmControl luminous={glowMode!=="halo"} selected={project.logoFaceColor} tone={project.logoWhiteTone} label="Тип свечения логотипа" onSelect={value=>patchProject({logoFaceColor:value})} onToneChange={value=>patchProject({logoWhiteTone:value})} /><h3>Борт логотипа · Oracal 641</h3><ColorGrid colors={ORACAL_641_COLORS} selected={project.logoSideColor} onSelect={value=>patchProject({logoSideColor:value})} compact /></>}
               haloColors={glowHasHalo && <><h3>Цвет контражура</h3><ColorGrid colors={ORACAL_8500_COLORS} selected={project.haloLightColor} onSelect={value=>patchProject({haloLightColor:value})} compact /><p className="control-note">Цвет подсветки выбирается независимо от лица букв и логотипа.</p></>}
-              lineEditor={<LetterLinesControls rows={[project.lettersText,project.secondLineText,project.thirdLineText].map((text,index)=>({index,text,font:project.letterLineFonts[index]||letterFont,height:project.letterLineHeights[index]||letterHeight})).filter(row=>row.index===0||row.text.trim())} onTextChange={setLineText} onFontChange={setLineFont} onHeightChange={setLineHeight} onSelect={selectLetterLine} onAdd={addLetterLine} onRemove={removeLetterLine}/>}
+              lineEditor={<><LetterLinesControls rows={[project.lettersText,project.secondLineText,project.thirdLineText].map((text,index)=>({index,text,font:project.letterLineFonts[index]||letterFont,height:project.letterLineHeights[index]||letterHeight})).filter(row=>row.index===0||row.text.trim())} onTextChange={setLineText} onFontChange={setLineFont} onHeightChange={setLineHeight} onSelect={selectLetterLine} onAdd={addLetterLine} onRemove={removeLetterLine}/><VectorArtworkControls objects={project.vectorArtwork} selectedIndex={layoutSelection.startsWith("line-")&&Number(layoutSelection.slice(5))>=3?Number(layoutSelection.slice(5))-3:Math.min(selectedVector,Math.max(0,project.vectorArtwork.length-1))} importing={vectorImporting} report={vectorImportReport} onImport={()=>vectorFileRef.current?.click()} onSelect={selectVector} onChange={changeVector} onRemove={removeVector}/></>}
               rowHeights={lineSettings.map(row=>row.height)}
               acpColor={acpColor}
               acpDepth={acpDepth}
@@ -2131,7 +2194,8 @@ function createLettersSvgMarkup(
       const sx=row.pathBox.width/row.naturalBox.width,sy=row.pathBox.height/row.naturalBox.height;
       const transform=`matrix(${sx} 0 0 ${sy} ${n(row.pathBox.x-row.naturalBox.x*sx)} ${n(row.pathBox.y-row.naturalBox.y*sy)})`;
       const outline=strokeWidth ? Math.max(4,row.box.height*.035) : 0;
-      return `<g data-line-index="${row.index}" data-line-font="${escapeXml(row.font)}" transform="${transform}"><path d="${row.pathData}" fill="${fill}" fill-rule="nonzero" stroke="${stroke}" stroke-width="${n(outline/sy)}" stroke-linejoin="round" paint-order="stroke fill" /></g>`;
+      const rowFill = _measure && row.kind === "vector" && row.color ? night && !faceLit ? mix(row.color,"#18212d",.6) : row.color : fill;
+      return `<g data-line-index="${row.index}" data-line-font="${escapeXml(row.font)}" transform="${transform}"><path d="${row.pathData}" fill="${rowFill}" fill-rule="nonzero" stroke="${stroke}" stroke-width="${n(outline/sy)}" stroke-linejoin="round" paint-order="stroke fill" /></g>`;
     }).join("");
     const sx = layout.textWidth / layout.textNaturalBox.width;
     const sy = layout.textHeight / layout.textNaturalBox.height;
@@ -2248,7 +2312,7 @@ function createLettersSvgMarkup(
 
 function createSvgObjectDimensions(layout:LettersSvgLayout,logoEnabled:boolean,color:string){
   const font=Math.max(14,Math.min(40,layout.viewWidth*.012));
-  const objects=(layout.textRows??[]).map(row=>({id:row.id,label:`Строка ${row.index+1}`,box:row.box}));
+  const objects=(layout.textRows??[]).map(row=>({id:row.id,label:row.kind==="vector"?row.name||row.text:`Строка ${row.index+1}`,box:row.box}));
   if(logoEnabled&&layout.logoBox.width>0)objects.push({id:'logo',label:'Логотип',box:layout.logoBox});
   return `<g data-object-dimensions="true" fill="${color}" font-family="Arial,sans-serif" font-size="${roundSvg(font)}">`+objects.map(item=>
     `<text data-object="${item.id}" x="${roundSvg(item.box.x+item.box.width/2)}" y="${roundSvg(item.box.y-font*.7)}" text-anchor="middle">${item.label}: ${Math.round(item.box.width)} × ${Math.round(item.box.height)} мм</text>`).join('')+'</g>';

@@ -1,0 +1,81 @@
+go-libcdr
+Copyright (c) 2026 Alexej Disterhoft
+
+Original work in this repository -- the future Go package, native/cdr2svg.cpp,
+and the build scripts -- is licensed under the MIT License; see LICENSE. The
+ICU-derived compatibility macro under native/shim/unicode/utf8.h is covered by
+the complete ICU notice in native/shim/NOTICE.
+
+THIRD-PARTY SOFTWARE
+--------------------
+
+The committed WebAssembly module, cdr2svg.wasm, is a compiled artifact that
+contains code from the projects below. It is therefore a distribution of that
+code in Executable Form.
+
+Mozilla Public License 2.0 is file-level copyleft. Per MPL-2.0 section 3.2,
+recipients may obtain the corresponding Source Code Form from the URLs listed
+here; native/build/fetch.sh downloads exactly these versions, and
+native/build/build.sh reproduces the module from them. No file in any of these
+projects has been modified.
+
+  libcdr 0.1.7
+    Mozilla Public License 2.0
+    https://dev-www.libreoffice.org/src/libcdr/libcdr-0.1.7.tar.bz2
+
+  librevenge 0.0.6
+    Mozilla Public License 2.0, or LGPL 2.1 or later, at your option.
+    Distributed here under the Mozilla Public License 2.0.
+    https://dev-www.libreoffice.org/src/librevenge-0.0.6.tar.bz2
+
+  Little CMS (lcms2) 2.12
+    MIT License
+    https://dev-www.libreoffice.org/src/lcms2-2.12.tar.gz
+
+    Copyright (c) 1998-2020 Marti Maria Saguer
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.
+
+  zlib 1.3.1
+    zlib License
+    https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
+
+    Copyright (C) 1995-2022 Jean-loup Gailly and Mark Adler
+
+    This software is provided 'as-is', without any express or implied warranty.
+    In no event will the authors be held liable for any damages arising from the
+    use of this software.
+
+    Permission is granted to anyone to use this software for any purpose,
+    including commercial applications, and to alter it and redistribute it
+    freely, subject to the following restrictions:
+
+    1. The origin of this software must not be misrepresented; you must not
+       claim that you wrote the original software. If you use this software in a
+       product, an acknowledgment in the product documentation would be
+       appreciated but is not required.
+    2. Altered source versions must be plainly marked as such, and must not be
+       misrepresented as being the original software.
+    3. This notice may not be removed or altered from any source distribution.
+
+    Jean-loup Gailly        Mark Adler
+    jloup@gzip.org          madler@alumni.caltech.edu
+
+CorelDRAW is a trademark of Corel Corporation. This project is not affiliated
+with, endorsed by, or sponsored by Corel Corporation.
