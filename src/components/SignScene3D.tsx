@@ -8,7 +8,7 @@ import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { attachFacadePair, createFacadeModel, createPanelMountContext, setFacadeProductVisibility } from "../lib/signFacade3D";
 import { DAYLIGHT_LEVELS, daylightSource } from "../lib/signDaylight";
-import { signFocusBounds, zoomFocusWeight } from "../lib/signCameraFocus";
+import { DIMENSION_LABEL_HEIGHT_PX, scaleDimensionLabels, signFocusBounds, zoomFocusWeight } from "../lib/signCameraFocus";
 import type { DaylightMarker } from "../lib/signDaylight";
 import { sceneLightingAt, sceneLightingDuration } from "../lib/sceneLighting";
 import { panelMountLayout } from "../lib/panelConstruction";
@@ -60,6 +60,7 @@ type SceneRuntime = {
   controls: OrbitControls;
   rc: FacadeRcGame | null;
   model: THREE.Group | null;
+  dimensionLabels: THREE.Sprite[];
   ambient: THREE.HemisphereLight;
   key: THREE.PointLight;
   fill: THREE.DirectionalLight;
@@ -185,6 +186,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         try {
           const now=performance.now();
           const rcAnimating = runtime.rc?.update(now) ?? false;
+          scaleDimensionLabels(runtime.dimensionLabels, camera, host.clientHeight);
           currentRenderer.render(scene, camera);
           host.dataset.cameraZoom = String(camera.zoom);
           host.dataset.cameraViewHeight = String(camera.top - camera.bottom);
@@ -205,7 +207,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       };
       let daylightIntensity = 1;
       const runtime: SceneRuntime = {
-        renderer, scene, camera, controls, rc: null, model: null, ambient, key, fill,
+        renderer, scene, camera, controls, rc: null, model: null, dimensionLabels: [], ambient, key, fill,
         distance: 1800, requestRender, bounds: new THREE.Box3(),
         fitCenter: new THREE.Vector3(), signAnchor: new THREE.Vector3(),
         focusZoom() {
@@ -269,15 +271,15 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           let viewHeight = Math.max(view.viewHeight, view.viewWidth / aspect, halfHeight * 2.15, halfWidth * 2.15 / aspect);
           // Fit billboards too, with a readable pixel size even on a narrow phone.
           for (let pass = 0; pass < 3; pass++) {
-            runtime.model.traverse(child => {
-              if (!(child instanceof THREE.Sprite)) return;
-              const pixelHeight = host.clientWidth < 500 ? 20 : 24;
-              const labelHeight = Math.max(child.userData.labelHeight, pixelHeight * viewHeight / Math.max(1, host.clientHeight));
+            for (const child of runtime.dimensionLabels) {
+              // Fit at 100% so changing zoom never changes the underlying camera frame.
+              child.position.copy(child.userData.labelPosition);
+              const labelHeight = DIMENSION_LABEL_HEIGHT_PX * viewHeight / Math.max(1, host.clientHeight);
               child.scale.set(labelHeight * child.userData.labelAspect, labelHeight, 1);
               const point = child.getWorldPosition(new THREE.Vector3()).sub(center);
               halfWidth = Math.max(halfWidth, Math.abs(point.dot(right)) + child.scale.x / 2);
               halfHeight = Math.max(halfHeight, Math.abs(point.dot(up)) + child.scale.y / 2);
-            });
+            }
             viewHeight = Math.max(viewHeight, halfHeight * 2.15, halfWidth * 2.15 / aspect);
           }
           camera.left = -viewHeight * aspect / 2; camera.right = -camera.left;
@@ -287,6 +289,10 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         frame(front, preserveOrbit = false) {
           if (runtime.rc?.active) { runtime.rc.resize(); requestRender(); return; }
           if (!runtime.model) return;
+          for (const label of runtime.dimensionLabels) {
+            label.position.copy(label.userData.labelPosition);
+            label.scale.set(label.userData.labelHeight * label.userData.labelAspect, label.userData.labelHeight, 1);
+          }
           const box = new THREE.Box3();
           for (const child of runtime.model.children) {
             if (child.name === 'panel-construction') {
@@ -467,6 +473,10 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       // Measurements are a persistent overlay: toggling them must not rebuild or reframe the scene.
       model.traverse(child => { if (child.name === "dimensions") child.visible = dimensionsVisibleRef.current; });
       runtime.model = model;
+      runtime.dimensionLabels = [];
+      model.traverse(child => {
+        if (child instanceof THREE.Sprite && Number.isFinite(child.userData.labelAspect)) runtime.dimensionLabels.push(child);
+      });
       if (hostRef.current) {
         hostRef.current.dataset.renderedFont = project.productId === "letters" ? project.letterFont : project.productId === "neon" ? project.neonFont ?? "rounded" : project.productId;
         hostRef.current.dataset.contextProducts = (model.userData.contextProducts ?? [project.productId]).join(',');
