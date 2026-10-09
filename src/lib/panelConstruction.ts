@@ -1,12 +1,21 @@
 export const PANEL_SIZES = Array.from({ length: 8 }, (_, index) => 350 + index * 50);
 export const PANEL_DEPTHS = [130, 150] as const;
+export const PANEL_CORNER_RADIUS_MIN = 50;
+export const PANEL_CORNER_RADIUS_STEP = 10;
+export function panelCornerRadiusLimit(size: number) {
+  return Math.max(PANEL_CORNER_RADIUS_MIN, Math.floor(Math.min(300, size / 2) / PANEL_CORNER_RADIUS_STEP) * PANEL_CORNER_RADIUS_STEP);
+}
+export function normalizePanelCornerRadius(value: number, size: number) {
+  const rounded = Math.round((Number.isFinite(value) ? value : 60) / PANEL_CORNER_RADIUS_STEP) * PANEL_CORNER_RADIUS_STEP;
+  return Math.max(PANEL_CORNER_RADIUS_MIN, Math.min(panelCornerRadiusLimit(size), rounded));
+}
 export function normalizePanelSize(value: number) { return Math.max(350, Math.min(700, Math.round((Number.isFinite(value) ? value : 500) / 50) * 50)); }
 export function normalizePanelDepth(value: number) { return Number.isFinite(value) && value >= 140 ? 150 : 130; }
 
 /** Millimetres, shared by the elevation drawing and the wall-mounted 3D model. */
 export function panelConstruction(size: number, shape: string, wallGap = 120, cornerRadius = 60) {
   const gap = Math.max(60, Math.min(400, wallGap));
-  const radius = shape === "rounded" ? Math.max(0, Math.min(size / 2, cornerRadius)) : 0;
+  const radius = shape === "rounded" ? normalizePanelCornerRadius(cornerRadius, size) : 0;
   const wallX = -size / 2 - gap;
   const armYs = [-size * 0.24, size * 0.24];
   const half = size / 2, armY = Math.abs(armYs[0]);
