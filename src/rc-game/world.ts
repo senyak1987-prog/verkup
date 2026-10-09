@@ -1,9 +1,13 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { RcPhysics, TRACK_WIDTH, WHEEL_BASE, type CarInput } from './physics';
+import { RcPhysics, WHEEL_RADIUS, SUSPENSION_REBOUND_TRAVEL, SUSPENSION_COMPRESSION_TRAVEL, type CarInput } from './physics';
 import { createDefaultRcSurface, type RcSurface } from './terrainSurface';
 import { RcPropsPhysics } from './propsPhysics';
 import { createTrxTruck, createTrxWheel } from './trxTruck';
+import { createTrxSuspension } from './trxSuspension';
+import type { RcVehicleProfile, RcVehicleRig } from './vehicleTypes';
+import { sandMaterial, addPaving } from './arenaGround';
+import { createVehicleEffects } from './vehicleEffects';
 
 export type RcMode = 'free' | 'trial';
 export interface RcTelemetry {
@@ -13,6 +17,10 @@ export interface RcTelemetry {
 export interface RcWorldOptions {
   onLap?: (seconds: number) => void;
   surface?: RcSurface;
+  vehicleProfile?: RcVehicleProfile;
+  loadVehicle?: () => Promise<RcVehicleRig>;
+  onVehicleReady?: () => void;
+  onVehicleError?: (error: unknown) => void;
 }
 export interface RcWorld {
   /** Arena and vehicle in arena-local metres; apply placement and scale to this group. */
@@ -25,6 +33,7 @@ export interface RcWorld {
   reset(): void;
   setMode(mode: RcMode): void;
   setColor(hex: string): void;
+  setLighting(night: number): void;
   getTelemetry(paused?: boolean, driving?: boolean): RcTelemetry;
   dispose(): void;
 }
@@ -34,9 +43,36 @@ const UP = new THREE.Vector3(0, 1, 0);
 const clamp = THREE.MathUtils.clamp;
 const NEUTRAL_INPUT: CarInput = { target: null, throttle: 0, brake: false, reverse: false };
 
+/** A replacement can share placeholder materials with the arena and suspension. */
+function disposeObjects(roots: THREE.Object3D[], retained: THREE.Object3D[] = []) {
+  const resources = (objects: THREE.Object3D[]) => {
+    const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>(), textures = new Set<THREE.Texture>();
+    objects.forEach(root => root.traverse(object => {
+      const mesh = object as THREE.Mesh;
+      if (mesh.geometry) geometries.add(mesh.geometry);
+      if (mesh.material) for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+        materials.add(material);
+        for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
+      }
+    }));
+    return { geometries, materials, textures };
+  };
+  const removed = resources(roots), live = resources(retained);
+  removed.geometries.forEach(value => { if (!live.geometries.has(value)) value.dispose(); });
+  removed.materials.forEach(value => { if (!live.materials.has(value)) value.dispose(); });
+  removed.textures.forEach(value => { if (!live.textures.has(value)) value.dispose(); });
+}
+
 /** Shared RC arena without a renderer, camera, events, lights or animation loop. */
 export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
-  const surface = options.surface ?? createDefaultRcSurface();
+  const requestedSurface = options.surface ?? createDefaultRcSurface();
+  const tireRadius = options.vehicleProfile?.wheelRadius ?? WHEEL_RADIUS, tireWidth = tireRadius * .557;
+  const surface = { ...requestedSurface, props: requestedSurface.props.map(spec => {
+    if (spec.kind !== 'tire') return spec;
+    const parts=spec.id.split('-'), level = Number(parts[parts.length-1]) || 0;
+    return { ...spec, radius: tireRadius, height: tireWidth,
+      y: requestedSurface.height(spec.x, spec.z) + tireWidth / 2 + level * (tireWidth + .005) };
+  }) };
   const terrainHeight = surface.height;
   const CHECKPOINTS = surface.checkpoints;
   const group = new THREE.Group();
@@ -46,17 +82,22 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
   group.userData.arenaWidth = surface.width;
   group.userData.arenaDepth = surface.depth;
   group.userData.forward = '+Z';
-  const physics = new RcPhysics(terrainHeight, { bounds: surface.bounds, spawn: surface.spawn });
-  const props = new RcPropsPhysics(surface.props, { height: terrainHeight, bounds: surface.bounds, barriers: surface.barriers });
+  const physics = new RcPhysics(terrainHeight, { bounds: surface.bounds, spawn: surface.spawn, vehicle: options.vehicleProfile,
+    traction: (x, z) => surface.groundKind?.(x, z) === 'pavers' ? 1.35 : 1.1 });
+  const requestedModelScale = options.vehicleProfile?.modelScale ?? 1;
+  const modelScale = Number.isFinite(requestedModelScale) && requestedModelScale > 0 ? requestedModelScale : 1;
+  const props = new RcPropsPhysics(surface.props, { height: terrainHeight, bounds: surface.bounds, barriers: surface.barriers,
+    vehicleDimensions: options.vehicleProfile });
   const materials = {
-    body: new THREE.MeshStandardMaterial({ color: '#e8bc45', roughness: .3, metalness: .15 }),
-    dark: new THREE.MeshStandardMaterial({ color: '#233a33', roughness: .52 }),
+    body: new THREE.MeshPhysicalMaterial({ color: '#e8bc45', roughness: .27, metalness: .5,
+      clearcoat: .85, clearcoatRoughness: .16 }),
+    dark: new THREE.MeshStandardMaterial({ color: '#173e31', roughness: .48 }),
     tire: new THREE.MeshStandardMaterial({ color: '#222827', roughness: .95 }),
     silver: new THREE.MeshStandardMaterial({ color: '#bcc6c1', metalness: .85, roughness: .3 }),
     white: new THREE.MeshStandardMaterial({ color: '#fafbf5', roughness: .48 }),
-    window: new THREE.MeshStandardMaterial({ color: '#174139', metalness: .4, roughness: .16 }),
+    window: new THREE.MeshStandardMaterial({ color: '#101e23', metalness: .3, roughness: .15 }),
     red: new THREE.MeshStandardMaterial({ color: '#e77750', roughness: .5 }),
-    spring: new THREE.MeshStandardMaterial({ color: '#ec7842', metalness: .5, roughness: .35 }),
+    spring: new THREE.MeshStandardMaterial({ color: '#ffcc32', metalness: .45, roughness: .3 }),
   };
   const addMesh = (parent: THREE.Object3D, geometry: THREE.BufferGeometry, material: THREE.Material, x=0, y=0, z=0) => {
     const mesh = new THREE.Mesh(geometry, material);
@@ -72,21 +113,27 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
   for (const region of regions) {
     const width = region.maxX - region.minX, depth = region.maxZ - region.minZ;
     const cx = (region.minX + region.maxX) / 2, cz = (region.minZ + region.maxZ) / 2;
-    const table = box(group,width,.36,depth,new THREE.MeshStandardMaterial({color:'#c6d4c8',roughness:.75}),cx,-.24,cz,.15);
+    const table = box(group,width,.36,depth,new THREE.MeshStandardMaterial({color:'#9c8866',roughness:.95}),cx,-.24,cz,.15);
     table.name = 'rc-courtyard'; table.receiveShadow = true;
     const geometry = new THREE.PlaneGeometry(width,depth,Math.ceil(width * 7),Math.ceil(depth * 7));
     geometry.rotateX(-Math.PI/2); geometry.translate(cx,0,cz);
     const positions = geometry.attributes.position;
-    for(let i=0;i<positions.count;i++) positions.setY(i,terrainHeight(positions.getX(i),positions.getZ(i)));
-    geometry.computeVertexNormals(); groundGeometries.push(geometry);
-    const ground = addMesh(group,geometry,new THREE.MeshStandardMaterial({color:'#c3d3bf',roughness:1}));
-    ground.name = 'rc-driveable-ground'; ground.castShadow = false;
-    for (const side of [-1,1]) {
-      box(group,.12,.12,depth,materials.white,side < 0 ? region.minX : region.maxX,.06,cz);
+    for(let i=0;i<positions.count;i++) {
+      const x=positions.getX(i),z=positions.getZ(i);
+      positions.setY(i,surface.groundKind?.(x,z)==='pavers' ? .001 : terrainHeight(x,z));
     }
-    box(group,width,.12,.12,materials.white,cx,.06,region.maxZ);
-    if (!surface.floorRegions) box(group,width,.12,.12,materials.white,cx,.06,region.minZ);
+    geometry.computeVertexNormals(); groundGeometries.push(geometry);
+    const ground = addMesh(group,geometry,sandMaterial(width,depth));
+    ground.name = 'rc-driveable-ground'; ground.castShadow = false;
+    const curbSize = .06;
+    for (const side of [-1,1]) {
+      box(group,curbSize,curbSize,depth,materials.white,
+        side < 0 ? region.minX : region.maxX,curbSize / 2,cz,.015);
+    }
+    box(group,width,curbSize,curbSize,materials.white,cx,curbSize / 2,region.maxZ,.015);
+    if (!surface.floorRegions) box(group,width,curbSize,curbSize,materials.white,cx,curbSize / 2,region.minZ,.015);
   }
+  addPaving(group, surface);
   // Printed lanes are a canvas texture, not thousands of group meshes.
   const decalCanvas=document.createElement('canvas'); decalCanvas.width=decalCanvas.height=1024;
   const ctx=decalCanvas.getContext('2d')!;
@@ -108,7 +155,7 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
   decalTexture.colorSpace=THREE.SRGBColorSpace;
   const decalMat=new THREE.MeshBasicMaterial({map:decalTexture,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});
   for (const geometry of groundGeometries) {
-    const decal = addMesh(group,geometry.clone(),decalMat,0,.008,0); decal.castShadow=decal.receiveShadow=false;
+    const decal = addMesh(group,geometry.clone(),decalMat,0,.003,0); decal.castShadow=decal.receiveShadow=false;
   }
 
   const checkpointGroups:THREE.Group[]=[];
@@ -156,6 +203,22 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
         const tread=box(object,.06,height*.78,.09,materials.tire,Math.cos(a)*(radius-.018),0,Math.sin(a)*(radius-.018),.008);
         tread.rotation.y=-a;
       }
+    } else if (spec.kind === 'crate') {
+      const wood = new THREE.MeshStandardMaterial({ color: '#b28a53', roughness: .88 });
+      box(object,radius*2,height,radius*2,wood,0,0,0,.018);
+      for (const side of [-1,1]) for (const end of [-1,1])
+        box(object,.06,height+.012,.06,materials.dark,side*(radius-.04),0,end*(radius-.04),.005);
+      for (const y of [-1,1]) box(object,radius*2+.015,.06,radius*2+.015,materials.dark,0,y*height*.34,0,.006);
+    } else if (spec.kind === 'barrel') {
+      const barrelMat = new THREE.MeshStandardMaterial({ color: spec.id.includes('-1-') ? '#367165' : '#c57b41', roughness: .6, metalness: .28 });
+      addMesh(object,new THREE.CylinderGeometry(radius*.96,radius*.96,height,24),barrelMat);
+      for (const y of [-.42,0,.42]) {
+        const rim = addMesh(object,new THREE.TorusGeometry(radius,.018,6,24),materials.silver,0,y*height,0); rim.rotation.x=Math.PI/2;
+      }
+    } else if (spec.kind === 'ball') {
+      const ball = new THREE.MeshStandardMaterial({ color: ['#e3af36','#d76344','#68a8b6','#62a273'][Number(spec.id.split('-')[1])%4], roughness: .4 });
+      addMesh(object,new THREE.SphereGeometry(radius,24,16),ball);
+      const seam=addMesh(object,new THREE.TorusGeometry(radius*.997,.009,6,32),materials.white); seam.rotation.x=Math.PI/2;
     } else {
       const index=Number(spec.id.split('-')[1]);
       const mat=checkpointMats[index] ?? materials.dark;
@@ -167,27 +230,39 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
 
   // Suspension anchors belong to the sprung chassis; each hub has independent travel.
   const car=new THREE.Group();car.name='rc-car';car.userData.kind='rc-car';group.add(car);
-  const { chassis } = createTrxTruck(materials); car.add(chassis);
-
-  const wheels:THREE.Group[]=[];const shocks:THREE.Group[]=[];const arms:THREE.Mesh[]=[];
-  const wheelAnchors=[[-TRACK_WIDTH/2,WHEEL_BASE/2],[TRACK_WIDTH/2,WHEEL_BASE/2],[-TRACK_WIDTH/2,-WHEEL_BASE/2],[TRACK_WIDTH/2,-WHEEL_BASE/2]];
-  for(const [x,z] of wheelAnchors) {
-    const wheel=new THREE.Group();chassis.add(wheel);wheels.push(wheel);
-    const rotor=createTrxWheel(materials);wheel.add(rotor);
-    // A metal piston inside a real coiled spring, stretched by the wheel's travel.
-    const shock=new THREE.Group();chassis.add(shock);shock.position.set(x*.8,-.035,z);shocks.push(shock);
-    box(chassis,.14,.05,.10,materials.dark,x*.72,-.045,z,.01);
-    arms.push(addMesh(chassis,new THREE.CylinderGeometry(.018,.018,1,8),materials.silver));
-    addMesh(shock,new THREE.CylinderGeometry(.017,.017,.22,10),materials.silver,0,-.11,0);
-    const helixPoints=Array.from({length:91},(_,i)=>new THREE.Vector3(Math.cos(i/90*Math.PI*12)*.038,-i/90*.23,Math.sin(i/90*Math.PI*12)*.038));
-    addMesh(shock,new THREE.TubeGeometry(new THREE.CatmullRomCurve3(helixPoints),90,.008,5,false),materials.spring);
+  const chassis = new THREE.Group(); chassis.name = 'rc-chassis'; car.add(chassis);
+  const placeholderBody = createTrxTruck(materials).chassis;
+  placeholderBody.name = 'rc-procedural-body'; chassis.add(placeholderBody);
+  if (options.vehicleProfile) {
+    const profile = options.vehicleProfile;
+    const bounds = new THREE.Box3().setFromObject(placeholderBody), size = bounds.getSize(new THREE.Vector3());
+    const center = bounds.getCenter(new THREE.Vector3());
+    placeholderBody.scale.set(profile.halfWidth * 2 / size.x, profile.halfHeight * 2 / size.y, profile.halfLength * 2 / size.z);
+    placeholderBody.position.copy(center).multiply(placeholderBody.scale).negate();
+    placeholderBody.position.y += profile.centerOffset;
   }
+
+  const wheels:THREE.Group[]=[];
+  const rotors: THREE.Object3D[] = [];
+  for(let i=0;i<4;i++) {
+    const wheel=new THREE.Group(); wheel.name = `rc-wheel-hub-${i}`; chassis.add(wheel);wheels.push(wheel);
+    const rotor=createTrxWheel(materials); rotor.scale.setScalar(physics.vehicle.wheelRadius / .19); wheel.add(rotor); rotors.push(rotor);
+  }
+  const suspension = createTrxSuspension(chassis, materials, options.vehicleProfile ?? physics.vehicle);
   const antennaLinks:THREE.Mesh[]=[];
   // Each cylinder follows a simulated chain segment; no per-frame geometry allocation.
-  for(let i=0;i<10;i++) antennaLinks.push(addMesh(chassis,new THREE.CylinderGeometry(.008,.008,1,6),materials.dark));
-  const antennaTip=addMesh(chassis,new THREE.SphereGeometry(.035,12,8),materials.red);
+  const antennaRadius = options.vehicleProfile?.antennaRadius ?? .008;
+  for(let i=0;i<10;i++) {
+    const link = addMesh(chassis,new THREE.CylinderGeometry(antennaRadius,antennaRadius,1,6),materials.dark);
+    link.name = `rc-antenna-link-${i}`; antennaLinks.push(link);
+  }
+  const antennaTip=addMesh(chassis,new THREE.SphereGeometry(options.vehicleProfile?.antennaTipRadius ?? .035,12,8),materials.red);
+  antennaTip.name = 'rc-antenna-tip';
   const antennaBase=physics.state.antenna[0];
-  addMesh(chassis,new THREE.CylinderGeometry(.038,.05,.08,12),materials.dark,antennaBase.x,antennaBase.y+.005,antennaBase.z);
+  const mountScale=options.vehicleProfile?.antennaMountScale ?? modelScale;
+  const antennaMount=addMesh(chassis,new THREE.CylinderGeometry(.038*mountScale,.05*mountScale,.08*mountScale,12),materials.dark,
+    antennaBase.x,antennaBase.y+.005*mountScale,antennaBase.z); antennaMount.name='rc-antenna-mount';
+  const effects=createVehicleEffects(group,chassis,physics,surface);
 
   const targetMarker=new THREE.Group();targetMarker.name='rc-target';group.add(targetMarker);targetMarker.visible=false;
   const targetMat=new THREE.MeshBasicMaterial({color:'#16803d',transparent:true,opacity:.7,depthWrite:false,side:THREE.DoubleSide});
@@ -199,14 +274,16 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
   const lineGeometry=new THREE.BufferGeometry();lineGeometry.setAttribute('position',new THREE.BufferAttribute(linePositions,3));
   const targetLine=new THREE.Line(lineGeometry,new THREE.LineDashedMaterial({color:'#16803d',transparent:true,opacity:.25,dashSize:.15,gapSize:.15}));
   targetLine.name='rc-guide';targetLine.frustumCulled=false;group.add(targetLine);targetLine.visible=false;
-  const skidPositions=new Float32Array(360*6);const skidGeometry=new THREE.BufferGeometry();
+  const skidPositions=new Float32Array(360*18);const skidGeometry=new THREE.BufferGeometry();
   skidGeometry.setAttribute('position',new THREE.BufferAttribute(skidPositions,3));skidGeometry.setDrawRange(0,0);
-  const skidLines=new THREE.LineSegments(skidGeometry,new THREE.LineBasicMaterial({color:'#718272',transparent:true,opacity:.19}));
+  const skidLines=new THREE.Mesh(skidGeometry,new THREE.MeshBasicMaterial({color:'#3f352a',transparent:true,opacity:.26,
+    depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}));
   skidLines.name='rc-skid-marks';skidLines.frustumCulled=false;group.add(skidLines);
-  let skidCount=0;let lastSkid:THREE.Vector3|null=null;
+  let skidCount=0;const lastSkid:Array<THREE.Vector3|null>=[null,null];
 
 
   let mode:RcMode='free',disposed=false;
+  let vehicleRig: RcVehicleRig | null = null, requestedColor = '#e8bc45';
   let checkpoint=0,lap=0,elapsed=0,trialStarted=false,best:number|null=null;
   let accumulator=0;
   const segment=new THREE.Vector3();const pointA=new THREE.Vector3();const pointB=new THREE.Vector3();
@@ -214,8 +291,9 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
 
   function collideArchitecture() {
     const state=physics.state;
-    const marginX=Math.abs(Math.cos(state.yaw))*.71+Math.abs(Math.sin(state.yaw))*1.04;
-    const marginZ=Math.abs(Math.sin(state.yaw))*.71+Math.abs(Math.cos(state.yaw))*1.04;
+    const halfWidth = options.vehicleProfile?.halfWidth ?? .71, halfLength = options.vehicleProfile?.halfLength ?? 1.04;
+    const marginX=Math.abs(Math.cos(state.yaw))*halfWidth+Math.abs(Math.sin(state.yaw))*halfLength;
+    const marginZ=Math.abs(Math.sin(state.yaw))*halfWidth+Math.abs(Math.cos(state.yaw))*halfLength;
     for (const barrier of surface.barriers ?? []) {
       if (state.y-.1 > barrier.height) continue;
       const minX=barrier.minX-marginX,maxX=barrier.maxX+marginX,minZ=barrier.minZ-marginZ,maxZ=barrier.maxZ+marginZ;
@@ -252,13 +330,10 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
     const state=physics.state;car.position.set(state.x,state.y,state.z);car.rotation.y=state.yaw;
     chassis.rotation.set(state.pitch,0,state.roll);
     state.wheels.forEach((wheel,i)=>{
-      wheels[i].position.set(wheel.x,wheel.height,wheel.z);wheels[i].rotation.y=i<2?state.steer:0;
-      wheels[i].children[0].rotation.x=state.wheelSpin;
-      shocks[i].scale.y=clamp((-wheel.height-.035)/.23,.45,1.8);
-      pointA.set(wheel.x*.52,-.12,wheel.z);pointB.set(wheel.x,wheel.height,wheel.z);segment.subVectors(pointB,pointA);
-      arms[i].position.copy(pointA).add(pointB).multiplyScalar(.5);arms[i].scale.y=segment.length();
-      arms[i].quaternion.setFromUnitVectors(UP,segment.normalize());
+      wheels[i].position.set(wheel.x,wheel.height,wheel.z);wheels[i].rotation.y=i<2?(wheel.steer ?? state.steer):0;
+      rotors[i].rotation.x=wheel.spin ?? state.wheelSpin;
     });
+    suspension.update(state.wheels);
     const points=state.antenna;
     for(let i=0;i<antennaLinks.length;i++) {
       const a=points[Math.floor(i*(points.length-1)/antennaLinks.length)];
@@ -285,19 +360,32 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
       markerLabels[i].visible=active;
     });
     const state=physics.state;
-    if(Math.abs(state.speed)>.9&&(control.brake||Math.abs(state.steer)>.35)) {
-      const position=new THREE.Vector3(state.x,terrainHeight(state.x,state.z)+.022,state.z);
-      if(lastSkid&&lastSkid.distanceTo(position)>.035){
-        const i=skidCount%360;skidPositions.set([lastSkid.x,lastSkid.y,lastSkid.z,position.x,position.y,position.z],i*6);
-        skidCount++;skidGeometry.attributes.position.needsUpdate=true;skidGeometry.setDrawRange(0,Math.min(skidCount,360)*2);lastSkid.copy(position);
-      }else if(!lastSkid)lastSkid=position;
-    }else lastSkid=null;
+    if(Math.hypot(state.vx,state.vz)>.9&&(control.brake||control.handbrake||Math.abs(state.slipAngle??0)>.12)) {
+      state.wheels.slice(2).forEach((wheel,index)=>{
+        if(!wheel.contact){lastSkid[index]=null;return;}
+        const position=new THREE.Vector3(wheel.x,wheel.height,wheel.z).applyEuler(chassis.rotation).applyAxisAngle(UP,state.yaw);
+        position.x+=state.x;position.z+=state.z;
+        const previous=lastSkid[index];
+        if(previous&&Math.hypot(previous.x-position.x,previous.z-position.z)>.045){
+          const dx=position.x-previous.x,dz=position.z-previous.z,halfWidth=physics.vehicle.wheelRadius*.19;
+          const length=Math.hypot(dx,dz),ox=-dz/length*halfWidth,oz=dx/length*halfWidth;
+          const corners=[ [previous.x+ox,previous.z+oz],[previous.x-ox,previous.z-oz],
+            [position.x+ox,position.z+oz],[position.x-ox,position.z-oz] ];
+          const offset=(skidCount%360)*18;
+          [0,1,2,2,1,3].forEach((corner,i)=>{
+            const [x,z]=corners[corner];skidPositions.set([x,terrainHeight(x,z)+.007,z],offset+i*3);
+          });
+          skidCount++;skidGeometry.attributes.position.needsUpdate=true;skidGeometry.setDrawRange(0,Math.min(skidCount,360)*6);
+          previous.copy(position);
+        }else if(!previous)lastSkid[index]=position;
+      });
+    }else lastSkid.fill(null);
   }
 
   function reset() {
     if(disposed)return;
     physics.reset();props.reset();checkpoint=lap=elapsed=0;trialStarted=false;accumulator=0;
-    skidCount=0;lastSkid=null;skidGeometry.setDrawRange(0,0);
+    skidCount=0;lastSkid.fill(null);skidGeometry.setDrawRange(0,0);effects.reset();
     renderCar();renderProps();visualFeedback(NEUTRAL_INPUT,0,false);
   }
 
@@ -310,32 +398,46 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
       if(disposed||!Number.isFinite(dt)||dt<=0)return;
       accumulator=Math.min(accumulator+Math.min(dt,.05),.075);
       while(accumulator>=1/120){
-        physics.step(1/120,input);collideArchitecture();props.step(1/120,physics);updateCheckpoints(1/120,input.throttle>0);accumulator-=1/120;
+        physics.step(1/120,input);collideArchitecture();props.step(1/120,physics);effects.step(1/120,input);updateCheckpoints(1/120,input.throttle>0);accumulator-=1/120;
       }
     },
     update(input,dt,showTarget=true){
       if(disposed)return;
-      renderCar();renderProps();visualFeedback(input,Number.isFinite(dt)?clamp(dt,0,.05):0,showTarget);
+      renderCar();renderProps();effects.render(input);visualFeedback(input,Number.isFinite(dt)?clamp(dt,0,.05):0,showTarget);
     },
     reset,
     setMode(value){if(disposed)return;mode=value;reset();},
-    setColor(hex){if(!disposed&&/^#[0-9a-f]{6}$/i.test(hex))materials.body.color.set(hex);},
+    setColor(hex){if(!disposed&&/^#[0-9a-f]{6}$/i.test(hex)){requestedColor=hex;materials.body.color.set(hex);vehicleRig?.setColor(hex);}},
+    setLighting(night){if(!disposed)effects.setLighting(night);},
     getTelemetry(paused=false,driving=false){
-      return {speed:Math.abs(physics.state.speed)*3.6,elapsed,checkpoint,checkpoints:CHECKPOINTS.length,lap,paused,driving,suspension:physics.state.wheels.map(w=>clamp(.5+w.compression*3.5,0,1)),best};
+      return {speed:Math.abs(physics.state.speed)*3.6,elapsed,checkpoint,checkpoints:CHECKPOINTS.length,lap,paused,driving,
+        suspension:physics.state.wheels.map(w=>clamp(.5 + .5 * w.compression
+          / (w.compression >= 0 ? SUSPENSION_COMPRESSION_TRAVEL : SUSPENSION_REBOUND_TRAVEL),0,1)),best};
     },
     dispose(){
       if(disposed)return;disposed=true;
       props.dispose();
-      const geometries=new Set<THREE.BufferGeometry>(),mats=new Set<THREE.Material>(),textures=new Set<THREE.Texture>();
-      group.traverse(object=>{
-        const mesh=object as THREE.Mesh;if(mesh.geometry)geometries.add(mesh.geometry);
-        if(mesh.material)for(const mat of Array.isArray(mesh.material)?mesh.material:[mesh.material])mats.add(mat);
-      });
-      mats.forEach(mat=>{for(const value of Object.values(mat))if(value instanceof THREE.Texture)textures.add(value);mat.dispose();});
-      geometries.forEach(geometry=>geometry.dispose());textures.forEach(texture=>texture.dispose());
+      if (vehicleRig) {
+        vehicleRig.body.removeFromParent(); vehicleRig.rotors.forEach(rotor => rotor.removeFromParent());
+        vehicleRig.dispose(); vehicleRig = null;
+      }
+      disposeObjects([group]);
       group.removeFromParent();group.clear();
     },
   };
   reset();
+  if (options.loadVehicle) {
+    Promise.resolve().then(options.loadVehicle).then(rig => {
+      if (disposed) { rig.dispose(); return; }
+      rig.setColor(requestedColor);
+      const retired: THREE.Object3D[] = [placeholderBody, ...rotors];
+      retired.forEach(object => object.removeFromParent());
+      vehicleRig = rig; rig.body.scale.multiplyScalar(modelScale); chassis.add(rig.body);
+      rig.rotors.forEach((rotor, i) => { rotor.scale.multiplyScalar(modelScale); rotors[i] = rotor; wheels[i].add(rotor); });
+      disposeObjects(retired, [group]);
+      car.userData.vehicle = 'ram-trx-sketchfab';
+      renderCar(); options.onVehicleReady?.();
+    }).catch(error => { if (!disposed) options.onVehicleError?.(error); });
+  }
   return world;
 }

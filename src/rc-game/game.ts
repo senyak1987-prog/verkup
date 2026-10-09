@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import type { CarInput } from './physics';
 import { createRcWorld, type RcMode, type RcTelemetry } from './world';
+import { createTrxAssetLoader } from './trxAsset';
+import { TRX_VEHICLE_PROFILE } from './trxAssetProfile';
 export type { RcMode, RcTelemetry } from './world';
 
 export type RcCamera = 'overview' | 'follow' | 'rear' | 'detail';
@@ -9,6 +11,8 @@ export interface RcGameOptions {
   onTelemetry?: (telemetry: RcTelemetry) => void;
   onLap?: (seconds: number) => void;
   onError?: (message: string) => void;
+  /** Override when hosting the optional ES-module widget on another site. */
+  vehicleUrl?: string;
 }
 export interface RcGameController {
   reset(): void; setPaused(paused: boolean): void; setCamera(camera: RcCamera): void;
@@ -23,21 +27,29 @@ export function mountRcGame(host: HTMLElement, options: RcGameOptions = {}): RcG
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = .95;
   const canvas = renderer.domElement;
   canvas.className = 'rc-canvas';
   canvas.tabIndex = 0;
-  canvas.setAttribute('aria-label', '3D-полигон. Удерживайте левую кнопку мыши и указывайте направление. Стрелки или WASD — управление, пробел — тормоз.');
+  canvas.setAttribute('aria-label', '3D-полигон. Удерживайте левую кнопку мыши и указывайте направление. Стрелки или WASD — управление, пробел — ручник задних колёс, правая кнопка — тормоз.');
   canvas.style.cssText = 'display:block;width:100%;height:100%;touch-action:none;outline-offset:-4px;';
   host.appendChild(canvas);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color('#edf2ee');
   const camera = new THREE.PerspectiveCamera(36, 1, .1, 150);
-  const world = createRcWorld({ onLap: options.onLap });
+  const moduleLocation = import.meta.url;
+  const vehicleUrl = options.vehicleUrl ?? (import.meta.env.MODE === 'rc-embed'
+    ? new URL('ram-trx.glb', moduleLocation).href
+    : `${import.meta.env.BASE_URL}models/ram-trx.glb`);
+  const world = createRcWorld({ onLap: options.onLap, vehicleProfile: TRX_VEHICLE_PROFILE,
+    loadVehicle: createTrxAssetLoader(vehicleUrl), onVehicleReady: () => schedule(),
+    onVehicleError: error => console.warn('RAM TRX asset could not be loaded:', error) });
   const physics = world.physics;
+  const vehicleScale = TRX_VEHICLE_PROFILE.halfLength / 1.0461677312850952;
+  const antennaFramingLift = Math.max(0, (TRX_VEHICLE_PROFILE.antennaLength ?? .45) - .45 * vehicleScale) / 2;
   scene.add(world.group);
   const abort = new AbortController();
   const signal = abort.signal;
@@ -45,22 +57,24 @@ export function mountRcGame(host: HTMLElement, options: RcGameOptions = {}): RcG
   const room = new RoomEnvironment();
   const environment = pmrem.fromScene(room, .04);
   scene.environment = environment.texture;
-  scene.environmentIntensity = .4;
+  scene.environmentIntensity = .65;
   room.dispose();
   pmrem.dispose();
 
-  const hemi = new THREE.HemisphereLight('#ffffff', '#778b79', .9);
+  const hemi = new THREE.HemisphereLight('#e9f1ff', '#6a5943', .65);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight('#fff5df', 2.5);
+  const sun = new THREE.DirectionalLight('#fff0d9', 2.1);
   sun.position.set(-8, 17, 8);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  const shadowSize=Math.min(4096,renderer.capabilities.maxTextureSize);
+  sun.shadow.mapSize.set(shadowSize, shadowSize);
   sun.shadow.camera.left = sun.shadow.camera.bottom = -15;
   sun.shadow.camera.right = sun.shadow.camera.top = 15;
   sun.shadow.normalBias = .025;
   sun.shadow.bias = -.00015;
+  sun.shadow.camera.near=.1; sun.shadow.camera.far=55; sun.shadow.radius=2;
   scene.add(sun);
-  const fill = new THREE.DirectionalLight('#f1f6ff', .7);
+  const fill = new THREE.DirectionalLight('#dce9ff', .45);
   fill.position.set(8, 7, -12);
   scene.add(fill);
 
@@ -124,16 +138,17 @@ export function mountRcGame(host: HTMLElement, options: RcGameOptions = {}): RcG
       const scale=Math.max(.98,1.08/camera.aspect);
       desiredCamera.set(14*scale,17*scale,20*scale);cameraTarget.set(0,0,0);
     } else if(cameraMode==='follow') {
-      desiredCamera.set(state.x-Math.sin(state.yaw)*5.3,5.3,state.z-Math.cos(state.yaw)*5.3);
-      cameraTarget.set(state.x,state.y+.1,state.z);
+      const distance=5.3*vehicleScale;
+      desiredCamera.set(state.x-Math.sin(state.yaw)*distance,state.y+4.9*vehicleScale+antennaFramingLift,state.z-Math.cos(state.yaw)*distance);
+      cameraTarget.set(state.x,state.y+.1*vehicleScale+antennaFramingLift,state.z);
     } else if(cameraMode==='rear') {
-      const distance=Math.max(4.6,3.8/camera.aspect);
-      desiredCamera.set(state.x-Math.sin(state.yaw)*distance,state.y+1.55,state.z-Math.cos(state.yaw)*distance);
-      cameraTarget.set(state.x+Math.sin(state.yaw)*1.25,state.y+.65,state.z+Math.cos(state.yaw)*1.25);
+      const distance=Math.max(4.6,3.8/camera.aspect)*vehicleScale;
+      desiredCamera.set(state.x-Math.sin(state.yaw)*distance,state.y+1.55*vehicleScale+antennaFramingLift,state.z-Math.cos(state.yaw)*distance);
+      cameraTarget.set(state.x+Math.sin(state.yaw)*1.25*vehicleScale,state.y+.3*vehicleScale+antennaFramingLift,state.z+Math.cos(state.yaw)*1.25*vehicleScale);
     } else {
-      const scale=Math.max(1,.8/camera.aspect);
-      desiredCamera.set(state.x+2.5*scale,state.y+1.7*scale,state.z+3.4*scale);
-      cameraTarget.set(state.x,state.y+.65,state.z);
+      const scale=Math.max(1,.8/camera.aspect)*vehicleScale;
+      desiredCamera.set(state.x+1.75*scale,state.y+1.15*scale+antennaFramingLift,state.z+2.6*scale);
+      cameraTarget.set(state.x,state.y+.15*vehicleScale+antennaFramingLift,state.z);
     }
     const a=instant?1:1-Math.exp(-dt*(cameraMode==='follow'||cameraMode==='rear'?5:7));
     camera.position.lerp(desiredCamera,a);lookAt.lerp(cameraTarget,a);camera.lookAt(lookAt);
@@ -144,7 +159,7 @@ export function mountRcGame(host: HTMLElement, options: RcGameOptions = {}): RcG
     const keyboardDrive=keys.has('w')||keys.has('arrowup')||keys.has('s')||keys.has('arrowdown');
     const reverse=keys.has('shift')||keys.has('s')||keys.has('arrowdown');
     const keyboardSteer=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0);
-    return {target:keyboardDrive?null:target,throttle:pressed||keyboardDrive?1:0,brake:braking||keys.has(' '),reverse,steer:keyboardDrive?keyboardSteer:undefined};
+    return {target:keyboardDrive||!pressed?null:target,throttle:pressed||keyboardDrive?1:0,brake:braking,handbrake:keys.has(' '),reverse,steer:keyboardDrive?keyboardSteer:undefined};
   }
   function schedule() {if(!frame&&!destroyed&&!contextLost&&visible&&!document.hidden)frame=requestAnimationFrame(tick);}
   function tick(now:number) {

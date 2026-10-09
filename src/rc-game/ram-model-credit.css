@@ -1,0 +1,6 @@
+.ram-model-credit { margin: 0; padding: 7px 12px; color: #526458; font: 10px/1.4 system-ui, sans-serif; text-align: center; pointer-events: auto; }
+.ram-model-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.ram-model-credit a:focus-visible { outline: 2px solid #173e31; outline-offset: 3px; }
+.rc-game-shell > .ram-model-credit { border-top: 1px solid #dfe7df; background: #f6f8f4; }
+.facade-rc-launch .ram-model-credit { max-width: 265px; padding: 4px; margin-top: 3px; font-size: 8px; background: #ffffffdb; border-radius: 3px; }
+.facade-rc-bottom > .ram-model-credit { width: max-content; max-width: 100%; margin: 3px auto 0; padding: 2px 4px; font-size: 8px; background: #ffffffdb; border-radius: 3px; }
