@@ -89,6 +89,7 @@ export type SignSceneTextRow = {
   id: string; index: number; text: string; font: string;
   box: SignSceneBox; pathBox: SignSceneBox; inkBox: SignSceneBox;
   pathData: string; naturalBox: SignSceneBox; defaultX: number; defaultY: number;
+  kind?: 'vector'; color?: string; name?: string;
 };
 
 function roundedShape(width: number, height: number, radius = 0, circular = false) {
@@ -356,7 +357,7 @@ async function glyphData(project: SignSceneProject, layout: SignSceneLayout): Pr
 }
 
 function lightProjection(project: SignSceneProject, layout: SignSceneLayout,
-  glyph: GlyphData, textWidth: number, textHeight: number, textTop: number, color: string, blur: number, logoColor=color) {
+  glyph: GlyphData, textWidth: number, textHeight: number, textTop: number, color: string, blur: number, logoColor=color, artworkColors=false) {
   const padding = project.letterHeight * 0.25;
   const worldWidth = layout.signBox.width + padding * 2;
   const worldHeight = layout.signBox.height + padding * 2;
@@ -369,11 +370,12 @@ function lightProjection(project: SignSceneProject, layout: SignSceneLayout,
   context.shadowColor = color;
   context.shadowBlur = blur * Math.min(xScale, yScale);
   const paths = layout.textRows?.length ? layout.textRows.map(row => ({
-    glyph: glyphFromPath(row.pathData, row.naturalBox), box: row.pathBox,
-  })) : [{ glyph, box: { x: layout.textX, y: textTop, width: textWidth, height: textHeight } }];
+    glyph: glyphFromPath(row.pathData, row.naturalBox), box: row.pathBox, color: artworkColors&&row.kind==='vector'?row.color:undefined,
+  })) : [{ glyph, box: { x: layout.textX, y: textTop, width: textWidth, height: textHeight }, color:undefined }];
   for (const path of paths) {
     const box = path.glyph.box;
     context.save();
+    context.fillStyle=path.color??color;context.shadowColor=path.color??color;
     context.translate((path.box.x - layout.signBox.x + padding) * xScale,
       (path.box.y - layout.signBox.y + padding) * yScale);
     context.scale(path.box.width / Math.max(1, box.x2 - box.x1) * xScale,
@@ -558,14 +560,17 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       frontSeam.userData.dayColor.multiplyScalar(.94);
       frontSeam.color.multiplyScalar(.94); frontSeam.metalness = .04; frontSeam.roughness = .3; frontSeam.envMapIntensity = .55;
       if (sideLit) { frontSeam.emissive.copy(side.emissive); frontSeam.emissiveIntensity = side.emissiveIntensity * .92; }
-      let seamUsed = false;
+      let seamUsed = false, sharedFaceUsed = false;
       const textParts = textRows?.map(({ row, glyph }) => ({
         glyph, box: row.pathBox, name: `extruded-letter-row-${row.index}`, row,
       })) ?? [{ glyph, box: { x: layout.textX, y: textTop, width: textWidth, height: textHeight }, name: 'extruded-letter-contours', row: undefined }];
       for (const part of textParts) if (part.glyph.shapes.length) {
         const box = part.glyph.box;
         const sx = part.box.width / Math.max(1, box.x2 - box.x1), sy = part.box.height / Math.max(1, box.y2 - box.y1);
-        const text = extrude(part.glyph.shapes, bodyDepth, face, side, backMaterial, { frontSeam, curveSegments: 48 });
+        const partFace=part.row?.kind==='vector'&&part.row.color?solidMaterial(part.row.color,night,faceLit):face;
+        sharedFaceUsed ||= partFace===face;
+        if(partFace!==face){partFace.metalness=0;partFace.roughness=.32;partFace.envMapIntensity=.45;}
+        const text = extrude(part.glyph.shapes, bodyDepth, partFace, side, backMaterial, { frontSeam, curveSegments: 48 });
         seamUsed = true;
         text.geometry.scale(sx, -sy, 1);
         // Reflecting Y changes winding; restore each face before culling and lighting.
@@ -582,11 +587,13 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         text.geometry.computeBoundingBox();
         text.position.set(toX(part.box.x) - box.x1 * sx, toY(part.box.y) + box.y1 * sy, rear);
         text.name = part.name;
-        if (part.row) { text.userData.lineIndex = part.row.index; text.userData.font = part.row.font; text.userData.rowId = part.row.id; }
+        if (part.row) { text.userData.lineIndex = part.row.index; text.userData.font = part.row.font; text.userData.rowId = part.row.id;
+          text.userData.artworkName=part.row.name; text.userData.kind=part.row.kind; }
         if (project.letterOutlineEnabled) contour(text, project.outlineColor.value);
         group.add(text);
         addSpacers(part.glyph.shapes,(x,y)=>new THREE.Vector2(text.position.x+x*sx,text.position.y-y*sy));
       }
+      if(!sharedFaceUsed)face.dispose();
       if (project.logoEnabled !== false && layout.logoBox.width > 0) {
         const shape = logoShape(project.logoShape, layout.logoBox.width);
         // An even sample count also includes the circle's four cardinal points exactly.
@@ -642,7 +649,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         halo.name = "rear-halo-projection"; group.add(halo);
       }
       if (faceLit) {
-        const aura = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.02,project.logoFaceColor?.value??faceColor);
+        const aura = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.02,project.logoFaceColor?.value??faceColor,true);
         aura.position.x = toX(layout.signBox.x + layout.signBox.width / 2); aura.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
         aura.position.z = rear + bodyDepth + 0.75;
         (aura.material as THREE.MeshBasicMaterial).opacity = 0.22;
@@ -655,7 +662,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         for(const row of layout.textRows??[]){
           const box=row.box,y=toY(box.y)-box.height-12;
           addDimension(dimensionGroup,new THREE.Vector3(toX(box.x),y,z),new THREE.Vector3(toX(box.x+box.width),y,z),
-            `Строка ${row.index+1}: ${Math.round(box.width)} × ${Math.round(box.height)} мм`,
+            `${row.kind==='vector'?(row.name||'Вектор '+(row.index-2)):'Строка '+(row.index+1)}: ${Math.round(box.width)} × ${Math.round(box.height)} мм`,
             new THREE.Vector3(toX(box.x+box.width/2),y-22,z),Math.min(dimensionScale*.7,350),night);
         }
         if(project.logoEnabled!==false&&layout.logoBox.width>0){

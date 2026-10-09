@@ -4,7 +4,7 @@ import { neonBackerOutline, neonDesignPlacement } from './neonConstruction';
 
 type Box = { x: number; y: number; width: number; height: number };
 type Transform = { sx: number; sy: number; x: number; y: number };
-type Drawing = { path: string; transform?: Transform; width?: number; fill?: boolean };
+type Drawing = { path: string; transform?: Transform; width?: number; fill?: boolean; color?:string };
 type Layer = { name: string; color: string; drawings: Drawing[] };
 export type VectorPdfProject = {
   productId: 'letters' | 'panel' | 'neon'; lettersText: string;
@@ -86,7 +86,7 @@ export function vectorDrawingPdf(layers: Layer[], title: string): Uint8Array<Arr
   const content = [`q\n${number(scale)} 0 0 ${number(-scale)} ${number(-left * scale)} ${number((height + top) * scale)} cm\n1 J 1 j`];
   prepared.forEach((layer, index) => {
     content.push(`/OC /L${index} BDC\n${rgb(layer.color)} RG\n1 1 1 rg`);
-    for (const path of layer.paths) content.push(`${number(path.width ?? .25)} w\n${path.commands}\n${path.fill ? 'B' : 'S'}`);
+    for (const path of layer.paths) content.push(`${path.color?rgb(path.color):'1 1 1'} rg\n${number(path.width ?? .25)} w\n${path.commands}\n${path.fill ? 'B' : 'S'}`);
     content.push('EMC');
   });
   content.push('Q');
@@ -106,7 +106,7 @@ export function vectorDrawingPdf(layers: Layer[], title: string): Uint8Array<Arr
 }
 
 export function createSignVectorPdf(project: VectorPdfProject, layout: SignSceneLayout, neon?: { design: NeonDesign; width: number; height: number }): Uint8Array<ArrayBuffer> {
-  const backing: Drawing[] = [], frame: Drawing[] = [], letters: Drawing[] = [], logos: Drawing[] = [];
+  const backing: Drawing[] = [], frame: Drawing[] = [], letters: Drawing[] = [], logos: Drawing[] = [], artwork:Drawing[]=[];
   if (project.productId === 'letters') {
     if (project.mountMode === 'acp') {
       backing.push({ path: pdfShapePath(layout.panelBox) });
@@ -119,7 +119,8 @@ export function createSignVectorPdf(project: VectorPdfProject, layout: SignScene
     }
     for (const row of layout.textRows ?? []) {
       const sx = row.pathBox.width / row.naturalBox.width, sy = row.pathBox.height / row.naturalBox.height;
-      if (row.pathData) letters.push({ path: row.pathData, transform: { sx, sy, x: row.pathBox.x - row.naturalBox.x * sx, y: row.pathBox.y - row.naturalBox.y * sy }, fill: true });
+      if (row.pathData) (row.kind==='vector'?artwork:letters).push({ path: row.pathData, transform: { sx, sy, x: row.pathBox.x - row.naturalBox.x * sx, y: row.pathBox.y - row.naturalBox.y * sy }, fill: true,
+        ...(row.kind==='vector'&&row.color?{color:row.color}:{}) });
     }
     if (project.logoEnabled && layout.logoBox.width > 0) logos.push({ path: pdfShapePath(layout.logoBox, project.logoShape, layout.logoCornerRadius), fill: true });
   } else if (project.productId === 'panel') logos.push({ path: pdfShapePath({ x: 0, y: 0, width: project.panelSize, height: project.panelSize }, project.panelShape, project.panelCornerRadius), fill: true });
@@ -128,5 +129,5 @@ export function createSignVectorPdf(project: VectorPdfProject, layout: SignScene
     backing.push({ path: polygon(neonBackerOutline(neon.design, neon.width, neon.height, project.neonBackerShape)) });
     for (const path of neon.design.paths) letters.push({ path: polygon(path, false), transform: { sx: 1, sy: 1, ...placement }, width: project.neonDiameter });
   }
-  return vectorDrawingPdf([{ name: 'Контуры подложки', color: '#16803d', drawings: backing }, { name: 'Рама и перемычки', color: '#647078', drawings: frame }, { name: project.productId === 'neon' ? 'Неон' : 'Буквы', color: '#111111', drawings: letters }, { name: 'Корпус логотипа / панель', color: '#111111', drawings: logos }], `Город Свет — ${project.lettersText || 'Макет'} — 1:1`);
+  return vectorDrawingPdf([{ name: 'Контуры подложки', color: '#16803d', drawings: backing }, { name: 'Рама и перемычки', color: '#647078', drawings: frame }, { name: project.productId === 'neon' ? 'Неон' : 'Буквы', color: '#111111', drawings: letters }, { name:'Импортированный вектор',color:'#111111',drawings:artwork }, { name: 'Корпус логотипа / панель', color: '#111111', drawings: logos }], `Город Свет — ${project.lettersText || 'Макет'} — 1:1`);
 }
