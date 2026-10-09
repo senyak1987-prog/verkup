@@ -44,7 +44,7 @@ npm run build
 npm run build:rc-embed
 ```
 
-`build` проверяет TypeScript и собирает три HTML-страницы в `dist/`. Следующая команда добавляет `dist/rc-embed/rc-game.js` — самостоятельный ES-модуль игры для других сайтов. Выполняйте её после основной сборки, которая очищает `dist/`.
+`build` проверяет TypeScript и собирает три HTML-страницы в `dist/`. Следующая команда добавляет `dist/rc-embed/` — самостоятельный ES-модуль игры и GLB машинки для других сайтов. Выполняйте её после основной сборки, которая очищает `dist/`.
 
 Загрузите содержимое `dist/` на статический хостинг. Для GitHub Pages workflow `.github/workflows/deploy-pages.yml` выполняет проверки конструктора и физики, собирает страницы и модуль игры, затем публикует результат при обновлении `main` или ручном запуске.
 
@@ -92,6 +92,8 @@ Remove-Item Env:VITE_BASE_PATH
 npm run test:sign-studio
 npm run test:sign-scene
 npm run test:rc-game
+npm run test:rc-suspension
+npm run test:rc-vehicle
 npm run test:facade-rc
 npm run build
 npm run build:rc-embed
