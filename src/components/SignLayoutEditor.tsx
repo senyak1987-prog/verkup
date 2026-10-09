@@ -206,7 +206,7 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
       <rect data-object="composition" data-group-frame="true" {...groupBox} className="editor-move-frame" vectorEffect="non-scaling-stroke"><title>Переместить выделенные объекты: {selected.length}</title></rect>
     </g>}
     {objectFrames.map(({ id, frameBox }) => <g key={id}>
-      <rect {...frameBox} pointerEvents="none" className={selected.includes(id) ? "editor-selection selected" : "editor-selection"} vectorEffect="non-scaling-stroke" />
+      {(selected.length <= 1 || marquee) && <rect {...frameBox} pointerEvents="none" className={selected.includes(id) ? "editor-selection selected" : "editor-selection"} vectorEffect="non-scaling-stroke" />}
       <rect data-object={id} data-move-frame="true" {...frameBox} className="editor-move-frame" vectorEffect="non-scaling-stroke"><title>Перетащите рамку, чтобы переместить выделенное</title></rect>
     </g>)}
     {/* Text hit areas stay above every expanded frame, including frames of neighbouring rows. */}
