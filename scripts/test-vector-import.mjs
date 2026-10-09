@@ -41,7 +41,7 @@ const path='M0 0L100 0L100 50L0 50Z';
 const object=()=>shared.createVectorArtworkObject({name:'Контур',pathData:path,color:'#ffcc00'});
 
 test('closed path validates and saved bounding boxes are recomputed',()=>{
-  const o=object();assert.deepEqual(shared.validateVectorArtwork([o]),[o]);
+  const o=object();assert.deepEqual(shared.validateVectorArtwork([o]),[{...o,role:'letter'}]);
   assert.throws(()=>shared.validateVectorArtwork([{...o,box:{...o.box,width:101}}]),/размеры/i);
 });
 test('untrusted paths reject script, relative commands, NaN, huge coordinates and open contours',()=>{
@@ -66,9 +66,80 @@ test('multiple source contours retain their relative page positions',()=>{
   const a=object(),b=shared.createVectorArtworkObject({name:'Другой',pathData:'M200 25L220 25L220 75L200 75Z',color:'#ff0000'});
   assert.deepEqual(shared.vectorArtworkBounds([a,b]),{x:0,y:0,width:220,height:75});
 });
+
+const artwork=(pathData,name='Объект 1',extra={})=>({...shared.createVectorArtworkObject({name,pathData,color:'#cdc09e'}),...extra});
+const innerLetter='M20 10L30 10L30 30L45 30L45 40L20 40Z';
+
+test('solid enclosing rectangle becomes backing while letter contours retain original dimensions and colours',()=>{
+  const panel=artwork(path),letter=artwork(innerLetter,'Объект 2',{color:'#ffffff'});
+  const classified=shared.classifyVectorArtwork([panel,letter]);
+  assert.deepEqual(classified.map(o=>[o.role,o.name]),[['backing','Подложка'],['letter','Буквы 1']]);
+  assert.deepEqual(classified.map(o=>[o.pathData,o.box,o.color,o.height]),[panel,letter].map(o=>[o.pathData,o.box,o.color,o.height]));
+  assert.equal(panel.role,undefined,'classification must not mutate imported geometry');
+});
+
+test('legacy saved artwork infers roles on load and persists explicit user overrides',()=>{
+  const panel=artwork(path),letter=artwork(innerLetter,'Название из SVG');
+  assert.deepEqual(shared.validateVectorArtwork([panel,letter]).map(o=>o.role),['backing','letter']);
+  assert.equal(shared.validateVectorArtwork([panel,letter])[1].name,'Название из SVG');
+  const overrides=[{...panel,role:'letter',name:'Мой прямоугольник'},{...letter,role:'backing',name:'Моя подложка'}];
+  assert.deepEqual(shared.validateVectorArtwork(overrides),overrides);
+  assert.throws(()=>shared.validateVectorArtwork([{...panel,role:'background'}]),/роль/i);
+  assert.throws(()=>shared.validateVectorArtwork([{...panel,role:null}]),/роль/i);
+});
+
+test('layout classification tolerates a missing contour while project validation remains strict',()=>{
+  const malformed={...artwork(path),pathData:'',box:{x:0,y:0,width:0,height:0}};
+  assert.equal(shared.classifyVectorArtwork([malformed])[0].role,'letter');
+  assert.throws(()=>shared.validateVectorArtwork([malformed]),/контур/);
+});
+
+test('single rectangular letter, hollow rectangle and logo with rectangular bounds are not inferred backing',()=>{
+  assert.equal(shared.classifyVectorArtwork([artwork(path)])[0].role,'letter');
+  const hollow=artwork(path+'M10 10L10 40L90 40L90 10Z');
+  const logo=artwork('M0 0L100 0L100 10L10 10L10 50L0 50Z');
+  for(const candidate of [hollow,logo]) assert.equal(shared.classifyVectorArtwork([candidate,artwork(innerLetter)])[0].role,'letter');
+});
+
+test('rectangle containment checks both axes and does not mistake neighbouring objects for backing contents',()=>{
+  for(const outside of ['M120 10L130 10L130 30L120 30Z','M20 40L30 40L30 60L20 60Z']) {
+    assert.equal(shared.classifyVectorArtwork([artwork(path),artwork(outside)])[0].role,'letter');
+  }
+  const same=artwork(path);
+  assert.deepEqual(shared.classifyVectorArtwork([artwork(path),same]).map(o=>o.role),['letter','letter']);
+});
+
+test('rectangle detector accepts collinear vertices and straight Béziers after physical transforms',()=>{
+  const detailed='M0 0L50 0C60 0 80 0 100 0L100 25Q100 35 100 50L50 50L0 50L0 25Z';
+  const matrix=[2,0,0,-2,30,140];
+  const panel=artwork(shared.transformVectorPath(detailed,matrix)),letter=artwork(shared.transformVectorPath(innerLetter,matrix));
+  assert.equal(shared.classifyVectorArtwork([panel,letter])[0].role,'backing');
+});
+
+test('curved, clipped-corner and rotated contours remain letter artwork even when their bounds enclose objects',()=>{
+  for(const shape of [
+    'M0 0C30 -5 70 -5 100 0L100 50L0 50Z',
+    'M0 5L5 0L95 0L100 5L100 50L0 50Z',
+    'M50 -50L150 50L50 150L-50 50Z',
+  ]) assert.equal(shared.classifyVectorArtwork([artwork(shape),artwork(innerLetter)])[0].role,'letter');
+});
+
+test('rectangular glyph can be contained by a panel and independent panels keep separate roles',()=>{
+  const panel=artwork(path),iGlyph=artwork('M20 10L25 10L25 40L20 40Z');
+  assert.deepEqual(shared.classifyVectorArtwork([panel,iGlyph]).map(o=>o.role),['backing','letter']);
+  const secondPanel=artwork(shared.transformVectorPath(path,[1,0,0,1,200,0]));
+  const secondLetter=artwork(shared.transformVectorPath(innerLetter,[1,0,0,1,200,0]));
+  assert.deepEqual(shared.classifyVectorArtwork([panel,artwork(innerLetter),secondPanel,secondLetter]).map(o=>o.role),['backing','letter','backing','letter']);
+});
 test('PDF fill preserves dimensions, color and physical viewport transform',()=>{
   const result=importer.importPdfOperators(list([['setFillRGBColor','#ff4400'],draw()]),OPS,[25.4/72,0,0,-25.4/72,0,200]);
   assert.equal(result.objects[0].color,'#ff4400');assert.ok(Math.abs(result.objects[0].box.width-100*25.4/72)<.00001);
+});
+
+test('PDF import assigns surrounding filled rectangle to backing instead of extruding it as lettering',()=>{
+  const letter=[0,20,10,1,30,10,1,30,30,1,45,30,1,45,40,1,20,40,4];
+  const result=importer.importPdfOperators(list([['setFillRGBColor','#cdc09e'],draw(),['setFillRGBColor','#ffffff'],draw('fill',letter)]),OPS,[1,0,0,1,0,0]);
+  assert.deepEqual(result.objects.map(o=>[o.role,o.name,o.color]),[['backing','Подложка','#cdc09e'],['letter','Буквы 1','#ffffff']]);
 });
 test('PDF graphics stack applies nested transformations without moving later objects',()=>{
   const result=importer.importPdfOperators(list([['save'],['transform',2,0,0,2,10,20],draw(),['restore'],draw()]),OPS,[1,0,0,1,0,0]);

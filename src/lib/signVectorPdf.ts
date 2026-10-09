@@ -119,7 +119,8 @@ export function createSignVectorPdf(project: VectorPdfProject, layout: SignScene
     }
     for (const row of layout.textRows ?? []) {
       const sx = row.pathBox.width / row.naturalBox.width, sy = row.pathBox.height / row.naturalBox.height;
-      if (row.pathData) (row.kind==='vector'?artwork:letters).push({ path: row.pathData, transform: { sx, sy, x: row.pathBox.x - row.naturalBox.x * sx, y: row.pathBox.y - row.naturalBox.y * sy }, fill: true,
+      const layer = row.vectorRole === 'backing' ? backing : row.vectorRole === 'letter' || row.kind !== 'vector' ? letters : artwork;
+      if (row.pathData) layer.push({ path: row.pathData, transform: { sx, sy, x: row.pathBox.x - row.naturalBox.x * sx, y: row.pathBox.y - row.naturalBox.y * sy }, fill: true,
         ...(row.kind==='vector'&&row.color?{color:row.color}:{}) });
     }
     if (project.logoEnabled && layout.logoBox.width > 0) logos.push({ path: pdfShapePath(layout.logoBox, project.logoShape, layout.logoCornerRadius), fill: true });

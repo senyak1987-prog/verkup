@@ -59,6 +59,21 @@ test('Panel circles remain cubic vectors and neon retains real tube diameter and
   const neon = Buffer.from(createSignVectorPdf({ ...project, productId: 'neon', neonBackerShape: 'rectangle', neonDiameter: 8 }, layout, { width: 400, height: 200, design: { width: 200, height: 100, paths: [[[0, 0], [200, 100]]], radius: 4 } })).toString('ascii');
   assert.match(neon, /8 w\n100 50 m\n300 150 l/);
 });
+test('Imported backing and letter contours export into distinct semantic layers in physical paint order', () => {
+  const importedRows = [
+    {kind:'vector',vectorRole:'backing',color:'#b2a781',pathData:'M0 0L300 0L300 200L0 200Z',naturalBox:{x:0,y:0,width:300,height:200},pathBox:{x:10,y:20,width:600,height:400}},
+    {...row,kind:'vector',vectorRole:'letter',color:'#ffffff',pathBox:{x:70,y:70,width:480,height:120}},
+  ];
+  const pdf = Buffer.from(createSignVectorPdf({...project,mountMode:'wall',haloBackerEnabled:false,logoEnabled:false},{...layout,textRows:importedRows})).toString('ascii');
+  assert.equal((pdf.match(/\/Type \/OCG/g) ?? []).length,2);
+  assert.ok(pdf.includes('041a043e043d044204430440044b0020043f043e0434043b043e0436043a0438'),'Backing contour layer');
+  assert.ok(pdf.includes('04110443043a0432044b'),'Letter layer');
+  const backingLayer=/\/OC \/L0 BDC([\s\S]*?)EMC/.exec(pdf)[1],letterLayer=/\/OC \/L1 BDC([\s\S]*?)EMC/.exec(pdf)[1];
+  assert.match(backingLayer,/0\.698039 0\.654902 0\.505882 rg/);assert.match(backingLayer,/10 20 m\n610 20 l/);
+  assert.doesNotMatch(backingLayer,/70 70 m/);assert.match(letterLayer,/70 70 m\n550 70 l/);
+  assert.match(letterLayer,/190 106 m/,'Letter counter remains an editable contour');
+  assert.doesNotMatch(pdf,/\/Subtype \/Image|\/Font|NaN|Infinity/);
+});
 const { smoothContour } = load('contourCurves');
 test('Actual Arial Black raster outlines become smooth cubic curves while retaining holes and sharp corners', () => {
   const fixture = JSON.parse(fs.readFileSync(new URL('./fixtures/arial-black-raster-sign.json', import.meta.url), 'utf8'));

@@ -9,7 +9,7 @@ import { systemFontAvailable } from "../lib/systemFontContours";
 import { SIGN_FONTS, loadLetterContours, resolveSignFont, combineLetterLines } from "../lib/letterContours";
 import type { LetterContours } from "../lib/letterContours";
 import { haloBackerContour } from "../lib/haloBackerContour";
-import { createLetterRowsLayout } from "../lib/letterRowsLayout";
+import { createLetterRowsLayout, contourBackingRows } from "../lib/letterRowsLayout";
 import type { LetterRowLayout, LetterRowSetting } from "../lib/letterRowsLayout";
 import type { LetterFrameSegment } from "../lib/letterFrame";
 import { allowedLetterDepths, normalizeLetterDepth, frameRailCenters } from "../lib/letterConstruction";
@@ -830,7 +830,7 @@ export function SignProductConfigurator() {
     widthOverride: letterWidth,
     logoEnabled,
     logoOffsetX: project.logoOffsetX, logoOffsetY: project.logoOffsetY, textOffsetX: project.textOffsetX, textOffsetY: project.textOffsetY,
-  }); return {...layout,haloBackerPath:haloBackerEnabled&&mountMode==="frame"&&hasHaloGlow(glowMode)?haloBackerContour(layout.textRows??[],project.haloBackerOffsetMm):undefined}; }, [
+  }); return {...layout,haloBackerPath:haloBackerEnabled&&mountMode==="frame"&&hasHaloGlow(glowMode)?haloBackerContour(contourBackingRows(layout.textRows??[]),project.haloBackerOffsetMm):undefined}; }, [
     haloBackerEnabled,glowMode,project.haloBackerOffsetMm,project.logoSizeMm,
     acpLayout,
     frameBottomPosition,
@@ -888,6 +888,11 @@ export function SignProductConfigurator() {
   const measuredLettersWidth = Math.max(1, Math.round(lettersLayout.signBox.width));
   const lettersAreaM2 = (measuredLettersWidth * lettersLayout.signBox.height) / 1_000_000;
   const glowHasHalo = hasHaloGlow(glowMode);
+  const hasImportedBacking = (lettersLayout.textRows ?? []).some(row => row.vectorRole === "backing");
+  const hasRaisedLettering = logoEnabled || (lettersLayout.textRows ?? []).some(row => row.vectorRole !== "backing");
+  const letterAssemblyDepth = !hasRaisedLettering && hasImportedBacking ? 3 : letterDepth + Math.max(
+    hasImportedBacking ? 3 + (glowHasHalo ? 20 : 0) : 0,
+    glowHasHalo ? mountMode === "acp" ? 20 : haloBackerEnabled && mountMode === "frame" ? 23 : 0 : 0);
   const glowLabel = GLOW_MODES.find((item) => item.id === glowMode)?.label || "";
   const mountLabel = MOUNT_MODES.find((item) => item.id === mountMode)?.label || "";
   const rowPrices = (lettersLayout.textRows ?? []).filter(row=>row.text.trim()&&row.kind!=="vector").map(row=>({...calculateLetterPrice(row.text,row.box.height),index:row.index}));
@@ -931,11 +936,11 @@ export function SignProductConfigurator() {
     ? { x: neonSvgPad, y: neonSvgPad, width: neonWidth, height: neonHeight }
     : productId === "panel" ? panelSvgFaceBox(panelSize,clamp(project.panelWallGap,60,400),project.panelMountMode)
     : mountMode === "acp" ? lettersLayout.panelBox : lettersLayout.signBox;
-  const signDepth = productId === "neon" ? (project.neonInstallMode==='hanging'?3:23) + project.neonDiameter : productId === "panel" ? project.panelDepth : letterDepth + (glowHasHalo ? mountMode === "acp" ? 20 : haloBackerEnabled && mountMode === "frame" ? 23 : 0 : 0);
+  const signDepth = productId === "neon" ? (project.neonInstallMode==='hanging'?3:23) + project.neonDiameter : productId === "panel" ? project.panelDepth : letterAssemblyDepth;
   const companionScene = placement === 'none' ? undefined : productId === 'panel'
     ? !fontPending && letterContours && !isProjectBlank({ ...project, productId: 'letters' })
       ? { project: { ...project, productId: 'letters' as const }, width: mountMode === 'acp' ? acpWidth : measuredLettersWidth,
-          height: mountMode === 'acp' ? acpHeight : Math.round(lettersLayout.signBox.height), depth: letterDepth + (glowHasHalo ? mountMode === "acp" ? 20 : haloBackerEnabled && mountMode === "frame" ? 23 : 0 : 0) } : undefined
+          height: mountMode === 'acp' ? acpHeight : Math.round(lettersLayout.signBox.height), depth: letterAssemblyDepth } : undefined
     : { project: { ...project, productId: 'panel' as const }, width: panelSize, height: panelSize, depth: project.panelDepth };
   const panelMount=productId==='panel'?panelMountLayout(panelSize,panelShape,project.panelWallGap,project.panelCornerRadius,project.panelDepth,project.panelMountMode):undefined;
   const cartQuantity = cart.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -2190,7 +2195,7 @@ function createLettersSvgMarkup(
     ? '<circle cx="' + n(layout.logoBox.x + layout.logoBox.width / 2) + '" cy="' + n(layout.logoBox.y + layout.logoBox.height / 2) + '" r="' + n(layout.logoBox.width / 2) + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + n(strokeWidth) + '" />'
     : '<rect x="' + n(layout.logoBox.x) + '" y="' + n(layout.logoBox.y) + '" width="' + n(layout.logoBox.width) + '" height="' + n(layout.logoBox.height) + '" rx="' + (config.logoShape === "rounded" ? n(layout.logoCornerRadius) : 0) + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + n(strokeWidth) + '" />';
   const textGeometry = (fill: string, stroke = "none", strokeWidth = 0, _measure = false) => {
-    if (layout.textRows) return layout.textRows.map(row=>{
+    if (layout.textRows) return layout.textRows.filter(row=>row.vectorRole!=="backing").map(row=>{
       const sx=row.pathBox.width/row.naturalBox.width,sy=row.pathBox.height/row.naturalBox.height;
       const transform=`matrix(${sx} 0 0 ${sy} ${n(row.pathBox.x-row.naturalBox.x*sx)} ${n(row.pathBox.y-row.naturalBox.y*sy)})`;
       const outline=strokeWidth ? Math.max(4,row.box.height*.035) : 0;
@@ -2202,6 +2207,12 @@ function createLettersSvgMarkup(
     const transform = 'translate(' + n(layout.textX - layout.textNaturalBox.x * sx) + ' ' + n(layout.textBaseline) + ') scale(' + sx + ' ' + sy + ')';
     return '<g transform="' + transform + '"><path d="' + (layout.textPathData ?? "") + '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="' + n(strokeWidth / sy) + '" stroke-linejoin="round" paint-order="stroke fill" /></g>';
   };
+  const importedBackingMarkup=(layout.textRows??[]).filter(row=>row.vectorRole==="backing").map(row=>{
+    const sx=row.pathBox.width/row.naturalBox.width,sy=row.pathBox.height/row.naturalBox.height;
+    const transform=`matrix(${sx} 0 0 ${sy} ${n(row.pathBox.x-row.naturalBox.x*sx)} ${n(row.pathBox.y-row.naturalBox.y*sy)})`;
+    const fill=night?mix(row.color??config.acpColor,"#18212d",.6):row.color??config.acpColor;
+    return `<g data-vector-role="backing" data-line-index="${row.index}" transform="${transform}" filter="url(#letters-cast-shadow)"><path d="${row.pathData}" fill="${fill}" fill-rule="nonzero" /></g>`;
+  }).join("");
   const silhouette = (fill: string) => logoGeometry(fill) + textGeometry(fill);
   const steps = 1;
   const sideMarkup = Array.from({ length: steps }, (_, index) => {
@@ -2300,7 +2311,7 @@ function createLettersSvgMarkup(
     mix(config.sideColor, "#ffffff", 0.4) + '" flood-opacity="0.72" /></filter>' +
     '<filter id="letters-halo" x="-45%" y="-80%" width="200%" height="260%">' +
     '<feGaussianBlur stdDeviation="' + n(Math.max(10, config.height * 0.055)) + '" /></filter>' +
-    "</defs>\n" + panelMarkup + "\n" + frameMarkup + "\n" + (config.haloBackerEnabled && layout.haloBackerPath ? `<path id="halo-contour-backer" d="${layout.haloBackerPath}" fill="${escapeXml(config.haloBackerColor)}" filter="url(#letters-cast-shadow)" />` : "") + haloMarkup + "\n" +
+    "</defs>\n" + panelMarkup + "\n" + frameMarkup + "\n" + importedBackingMarkup + "\n" + (config.haloBackerEnabled && layout.haloBackerPath ? `<path id="halo-contour-backer" d="${layout.haloBackerPath}" fill="${escapeXml(config.haloBackerColor)}" filter="url(#letters-cast-shadow)" />` : "") + haloMarkup + "\n" +
     '<g id="sign-side"' + (sideLit ? ' filter="url(#letters-side-light)"' : ' filter="url(#letters-cast-shadow)"') +
     ">" + sideMarkup + "</g>\n" +
     '<g id="sign-face"' + (faceLit ? ' filter="url(#letters-face-light)"' : "") + ">" +

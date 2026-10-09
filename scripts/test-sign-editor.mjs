@@ -27,6 +27,28 @@ const schemaSource=source.slice(source.indexOf('const ORACAL_8500_COLORS'),sourc
 const schemaCompiled=ts.transpileModule(schemaSource,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
 const panel=load('panelConstruction');
 const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth','constrainBacker','NEON_FONTS','normalizePanelSize','normalizePanelDepth',schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker,neon.NEON_FONTS,panel.normalizePanelSize,panel.normalizePanelDepth);
+
+const svgSource=source.slice(source.indexOf('function createLettersSvgMarkup('),source.indexOf('\nfunction createSvgObjectDimensions'));
+const svgCompiled=ts.transpileModule(svgSource,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
+const svgMarkup=new Function('roundSvg','escapeXml','hasHaloGlow',svgCompiled+';return createLettersSvgMarkup;')(
+  value=>Number(value.toFixed(3)),value=>String(value).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;'),value=>['halo','faceHalo'].includes(value));
+test('Imported rectangular backing paints below lettering and stays outside face and halo lighting in 2D',()=>{
+  const box={x:20,y:20,width:120,height:60},ink={x:35,y:30,width:90,height:40};
+  const row=(index,vectorRole,color,b)=>({index,vectorRole,kind:'vector',color,font:'',box:b,pathBox:b,naturalBox:b,pathData:`M${b.x} ${b.y}L${b.x+b.width} ${b.y}L${b.x+b.width} ${b.y+b.height}L${b.x} ${b.y+b.height}Z`});
+  const config={layout:{textRows:[row(3,'letter','#ffffff',ink),row(4,'backing','#cdc09e',box)],viewWidth:180,viewHeight:100,signBox:box,frameSegments:[],seamXs:[],seamYs:[]},
+    height:40,depth:50,faceColor:'#ffffff',sideColor:'#111111',font:'',text:'',glowMode:'faceHalo',mountMode:'frame',acpColor:'#dddddd',
+    haloBackerEnabled:false,haloBackerColor:'#ffffff',letterOutlineEnabled:false,logoOutlineEnabled:false,outlineColor:'#000000',logoShape:'circle',logoEnabled:false,logoImage:'',haloLightColor:'#ff0000'};
+  for(const sceneMode of ['day','night']){
+    const svg=svgMarkup({...config,sceneMode});
+    assert.ok(svg.indexOf('data-vector-role="backing"')<svg.indexOf('id="sign-halo"'));
+    const face=/<g id="sign-face"[^>]*>(.*?)<\/g><g id="logo-face"/s.exec(svg)[1];
+    const halo=/<g id="sign-halo"[^>]*>(.*?)<g id="sign-side"/s.exec(svg)[1];
+    assert.match(face,/data-line-index="3"/);assert.doesNotMatch(face,/data-line-index="4"/);
+    assert.match(halo,/data-line-index="3"/);assert.doesNotMatch(halo,/data-line-index="4"/);
+    assert.equal((svg.match(/data-line-index="4"/g)||[]).length,1,'backing is drawn exactly once');
+    if(sceneMode==='day')assert.match(svg,/data-vector-role="backing"[^>]*><path[^>]*fill="#cdc09e"/);
+  }
+});
 test('Импорт ограничивает логотип, отступ контура и дискретные размеры панели',()=>{
   const imported=schema.validate({version:1,project:{logoSizeMm:9000,panelSize:621,panelDepth:80,haloBackerOffsetMm:100}});
   assert.equal(imported.logoSizeMm,700);assert.equal(imported.panelSize,600);assert.equal(imported.panelDepth,130);assert.equal(imported.haloBackerOffsetMm,25);

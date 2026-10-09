@@ -1,8 +1,11 @@
 /** Saved vector artwork contains geometry only: never SVG markup, scripts or URLs. */
 export type VectorArtworkBox = { x: number; y: number; width: number; height: number };
+export type VectorArtworkRole = 'letter' | 'backing';
 export type VectorArtworkObject = {
   id: string; name: string; pathData: string; box: VectorArtworkBox;
   color: string; height: number; offset: { x: number; y: number }; visible: boolean;
+  /** Optional for projects saved before importing letters and backing as separate products. */
+  role?: VectorArtworkRole;
 };
 export const VECTOR_MAX_OBJECTS = 64;
 export const VECTOR_MAX_COMMANDS = 30000;
@@ -96,9 +99,72 @@ export function vectorArtworkBounds(objects: readonly VectorArtworkObject[]): Ve
   return {x,y,width:Math.max(...objects.map(o=>o.box.x+o.box.width))-x,height:Math.max(...objects.map(o=>o.box.y+o.box.height))-y};
 }
 
-export function createVectorArtworkObject(input:{name:string;pathData:string;color:string;id?:string}):VectorArtworkObject {
+/** A solid rectangle has one contour and four straight boundary edges, regardless of extra collinear vertices. */
+function isSolidRectangle(object:VectorArtworkObject):boolean {
+  const box=object.box;
+  if(!box||![box.x,box.y,box.width,box.height].every(value=>finite(value))||box.width<=0||box.height<=0) return false;
+  let commands:VectorPathCommand[];
+  try { commands=parseVectorPath(object.pathData); } catch { return false; }
+  if(commands.filter(command=>command.type==='M').length!==1) return false;
+  const {x,y,width,height}=object.box,tolerance=Math.max(.001,Math.max(width,height)*1e-7);
+  const right=x+width,bottom=y+height,near=(a:number,b:number)=>Math.abs(a-b)<=tolerance;
+  let previous: number[] | undefined,start: number[] | undefined,perimeter=0,twiceArea=0;
+  const edge=(end:number[],controls:number[][]=[]):boolean=>{
+    if(!previous) return false;
+    const [ax,ay]=previous,[bx,by]=end;
+    if(near(ax,bx)&&near(ay,by)) return controls.every(([cx,cy])=>near(cx,ax)&&near(cy,ay));
+    const vertical=near(ax,bx)&&(near(ax,x)||near(ax,right));
+    const horizontal=near(ay,by)&&(near(ay,y)||near(ay,bottom));
+    if(!vertical&&!horizontal) return false;
+    if(!controls.every(([cx,cy])=>vertical
+      ? near(cx,ax)&&cy>=Math.min(ay,by)-tolerance&&cy<=Math.max(ay,by)+tolerance
+      : near(cy,ay)&&cx>=Math.min(ax,bx)-tolerance&&cx<=Math.max(ax,bx)+tolerance)) return false;
+    perimeter+=Math.hypot(bx-ax,by-ay);twiceArea+=ax*by-bx*ay;previous=end;
+    return true;
+  };
+  for(const {type,values} of commands) {
+    if(type==='M') { previous=values;start=values; }
+    else if(type==='Z') { if(!start||!edge(start)) return false; }
+    else {
+      const controls:number[][]=[];
+      for(let i=0;i<values.length-2;i+=2) controls.push(values.slice(i,i+2));
+      if(!edge(values.slice(-2),controls)) return false;
+    }
+  }
+  // Repeated/backtracking boundary sections and incomplete L-shaped contours are not panels.
+  return Math.abs(perimeter-2*(width+height))<=tolerance*commands.length
+    &&Math.abs(Math.abs(twiceArea)-2*width*height)<=tolerance*2*(width+height);
+}
+
+/** Infer backing from geometry, never from colour or names; explicit user roles always win. */
+export function classifyVectorArtwork(objects:readonly VectorArtworkObject[]):VectorArtworkObject[] {
+  const rectangles=objects.map(object=>object.role===undefined&&isSolidRectangle(object));
+  const backing=new Set<number>();
+  for(let i=0;i<objects.length;i++) {
+    if(!rectangles[i]) continue;
+    const outer=objects[i].box,tolerance=Math.max(.001,Math.max(outer.width,outer.height)*1e-7);
+    if(objects.some((other,j)=>{
+      if(j===i||other.role==='backing') return false;
+      const inner=other.box;
+      return !!inner&&inner.x>=outer.x-tolerance&&inner.y>=outer.y-tolerance
+        &&inner.x+inner.width<=outer.x+outer.width+tolerance
+        &&inner.y+inner.height<=outer.y+outer.height+tolerance
+        &&inner.width<outer.width-2*tolerance&&inner.height<outer.height-2*tolerance;
+    })) backing.add(i);
+  }
+  let letterNumber=0;
+  return objects.map((object,i)=>{
+    const role=object.role??(backing.has(i)?'backing':'letter');
+    if(role==='letter') letterNumber++;
+    if(object.role!==undefined) return object;
+    const name=role==='backing'?'Подложка':/^(?:Объект|Вектор) \d+$/.test(object.name)?`Буквы ${letterNumber}`:object.name;
+    return {...object,role,name};
+  });
+}
+
+export function createVectorArtworkObject(input:{name:string;pathData:string;color:string;id?:string;role?:VectorArtworkRole}):VectorArtworkObject {
   const box=vectorPathBounds(input.pathData);
-  return {id:input.id??crypto.randomUUID(),name:input.name.slice(0,80),pathData:input.pathData,box,color:input.color.toLowerCase(),height:Math.max(1,Math.min(700,box.height)),offset:{x:0,y:0},visible:true};
+  return {id:input.id??crypto.randomUUID(),name:input.name.slice(0,80),pathData:input.pathData,box,color:input.color.toLowerCase(),height:Math.max(1,Math.min(700,box.height)),offset:{x:0,y:0},visible:true,...(input.role?{role:input.role}:{})};
 }
 
 export function validateVectorArtwork(value: unknown): VectorArtworkObject[] {
@@ -106,11 +172,12 @@ export function validateVectorArtwork(value: unknown): VectorArtworkObject[] {
   if(!Array.isArray(value)||value.length>VECTOR_MAX_OBJECTS) throw new Error('В проекте допускается до 64 векторных объектов.');
   let commands=0;
   const ids=new Set<string>();
-  return value.map(raw=>{
+  const objects:VectorArtworkObject[]=value.map(raw=>{
     if(!raw || typeof raw!=='object') throw new Error('Повреждённый векторный объект.');
     const v=raw as Record<string,unknown>;
     if(typeof v.id!=='string'||!/^[-\w]{1,80}$/.test(v.id)||ids.has(v.id)||typeof v.name!=='string'||!v.name.trim()||v.name.length>80||/[\x00-\x1f]/.test(v.name)) throw new Error('Некорректное имя или идентификатор вектора.');
     if(typeof v.color!=='string'||!/^#[\da-f]{6}$/i.test(v.color)||!finite(v.height,700)||v.height<1||typeof v.visible!=='boolean') throw new Error('Некорректные параметры векторного объекта.');
+    if(v.role!==undefined&&v.role!=='letter'&&v.role!=='backing') throw new Error('Некорректная роль векторного объекта.');
     const offset=v.offset as Record<string,unknown>|undefined;
     if(!offset||!finite(offset.x,50000)||!finite(offset.y,50000)||typeof v.pathData!=='string') throw new Error('Некорректное положение векторного объекта.');
     commands+=parseVectorPath(v.pathData).length;
@@ -118,6 +185,7 @@ export function validateVectorArtwork(value: unknown): VectorArtworkObject[] {
     const box=vectorPathBounds(v.pathData), supplied=v.box as Record<string,unknown>|undefined;
     if(!supplied || !(['x','y','width','height'] as const).every(key=>finite(supplied[key])&&Math.abs(Number(supplied[key])-box[key])<.01)) throw new Error('Размеры векторного объекта не совпадают с его контуром.');
     ids.add(v.id);
-    return {id:v.id,name:v.name,pathData:v.pathData,box,color:v.color.toLowerCase(),height:v.height,offset:{x:offset.x,y:offset.y},visible:v.visible};
+    return {id:v.id,name:v.name,pathData:v.pathData,box,color:v.color.toLowerCase(),height:v.height,offset:{x:offset.x,y:offset.y},visible:v.visible,...(v.role?{role:v.role as VectorArtworkRole}:{})};
   });
+  return classifyVectorArtwork(objects);
 }

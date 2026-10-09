@@ -13,7 +13,7 @@ function load(name, dependencies = {}) {
 }
 const contourApi = load('letterContours', { './glyphPath': load('glyphPath'), './systemFontContours': load('systemFontContours', { './contourCurves': load('contourCurves') }) });
 const backer = load('backerConstraints'), frame = load('letterFrame');
-const { createLetterRowsLayout: layout } = load('letterRowsLayout', { './backerConstraints': backer, './letterFrame': frame });
+const { createLetterRowsLayout: layout } = load('letterRowsLayout', { './backerConstraints': backer, './letterFrame': frame, './vectorArtwork': load('vectorArtwork') });
 const alignment = load('signLayoutAlignment');
 const fonts = new Map(contourApi.SIGN_FONTS.filter(entry => entry.file).map(entry => {
   const bytes = fs.readFileSync(new URL('../public/fonts/' + entry.file, import.meta.url));

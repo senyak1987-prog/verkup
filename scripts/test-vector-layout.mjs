@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import ts from 'typescript';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { createCanvas, Path2D } from '@napi-rs/canvas';
 const require=createRequire(import.meta.url);
 function load(name,dependencies={}){
   const source=fs.readFileSync(new URL('../src/lib/'+name+'.ts',import.meta.url),'utf8').replaceAll('import.meta.env.BASE_URL','"/"');
@@ -12,7 +13,7 @@ function load(name,dependencies={}){
   const result={};new Function('exports','require',compiled)(result,id=>dependencies[id]??require(id));return result;
 }
 const frame=load('letterFrame'),backer=load('backerConstraints');
-const {createLetterRowsLayout:layout}=load('letterRowsLayout',{'./letterFrame':frame,'./backerConstraints':backer});
+const {createLetterRowsLayout:layout}=load('letterRowsLayout',{'./letterFrame':frame,'./backerConstraints':backer,'./vectorArtwork':load('vectorArtwork')});
 const alignment=load('signLayoutAlignment');
 const near=(a,b,label)=>assert.ok(Math.abs(a-b)<.001,`${label}: ${a} vs ${b}`);
 const rect=(x,y,w,h)=>`M${x} ${y}L${x+w} ${y}L${x+w} ${y+h}L${x} ${y+h}Z`;
@@ -119,11 +120,105 @@ test('Imported vectors extrude at the same physical bounds with own face colors 
   scene.disposeSignObject(model);
 });
 const pdf=load('signVectorPdf',{'./neonConstruction':{}});
-test('PDF contains editable imported vector paths and colors in a distinct layer without bitmap substitution',()=>{
+test('PDF contains editable imported letter vectors and colors without bitmap substitution',()=>{
   const result=layout(fixture({vectorArtwork:[artwork()]}));
   const bytes=pdf.createSignVectorPdf({productId:'letters',lettersText:'',mountMode:'frame',glowMode:'face',haloBackerEnabled:false,logoEnabled:false},result);
   const text=new TextDecoder().decode(bytes);
   assert.match(text,/%PDF-1.7/);assert.doesNotMatch(text,/\/Subtype \/Image|NaN|Infinity/);
   assert.match(text,/0\.2 0\.4 0\.6 rg/);assert.ok((text.match(/\n\d+(?:\.\d+)? \d+(?:\.\d+)? m/g)??[]).length>=2,'Outer path and counter remain independent closed paths');
-  assert.ok(text.includes('0418043c043f043e0440044204380440043e04320430043d043d044b0439002004320435043a0442043e0440'),'Named import layer');
+  assert.ok(text.includes('04110443043a0432044b'),'Named lettering layer');
+});
+
+function backedArtwork(){return[
+  artwork({id:'plate',name:'Подложка',pathData:rect(0,0,300,200),box:{x:0,y:0,width:300,height:200},height:200,color:'#b2a781',role:'backing'}),
+  artwork({id:'letters-a',name:'Буквы 1',pathData:rect(30,25,240,60)+'M80 40L80 70L110 70L110 40Z',box:{x:30,y:25,width:240,height:60},height:60,color:'#ffffff',role:'letter'}),
+  artwork({id:'letters-b',name:'Буквы 2',pathData:rect(50,115,200,55),box:{x:50,y:115,width:200,height:55},height:55,color:'#ffcc00',role:'letter'}),
+];}
+const backedProject={productId:'letters',sceneMode:'day',letterHeight:210,letterDepth:50,mountMode:'frame',glowMode:'face',logoEnabled:false,
+  letterFaceColor:{value:'#ffffff'},letterSideColor:{value:'#222222'},outlineColor:{value:'#000000'}};
+test('Imported enclosure is a nonluminous 3 mm backing and two enclosed letter rows retain full production bodies',async()=>{
+  for(const letterDepth of [40,50,60]){
+    const result=layout(fixture({vectorArtwork:backedArtwork()}));
+    assert.equal(result.textRows[0].vectorRole,'backing');assert.ok(result.textRows.slice(1).every(row=>row.vectorRole==='letter'));
+    const model=await scene.buildSignModel({...backedProject,letterDepth},result,result.signBox.width,result.signBox.height,letterDepth,false);
+    const plate=model.getObjectByName('imported-backing-3'),plateBounds=new THREE.Box3().setFromObject(plate);
+    assert.ok(plate);near(plateBounds.max.z-plateBounds.min.z,3,'Imported backing thickness');
+    assert.equal(plate.material[0].emissiveIntensity,0);assert.equal(plate.material[0].transparent,false);
+    assert.equal(plate.material[0].userData.dayColor.getHexString(),'b2a781');assert.ok(plate.castShadow&&plate.receiveShadow);
+    assert.equal(model.getObjectByName('extruded-letter-row-3'),undefined,'Backing never becomes a glowing letter body');
+    for(const row of result.textRows.slice(1)){
+      const letter=model.getObjectByName('extruded-letter-row-'+row.index),bounds=new THREE.Box3().setFromObject(letter);
+      near(bounds.max.z-bounds.min.z,letterDepth,'Production letter depth');
+      near(bounds.min.z,plateBounds.max.z,'Body mounted on imported plate');
+      assert.ok(bounds.max.z>plateBounds.max.z+35,'Cap planes cannot conflict');
+      if(row.index===4){
+        let area=0;const positions=letter.geometry.getAttribute('position'),indices=letter.geometry.getIndex();
+        for(let i=0;i<indices.count;i+=3){const a=indices.getX(i),b=indices.getX(i+1),c=indices.getX(i+2);
+          if([a,b,c].every(j=>Math.abs(positions.getZ(j)-letterDepth)<.01))area+=Math.abs((positions.getX(b)-positions.getX(a))*(positions.getY(c)-positions.getY(a))-(positions.getY(b)-positions.getY(a))*(positions.getX(c)-positions.getX(a)))/2;
+        }near(area,240*60-30*30,'Imported letter counter stays open');
+      }
+    }
+    scene.disposeSignObject(model);
+  }
+});
+test('Halo letters stand 20 mm from the imported plate and its rectangle contributes no glow mask',async()=>{
+  const previousDocument=globalThis.document,previousPath=globalThis.Path2D;
+  globalThis.document={createElement:()=>createCanvas(1,1)};globalThis.Path2D=Path2D;
+  let model;
+  try{
+    const result=layout(fixture({vectorArtwork:backedArtwork()}));
+    model=await scene.buildSignModel({...backedProject,sceneMode:'night',glowMode:'halo',letterDepth:50,haloLightColor:{value:'#ffaa66'}},result,result.signBox.width,result.signBox.height,50,false);
+    const plate=model.getObjectByName('imported-backing-3'),plateBounds=new THREE.Box3().setFromObject(plate);
+    assert.equal(plate.material[0].emissiveIntensity,0);
+    for(const row of result.textRows.slice(1)){
+      const bounds=new THREE.Box3().setFromObject(model.getObjectByName('extruded-letter-row-'+row.index));
+      near(bounds.min.z-plateBounds.max.z,20,'Halo air gap');near(bounds.max.z-bounds.min.z,50,'Halo full body');
+    }
+    const spacers=model.children.filter(child=>child.name==='halo-distance-spacer');assert.ok(spacers.length>=4);
+    for(const spacer of spacers){const bounds=new THREE.Box3().setFromObject(spacer);near(bounds.min.z,plateBounds.max.z,'Spacer reaches backing face');near(bounds.max.z-bounds.min.z,20,'Spacer length');}
+    const halo=model.getObjectByName('rear-halo-projection');assert.ok(halo);assert.ok(halo.position.z>plateBounds.max.z);
+    const canvas=halo.material.map.image,context=canvas.getContext('2d'),padding=backedProject.letterHeight*.25;
+    const x=Math.round((padding+5)/(result.signBox.width+padding*2)*canvas.width);
+    const y=Math.round((padding+5)/(result.signBox.height+padding*2)*canvas.height);
+    assert.equal(context.getImageData(x,y,1,1).data[3],0,'Panel corner must stay unlit in the halo mask');
+  }finally{if(model)scene.disposeSignObject(model);globalThis.document=previousDocument;globalThis.Path2D=previousPath;}
+});
+test('Overlapping PDF backing shapes preserve paint order with separate cap planes',async()=>{
+  const objects=backedArtwork();objects.splice(1,0,{...objects[0],id:'plate-print',pathData:rect(1,1,298,198),box:{x:1,y:1,width:298,height:198},height:198,color:'#a89f81'});
+  const result=layout(fixture({vectorArtwork:objects}));
+  const model=await scene.buildSignModel(backedProject,result,result.signBox.width,result.signBox.height,50,false);
+  const plates=model.children.filter(child=>child.userData.vectorRole==='backing');assert.equal(plates.length,2);
+  const fronts=plates.map(plate=>new THREE.Box3().setFromObject(plate).max.z);assert.ok(fronts[1]>fronts[0]);
+  for(const letter of model.children.filter(child=>child.name.startsWith('extruded-letter-row-'))){const bounds=new THREE.Box3().setFromObject(letter);near(bounds.min.z,fronts[1],'Letter on final backing paint layer');}
+  scene.disposeSignObject(model);
+});
+test('Wall halo aura and depth dimensions follow the actual imported 73 mm construction rather than the native wall offset',async()=>{
+  const previousDocument=globalThis.document,previousPath=globalThis.Path2D;
+  globalThis.document={createElement:()=>createCanvas(1,1)};globalThis.Path2D=Path2D;
+  let model;
+  try{
+    const result=layout(fixture({vectorArtwork:backedArtwork(),mountMode:'wall'}));
+    model=await scene.buildSignModel({...backedProject,mountMode:'wall',sceneMode:'night',glowMode:'faceHalo',haloLightColor:{value:'#ffaa66'}},result,result.signBox.width,result.signBox.height,50,true);
+    const plateBounds=new THREE.Box3().setFromObject(model.getObjectByName('imported-backing-3'));
+    const letterBounds=new THREE.Box3().setFromObject(model.getObjectByName('extruded-letter-row-4'));
+    near(plateBounds.min.z,0,'Wall backing rear');near(letterBounds.min.z,23,'3 mm backing plus 20 mm gap');near(letterBounds.max.z,73,'Actual letter front');
+    near(model.getObjectByName('face-light-aura').position.z,73.75,'Aura sits just ahead of actual caps');
+    const dimensions=model.getObjectByName('dimensions').children.filter(child=>child.isLineSegments);
+    for(const line of dimensions.slice(0,-1)){const positions=line.geometry.getAttribute('position');near(positions.getZ(0),75,'Plan dimensions clear actual caps');near(positions.getZ(1),75,'Plan dimensions clear actual caps');}
+    const depth=dimensions.at(-1).geometry.getAttribute('position');near(depth.getZ(0),0,'Depth starts at actual plate rear');near(depth.getZ(1),73,'Depth ends at actual cap front');
+  }finally{if(model)scene.disposeSignObject(model);globalThis.document=previousDocument;globalThis.Path2D=previousPath;}
+});
+test('An imported backing alone measures its actual 3 mm thickness without phantom letter depth or light projections',async()=>{
+  const previousDocument=globalThis.document,previousPath=globalThis.Path2D;
+  globalThis.document={createElement:()=>createCanvas(1,1)};globalThis.Path2D=Path2D;
+  let model;
+  try{
+    const result=layout(fixture({vectorArtwork:[backedArtwork()[0]],mountMode:'wall'}));
+    model=await scene.buildSignModel({...backedProject,mountMode:'wall',sceneMode:'night',glowMode:'faceHalo',haloLightColor:{value:'#ffaa66'}},result,result.signBox.width,result.signBox.height,50,true);
+    assert.equal(model.children.filter(child=>child.name.startsWith('extruded-letter')).length,0);
+    assert.equal(model.getObjectByName('face-light-aura'),undefined);assert.equal(model.getObjectByName('rear-halo-projection'),undefined);
+    const dimensions=model.getObjectByName('dimensions').children.filter(child=>child.isLineSegments);
+    const depth=dimensions.at(-1).geometry.getAttribute('position');near(depth.getZ(0),0,'Backing rear');near(depth.getZ(1),3,'Backing front');
+    for(const line of dimensions.slice(0,-1)){const positions=line.geometry.getAttribute('position');near(positions.getZ(0),5,'Backing-only annotation plane');}
+  }finally{if(model)scene.disposeSignObject(model);globalThis.document=previousDocument;globalThis.Path2D=previousPath;}
 });
