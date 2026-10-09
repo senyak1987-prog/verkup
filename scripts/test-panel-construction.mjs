@@ -13,6 +13,19 @@ function load(name, dependencies = {}) {
   return exports;
 }
 const mount = load('panelConstruction');
+
+test('Радиус скруглённой панели начинается с 50 мм и сохраняет шаг 10 мм при ограничении размером', () => {
+  for (const [value, size, expected] of [[0,350,50],[49,350,50],[54,350,50],[55,350,60],[65,350,70],[175,350,170],[300,350,170],[999,500,250],[999,700,300],[NaN,350,60]]) {
+    assert.equal(mount.normalizePanelCornerRadius(value, size), expected);
+    assert.equal(mount.panelConstruction(size, 'rounded', 120, value).radius, expected);
+  }
+  for (const size of mount.PANEL_SIZES) {
+    const maximum = mount.panelCornerRadiusLimit(size);
+    assert.equal(maximum % 10, 0);
+    assert.ok(maximum >= 50 && maximum <= size / 2);
+    for (let radius = 50; radius <= maximum; radius += 10) assert.equal(mount.normalizePanelCornerRadius(radius, size), radius);
+  }
+});
 test('Каталог панели ограничен шагом 50 мм и двумя глубинами, включая старые размеры',()=>{
   assert.deepEqual(mount.PANEL_SIZES,[350,400,450,500,550,600,650,700]);
   assert.deepEqual(mount.PANEL_DEPTHS,[130,150]);
