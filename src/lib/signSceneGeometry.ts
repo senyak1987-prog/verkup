@@ -718,6 +718,16 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         addDimension(dimensionGroup, new THREE.Vector3(-halfWidth - offset, -halfHeight, z),
           new THREE.Vector3(-halfWidth - offset, halfHeight, z), Math.round(height) + " мм",
           new THREE.Vector3(-halfWidth - offset * 1.8, 0, z), dimensionScale * 0.85, night);
+        if (project.mountMode === "acp") {
+          const backerDimension = new THREE.Group();
+          backerDimension.name = "acp-depth-dimension";
+          const x = toX(layout.panelBox.x + layout.panelBox.width) + offset;
+          const y = toY(layout.panelBox.y + layout.panelBox.height);
+          addDimension(backerDimension, new THREE.Vector3(x, y, -project.acpDepth),
+            new THREE.Vector3(x, y, 0), `Подложка: ${Math.round(project.acpDepth)} мм`,
+            new THREE.Vector3(x + offset * 0.65, y, -project.acpDepth / 2), dimensionScale * 0.65, night);
+          dimensionGroup.add(backerDimension);
+        }
         addDimension(dimensionGroup, new THREE.Vector3(halfWidth + offset, halfHeight, constructionBack),
           new THREE.Vector3(halfWidth + offset, halfHeight, constructionFront), Math.round(constructionFront - constructionBack) + " мм",
           new THREE.Vector3(halfWidth + offset * 1.65, halfHeight, (constructionBack + constructionFront) / 2), dimensionScale * 0.65, night);
