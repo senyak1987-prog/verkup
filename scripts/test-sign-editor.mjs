@@ -465,3 +465,52 @@ test('Imported rows and logos clamp to 100–700 mm, retaining zero as an unused
   assert.equal(p.letterHeight,expected);assert.equal(p.logoSizeMm,expected);assert.deepEqual(p.letterLineHeights,[expected,0,expected]);
  }
 });
+
+function marqueeFixture() {
+  const row=(index,x,y,width,height,kind)=>({id:String(index),index,text:kind?'':'ТЕКСТ',font:'Arial',kind,
+    defaultX:x-10,defaultY:y-20,box:{x,y,width,height},inkBox:{x,y:y-5,width,height:height+10},pathBox:{x,y,width,height}});
+  return {viewWidth:1000,viewHeight:700,panelBox:{x:0,y:0,width:1000,height:700},
+    textX:100,textTop:100,textWidth:600,textHeight:400,defaultTextX:90,defaultTextY:80,
+    logoBox:{x:750,y:100,width:150,height:150},defaultLogoX:700,defaultLogoY:80,
+    textRows:[row(0,100,100,350,100),row(1,100,300,300,100),row(3,550,300,100,160,'vector')],
+    letterLineOffsets:[{x:10,y:20},{x:10,y:20},{x:77,y:88},{x:10,y:20}]};
+}
+
+test('Marquee crosses rows, logos and imported vectors in all four directions, including visible accents',()=>{
+  const fixture=marqueeFixture();
+  for(const [start,end] of [[{x:50,y:90},{x:800,y:350}],[{x:800,y:350},{x:50,y:90}],
+    [{x:50,y:350},{x:800,y:90}],[{x:800,y:90},{x:50,y:350}]]) {
+    assert.deepEqual(alignment.marqueeLayoutSelection(fixture,true,alignment.marqueeBox(start,end)),['line-0','line-1','line-3','logo']);
+  }
+  assert.deepEqual(alignment.marqueeLayoutSelection(fixture,true,{x:90,y:93,width:30,height:4}),['line-0']);
+  assert.deepEqual(alignment.marqueeLayoutSelection(fixture,false,{x:749,y:100,width:10,height:20}),[]);
+  assert.deepEqual(alignment.marqueeLayoutSelection(fixture,true,{x:50,y:50,width:0,height:400}),[]);
+  assert.deepEqual(alignment.marqueeLayoutSelection(fixture,true,{x:920,y:600,width:50,height:50}),[]);
+});
+
+test('A mixed group translates only selected objects and leaves unused row offsets intact',()=>{
+  const before=marqueeFixture(),saved=structuredClone(before);
+  const {patch}=alignment.moveLayoutSelection(before,['line-1','line-3','logo'],true,25,-15);
+  assert.deepEqual(patch.letterLineOffsets,[{x:10,y:20},{x:35,y:5},{x:77,y:88},{x:35,y:5}]);
+  assert.equal(patch.logoOffsetX,75);assert.equal(patch.logoOffsetY,5);
+  assert.equal(patch.textOffsetX,undefined);assert.equal(patch.textOffsetY,undefined);
+  assert.deepEqual(before,saved,'Pointer snapshots and saved offsets are not mutated');
+});
+
+test('Group movement clamps once at the panel edge so the distances between members remain unchanged',()=>{
+  const fixture=marqueeFixture(),{patch}=alignment.moveLayoutSelection(fixture,['line-0','logo'],true,5000,-5000,{constrainToPanel:true});
+  assert.deepEqual(patch.letterLineOffsets[0],{x:104,y:-69});
+  assert.equal(patch.logoOffsetX,144);assert.equal(patch.logoOffsetY,-69);
+  assert.equal(fixture.defaultLogoX+patch.logoOffsetX-(fixture.textRows[0].defaultX+patch.letterLineOffsets[0].x),650);
+  assert.deepEqual(patch.letterLineOffsets[1],fixture.letterLineOffsets[1]);
+});
+
+test('Group snap and centering use the selected union, and an empty selection never moves anything',()=>{
+  const fixture=marqueeFixture(),ids=['line-1','line-3'];
+  assert.deepEqual(alignment.layoutSelectionBox(fixture,ids,true),{x:100,y:295,width:550,height:170});
+  const result=alignment.moveLayoutSelection(fixture,ids,true,124,0,{snapTolerance:6});
+  assert.equal(result.snappedX,true);assert.equal(result.patch.letterLineOffsets[1].x,135);assert.equal(result.patch.letterLineOffsets[3].x,135);
+  assert.deepEqual(alignment.centerLayoutSelection(fixture,ids,true,'x'),result.patch);
+  assert.deepEqual(alignment.moveLayoutSelection(fixture,[],true,10,10).patch,{});
+  assert.deepEqual(alignment.moveLayoutSelection(fixture,['line-9'],true,10,10).patch,{});
+});

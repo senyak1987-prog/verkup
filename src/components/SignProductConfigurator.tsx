@@ -29,7 +29,7 @@ import type { VectorArtworkObject } from "../lib/vectorArtwork";
 import type { LayoutPatch } from "./SignLayoutEditor";
 import { AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, Undo2 } from "lucide-react";
 import { centerLayoutSelection, packLayoutComposition } from "../lib/signLayoutAlignment";
-import type { AlignmentAxis, LayoutObject } from "../lib/signLayoutAlignment";
+import type { AlignmentAxis, LayoutSelection } from "../lib/signLayoutAlignment";
 import { SignPlacements } from "./SignPlacements";
 import { SignPhotoPreview } from "./SignPhotoPreview";
 import { createFacadeSvg, SIGN_PLACEMENTS } from "../lib/signFacade";
@@ -614,19 +614,19 @@ export function SignProductConfigurator() {
   useEffect(() => { setSelectedNeonLine(index => Math.min(index, project.neonText.split('\n').length - 1)); }, [project.neonText]);
   const [editing, setEditing] = useState(true);
   const [logoPickerOpen, setLogoPickerOpen] = useState(false);
-  const [layoutSelection, setLayoutSelection] = useState<LayoutObject>("composition");
+  const [layoutSelection, setLayoutSelection] = useState<LayoutSelection>([]);
   const [canvasTextEdit, setCanvasTextEdit] = useState<{ index: number; originalText: string; pointerSelection?: CanvasPointerSelection } | null>(null);
   const canvasTextUndoBase = useRef<ProjectState | null>(null);
   const advancedConstructorRef = useRef<HTMLDetailsElement>(null);
-  const selectLayoutObject = (selection: LayoutObject) => {
+  const selectLayoutObject = (selection: LayoutSelection) => {
     setCanvasTextEdit(null);
     setLayoutSelection(selection);
-    if (selection.startsWith("line-") && Number(selection.slice(5)) >= 3 && advancedConstructorRef.current) {
+    if (typeof selection === "string" && selection.startsWith("line-") && Number(selection.slice(5)) >= 3 && advancedConstructorRef.current) {
       advancedConstructorRef.current.open = true;
     }
   };
   const layoutInteraction = useRef<"idle" | "start" | "active">("idle");
-  useEffect(() => { if (!project.logoEnabled && layoutSelection === "logo") setLayoutSelection("composition"); }, [project.logoEnabled, layoutSelection]);
+  useEffect(() => { if (!project.logoEnabled) setLayoutSelection(previous => previous === "logo" ? [] : typeof previous !== "string" && previous.includes("logo") ? previous.filter(id => id !== "logo") : previous); }, [project.logoEnabled]);
   const combinedText = [project.lettersText,project.secondLineText,project.thirdLineText].filter(text=>text.trim()).join("\n");
   const lineSettings = useMemo<LetterRowSetting[]>(() => [project.lettersText,project.secondLineText,project.thirdLineText]
     .map((text,index)=>({index,text,font:project.letterLineFonts[index]||project.letterFont,height:project.letterLineHeights[index]||project.letterHeight,offset:project.letterLineOffsets[index]||{x:0,y:0}}))
@@ -1276,7 +1276,7 @@ export function SignProductConfigurator() {
             </div>
             <button type="button" aria-label="Отменить изменение макета" title="Отменить изменение макета (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={16}/></button>
             <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
-            <span className="canvas-typing-hint">Текст — выделение · рамка — перемещение</span>
+            <span className="canvas-typing-hint">Обведите объекты для выделения · рамка — перемещение</span>
           </div>}
             {productId === "letters" && viewMode === "2d" && editing && logoPickerOpen && <div id="canvas-logo-shapes" className="canvas-logo-shapes" role="group" aria-label="Форма логотипа" onKeyDown={event => {
               if (event.key === "Escape") { setLogoPickerOpen(false); event.currentTarget.parentElement?.querySelector<HTMLButtonElement>('[aria-controls="canvas-logo-shapes"]')?.focus(); }
@@ -1480,7 +1480,7 @@ export function SignProductConfigurator() {
             <summary><span>Продвинутый конструктор вывесок</span><ChevronRight size={18} aria-hidden="true" /></summary>
             <div className="studio-advanced-body">
               <input hidden ref={vectorFileRef} type="file" accept=".pdf,.cdr,.svg,application/pdf,image/svg+xml,application/vnd.corel-draw,application/x-coreldraw" onChange={event => void handleVectorImport(event)} />
-              <VectorArtworkControls objects={project.vectorArtwork} selectedIndex={layoutSelection.startsWith("line-")&&Number(layoutSelection.slice(5))>=3?Number(layoutSelection.slice(5))-3:Math.min(selectedVector,Math.max(0,project.vectorArtwork.length-1))} importing={vectorImporting} report={vectorImportReport} onImport={()=>vectorFileRef.current?.click()} onSelect={selectVector} onChange={changeVector} onRemove={removeVector}/>
+              <VectorArtworkControls objects={project.vectorArtwork} selectedIndex={typeof layoutSelection === "string" && layoutSelection.startsWith("line-")&&Number(layoutSelection.slice(5))>=3?Number(layoutSelection.slice(5))-3:Math.min(selectedVector,Math.max(0,project.vectorArtwork.length-1))} importing={vectorImporting} report={vectorImportReport} onImport={()=>vectorFileRef.current?.click()} onSelect={selectVector} onChange={changeVector} onRemove={removeVector}/>
             </div>
           </details>}
         </aside>
