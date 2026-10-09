@@ -688,7 +688,6 @@ export function SignProductConfigurator() {
   const [showDimensions, setShowDimensions] = useState(true);
   const [showFacadeSign, setShowFacadeSign] = useState(true);
   const [showFacadePanel, setShowFacadePanel] = useState(true);
-  const [showScalePerson, setShowScalePerson] = useState(true);
   const [cartOpen, setCartOpen] = useState(false);
   const cart = useSignCart<ProjectState>();
   const latestProject = useRef(project);
@@ -711,7 +710,7 @@ export function SignProductConfigurator() {
   };
   const handleResetSettings = () => {
     replaceProjectWithUndo(resetProjectSettings(), "Все изменения сброшены. Возвращены исходные параметры конструктора. Действие можно отменить.");
-    setShowDimensions(true); setShowFacadeSign(true); setShowFacadePanel(true); setShowScalePerson(true); setCartOpen(false); setEditing(true);
+    setShowDimensions(true); setShowFacadeSign(true); setShowFacadePanel(true); setCartOpen(false); setEditing(true);
   };
   const handleClearLayout = () => replaceProjectWithUndo(clearProjectArtwork(project), "Макет очищен. Действие можно отменить.");
   useEffect(() => {
@@ -1181,7 +1180,6 @@ export function SignProductConfigurator() {
           {viewMode === '3d' && placement !== 'none' && <div className="facade-context-toolbar" role="group" aria-label="Общий вид фасада">
             <label><input type="checkbox" checked={showFacadeSign} onChange={event => setShowFacadeSign(event.target.checked)} />{productId === 'neon' ? 'Неоновая вывеска' : 'Вывеска'}</label>
             <label><input type="checkbox" checked={showFacadePanel} onChange={event => setShowFacadePanel(event.target.checked)} />Панель-кронштейн</label>
-            <label><input type="checkbox" checked={showScalePerson} onChange={event => setShowScalePerson(event.target.checked)} />Человек 175 см</label>
             <span>Параметры каждого изделия — в его вкладке</span>
           </div>}
           {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar layout-alignment-toolbar" aria-label="Выбор и выравнивание объектов макета">
@@ -1210,7 +1208,7 @@ export function SignProductConfigurator() {
           {blankSign ? <div className="studio-empty-preview" role="status"><Type size={34} aria-hidden="true" /><strong>Макет пуст</strong>
             <p>{productId === "neon" ? "Добавьте надпись или фигуру в настройках." : "Добавьте надпись, логотип или свой вектор в настройках."}</p>
             <a className="studio-button" href="#studio-controls" onClick={() => setActiveSection("design")}>Добавить надпись</a>
-          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showPerson={showScalePerson} showSign={showFacadeSign} showPanel={showFacadePanel} resetKey={fitSignal} onUnavailable={handle3DUnavailable} onGameActiveChange={setRcPlaying} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
+          </div> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showSign={showFacadeSign} showPanel={showFacadePanel} resetKey={fitSignal} onUnavailable={handle3DUnavailable} onGameActiveChange={setRcPlaying} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
             {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (
               <PanelPreview
                 lightsOn={project.lightsOn}

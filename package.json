@@ -9,6 +9,9 @@
     "test:sign-studio": "node scripts/test-sign-studio.mjs",
     "test:sign-scene": "node scripts/test-sign-scene.mjs",
     "test:rc-game": "node scripts/test-rc-physics.mjs",
+    "test:rc-suspension": "node scripts/test-rc-suspension.mjs",
+    "test:rc-vehicle": "node scripts/test-rc-vehicle-lifecycle.mjs",
+    "test:trx-asset": "node scripts/test-trx-asset.mjs",
     "test:rc-props": "node scripts/test-rc-props.mjs",
     "test:facade-rc": "node scripts/test-facade-rc.mjs",
     "build:rc-embed": "node scripts/build-rc-embed.mjs",
@@ -46,6 +49,7 @@
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "meshoptimizer": "1.1.1",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"
   }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { RC_WORDMARK_PATHS } from './brandWordmark';
 
 export interface TrxMaterials {
   body: THREE.MeshStandardMaterial;
@@ -45,30 +46,32 @@ function polySide(parent: THREE.Object3D, name: string, points: Array<[number, n
 function textureMaterial(canvas: HTMLCanvasElement) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
+  texture.anisotropy = 16;
   return new THREE.MeshStandardMaterial({ map: texture, transparent: true, roughness: .42,
     metalness: .02, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
 }
 
-/** Synchronous local livery: the exact geometric brand mark plus readable Cyrillic lettering. */
-function brandLivery() {
+/** Original outlined wordmark; no substitute symbol or platform font. */
+export function brandLivery() {
   const canvas = document.createElement('canvas');
-  canvas.width = 1536; canvas.height = 512;
+  canvas.width = 1536; canvas.height = 384;
   const context = canvas.getContext('2d')!;
-  context.fillStyle = '#173e31';
-  context.beginPath(); context.roundRect(4, 4, 1528, 504, 48); context.fill();
-  context.save(); context.translate(50, 55); context.scale(12.5, 12.5);
-  // public/gorod-svet-mark.svg, viewBox 0 0 32 32.
-  context.fillStyle = '#ffcc32'; context.beginPath(); context.roundRect(0, 0, 32, 32, 6); context.fill();
-  context.fillStyle = '#172333'; context.beginPath();
-  context.moveTo(9, 23); context.lineTo(9, 9); context.lineTo(23, 9); context.lineTo(23, 13);
-  context.lineTo(13, 13); context.lineTo(13, 23); context.closePath(); context.fill();
-  context.beginPath(); context.arc(23, 23, 3, 0, Math.PI * 2); context.fill(); context.restore();
-  context.fillStyle = '#f7faef'; context.textBaseline = 'middle'; context.font = '900 135px Arial, sans-serif';
-  context.fillText('ГОРОД СВЕТ', 486, 234, 970);
-  context.fillStyle = '#ffcc32'; context.font = '700 47px Arial, sans-serif';
-  context.fillText('СВЕТ В ДВИЖЕНИИ', 494, 354, 930);
-  return textureMaterial(canvas);
+  context.fillStyle = '#102c23';
+  context.beginPath(); context.roundRect(4, 4, 1528, 376, 26); context.fill();
+  context.save(); context.translate(72, 52); context.scale(1392 / 420, 1392 / 420);
+  context.beginPath(); context.rect(0, 0, 420, 84); context.clip();
+  for (const path of RC_WORDMARK_PATHS) {
+    context.fillStyle = path.fill;
+    if (typeof Path2D !== 'undefined') context.fill(new Path2D(path.d));
+  }
+  context.restore();
+  const material=textureMaterial(canvas);
+  material.name='rc-official-gorod-svet-wordmark';
+  material.userData.source='public/gorod-svet-wordmark.svg';
+  material.alphaTest=.12; material.transparent=false; material.depthWrite=true; material.side=THREE.FrontSide;
+  material.roughness=.65; material.metalness=0;
+  material.polygonOffsetFactor=-4; material.polygonOffsetUnits=-4;
+  return material;
 }
 
 function ramGrilleBadge() {

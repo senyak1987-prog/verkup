@@ -4,7 +4,7 @@ import type { RcArenaBounds, RcPhysics } from './physics';
 /** Dimensions are arena-local metres; y, when supplied, is the body's centre. */
 export interface RcPropSpec {
   id: string;
-  kind: 'cone' | 'tire' | 'bollard';
+  kind: 'cone' | 'tire' | 'bollard' | 'crate' | 'barrel' | 'ball';
   x: number;
   z: number;
   radius: number;
@@ -22,10 +22,19 @@ export interface RcPropBody {
   quaternion: CANNON.Quaternion;
 }
 
+/** Chassis-local collision box in arena metres; centerOffset is its vertical offset. */
+export interface RcVehicleDimensions {
+  halfWidth: number;
+  halfLength: number;
+  halfHeight: number;
+  centerOffset?: number;
+}
+
 export interface RcPropsPhysicsOptions {
   height: (x: number, z: number) => number;
   bounds: RcArenaBounds;
   barriers?: readonly { minX: number; maxX: number; minZ: number; maxZ: number; height: number }[];
+  vehicleDimensions?: RcVehicleDimensions;
 }
 
 const FIXED_STEP = 1 / 120;
@@ -33,10 +42,10 @@ const PROP_GROUP = 1;
 const FLOOR_GROUP = 2;
 const CAR_GROUP = 4;
 const CAR_MASS = 9;
-const CAR_HALF_WIDTH = .62;
-const CAR_HALF_LENGTH = 1.04;
-const CAR_CENTRE_OFFSET = .02;
-const DEFAULT_MASS = { cone: .55, tire: 1.3, bollard: 1.7 };
+const DEFAULT_VEHICLE_DIMENSIONS: Required<RcVehicleDimensions> = {
+  halfWidth: .62, halfLength: 1.04, halfHeight: .35, centerOffset: .02,
+};
+const DEFAULT_MASS = { cone: .55, tire: 1.3, bollard: 1.7, crate: .38, barrel: .5, ball: .09 };
 const finite = (value: number, fallback = 0) => Number.isFinite(value) ? value : fallback;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
@@ -49,11 +58,19 @@ export class RcPropsPhysics {
   readonly bodies: RcPropBody[] = [];
   private world: CANNON.World;
   private carBody: CANNON.Body;
+  private vehicleDimensions: Required<RcVehicleDimensions>;
   private initial = new Map<CANNON.Body, { position: CANNON.Vec3; quaternion: CANNON.Quaternion }>();
   private accumulator = 0;
   private disposed = false;
 
   constructor(specs: readonly RcPropSpec[], options: RcPropsPhysicsOptions) {
+    const requested = options.vehicleDimensions;
+    this.vehicleDimensions = {
+      halfWidth: clamp(finite(requested?.halfWidth ?? DEFAULT_VEHICLE_DIMENSIONS.halfWidth, DEFAULT_VEHICLE_DIMENSIONS.halfWidth), .05, 5),
+      halfLength: clamp(finite(requested?.halfLength ?? DEFAULT_VEHICLE_DIMENSIONS.halfLength, DEFAULT_VEHICLE_DIMENSIONS.halfLength), .05, 5),
+      halfHeight: clamp(finite(requested?.halfHeight ?? DEFAULT_VEHICLE_DIMENSIONS.halfHeight, DEFAULT_VEHICLE_DIMENSIONS.halfHeight), .05, 5),
+      centerOffset: clamp(finite(requested?.centerOffset ?? DEFAULT_VEHICLE_DIMENSIONS.centerOffset, DEFAULT_VEHICLE_DIMENSIONS.centerOffset), -5, 5),
+    };
     const world = this.world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.81, 0), allowSleep: true });
     world.broadphase = new CANNON.SAPBroadphase(world);
     const solver = new CANNON.GSSolver();
@@ -86,11 +103,12 @@ export class RcPropsPhysics {
       }
       world.addBody(body);
     }
+    const { halfWidth, halfHeight, halfLength } = this.vehicleDimensions;
     this.carBody = new CANNON.Body({
       type: CANNON.Body.KINEMATIC,
       mass: 0,
       material: car,
-      shape: new CANNON.Box(new CANNON.Vec3(CAR_HALF_WIDTH, .35, CAR_HALF_LENGTH)),
+      shape: new CANNON.Box(new CANNON.Vec3(halfWidth, halfHeight, halfLength)),
       collisionFilterGroup: CAR_GROUP,
       collisionFilterMask: PROP_GROUP,
     });
@@ -188,6 +206,10 @@ export class RcPropsPhysics {
         body.addShape(new CANNON.Box(new CANNON.Vec3(radius * .27, height / 2, radius * .245)),
           new CANNON.Vec3(Math.cos(angle) * radius * .73, 0, Math.sin(angle) * radius * .73), orientation);
       }
+    } else if (kind === 'crate') {
+      body.addShape(new CANNON.Box(new CANNON.Vec3(radius, height / 2, radius)));
+    } else if (kind === 'ball') {
+      body.addShape(new CANNON.Sphere(radius));
     } else {
       body.addShape(new CANNON.Cylinder(radius, radius, height, 12));
     }
@@ -221,6 +243,12 @@ export class RcPropsPhysics {
       groundSphere(lowerR, 0, -height / 2 + baseHeight + lowerR, 0);
       groundSphere(lowerR * .66, 0, height * .05, 0);
       groundSphere(radius * .12, 0, height / 2 - radius * .12, 0);
+    } else if (kind === 'crate') {
+      const r = .035;
+      for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1])
+        groundSphere(r, x * (radius - r), y * (height / 2 - r), z * (radius - r));
+    } else if (kind === 'ball') {
+      groundSphere(radius, 0, 0, 0);
     } else {
       const r = Math.min(radius, height / 2);
       groundSphere(r, 0, -height / 2 + r, 0);
@@ -239,7 +267,7 @@ export class RcPropsPhysics {
     for (let i = 0; i < count; i++) {
       const state = car.state;
       const timeBeforeEnd = (count - i) * FIXED_STEP;
-      this.carBody.position.set(state.x - state.vx * timeBeforeEnd, state.y + CAR_CENTRE_OFFSET, state.z - state.vz * timeBeforeEnd);
+      this.carBody.position.set(state.x - state.vx * timeBeforeEnd, state.y + this.vehicleDimensions.centerOffset, state.z - state.vz * timeBeforeEnd);
       this.carBody.quaternion.setFromEuler(state.pitch, state.yaw, state.roll, 'YXZ');
       this.carBody.velocity.set(state.vx, 0, state.vz);
       this.carBody.angularVelocity.set(0, 0, 0);

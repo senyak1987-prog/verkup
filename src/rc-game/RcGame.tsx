@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleHelp, Flag, Keyboard, MousePointer2, Pause, Play, Radio, RotateCcw, X } from "lucide-react";
 import { mountRcGame, type RcGameController, type RcTelemetry } from "./game";
+import { RamModelCredit } from './RamModelCredit';
 import "./rc-game.css";
 
 export interface RcGameProps {
@@ -31,7 +32,7 @@ const CAMERAS = [
 
 const COLORS = [
   { value: "#e8bc45", label: "Медовый" },
-  { value: "#3a8667", label: "Лесной" },
+  { value: "#173e31", label: "Лесной" },
   { value: "#dc705b", label: "Коралловый" },
 ] as const;
 
@@ -176,7 +177,7 @@ export function RcGame({ embedded = false, className = "", onLap }: RcGameProps)
                     return <div className="rc-suspension-track" key={label} title={label} aria-label={`${label} колесо: ${Math.round(travel * 100)}% хода подвески`}><span style={{ height: `${16 + travel * 84}%` }} /></div>;
                   })}
                 </div>
-                <span className="rc-suspension-caption">4 независимых колеса</span>
+                <span className="rc-suspension-caption">Ход каждого колеса</span>
               </div>
               {telemetry.paused && <div className="rc-pause-overlay"><button type="button" className="rc-resume-button" onClick={togglePause}><Play size={19} aria-hidden="true" />Продолжить заезд</button></div>}
               {!telemetry.paused && !telemetry.driving && Math.abs(telemetry.speed) < 0.4 && (
@@ -211,9 +212,10 @@ export function RcGame({ embedded = false, className = "", onLap }: RcGameProps)
 
         {helpOpen && <div className="rc-help-panel" id="rc-controls-help">
           <div><MousePointer2 size={20} aria-hidden="true" /><p><strong>Мышь — ваш пульт</strong><span className="rc-desktop-copy">Удерживайте левую кнопку: машинка едет к курсору. Отпустите — она катится по инерции.</span><span className="rc-touch-copy">Удерживайте палец на полигоне: машинка едет к нему. Отпустите — она катится по инерции.</span></p></div>
-          <div><Keyboard size={20} aria-hidden="true" /><p><strong>Ещё немного контроля</strong><span>Правая кнопка — тормоз. <kbd>Shift</kbd> — задний ход. <kbd>WASD</kbd> или стрелки — управление с клавиатуры.</span></p></div>
+          <div><Keyboard size={20} aria-hidden="true" /><p><strong>Ещё немного контроля</strong><span>Правая кнопка — тормоз. <kbd>Пробел</kbd> — ручник задних колёс. <kbd>Shift</kbd> — задний ход. <kbd>WASD</kbd> или стрелки — управление с клавиатуры.</span></p></div>
           {mode === "trial" && <p className="rc-trial-help"><Flag size={17} aria-hidden="true" />Пройдите все ворота по порядку. Следующие ворота подсвечены.</p>}
         </div>}
+        <RamModelCredit />
       </div>
 
       {!embedded && <footer className="rc-footer"><p><MousePointer2 size={14} aria-hidden="true" /><span className="rc-desktop-copy">Зажмите левую кнопку — и поехали. Отпустите — накат.</span><span className="rc-touch-copy">Удерживайте палец на полигоне — и поехали.</span></p><span>Антенна, корпус и подвеска — всё в движении.</span></footer>}

@@ -1,9 +1,11 @@
 import { build } from 'vite';
 import { fileURLToPath } from 'node:url';
+import { copyFile } from 'node:fs/promises';
 
 // Optional self-contained ES module for non-React sites. Run AFTER the main build.
 await build({
   configFile: false,
+  mode: 'rc-embed',
   build: {
     outDir: 'dist/rc-embed',
     emptyOutDir: false,
@@ -14,3 +16,5 @@ await build({
     },
   },
 });
+await copyFile('public/models/ram-trx.glb', 'dist/rc-embed/ram-trx.glb');
+await copyFile('public/models/ram-trx-attribution.txt', 'dist/rc-embed/ram-trx-attribution.txt');

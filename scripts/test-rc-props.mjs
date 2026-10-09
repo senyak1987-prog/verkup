@@ -21,10 +21,10 @@ const idle = { target: null, throttle: 0, brake: false, reverse: false };
 const drive = { ...idle, throttle: 1, steer: 0 };
 const shape = (kind, overrides = {}) => ({ id: kind, kind, x: .08, z: 0,
   radius: kind === 'tire' ? .45 : .25,
-  height: kind === 'tire' ? .32 : kind === 'cone' ? .78 : 1.05, ...overrides });
-function setup(specs, height = () => 0, spawn = { x: 0, z: -3, yaw: 0 }) {
+  height: kind === 'tire' ? .32 : kind === 'cone' ? .78 : kind === 'ball' ? .5 : 1.05, ...overrides });
+function setup(specs, height = () => 0, spawn = { x: 0, z: -3, yaw: 0 }, vehicleDimensions) {
   const car = new RcPhysics(height, { bounds, spawn });
-  const props = new RcPropsPhysics(specs, { bounds, height });
+  const props = new RcPropsPhysics(specs, { bounds, height, vehicleDimensions });
   return { car, props };
 }
 function simulate({ car, props }, seconds, input = idle, dt = 1 / 120, onStep = () => {}) {
@@ -36,7 +36,45 @@ function simulate({ car, props }, seconds, input = idle, dt = 1 / 120, onStep = 
   }
 }
 
-for (const kind of ['cone', 'tire', 'bollard']) {
+test('The collision footprint follows custom chassis dimensions without phantom side impacts', () => {
+  const run = vehicleDimensions => {
+    const state = setup([shape('bollard', { x: .60, radius: .08 })], () => 0,
+      { x: 0, z: -3, yaw: 0 }, vehicleDimensions);
+    const prop = state.props.bodies[0];
+    simulate(state, .5);
+    const original = prop.position.clone();
+    let recoil = 0;
+    simulate(state, 2.4, drive, 1 / 120, () => { recoil = Math.max(recoil, state.car.state.collision); });
+    const travelled = Math.hypot(prop.position.x - original.x, prop.position.z - original.z);
+    state.props.dispose();
+    return { travelled, recoil };
+  };
+  const original = run();
+  const narrow = run({ halfWidth: .32, halfLength: .99, halfHeight: .30, centerOffset: .02 });
+  assert.ok(original.travelled > .4 && original.recoil > .005, 'The default truck must still hit this roadside bollard');
+  assert.ok(narrow.travelled < .025 && narrow.recoil < .001,
+    `A narrow chassis must pass beside the bollard: moved ${narrow.travelled}, recoil ${narrow.recoil}`);
+});
+
+test('Malformed vehicle dimensions remain finite and keep a usable collision box', () => {
+  const state = setup([shape('cone', { x: 3, z: 3 })], () => 0, { x: -6, z: -6, yaw: 0 }, {
+    halfWidth: Number.NaN, halfLength: -10, halfHeight: Number.POSITIVE_INFINITY, centerOffset: Number.NaN,
+  });
+  // These are the actual Cannon shape/pose values used by contacts, rather than
+  // a second copy of the dimensions normalizer in the test.
+  const collision = state.props.carBody;
+  const extents = collision.shapes[0].halfExtents;
+  assert.equal(extents.x, .62);
+  assert.equal(extents.z, .05);
+  assert.equal(extents.y, .35);
+  simulate(state, .5);
+  assert.ok(Number.isFinite(collision.position.y));
+  assert.ok(Math.abs(collision.position.y - state.car.state.y - .02) < 1e-8);
+  for (const value of Object.values(state.props.bodies[0].position)) assert.ok(Number.isFinite(value));
+  state.props.dispose();
+});
+
+for (const kind of ['cone', 'tire', 'bollard', 'crate', 'barrel', 'ball']) {
   test(`Moving chassis hits a ${kind}: translation, angular motion and opposite recoil`, () => {
     const state = setup([shape(kind)]);
     const prop = state.props.bodies[0];
@@ -68,15 +106,25 @@ test('Airborne rigid body falls under gravity and settles above the floor', () =
 });
 
 test('An off-centre impact transfers contacts through a tyre stack and knocks tyres apart', () => {
+  const tyreRadius = .45, pileX = .08, chassisHalfWidth = .62;
+  // Put the tyre centre beyond the chassis side, while the front corner cuts
+  // into the tyre ring. A barely grazing side contact can push a stable stack
+  // without tipping it, which would not exercise transfer through the stack.
+  const approachX = pileX - chassisHalfWidth - tyreRadius * .25;
   const state = setup([
     shape('tire', { id: 'lower', y: .166 }),
     shape('tire', { id: 'middle', y: .492 }),
     shape('tire', { id: 'upper', y: .818 }),
-  ], () => 0, { x: -.85, z: -3, yaw: 0 });
+  ], () => 0, { x: approachX, z: -3, yaw: 0 });
+  simulate(state, .5);
+  const horizontalSeparation = () => {
+    const positions = state.props.bodies.map(({ position }) => position);
+    return Math.max(...positions.flatMap((a, i) => positions.slice(i + 1)
+      .map(b => Math.hypot(a.x - b.x, a.z - b.z))));
+  };
+  assert.ok(horizontalSeparation() < .04, 'The undisturbed tyres must first settle into one aligned stack');
   simulate(state, 2.5, drive);
-  const positions = state.props.bodies.map(({ position }) => position);
-  const maxSeparation = Math.max(...positions.flatMap((a, i) => positions.slice(i + 1)
-    .map(b => Math.hypot(a.x - b.x, a.z - b.z))));
+  const maxSeparation = horizontalSeparation();
   assert.ok(maxSeparation > .7, `Tyres moved as one static pile: ${maxSeparation}`);
   for (const { body } of state.props.bodies) assert.ok(body.position.y > -.1, 'Tyre fell through the floor');
   state.props.dispose();
@@ -171,10 +219,16 @@ test('Bump stops carry the RC chassis up three real risers without burying its w
     car.step(1 / 120, drive);
     const state = car.state;
     for (const wheel of state.wheels) {
-      const x = state.x + wheel.x * Math.cos(state.yaw) + wheel.z * Math.sin(state.yaw);
-      const z = state.z - wheel.x * Math.sin(state.yaw) + wheel.z * Math.cos(state.yaw);
-      const centreY = state.y + wheel.height + wheel.x * Math.sin(state.roll) - wheel.z * Math.sin(state.pitch);
-      assert.ok(centreY >= height(x, z) + .19 - .003, `Wheel entered a stair: ${centreY} at z=${z}`);
+      // Renderer hierarchy is chassis XYZ(pitch, 0, roll), inside vehicle Y(yaw).
+      // Large stair articulation needs the complete transform for both height
+      // and horizontal contact position; first-order offsets underestimate Y.
+      const localX = wheel.x * Math.cos(state.roll) - wheel.height * Math.sin(state.roll);
+      const rotatedY = wheel.x * Math.sin(state.roll) + wheel.height * Math.cos(state.roll);
+      const localZ = rotatedY * Math.sin(state.pitch) + wheel.z * Math.cos(state.pitch);
+      const centreY = state.y + rotatedY * Math.cos(state.pitch) - wheel.z * Math.sin(state.pitch);
+      const x = state.x + localX * Math.cos(state.yaw) + localZ * Math.sin(state.yaw);
+      const z = state.z - localX * Math.sin(state.yaw) + localZ * Math.cos(state.yaw);
+      assert.ok(centreY >= height(x, z) + car.vehicle.wheelRadius - .003, `Wheel entered a stair: ${centreY} at z=${z}`);
     }
   }
   assert.ok(car.state.z > 2 && car.state.y > 2.65, 'Vehicle never reached the raised landing');

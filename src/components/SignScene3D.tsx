@@ -6,8 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { applySignLighting, buildSignModel, disposeSignObject } from "../lib/signSceneGeometry";
 import type { SignSceneLayout, SignSceneProject } from "../lib/signSceneGeometry";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { animateScalePerson, attachFacadePair, createFacadeModel, createPanelMountContext, createScalePerson, loadScalePersonBrand, setFacadeProductVisibility } from "../lib/signFacade3D";
-import { loadScalePersonModel } from "../lib/scalePersonAsset";
+import { attachFacadePair, createFacadeModel, createPanelMountContext, setFacadeProductVisibility } from "../lib/signFacade3D";
 import { DAYLIGHT_LEVELS, daylightSource } from "../lib/signDaylight";
 import { signFocusBounds, zoomFocusWeight } from "../lib/signCameraFocus";
 import type { DaylightMarker } from "../lib/signDaylight";
@@ -15,6 +14,8 @@ import { sceneLightingAt, sceneLightingDuration } from "../lib/sceneLighting";
 import { panelMountLayout } from "../lib/panelConstruction";
 import type { SignPlacement } from "../lib/signFacade";
 import { createFacadeRcGame, type FacadeRcGame, type FacadeRcCamera } from "../rc-game/facadeGame";
+import { createTrxAssetLoader } from "../rc-game/trxAsset";
+import { TRX_VEHICLE_PROFILE } from "../rc-game/trxAssetProfile";
 import { FacadeRcControls } from "../rc-game/FacadeRcControls";
 import type { RcMode, RcTelemetry } from "../rc-game/world";
 import "../sign-scene-3d.css";
@@ -30,7 +31,6 @@ export type SignScene3DProps = {
   zoom: number;
   placement?: SignPlacement;
   companion?: { project: SignSceneProject; width: number; height: number; depth: number };
-  showPerson?: boolean;
   showSign?: boolean;
   showPanel?: boolean;
   onZoomChange?: (value: number) => void;
@@ -76,11 +76,10 @@ type SceneRuntime = {
   source: (marker: DaylightMarker) => void;
 };
 
-export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', companion, showPerson = true, showSign = true, showPanel = true, onZoomChange, resetKey = 0, onUnavailable, onGameActiveChange }: SignScene3DProps) {
+export function SignScene3D({ project, layout, width, height, depth, showDimensions, zoom, placement = 'none', companion, showSign = true, showPanel = true, onZoomChange, resetKey = 0, onUnavailable, onGameActiveChange }: SignScene3DProps) {
   const geometryKey = JSON.stringify({ ...project, sceneMode: undefined, lightsOn:undefined });
   const modelProject = useMemo(() => ({ ...project, sceneMode: 'night' as const, lightsOn:true }), [geometryKey]);
   const lightsOnRef=useRef(project.lightsOn!==false);
-  const showPersonRef = useRef(showPerson); showPersonRef.current = showPerson;
   const visibilityRef = useRef({ showSign, showPanel }); visibilityRef.current = { showSign, showPanel };
   const companionKey = companion ? JSON.stringify({ ...companion, project: { ...companion.project, sceneMode: undefined, lightsOn: undefined } }) : '';
   const modelCompanion = useMemo(() => companion ? { ...companion, project: { ...companion.project, sceneMode: 'night' as const, lightsOn: true } } : undefined, [companionKey]);
@@ -172,24 +171,20 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const fill = new THREE.DirectionalLight("#dce9ef", DAYLIGHT_LEVELS.fill);
       scene.add(ambient, key, fill, fill.target);
       for (const light of [ambient, key, fill]) light.layers.enable(1);
-      key.shadow.camera.layers.enable(1);
+      // Layer 1 has a high-resolution directional map owned by the RC scene.
+      key.shadow.camera.layers.disable(1);
       host.appendChild(renderer.domElement);
       const currentRenderer = renderer;
       const currentControls = controls;
       const motionPreference=window.matchMedia('(prefers-reduced-motion: reduce)');
-      let motionTimer:ReturnType<typeof setTimeout>|undefined,hostInView=true,lastPersonShadow=0,skipFitAfterGameExit=false;
+      let motionTimer:ReturnType<typeof setTimeout>|undefined,hostInView=true,skipFitAfterGameExit=false;
       const render = () => {
         frameId = 0;
         clearTimeout(motionTimer);motionTimer=undefined;
         if (disposed || !hostInView || document.visibilityState === "hidden") { runtime.rc?.suspend(); return; }
         try {
-          const person=runtime.model?.getObjectByName('scale-person');
           const now=performance.now();
           const rcAnimating = runtime.rc?.update(now) ?? false;
-          const animated=person?.visible&&animateScalePerson(person,now/1000,motionPreference.matches);
-          if((rcAnimating||animated)&&now-lastPersonShadow>(rcAnimating?100:500)){key.shadow.needsUpdate=true;lastPersonShadow=now;}
-          host.dataset.personAnimation=person?.visible?(animated?'standing-cape':'still'):'';
-          if(animated)host.dataset.personMotionTime=(now/1000).toFixed(3);
           currentRenderer.render(scene, camera);
           host.dataset.cameraZoom = String(camera.zoom);
           host.dataset.cameraViewHeight = String(camera.top - camera.bottom);
@@ -202,7 +197,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           if (!runtime.rc?.active && value !== zoomRef.current) zoomChangeRef.current?.(value);
           host.dataset.rcActive = runtime.rc?.active ? 'true' : 'false';
           host.dataset.rcAvailable = runtime.rc?.available ? 'true' : 'false';
-          if(rcAnimating)requestRender();else if(animated)motionTimer=setTimeout(requestRender,32);
+          if(rcAnimating)requestRender();
         } catch { fail(); }
       };
       const requestRender = () => {
@@ -351,6 +346,10 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       };
       runtimeRef.current = runtime;
       runtime.rc = createFacadeRcGame({ scene, camera, controls: currentControls, canvas: currentRenderer.domElement,
+        vehicleProfile: TRX_VEHICLE_PROFILE,
+        shadowMapSize: Math.min(4096,currentRenderer.capabilities.maxTextureSize),
+        loadVehicle: createTrxAssetLoader(`${import.meta.env.BASE_URL}models/ram-trx.glb`),
+        onVehicleError: error => console.warn('RAM TRX asset could not be loaded:', error),
         requestRender, onActive: value => {
           if (!disposed) {
             skipFitAfterGameExit = !value;
@@ -464,14 +463,6 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const facade = model.getObjectByName('facade') as THREE.Group | undefined;
       if (facade) {
         setFacadeProductVisibility(model, visibilityRef.current.showSign, visibilityRef.current.showPanel);
-        const [brand, asset] = await Promise.all([
-          loadScalePersonBrand(import.meta.env.BASE_URL).catch(() => undefined),
-          loadScalePersonModel(import.meta.env.BASE_URL).catch(() => undefined),
-        ]);
-        if (version !== buildRef.current || runtime !== runtimeRef.current) { brand?.dispose(); disposeSignObject(model); return; }
-        const person = createScalePerson(facade, signFocusBounds(model).getCenter(new THREE.Vector3()), brand, asset);
-        if (person) { person.visible = showPersonRef.current; facade.add(person); }
-        else brand?.dispose();
       }
       // Measurements are a persistent overlay: toggling them must not rebuild or reframe the scene.
       model.traverse(child => { if (child.name === "dimensions") child.visible = dimensionsVisibleRef.current; });
@@ -510,10 +501,6 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     runtime?.requestRender();
   }, [showDimensions]);
 
-  useEffect(() => {
-    const runtime = runtimeRef.current, person = runtime?.model?.getObjectByName('scale-person');
-    if (person) { person.visible = showPerson; runtime!.key.shadow.needsUpdate = true; runtime!.requestRender(); }
-  }, [showPerson]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
@@ -583,7 +570,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     if (runtimeRef.current?.rc?.active) {
       if (event.key === 'Escape') { event.preventDefault(); runtimeRef.current.rc.exit(); }
       if (event.key === 'Tab') {
-        const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), canvas[tabindex="0"]')];
+        const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), canvas[tabindex="0"], a[href]')];
         const first = focusable[0], last = focusable[focusable.length - 1];
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
         else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -636,7 +623,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       {unavailable && <div className="sign-scene-3d-status" role="status">3D сейчас недоступно. Открываем плоский вид.</div>}
       {!loading && !unavailable && !rcActive && <p className="sign-scene-3d-hint">Перетащите для вращения · колесо или два пальца для масштаба</p>}
       {!rcActive && <div className="sign-scene-3d-notices" aria-live="polite">
-        {placement !== 'none' && showPerson && <span className="scale-person-note">Человек 175 см · дверь 110 × 210 см</span>}
+        {placement !== 'none' && <span className="scale-person-note">Дверь 110 × 210 см</span>}
         {project.productId === "letters" && project.mountMode === "frame" && project.letterHeight > 550 &&
           <span>Рама 15 × 15 мм показана в масштабе. Для букв выше 550 мм профиль требует проверки.</span>}
       </div>}

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { rcSurfaceProps, type RcPlatform, type RcSurface } from './terrainSurface';
+import { rcSurfaceProps, workshopProps, pavingCell, inRegion, type RcPlatform, type RcSurface } from './terrainSurface';
 
 export const FACADE_RC_SCALE = 200;
 /** Kept for standalone embedding; facade arenas now follow their real building width. */
@@ -63,12 +63,21 @@ export function facadeRcPlacement(facade: THREE.Group): FacadeRcPlacement | null
     if (region.maxX <= region.minX || region.maxZ <= region.minZ) return;
     (walkable ? platforms : barriers).push(region);
   });
+  const apronBack = toZ(front);
+  const paving = [
+    ...platforms.filter(top => top.name === 'facade-pavement').map(top => ({ ...top, baseHeight: top.height })),
+    { minX: bounds.minX, maxX: bounds.maxX, minZ: apronBack, maxZ: apronBack + 3.8, baseHeight: 0 },
+  ];
   const height = (x: number, z: number) => {
     let y = 0;
     for (const top of platforms) if (x >= top.minX && x <= top.maxX && z >= top.minZ && z <= top.maxZ) y = Math.max(y, top.height);
+    const patch = paving.find(region => inRegion(region, x, z));
+    if (patch && y <= patch.baseHeight + .001) y = patch.baseHeight + pavingCell(x, z).height;
+    // Low sand ripples flank the clear racing lane, without covering the steps.
+    if (!patch && z > apronBack && Math.abs(x) > width * .23) y += .065 * (1 + Math.sin(x * 1.3 + z * .8))
+      * Math.min(1, (Math.abs(x) - width * .23) / 1.2);
     return y;
   };
-  const apronBack = toZ(front);
   const loopBack = apronBack + 3.2, loopFront = bounds.maxZ - 3.2, loopSide = width / 2 - 4;
   const checkpoints = [
     { x: loopSide, z: loopFront }, { x: loopSide, z: loopBack }, { x: 0, z: loopBack },
@@ -76,16 +85,17 @@ export function facadeRcPlacement(facade: THREE.Group): FacadeRcPlacement | null
   ];
   const middleZ = (loopBack + loopFront) / 2;
   const surface: RcSurface = {
-    width, depth, bounds, height, platforms, barriers,
+    width, depth, bounds, height, platforms, barriers, paving,
+    groundKind: (x, z) => paving.some(region => inRegion(region, x, z)) ? 'pavers' : 'sand',
     floorRegions: [{ minX: bounds.minX, maxX: bounds.maxX, minZ: apronBack, maxZ: bounds.maxZ }],
     checkpoints,
-    props: rcSurfaceProps(height, checkpoints, [
+    props: [...rcSurfaceProps(height, checkpoints, [
       { x: width * .16, z: middleZ, radius: .65 }, { x: -width * .16, z: middleZ - 1.8, radius: .65 },
       { x: -1.5, z: middleZ + 1.6, radius: .45 },
     ], [
       { x: loopSide + 1.9, z: middleZ }, { x: -loopSide - 1.9, z: loopBack + 1.4 },
       { x: 3, z: apronBack + 1.4 }, { x: -3, z: bounds.maxZ - 1.6 },
-    ]),
+    ]), ...workshopProps(height, bounds, apronBack)],
     spawn: { x: 0, z: loopFront, yaw: Math.PI / 2 },
   };
   const local = new THREE.Matrix4().compose(center, new THREE.Quaternion(), new THREE.Vector3().setScalar(FACADE_RC_SCALE));

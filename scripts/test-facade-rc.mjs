@@ -24,13 +24,20 @@ const facade = load('lib/signFacade', { './panelConstruction': panel });
 const architecture = load('lib/signFacade3D', { three: THREE, './signFacade': facade, './panelConstruction': panel });
 const terrain = load('rc-game/terrain');
 const physics = load('rc-game/physics');
+const { TRX_VEHICLE_PROFILE } = load('rc-game/trxAssetProfile');
 const surfaces = load('rc-game/terrainSurface', { './terrain': terrain });
 const placement = load('rc-game/facadePlacement', { three: THREE, './terrainSurface': surfaces });
 const props = load('rc-game/propsPhysics', { 'cannon-es': CANNON });
-const truck = load('rc-game/trxTruck', { three: THREE,
+const wordmark = load('rc-game/brandWordmark');
+const truck = load('rc-game/trxTruck', { three: THREE, './brandWordmark': wordmark,
   'three/examples/jsm/geometries/RoundedBoxGeometry.js': { RoundedBoxGeometry } });
+const suspension = load('rc-game/trxSuspension', { three: THREE });
+const ground = load('rc-game/arenaGround', { three: THREE, './terrainSurface': surfaces,
+  'three/examples/jsm/geometries/RoundedBoxGeometry.js': { RoundedBoxGeometry } });
+const effects = load('rc-game/vehicleEffects', { three: THREE });
 const worldApi = load('rc-game/world', { three: THREE, './physics': physics,
-  './terrainSurface': surfaces, './propsPhysics': props, './trxTruck': truck,
+  './terrainSurface': surfaces, './propsPhysics': props, './trxTruck': truck, './trxSuspension': suspension,
+  './arenaGround': ground, './vehicleEffects': effects,
   'three/examples/jsm/geometries/RoundedBoxGeometry.js': { RoundedBoxGeometry } });
 const gameApi = load('rc-game/facadeGame', { three: THREE, './world': worldApi, './facadePlacement': placement });
 const places = facade.SIGN_PLACEMENTS.filter(item => item.id !== 'none').map(item => item.id);
@@ -207,13 +214,13 @@ test('The new rendered ground joins the pavement without hiding any existing sta
 });
 
 test('The RC truck can climb the actual entrance staircase with wheel contacts above the treads', () => {
-  for (const place of places) {
+  for (const vehicle of [undefined, TRX_VEHICLE_PROFILE]) for (const place of places) {
     const building = architecture.createFacadeModel(place, 1800, 400);
     const surface = placement.facadeRcPlacement(building).surface;
     const lowest = surface.platforms.find(top => top.name === 'facade-entrance-step-3');
     const highest = surface.platforms.find(top => top.name === 'facade-entrance-step-1');
     const x = (lowest.minX + lowest.maxX) / 2;
-    const car = new physics.RcPhysics(surface.height, { bounds: surface.bounds,
+    const car = new physics.RcPhysics(surface.height, { bounds: surface.bounds, vehicle,
       spawn: { x, z: lowest.maxZ + 3, yaw: Math.PI } });
     let reachedTop = false;
     for (let tick = 0; tick < 720; tick++) {
@@ -222,10 +229,14 @@ test('The RC truck can climb the actual entrance staircase with wheel contacts a
       assert.ok(Object.values(s).filter(value => typeof value === 'number').every(Number.isFinite), 'A stair contact remains stable');
       if (inside(highest, s.x, s.z) && surface.height(s.x, s.z) >= highest.height) reachedTop = true;
       for (const wheel of s.wheels) {
-        const wx = s.x + wheel.x * Math.cos(s.yaw) + wheel.z * Math.sin(s.yaw);
-        const wz = s.z - wheel.x * Math.sin(s.yaw) + wheel.z * Math.cos(s.yaw);
-        const centreY = s.y + wheel.height + wheel.x * Math.sin(s.roll) - wheel.z * Math.sin(s.pitch);
-        assert.ok(centreY >= surface.height(wx, wz) + physics.WHEEL_RADIUS - .011,
+        // The same nested transforms as the rendered wheel: chassis XYZ tilt,
+        // then outer car Y yaw. The former small-angle estimate shifted the
+        // sample onto a different tread when the truck climbed a steep stair.
+        const centre = new THREE.Vector3(wheel.x, wheel.height, wheel.z)
+          .applyEuler(new THREE.Euler(s.pitch, 0, s.roll))
+          .applyAxisAngle(new THREE.Vector3(0, 1, 0), s.yaw)
+          .add(new THREE.Vector3(s.x, s.y, s.z));
+        assert.ok(centre.y >= surface.height(centre.x, centre.z) + car.vehicle.wheelRadius - .011,
           `${place}: a wheel cannot be buried in the staircase`);
       }
     }
@@ -329,9 +340,14 @@ test('Standalone and facade layouts contain independent physical cones, tyre pil
   const surfaceList = [surfaces.createDefaultRcSurface(), placement.facadeRcPlacement(building).surface];
   for (const surface of surfaceList) {
     assert.equal(new Set(surface.props.map(prop => prop.id)).size, surface.props.length);
-    assert.equal(surface.props.filter(prop => prop.kind === 'cone').length, 4);
+    assert.equal(surface.props.filter(prop => prop.kind === 'cone').length, 10);
     assert.equal(surface.props.filter(prop => prop.kind === 'tire').length, 9);
     assert.equal(surface.props.filter(prop => prop.kind === 'bollard').length, 12);
+    assert.equal(surface.props.filter(prop => prop.kind === 'crate').length, 12);
+    assert.equal(surface.props.filter(prop => prop.kind === 'barrel').length, 6);
+    assert.equal(surface.props.filter(prop => prop.kind === 'ball').length, 4);
+    const tyres=surface.props.filter(prop=>prop.kind==='tire');
+    assert.ok(tyres.every(tyre=>Math.abs(tyre.radius-TRX_VEHICLE_PROFILE.wheelRadius)<1e-6), 'All loose tyres match the truck wheel radius');
     for (const prop of surface.props) {
       assert.ok(inside(surface.bounds, prop.x, prop.z), 'Physical props start inside the arena');
       assert.ok(prop.radius > 0 && prop.height > 0 && prop.mass > 0);
@@ -342,5 +358,19 @@ test('Standalone and facade layouts contain independent physical cones, tyre pil
       assert.ok(tyres[0].y < tyres[1].y && tyres[1].y < tyres[2].y, 'Each tyre has its own height and can separate from the pile');
     }
   }
+  dispose(building);
+});
+
+test('Paver joints and unequal block heights excite independent suspension contacts',()=>{
+  const building=architecture.createFacadeModel('shop',1800,400), surface=placement.facadeRcPlacement(building).surface;
+  const patch=surface.paving[surface.paving.length-1];
+  const x=0,z=patch.minZ+.8;
+  const car=new physics.RcPhysics(surface.height,{vehicle:TRX_VEHICLE_PROFILE,bounds:surface.bounds,spawn:{x,z,yaw:Math.PI/2}});
+  let minimum=Infinity,maximum=-Infinity;
+  for(let i=0;i<300;i++){
+    car.step(1/120,{target:null,throttle:.12,steer:0,brake:false,reverse:false});
+    for(const wheel of car.state.wheels){minimum=Math.min(minimum,wheel.compression);maximum=Math.max(maximum,wheel.compression);}
+  }
+  assert.ok(maximum-minimum>.008,'The pavers change real suspension travel, rather than only drawing a texture');
   dispose(building);
 });

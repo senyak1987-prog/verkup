@@ -1,5 +1,6 @@
 import { ArrowLeft, CarFront, Flag, Map, Pause, Play, RotateCcw } from "lucide-react";
 import type { RcTelemetry } from "./world";
+import { RamModelCredit } from './RamModelCredit';
 import "./facade-rc-controls.css";
 
 export interface FacadeRcControlsProps {
@@ -51,6 +52,7 @@ export function FacadeRcControls({
             <span>{loading ? "Готовим машинку…" : "Поиграть с машинкой"}</span>
             {!loading && <Play size={15} aria-hidden="true" />}
           </button>
+          <RamModelCredit />
         </div>
       </div>
     );
@@ -111,9 +113,10 @@ export function FacadeRcControls({
           </div>
         </div>
         <p className="facade-rc-instructions">
-          <span className="facade-rc-desktop-copy">Удерживайте ЛКМ — ехать · ПКМ — тормоз · Shift — назад</span>
+          <span className="facade-rc-desktop-copy">ЛКМ — газ · ПКМ — тормоз · Пробел — ручник · Shift — назад</span>
           <span className="facade-rc-touch-copy">Удерживайте палец на площадке — машинка поедет к нему</span>
         </p>
+        <RamModelCredit />
       </div>
     </div>
   );
