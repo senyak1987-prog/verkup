@@ -540,7 +540,9 @@ function loadSavedProject(): ProjectState {
 }
 
 function resetProjectSettings(): ProjectState {
-  return { ...DEFAULT_PROJECT };
+  return clearProjectArtwork({ ...DEFAULT_PROJECT,
+    letterLineFonts: [], letterLineHeights: [], neonLineFonts: [], neonLineColors: [], neonLineScales: [],
+  });
 }
 
 function clearProjectArtwork(current: ProjectState): ProjectState {
@@ -559,22 +561,40 @@ function isProjectBlank(project: ProjectState) {
     : project.productId === "neon" && !project.neonText.trim() && project.neonIcon === "none";
 }
 
+function createEmptyTextPatch(kind: "letters" | "neon", text: string): Partial<ProjectState> {
+  if (kind === "neon") return {
+    neonText: text, neonFont: DEFAULT_PROJECT.neonFont, neonHeight: DEFAULT_PROJECT.neonHeight,
+    neonDiameter: DEFAULT_PROJECT.neonDiameter, neonBackerWidth: DEFAULT_PROJECT.neonBackerWidth,
+    neonBackerHeight: DEFAULT_PROJECT.neonBackerHeight, neonTargetWidth: DEFAULT_PROJECT.neonTargetWidth,
+    neonKeepAspect: DEFAULT_PROJECT.neonKeepAspect, neonAlign: DEFAULT_PROJECT.neonAlign,
+    neonLetterSpacing: DEFAULT_PROJECT.neonLetterSpacing, neonLineSpacing: DEFAULT_PROJECT.neonLineSpacing,
+    neonLineFonts: [], neonLineColors: [], neonLineScales: [], neonLineOffsets: [],
+  };
+  return {
+    lettersText: text, secondLineText: "", thirdLineText: "", letterFont: DEFAULT_PROJECT.letterFont,
+    letterHeight: DEFAULT_PROJECT.letterHeight, letterWidth: DEFAULT_PROJECT.letterWidth, letterDepth: DEFAULT_PROJECT.letterDepth,
+    textOffsetX: 0, textOffsetY: 0, letterLineFonts: [], letterLineHeights: [], letterLineOffsets: [],
+  };
+}
+
 function EmptySignPreview({ kind, onCreate }: { kind: "letters" | "neon"; onCreate: (text: string) => void }) {
   const [text, setText] = useState("");
   const neon = kind === "neon";
   return <div className="studio-empty-preview">
     <Type size={34} aria-hidden="true" /><strong>Макет пуст</strong>
-    <p>Введите надпись здесь. {neon ? "Фигуру" : "Логотип или свой вектор"} можно добавить в настройках.</p>
+    <p>{neon ? "Фигуру" : "Логотип или свой вектор"} можно добавить в настройках.</p>
     <form className="studio-empty-text-form" aria-label="Новая надпись" onSubmit={event => {
       event.preventDefault();
       if (text.trim()) onCreate(text.trim());
     }}>
       <label><span>Текст вывески</span>
-        {neon ? <textarea rows={3} maxLength={60} value={text} placeholder="Например, ГОРОД СВЕТ" aria-describedby="empty-text-limit"
+        {neon ? <textarea rows={3} maxLength={60} value={text} placeholder="Введите текст вашей будущей вывески" aria-describedby="empty-text-limit empty-text-defaults"
           onChange={event => setText(event.target.value.split('\n').slice(0, 3).join('\n'))} />
-          : <input type="text" maxLength={60} value={text} placeholder="Например, ЦВЕТЫ" aria-describedby="empty-text-limit"
+          : <input type="text" maxLength={60} value={text} placeholder="Введите текст вашей будущей вывески" aria-describedby="empty-text-limit empty-text-defaults"
+            style={{ fontFamily: DEFAULT_PROJECT.letterFont, fontWeight: resolveSignFont(DEFAULT_PROJECT.letterFont).weight }}
             onChange={event => setText(event.target.value)} />}
       </label>
+      <small id="empty-text-defaults">{neon ? NEON_FONTS.find(font => font.id === DEFAULT_PROJECT.neonFont)?.label : resolveSignFont(DEFAULT_PROJECT.letterFont).label} · высота {neon ? DEFAULT_PROJECT.neonHeight : DEFAULT_PROJECT.letterHeight} мм</small>
       <small id="empty-text-limit">{neon ? "До трёх строк и 60 символов. Enter добавляет строку." : "До 60 символов. Enter добавляет надпись."}</small>
       <button className="studio-button" type="submit" disabled={!text.trim()}>Добавить надпись</button>
     </form>
@@ -583,6 +603,7 @@ function EmptySignPreview({ kind, onCreate }: { kind: "letters" | "neon"; onCrea
 
 export function SignProductConfigurator() {
   const [project, setProject] = useState<ProjectState>(loadSavedProject);
+  const [emptyTextRevision, setEmptyTextRevision] = useState(0);
   const undoHistory = useRef<ProjectState[]>([]);
   const lastUndoEdit = useRef(0);
   const [canUndo,setCanUndo] = useState(false);
@@ -727,12 +748,13 @@ export function SignProductConfigurator() {
     if (undoHistory.current.length > 30) undoHistory.current.shift();
     setCanUndo(true); lastUndoEdit.current = 0; layoutInteraction.current = "idle";
     pendingFileVersion.current++;
+    setEmptyTextRevision(value => value + 1); setVectorImportReport(""); setSelectedVector(0);
     setProject(next); setZoom(100); setViewMode("2d"); setEditing(false); setPlacement("none");
     setLayoutSelection("composition"); setSelectedNeonLine(0); setActiveSection("design");
     setFitSignal(value => value + 1); setNotice(message);
   };
   const handleResetSettings = () => {
-    replaceProjectWithUndo(resetProjectSettings(), "Все изменения сброшены. Возвращены исходные параметры конструктора. Действие можно отменить.");
+    replaceProjectWithUndo(resetProjectSettings(), "Все макеты очищены. Возвращены исходные настройки конструктора. Действие можно отменить.");
     setShowDimensions(true); setShowFacadeSign(true); setShowFacadePanel(true); setCartOpen(false); setEditing(true);
   };
   const handleClearLayout = () => replaceProjectWithUndo(clearProjectArtwork(project), "Макет очищен. Действие можно отменить.");
@@ -1157,7 +1179,7 @@ export function SignProductConfigurator() {
         </a>
         <div className="studio-header-meta"><Check size={14} /><span role="status">{saveStatus}</span></div>
         <div className="studio-actions">
-          <button className="studio-button studio-reset-all" type="button" aria-label="Сбросить всё" onClick={handleResetSettings} title="Сбросить надписи, изображения, размеры, материалы и настройки просмотра к исходным значениям"><RotateCcw size={16} /><span className="studio-action-label">Сбросить всё</span></button>
+          <button className="studio-button studio-reset-all" type="button" aria-label="Сбросить всё" onClick={handleResetSettings} title="Очистить макеты букв, панели-кронштейна и неона и вернуть исходные настройки"><RotateCcw size={16} /><span className="studio-action-label">Сбросить всё</span></button>
           <input hidden ref={projectFileRef} type="file" accept=".json,application/json" onChange={event => void handleOpenProject(event)} />
           <details className="studio-file-menu" ref={fileMenuRef}>
             <summary className="studio-button"><FolderOpen size={16} /><span>Файлы</span><ChevronDown size={14} /></summary>
@@ -1229,9 +1251,8 @@ export function SignProductConfigurator() {
           aria-label="Визуализация"
         >
           {!blankSign && (fontPending && productId === "letters" || productId === "neon" && neonFontReady!==neonFontKey && !neonFontError) && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
-          {blankSign ? <EmptySignPreview key={productId} kind={productId === "neon" ? "neon" : "letters"} onCreate={text => {
-            if (productId === "neon") { patchProject({ neonText: text }); setSelectedNeonLine(0); }
-            else setLineText(0, text);
+          {blankSign ? <EmptySignPreview key={`${productId}:${emptyTextRevision}`} kind={productId === "neon" ? "neon" : "letters"} onCreate={text => {
+            patchProject(createEmptyTextPatch(productId === "neon" ? "neon" : "letters", text)); setSelectedNeonLine(0);
             setActiveSection("design"); setViewMode("2d"); setPlacement("none"); setEditing(true); setZoom(100); setLayoutSelection("line-0");
           }} /> : viewMode === "3d" && !(productId === "neon" && (!neonResult.design || !neonFits)) ? <SceneBoundary onFail={handle3DUnavailable}><Suspense fallback={<div className="studio-3d-loading" role="status">Строим объемную модель…</div>}><SignScene3D project={project} layout={lettersLayout} width={signWidth} height={signHeight} depth={signDepth} showDimensions={showDimensions} zoom={zoom} onZoomChange={setZoom} placement={placement} companion={companionScene} showSign={showFacadeSign} showPanel={panelPrepared && showFacadePanel} resetKey={fitSignal} onUnavailable={handle3DUnavailable} onGameActiveChange={setRcPlaying} /></Suspense></SceneBoundary> : <div className="preview-wall"><div ref={previewArtRef} className="preview-art" data-sign-focus={`${previewFocus.x.toFixed(2)},${previewFocus.y.toFixed(2)}`} style={{ "--preview-zoom": zoom / 100, transform: `translate(${previewTranslation.x}px, ${previewTranslation.y}px) scale(${zoom / 100})`, transformOrigin: "center" } as CSSProperties}>
             {placement!=="none" ? <SvgMarkupPreview className="facade-svg-render" markup={createFacadeSvg(placement,createCurrentSvg(false),sceneMode==="night",'canvas',{palette:project.facadePalette,signBox:facadeSignBox,panelMount})}/> : project.backdropImage&&!editing ? <SignPhotoPreview image={project.backdropImage} imageWidthMm={project.backdropWidth} signBox={facadeSignBox} markup={createCurrentSvg(showDimensions)} night={sceneMode==='night'}/> : productId === "neon" ? <SvgMarkupPreview className="letters-svg-render" markup={neonResult.design && neonFits ? createCurrentSvg(showDimensions) : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 180"><text x="200" y="90" text-anchor="middle" fill="#788f83" font-family="Arial" font-size="14">Настройте надпись и размеры</text></svg>'}>{editing&&neonResult.design&&neonFits&&<NeonStudioEditor design={neonResult.design} backerWidth={neonWidth} backerHeight={neonHeight} project={project} onChange={patchProject} selectedLine={selectedNeonLine} onSelectLine={setSelectedNeonLine}/>}</SvgMarkupPreview> : productId === "panel" ? (

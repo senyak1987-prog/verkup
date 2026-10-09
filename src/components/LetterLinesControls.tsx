@@ -26,7 +26,11 @@ export function LetterLinesControls({ rows, onTextChange, onFontChange, onHeight
         ? SIGN_FONTS : [selectedFont, ...SIGN_FONTS];
       return <fieldset key={row.index} className="control-section" aria-label={`Строка ${number}`}
         style={{ margin: 0, border: 0, padding: 0, minWidth: 0, width: "100%" }}>
-        <legend><strong>Строка {number}</strong></legend>
+        <legend className="letter-line-heading">
+          <strong>Строка {number}</strong>
+          <button type="button" className="studio-remove" aria-label={`Удалить строку ${number}`} disabled={!row.text.trim()}
+            onClick={() => onRemove(row.index)}><X size={14} aria-hidden="true" />Удалить строку</button>
+        </legend>
         <label className="builder-field"><span>Текст</span>
           <input type="text" aria-label={`Текст строки ${number}`} maxLength={60} value={row.text}
             placeholder={row.index === 0 ? "Например, ЦВЕТЫ" : "Надпись ниже"}
@@ -47,8 +51,6 @@ export function LetterLinesControls({ rows, onTextChange, onFontChange, onHeight
         <div className="dimension-number-grid">
           <button type="button" className="studio-button" aria-label={`Выбрать строку ${number} на макете`}
             onClick={() => onSelect(row.index)}><MousePointer2 size={14} />На макете</button>
-          {row.index > 0 && <button type="button" className="studio-remove" aria-label={`Удалить строку ${number}`}
-            onClick={() => onRemove(row.index)}><X size={14} />Удалить строку</button>}
         </div>
       </fieldset>;
     })}
