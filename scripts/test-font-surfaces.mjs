@@ -93,6 +93,27 @@ const fonts = [...contours.SIGN_FONTS, ...contours.LEGACY_SIGN_FONTS].filter(fon
   const bytes = fs.readFileSync(new URL('../public/fonts/' + entry.file, import.meta.url));
   return { ...entry, font: opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)) };
 });
+
+test('Canvas caret follows proportional letters and spaces in every bundled font', () => {
+  for (const { font, weight, file } of fonts) {
+    const text = 'САЛОН КРАСОТЫ';
+    const stops = contours.fontCaretFractions(font, text, weight);
+    assert.equal(stops.length, text.length + 1, file);
+    assert.ok(stops.every(Number.isFinite), file);
+    assert.ok(stops.every((stop, i) => !i || stop >= stops[i - 1]), file);
+    assert.ok(stops[stops.length - 1] > .9 && stops[stops.length - 1] < 1.2, file);
+    assert.ok(stops[6] > stops[5], 'A space needs a caret interval: ' + file);
+    const padded = contours.fontCaretFractions(font, '  ' + text + ' ', weight);
+    assert.ok(Math.abs(padded[2] - stops[0]) < .00001, file);
+    assert.ok(padded[padded.length - 1] > stops[stops.length - 1], file);
+  }
+});
+
+test('Canvas caret uses glyph widths rather than evenly spaced character cells', () => {
+  const { font, weight } = fonts.find(entry => entry.value === 'Manrope, sans-serif');
+  const stops = contours.fontCaretFractions(font, 'IWI', weight);
+  assert.ok(stops[2] - stops[1] > 2 * (stops[1] - stops[0]));
+});
 test('The picker offers distinct fonts and archived font names retain their exact outlines', () => {
   assert.equal(contours.SIGN_FONTS.length, 16);
   for (const entry of contours.LEGACY_SIGN_FONTS) {
