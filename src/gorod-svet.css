@@ -86,12 +86,14 @@ main.public-sign-configurator.sign-studio .canvas-dimensions {
 }
 main.public-sign-configurator.sign-studio .builder-preview.night .canvas-dimensions { color: #d7e4dc; }
 main.public-sign-configurator.sign-studio .canvas-dimensions .dimension-line { display: none; }
-main.public-sign-configurator.sign-studio .studio-svg-layer,
-main.public-sign-configurator.sign-studio .studio-measure-labels { position: absolute; inset: 0; pointer-events: none; }
+main.public-sign-configurator.sign-studio .studio-svg-layer { position: absolute; inset: 0; pointer-events: none; }
 main.public-sign-configurator.sign-studio .studio-svg-layer > svg { position: absolute; inset: 0; width: 100%; height: 100%; max-height: none; overflow: hidden; }
-main.public-sign-configurator.sign-studio .studio-svg-layer :is([data-dimensions], [data-object-dimensions]) text { visibility: hidden; }
-main.public-sign-configurator.sign-studio .studio-measure-labels > span { position: absolute; font: 600 14px/1.2 Manrope, Arial, sans-serif; font-size: calc(14px / var(--preview-zoom, 1)); color: #41505e; white-space: nowrap; font-variant-numeric: tabular-nums; text-shadow: -1px 0 #fff, 1px 0 #fff, 0 -1px #fff, 0 1px #fff; }
-main.public-sign-configurator.sign-studio .builder-preview.night .studio-measure-labels > span { color: #d7e4dc; text-shadow: -1px 0 #17211d, 1px 0 #17211d, 0 -1px #17211d, 0 1px #17211d; }
+/* Blend outside the transformed artwork so inversion includes the preview backdrop. */
+main.public-sign-configurator.sign-studio .builder-preview:has(.studio-dimensions-2d) .preview-art :is([data-dimensions], [data-object-dimensions]) { visibility:hidden; }
+main.public-sign-configurator.sign-studio .studio-dimensions-2d { position:absolute; inset:0; z-index:4; pointer-events:none; mix-blend-mode:difference; color:#fff; overflow:hidden; }
+main.public-sign-configurator.sign-studio .studio-measure-lines { position:absolute; inset:0; }
+main.public-sign-configurator.sign-studio .studio-measure-lines :is(path,line,polyline,polygon,rect,circle,ellipse) { stroke:#fff; stroke-width:1px; fill:none; opacity:1; }
+main.public-sign-configurator.sign-studio .studio-dimensions-2d > span { position:absolute; font:600 14px/1.2 Manrope,Arial,sans-serif; color:#fff; white-space:nowrap; font-variant-numeric:tabular-nums; text-shadow:none; }
 main.public-sign-configurator.sign-studio .studio-section-tabs:has(button:nth-child(4):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 main.public-sign-configurator.sign-studio .sign-scene-3d-viewport { inset: 0; }
 main.public-sign-configurator.sign-studio .builder-preview .preview-wall,
@@ -381,7 +383,6 @@ main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.day
 main.public-sign-configurator.sign-studio .studio-workspace .builder-preview.night { background:linear-gradient(145deg,#e6e6e6,#bcbcbc); }
 main.public-sign-configurator.sign-studio .editor-toolbar .layout-object-select select { min-height:32px; min-width:145px; padding:5px 9px; border:1px solid #8aa58f; border-radius:4px; background:#f5f8f1; color:#184833; font:inherit; font-size:11px; }
 main.public-sign-configurator.sign-studio .editor-toolbar .alignment-actions { display:flex; align-items:center; gap:4px; }
-main.public-sign-configurator.sign-studio .editor-toolbar .alignment-reference { color:#d4e2d7; font-size:10px; }
 main.public-sign-configurator.sign-studio .editor-toolbar :is(button,select):focus-visible { outline:2px solid #f2d678; outline-offset:2px; }
 @media(max-width:767px) { main.public-sign-configurator.sign-studio .editor-toolbar .layout-object-select select { min-height:40px; min-width:135px; } main.public-sign-configurator.sign-studio .editor-toolbar .alignment-actions button { min-height:40px; } }
 
@@ -433,3 +434,9 @@ main.public-sign-configurator.sign-studio :is(.face-no-film,.white-light-options
 
 /* The preview and settings use the browser width rather than a height-limited centred card. */
 main.public-sign-configurator.sign-studio .sign-builder-layout { column-gap: 16px; }
+main.public-sign-configurator.sign-studio .studio-workspace > .canvas-logo-shapes { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); flex:0 0 auto; gap:6px; padding:6px 12px; background:#184833; border-bottom:1px solid #39624e; }
+main.public-sign-configurator.sign-studio .canvas-logo-shapes button { display:flex; justify-content:center; align-items:center; gap:6px; min-height:44px; padding:6px 8px; border:1px solid #688774; border-radius:4px; background:transparent; color:#e8eee8; font:500 12px/1.3 Manrope,Arial,sans-serif; }
+main.public-sign-configurator.sign-studio .canvas-logo-shapes button svg { flex-shrink:0; }
+main.public-sign-configurator.sign-studio .canvas-logo-shapes button:hover { background:#315b47; }
+main.public-sign-configurator.sign-studio .canvas-logo-shapes button[aria-pressed="true"] { background:#d3bc84; color:#073c2d; border-color:#d3bc84; }
+main.public-sign-configurator.sign-studio .canvas-logo-shapes button:focus-visible { outline:2px solid #f2d678; outline-offset:2px; }
