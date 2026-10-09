@@ -1,4 +1,5 @@
 export type LayoutObject = "text" | "logo" | "composition" | `line-${number}`;
+export type LayoutSelection = LayoutObject | readonly LayoutObject[];
 export type AlignmentAxis = "x" | "y";
 export type AlignmentBox = { x: number; y: number; width: number; height: number };
 export type AlignmentTextRow = {
@@ -20,6 +21,31 @@ export type LayoutOffsetPatch = Partial<{
   letterLineOffsets: { x: number; y: number }[];
 }>;
 type MoveOptions = { constrainToPanel?: boolean; snapTolerance?: number };
+
+export function layoutObjectBoxes(layout: AlignmentLayout, logoEnabled: boolean): { id: LayoutObject; box: AlignmentBox }[] {
+  const text = layout.textInkBox ?? { x: layout.textX, y: layout.textTop, width: layout.textWidth, height: layout.textHeight };
+  const rows: { id: LayoutObject; box: AlignmentBox }[] = layout.textRows
+    ? layout.textRows.map(row => ({ id: `line-${row.index}`, box: row.inkBox })) : [{ id: "text", box: text }];
+  return [...rows, ...(logoEnabled ? [{ id: "logo" as const, box: layout.logoBox }] : [])]
+    .filter(({ box }) => box.width > 0 && box.height > 0);
+}
+
+export function layoutSelectionObjects(layout: AlignmentLayout, selected: LayoutSelection, logoEnabled: boolean): LayoutObject[] {
+  const ids = typeof selected === "string" ? [selected] : selected;
+  return layoutObjectBoxes(layout, logoEnabled).filter(({ id }) => ids.includes(id) || ids.includes("composition") ||
+    (id !== "logo" && ids.includes("text"))).map(({ id }) => id);
+}
+
+export function marqueeBox(start: { x: number; y: number }, end: { x: number; y: number }): AlignmentBox {
+  return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y), width: Math.abs(end.x - start.x), height: Math.abs(end.y - start.y) };
+}
+
+/** Crossing an object's visible bounds is enough, in either drag direction. */
+export function marqueeLayoutSelection(layout: AlignmentLayout, logoEnabled: boolean, area: AlignmentBox): LayoutObject[] {
+  if (area.width <= 0 || area.height <= 0) return [];
+  return layoutObjectBoxes(layout, logoEnabled).filter(({ box }) => box.x < area.x + area.width && box.x + box.width > area.x &&
+    box.y < area.y + area.height && box.y + box.height > area.y).map(({ id }) => id);
+}
 
 export function layoutReferenceBox(layout: AlignmentLayout, constrainToPanel = false): AlignmentBox {
   return constrainToPanel ? layout.panelBox : { x: 0, y: 0, width: layout.viewWidth, height: layout.viewHeight };
@@ -47,7 +73,14 @@ export function resizeLayoutLine(layout: AlignmentLayout, selected: LayoutObject
 }
 
 /** Use the full visible ink, including tails and accents, rather than a font's cap-height box. */
-export function layoutSelectionBox(layout: AlignmentLayout, selected: LayoutObject, logoEnabled: boolean): AlignmentBox {
+export function layoutSelectionBox(layout: AlignmentLayout, selected: LayoutSelection, logoEnabled: boolean): AlignmentBox {
+  if (typeof selected !== "string") {
+    const ids = layoutSelectionObjects(layout, selected, logoEnabled);
+    const boxes = layoutObjectBoxes(layout, logoEnabled).filter(({ id }) => ids.includes(id)).map(({ box }) => box);
+    if (!boxes.length) return { x: 0, y: 0, width: 0, height: 0 };
+    const x = Math.min(...boxes.map(box => box.x)), y = Math.min(...boxes.map(box => box.y));
+    return { x, y, width: Math.max(...boxes.map(box => box.x + box.width)) - x, height: Math.max(...boxes.map(box => box.y + box.height)) - y };
+  }
   const row = selectedLayoutLine(layout, selected); if (row) return row.inkBox;
   const text = layout.textInkBox ?? { x: layout.textX, y: layout.textTop, width: layout.textWidth, height: layout.textHeight };
   if (selected === "logo" && logoEnabled) return layout.logoBox;
@@ -58,8 +91,10 @@ export function layoutSelectionBox(layout: AlignmentLayout, selected: LayoutObje
 }
 
 /** Translate displayed positions, not possibly saturated saved offsets. Group movement keeps every gap intact. */
-export function moveLayoutSelection(layout: AlignmentLayout, selected: LayoutObject, logoEnabled: boolean,
+export function moveLayoutSelection(layout: AlignmentLayout, selected: LayoutSelection, logoEnabled: boolean,
   deltaX: number, deltaY: number, options: MoveOptions = {}) {
+  const objects = layoutSelectionObjects(layout, selected, logoEnabled);
+  if (typeof selected !== "string" && !objects.length) return { patch: {} as LayoutOffsetPatch, snappedX: false, snappedY: false };
   const box = layoutSelectionBox(layout, selected, logoEnabled);
   const reference = layoutReferenceBox(layout, options.constrainToPanel);
   const centerX = reference.x + reference.width / 2, centerY = reference.y + reference.height / 2;
@@ -76,10 +111,10 @@ export function moveLayoutSelection(layout: AlignmentLayout, selected: LayoutObj
   }
   const mm = (value: number) => Math.round(value * 1000) / 1000;
   const patch: LayoutOffsetPatch = {};
-  if (selected.startsWith("line-")) {
-    const row = selectedLayoutLine(layout, selected);
-    if (row) {
-      const length = Math.max(layout.letterLineOffsets?.length ?? 0, row.index + 1,
+  if (typeof selected !== "string" || selected.startsWith("line-")) {
+    const rows = (layout.textRows ?? []).filter(row => objects.includes(`line-${row.index}`));
+    if (rows.length) {
+      const length = Math.max(layout.letterLineOffsets?.length ?? 0,
         ...(layout.textRows ?? []).map(item => item.index + 1));
       const offsets = Array.from({ length }, (_, index) => {
         const other = layout.textRows?.find(item => item.index === index);
@@ -87,11 +122,19 @@ export function moveLayoutSelection(layout: AlignmentLayout, selected: LayoutObj
           ? { x: mm(other.box.x - other.defaultX), y: mm(other.box.y - other.defaultY) } : { x: 0, y: 0 })) };
       });
       // Defaults include the group translation but exclude this row's own offset.
-      offsets[row.index] = { x: mm(row.box.x + dx - row.defaultX), y: mm(row.box.y + dy - row.defaultY) };
+      for (const row of rows) offsets[row.index] = { x: mm(row.box.x + dx - row.defaultX), y: mm(row.box.y + dy - row.defaultY) };
       patch.letterLineOffsets = offsets;
     }
-    return { patch, snappedX: !!row && snapX && Math.abs(box.x + box.width / 2 + dx - centerX) < .01,
-      snappedY: !!row && snapY && Math.abs(box.y + box.height / 2 + dy - centerY) < .01 };
+    if (objects.includes("text")) {
+      patch.textOffsetX = mm(layout.textX + dx - layout.defaultTextX);
+      patch.textOffsetY = mm(layout.textTop + dy - layout.defaultTextY);
+    }
+    if (objects.includes("logo")) {
+      patch.logoOffsetX = mm(layout.logoBox.x + dx - layout.defaultLogoX);
+      patch.logoOffsetY = mm(layout.logoBox.y + dy - layout.defaultLogoY);
+    }
+    return { patch, snappedX: objects.length > 0 && snapX && Math.abs(box.x + box.width / 2 + dx - centerX) < .01,
+      snappedY: objects.length > 0 && snapY && Math.abs(box.y + box.height / 2 + dy - centerY) < .01 };
   }
   if (selected !== "logo" || !logoEnabled) {
     patch.textOffsetX = mm(layout.textX + dx - layout.defaultTextX);
@@ -105,7 +148,7 @@ export function moveLayoutSelection(layout: AlignmentLayout, selected: LayoutObj
     snappedY: snapY && Math.abs(box.y + box.height / 2 + dy - centerY) < .01 };
 }
 
-export function centerLayoutSelection(layout: AlignmentLayout, selected: LayoutObject, logoEnabled: boolean,
+export function centerLayoutSelection(layout: AlignmentLayout, selected: LayoutSelection, logoEnabled: boolean,
   axis: AlignmentAxis, constrainToPanel = false): LayoutOffsetPatch {
   const box = layoutSelectionBox(layout, selected, logoEnabled), reference = layoutReferenceBox(layout, constrainToPanel);
   return moveLayoutSelection(layout, selected, logoEnabled,
