@@ -1,6 +1,7 @@
 import type { LetterContours } from './letterContours';
 import { containBox, backerSeams } from './backerConstraints';
 import { letterFrameLayout } from './letterFrame';
+import { classifyVectorArtwork } from './vectorArtwork';
 import type { VectorArtworkObject } from './vectorArtwork';
 
 type Box = { x:number; y:number; width:number; height:number };
@@ -8,7 +9,7 @@ export type LetterRowSetting = { index:number; text:string; font:string; height:
 export type LetterRowLayout = {
   id:string; index:number; text:string; font:string; box:Box; pathBox:Box; inkBox:Box;
   pathData:string; naturalBox:Box; defaultX:number; defaultY:number;
-  kind?:'vector'; color?:string; name?:string;
+  kind?:'vector'; vectorRole?:'letter'|'backing'; color?:string; name?:string;
 };
 export type LetterRowsLayoutConfig = {
   height:number; contours?:LetterContours|null; lineSettings:LetterRowSetting[];
@@ -25,6 +26,14 @@ const union=(boxes:Box[]):Box=>{
   const x=Math.min(...boxes.map(b=>b.x)),y=Math.min(...boxes.map(b=>b.y));
   return{x,y,width:Math.max(...boxes.map(b=>b.x+b.width))-x,height:Math.max(...boxes.map(b=>b.y+b.height))-y};
 };
+
+/** A supplied rectangular backing already supports the enclosed letters. */
+export function contourBackingRows(rows: readonly LetterRowLayout[]): LetterRowLayout[] {
+  const backing=rows.filter(row=>row.vectorRole==='backing');
+  return rows.filter(row=>row.vectorRole!=='backing'&&!backing.some(plate=>
+    row.box.x>=plate.box.x-.01&&row.box.y>=plate.box.y-.01&&
+    row.box.x+row.box.width<=plate.box.x+plate.box.width+.01&&row.box.y+row.box.height<=plate.box.y+plate.box.height+.01));
+}
 
 /** Independent contours are placed in physical millimetres before either renderer consumes them. */
 export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
@@ -43,7 +52,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   for(const row of draft){row.y=previous?previous.y+previous.height+Math.max(Math.max(previous.height,row.height)*.35,previous.overBottom+row.overTop+15):0;previous=row;}
   // Imported path coordinates are normalized to physical millimetres once, at import.
   // Their source anchors remain fixed when one part is independently resized.
-  const vectors=(config.vectorArtwork??[]).map((object,index)=>({object,index}))
+  const vectors=classifyVectorArtwork(config.vectorArtwork??[]).map((object,index)=>({object,index}))
     .filter(({object})=>object.visible!==false&&object.pathData&&validBox(object.box))
     .map(({object,index})=>{const height=clamp(Number.isFinite(object.height)?object.height:object.box.height,1,700);
       return{object,index,height,width:object.box.width*height/object.box.height};});
@@ -98,7 +107,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
     const defaultY=groupY+(vectorTop+object.box.y-vectorSourceBox.y)*fit+(config.textOffsetY??0);
     let box={x:defaultX+coordinate(object.offset?.x),y:defaultY+coordinate(object.offset?.y),width:width*fit,height:height*fit};
     if(panelRequired)box=containBox(box,container);
-    textRows.push({id:'line-'+(3+index),index:3+index,text:object.name||'Вектор '+(index+1),font:'',kind:'vector',name:object.name,color:object.color,
+    textRows.push({id:'line-'+(3+index),index:3+index,text:object.name||'Вектор '+(index+1),font:'',kind:'vector',vectorRole:object.role??'letter',name:object.name,color:object.color,
       box,pathBox:box,inkBox:box,pathData:object.pathData,naturalBox:object.box,defaultX,defaultY});
   }
   const defaultLogoX=baseX,defaultLogoY=baseY+(signHeight-logoSize)*fit/2;
@@ -108,7 +117,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   const textBox=textRows.length?union(textRows.map(r=>r.box)):emptyTextBox,textInkBox=textRows.length?union(textRows.map(r=>r.inkBox)):emptyTextBox;
   const signObjects=[...textRows.map(r=>r.box),...(config.logoEnabled?[logoBox]:[])];
   const signBox=signObjects.length?union(signObjects):{x:baseX,y:baseY,width:1,height:1};
-  const frame=letterFrameLayout(textRows.filter(r=>r.text.trim()).map(r=>({id:r.id,box:r.box})),{profile:15,topInset:config.frameTopPosition,bottomInset:config.frameBottomPosition,
+  const frame=letterFrameLayout(textRows.filter(r=>r.text.trim()&&r.vectorRole!=='backing').map(r=>({id:r.id,box:r.box})),{profile:15,topInset:config.frameTopPosition,bottomInset:config.frameBottomPosition,
     logo:config.logoEnabled?{box:logoBox,shape:config.logoShape as 'circle'|'square'|'rounded',cornerRadius:logoBox.width*.16}:undefined});
   const firstRails=frame.rowRails[0];
   const haloBackerBox={x:signBox.x-baseHeight*fit*.16,y:signBox.y-baseHeight*fit*.11,width:signBox.width+baseHeight*fit*.32,height:signBox.height+baseHeight*fit*.22};
