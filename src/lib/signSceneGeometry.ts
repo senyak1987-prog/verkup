@@ -317,6 +317,8 @@ function addDimension(group: THREE.Group, start: THREE.Vector3, end: THREE.Vecto
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true,
     depthTest: false, depthWrite: false, toneMapped: false }));
   sprite.position.copy(labelPosition);
+  sprite.userData.labelPosition = labelPosition.clone();
+  sprite.userData.labelAnchor = start.clone().add(end).multiplyScalar(.5);
   const labelHeight = Math.max(scale * 0.07, 20);
   sprite.userData.labelAspect = canvas.width / canvas.height;
   sprite.userData.labelHeight = labelHeight;
