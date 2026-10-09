@@ -568,6 +568,13 @@ export function SignProductConfigurator() {
   useEffect(() => { setSelectedNeonLine(index => Math.min(index, project.neonText.split('\n').length - 1)); }, [project.neonText]);
   const [editing, setEditing] = useState(true);
   const [layoutSelection, setLayoutSelection] = useState<LayoutObject>("composition");
+  const advancedConstructorRef = useRef<HTMLDetailsElement>(null);
+  const selectLayoutObject = (selection: LayoutObject) => {
+    setLayoutSelection(selection);
+    if (selection.startsWith("line-") && Number(selection.slice(5)) >= 3 && advancedConstructorRef.current) {
+      advancedConstructorRef.current.open = true;
+    }
+  };
   const layoutInteraction = useRef<"idle" | "start" | "active">("idle");
   useEffect(() => { if (!project.logoEnabled && layoutSelection === "logo") setLayoutSelection("composition"); }, [project.logoEnabled, layoutSelection]);
   const combinedText = [project.lettersText,project.secondLineText,project.thirdLineText].filter(text=>text.trim()).join("\n");
@@ -644,7 +651,7 @@ export function SignProductConfigurator() {
   const setLineText = (index:number,text:string) => patchProject(index===0?{lettersText:text}:index===1?{secondLineText:text}:{thirdLineText:text});
   const setLineFont = (index:number,font:string) => patchProject({...index===0?{letterFont:font}:{},letterLineFonts:Array.from({length:3},(_,i)=>i===index?font:project.letterLineFonts[i]||project.letterFont)});
   const setLineHeight = (index:number,height:number) => patchProject({...index===0?{letterHeight:height}:{},letterLineHeights:Array.from({length:3},(_,i)=>i===index?height:project.letterLineHeights[i]||project.letterHeight)});
-  const selectLetterLine = (index:number) => { setLayoutSelection(`line-${index}`);setEditing(true);setViewMode("2d");setPlacement("none"); };
+  const selectLetterLine = (index:number) => { selectLayoutObject(`line-${index}`);setEditing(true);setViewMode("2d");setPlacement("none"); };
   const addLetterLine = () => { const index=!project.secondLineText.trim()?1:2;patchProject({...index===1?{secondLineText:"НОВАЯ СТРОКА"}:{thirdLineText:"НОВАЯ СТРОКА"},letterLineFonts:Array.from({length:3},(_,i)=>i===index?project.letterLineFonts[0]||project.letterFont:project.letterLineFonts[i]||""),letterLineHeights:Array.from({length:3},(_,i)=>i===index?project.letterLineHeights[0]||project.letterHeight:project.letterLineHeights[i]||0),letterLineOffsets:Array.from({length:3},(_,i)=>i===index?{x:0,y:0}:project.letterLineOffsets[i]||{x:0,y:0})});selectLetterLine(index);setActiveSection("design"); };
   const removeLetterLine = (index:number) => { setLineText(index,"");setLayoutSelection("composition"); };
   const setLetterFaceColor = (value: ProjectState["letterFaceColor"]) => setProject(previous => ({ ...previous, letterFaceColor: value }));
@@ -1047,7 +1054,7 @@ export function SignProductConfigurator() {
       });
       const artwork = validateVectorArtwork([...current.vectorArtwork, ...transformed]);
       replaceProjectWithUndo({ ...current, productId: "letters", letterWidth: 0, vectorArtwork: artwork }, `Добавлен ${file.name}: ${transformed.length} векторных объектов. Импорт можно отменить.`);
-      setEditing(true); setSelectedVector(current.vectorArtwork.length); setLayoutSelection(`line-${3 + current.vectorArtwork.length}`);
+      setEditing(true); setSelectedVector(current.vectorArtwork.length); selectLayoutObject(`line-${3 + current.vectorArtwork.length}`);
       setVectorImportReport([`${file.name}: добавлено объектов — ${transformed.length}.`, ...imported.warnings].join(" "));
     } catch (error) {
       if (fileVersion !== pendingFileVersion.current) return;
@@ -1129,11 +1136,9 @@ export function SignProductConfigurator() {
         <div className="studio-actions">
           <button className="studio-button studio-reset-all" type="button" aria-label="Сбросить всё" onClick={handleResetSettings} title="Сбросить надписи, изображения, размеры, материалы и настройки просмотра к исходным значениям"><RotateCcw size={16} /><span className="studio-action-label">Сбросить всё</span></button>
           <input hidden ref={projectFileRef} type="file" accept=".json,application/json" onChange={event => void handleOpenProject(event)} />
-          <input hidden ref={vectorFileRef} type="file" accept=".pdf,.cdr,.svg,application/pdf,image/svg+xml,application/vnd.corel-draw,application/x-coreldraw" onChange={event => void handleVectorImport(event)} />
           <details className="studio-file-menu" ref={fileMenuRef}>
             <summary className="studio-button"><FolderOpen size={16} /><span>Файлы</span><ChevronDown size={14} /></summary>
             <div className="studio-file-menu-items">
-              <button className="studio-button" type="button" disabled={vectorImporting} onClick={() => { closeFileMenu(true); setActiveSection("design"); vectorFileRef.current?.click(); }}><Upload size={16} /><span>Добавить свой вектор</span></button>
               <button className="studio-button" type="button" onClick={() => { closeFileMenu(true); projectFileRef.current?.click(); }}><FolderOpen size={16} /><span>Открыть проект</span></button>
               <button className="studio-button" type="button" onClick={() => { closeFileMenu(true); handleSaveProject(); }}><Save size={16} /><span>Сохранить проект</span></button>
               <button className="studio-button" type="button" onClick={() => { closeFileMenu(true); handleExportVector(); }} disabled={!canOutputSign}><Download size={16} /><span>Сохранить SVG</span></button>
@@ -1181,7 +1186,7 @@ export function SignProductConfigurator() {
           </div>}
           {productId === "letters" && viewMode === "2d" && editing && <div className="editor-toolbar layout-alignment-toolbar" aria-label="Выбор и выравнивание объектов макета">
             <button className="layout-pack-button" type="button" title="Собрать логотип и надпись в ряд с обычным промежутком и центрировать по обеим осям" disabled={fontPending} onClick={packLayout}>Собрать и центрировать</button>
-            <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => setLayoutSelection(event.target.value as LayoutObject)}><option value="text">Все строки и векторы</option>{lineSettings.filter(row=>row.text.trim()).map(row=><option key={row.index} value={`line-${row.index}`}>Строка {row.index+1}</option>)}{project.vectorArtwork.map((object,index)=>object.visible&&<option key={object.id} value={`line-${index+3}`}>{object.name}</option>)}<option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
+            <label className="layout-object-select"><span>Объект</span><select aria-label="Выбранный объект макета" value={layoutSelection} onChange={event => selectLayoutObject(event.target.value as LayoutObject)}><option value="text">Все строки и векторы</option>{lineSettings.filter(row=>row.text.trim()).map(row=><option key={row.index} value={`line-${row.index}`}>Строка {row.index+1}</option>)}{project.vectorArtwork.map((object,index)=>object.visible&&<option key={object.id} value={`line-${index+3}`}>{object.name}</option>)}<option value="logo" disabled={!logoEnabled}>Логотип</option><option value="composition">Вся композиция</option></select></label>
             <div className="alignment-actions" role="group" aria-label={mountMode === "acp" ? "Центрирование по подложке" : "Центрирование по макету"}>
               <button type="button" title={mountMode === "acp" ? "По центру подложки по горизонтали" : "По центру макета по горизонтали"} disabled={fontPending} onClick={() => alignLayoutSelection("x")}><AlignHorizontalJustifyCenter size={16}/>Центр X</button>
               <button type="button" title={mountMode === "acp" ? "По центру подложки по вертикали" : "По центру макета по вертикали"} disabled={fontPending} onClick={() => alignLayoutSelection("y")}><AlignVerticalJustifyCenter size={16}/>Центр Y</button>
@@ -1228,7 +1233,7 @@ export function SignProductConfigurator() {
               <LettersPreview
                 objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value,faceNoFilm:letterFaceColor.code==="none",logoNoFilm:project.logoFaceColor.code==="none"}}
                 lightsOn={project.lightsOn}
-                editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={setLayoutSelection} onChange={applyLayoutPatch} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
+                editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={selectLayoutObject} onChange={applyLayoutPatch} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
                 sceneMode={sceneMode}
                 acpDepth={acpDepth}
                 acpColor={acpColor.value}
@@ -1303,7 +1308,7 @@ export function SignProductConfigurator() {
               faceColors={<FaceFilmControl luminous={glowMode!=="halo"} selected={letterFaceColor} tone={project.letterWhiteTone} label="Тип свечения букв" onSelect={setLetterFaceColor} onToneChange={value=>patchProject({letterWhiteTone:value})} />}
               logoColors={<><h3>Лицо логотипа · Oracal {glowMode === "halo" ? "641" : "8500"}</h3><FaceFilmControl luminous={glowMode!=="halo"} selected={project.logoFaceColor} tone={project.logoWhiteTone} label="Тип свечения логотипа" onSelect={value=>patchProject({logoFaceColor:value})} onToneChange={value=>patchProject({logoWhiteTone:value})} /><h3>Борт логотипа · Oracal 641</h3><ColorGrid colors={ORACAL_641_COLORS} selected={project.logoSideColor} onSelect={value=>patchProject({logoSideColor:value})} compact /></>}
               haloColors={glowHasHalo && <><h3>Цвет контражура</h3><ColorGrid colors={ORACAL_8500_COLORS} selected={project.haloLightColor} onSelect={value=>patchProject({haloLightColor:value})} compact /><p className="control-note">Цвет подсветки выбирается независимо от лица букв и логотипа.</p></>}
-              lineEditor={<><LetterLinesControls rows={[project.lettersText,project.secondLineText,project.thirdLineText].map((text,index)=>({index,text,font:project.letterLineFonts[index]||letterFont,height:project.letterLineHeights[index]||letterHeight})).filter(row=>row.index===0||row.text.trim())} onTextChange={setLineText} onFontChange={setLineFont} onHeightChange={setLineHeight} onSelect={selectLetterLine} onAdd={addLetterLine} onRemove={removeLetterLine}/><VectorArtworkControls objects={project.vectorArtwork} selectedIndex={layoutSelection.startsWith("line-")&&Number(layoutSelection.slice(5))>=3?Number(layoutSelection.slice(5))-3:Math.min(selectedVector,Math.max(0,project.vectorArtwork.length-1))} importing={vectorImporting} report={vectorImportReport} onImport={()=>vectorFileRef.current?.click()} onSelect={selectVector} onChange={changeVector} onRemove={removeVector}/></>}
+              lineEditor={<LetterLinesControls rows={[project.lettersText,project.secondLineText,project.thirdLineText].map((text,index)=>({index,text,font:project.letterLineFonts[index]||letterFont,height:project.letterLineHeights[index]||letterHeight})).filter(row=>row.index===0||row.text.trim())} onTextChange={setLineText} onFontChange={setLineFont} onHeightChange={setLineHeight} onSelect={selectLetterLine} onAdd={addLetterLine} onRemove={removeLetterLine}/>}
               rowHeights={lineSettings.map(row=>row.height)}
               acpColor={acpColor}
               acpDepth={acpDepth}
@@ -1366,6 +1371,13 @@ export function SignProductConfigurator() {
           {productId === "letters" && activeSection === "mount" && mountMode === "acp" && !lettersFit && <p className="studio-fit-warning" role="status">Макет не помещается на подложке при минимальной высоте 100 мм. Увеличьте подложку или измените надпись и размеры элементов.</p>}
           </div>
           <details className="studio-help"><summary>Как пользоваться студией<ChevronRight size={14} /></summary><p>Выберите тип вывески и настройте параметры по разделам. Переключайте день и ночь, чтобы оценить свечение. Проект сохраняется в этом браузере. Скачайте JSON для переноса на другое устройство.</p><p>Макет дает представление о конструкции. Цвета на экране могут отличаться от физических образцов Oracal; производственную документацию нужно подготовить отдельно.</p></details>
+          {productId === "letters" && <details className="studio-advanced-constructor" ref={advancedConstructorRef}>
+            <summary><span>Продвинутый конструктор вывесок</span><ChevronRight size={18} aria-hidden="true" /></summary>
+            <div className="studio-advanced-body">
+              <input hidden ref={vectorFileRef} type="file" accept=".pdf,.cdr,.svg,application/pdf,image/svg+xml,application/vnd.corel-draw,application/x-coreldraw" onChange={event => void handleVectorImport(event)} />
+              <VectorArtworkControls objects={project.vectorArtwork} selectedIndex={layoutSelection.startsWith("line-")&&Number(layoutSelection.slice(5))>=3?Number(layoutSelection.slice(5))-3:Math.min(selectedVector,Math.max(0,project.vectorArtwork.length-1))} importing={vectorImporting} report={vectorImportReport} onImport={()=>vectorFileRef.current?.click()} onSelect={selectVector} onChange={changeVector} onRemove={removeVector}/>
+            </div>
+          </details>}
         </aside>
         <aside className="builder-summary" aria-label="Структура проекта"><header className="summary-heading"><h2>Ваш проект</h2><p>Параметры конструкции</p></header>
           <div className="summary-block">
