@@ -535,6 +535,14 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         return { sx, sy };
       };
       const backingRear = project.mountMode === 'frame' ? 15 : 0;
+      const physicalBounds = new THREE.Box3();
+      let letterFront = -Infinity;
+      const includePhysical = (mesh: THREE.Mesh, isLetter = false) => {
+        const bounds = new THREE.Box3().setFromObject(mesh);
+        if (bounds.isEmpty()) return;
+        physicalBounds.union(bounds);
+        if (isLetter) letterFront = Math.max(letterFront, bounds.max.z);
+      };
       const backingSurfaces = importedBackers.map(({ row, glyph }, index) => {
         const material = solidMaterial(row.color ?? project.acpColor?.value ?? '#f0f0ed', night);
         material.roughness = .65; material.metalness = .03;
@@ -546,6 +554,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         Object.assign(plate.userData, { lineIndex: row.index, rowId: row.id, artworkName: row.name,
           kind: 'vector', vectorRole: 'backing', thicknessMm: 3, frontZ });
         group.add(plate);
+        includePhysical(plate);
         return { box: row.pathBox, frontZ };
       });
       const enclosedBackingFront = (box: SignSceneBox) => {
@@ -553,7 +562,6 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
           box.x + box.width <= backing.box.x + backing.box.width + .1 && box.y + box.height <= backing.box.y + backing.box.height + .1);
         return matching.length ? Math.max(...matching.map(backing => backing.frontZ)) : undefined;
       };
-      let maxLetterRear = rear;
       if (contourOnFrame && layout.haloBackerPath) {
         const shapes=glyphFromPath(layout.haloBackerPath,layout.signBox,6).shapes;
         const material=solidMaterial(project.haloBackerColor.value,night);material.roughness=.65;
@@ -561,6 +569,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         plate.geometry.rotateX(Math.PI);plate.geometry.translate(-centerX,centerY,18);
         plate.name='halo-contour-backer';plate.userData.thicknessMm=3;
         plate.userData.mount='frame';plate.userData.frontZ=18;plate.userData.haloGapMm=20;group.add(plate);
+        includePhysical(plate);
       }
       const spacerMaterial = new THREE.MeshStandardMaterial({color:'#7d858b',metalness:.75,roughness:.35});
       let spacersUsed = false;
@@ -604,7 +613,6 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
       for (const part of textParts) if (part.glyph.shapes.length) {
         const importedFront = enclosedBackingFront(part.box);
         const partRear = importedFront === undefined ? rear : importedFront + (haloMode ? 20 : 0);
-        maxLetterRear = Math.max(maxLetterRear, partRear);
         const partFace=part.row?.kind==='vector'&&part.row.color?solidMaterial(part.row.color,night,faceLit):face;
         sharedFaceUsed ||= partFace===face;
         if(partFace!==face){partFace.metalness=0;partFace.roughness=.32;partFace.envMapIntensity=.45;}
@@ -617,6 +625,7 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         text.userData.bodyDepthMm=bodyDepth;text.userData.rearZ=partRear;text.userData.frontZ=partRear+bodyDepth;
         if (project.letterOutlineEnabled) contour(text, project.outlineColor.value);
         group.add(text);
+        includePhysical(text, true);
         addSpacers(part.glyph.shapes,(x,y)=>new THREE.Vector2(text.position.x+x*sx,text.position.y-y*sy),partRear,importedFront);
       }
       if(!sharedFaceUsed)face.dispose();
@@ -631,12 +640,12 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         const logo = extrude(shape, bodyDepth, logoFace, logoSide, backMaterial, { curveSegments, smoothSides: true, frontSeam:logoSeam });
         seamUsed = true;
         const importedFront = enclosedBackingFront(layout.logoBox), logoRear = importedFront === undefined ? rear : importedFront + (haloMode ? 20 : 0);
-        maxLetterRear = Math.max(maxLetterRear, logoRear);
         logo.position.set(toX(layout.logoBox.x + layout.logoBox.width / 2),
           toY(layout.logoBox.y + layout.logoBox.height / 2), logoRear);
         logo.name = "extruded-logo";
         if (project.logoOutlineEnabled) contour(logo, project.outlineColor.value);
         group.add(logo);
+        includePhysical(logo, true);
         addSpacers([shape],(x,y)=>new THREE.Vector2(logo.position.x+x,logo.position.y+y),logoRear,importedFront);
         await applyArtwork(logo, shape, project.logoImage, layout.logoBox.width, bodyDepth, night, faceLit,
           100, 0, 0, false, curveSegments);
@@ -664,29 +673,33 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         backer.position.set(toX(layout.panelBox.x + layout.panelBox.width / 2),
           toY(layout.panelBox.y + layout.panelBox.height / 2), -project.acpDepth);
         backer.name = "acp-box"; group.add(backer);
+        includePhysical(backer);
         for(const x of layout.seamXs??[]){
           const seam=new THREE.Mesh(new THREE.BoxGeometry(1.5,layout.panelBox.height,.5),new THREE.MeshStandardMaterial({color:'#667078',roughness:.8}));
           seam.position.set(toX(x),toY(layout.panelBox.y+layout.panelBox.height/2),.15);seam.name='acp-panel-joint';group.add(seam);
         }
       }
-      if (haloLit) {
+      const constructionBack = physicalBounds.isEmpty() ? frameReferenceRear : physicalBounds.min.z;
+      const constructionFront = physicalBounds.isEmpty() ? rear + bodyDepth : physicalBounds.max.z;
+      const hasLetterBodies = Number.isFinite(letterFront);
+      if (haloLit && hasLetterBodies) {
         const halo = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, haloColor, height * 0.10);
         halo.position.x = toX(layout.signBox.x + layout.signBox.width / 2); halo.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
         halo.position.z = Math.max(contourOnFrame ? 18 : 0,...backingSurfaces.map(backing => backing.frontZ)) + .4;
         (halo.material as THREE.MeshBasicMaterial).opacity = 1;
         halo.name = "rear-halo-projection"; group.add(halo);
       }
-      if (faceLit) {
+      if (faceLit && hasLetterBodies) {
         const aura = lightProjection(project, layout, glyph, textWidth, textHeight, textTop, faceColor, height * 0.02,project.logoFaceColor?.value??faceColor,true);
         aura.position.x = toX(layout.signBox.x + layout.signBox.width / 2); aura.position.y = toY(layout.signBox.y + layout.signBox.height / 2);
-        aura.position.z = maxLetterRear + bodyDepth + 0.75;
+        aura.position.z = letterFront + 0.75;
         (aura.material as THREE.MeshBasicMaterial).opacity = 0.22;
         aura.name = "face-light-aura"; group.add(aura);
       }
       if (showDimensions) {
         const halfWidth = width / 2, halfHeight = height / 2;
         const offset = Math.max(55, height * 0.2);
-        const z = maxLetterRear + bodyDepth + 2;
+        const z = constructionFront + 2;
         for(const row of layout.textRows??[]){
           const box=row.box,y=toY(box.y)-box.height-12;
           addDimension(dimensionGroup,new THREE.Vector3(toX(box.x),y,z),new THREE.Vector3(toX(box.x+box.width),y,z),
@@ -705,8 +718,6 @@ export async function buildSignModel(project: SignSceneProject, layout: SignScen
         addDimension(dimensionGroup, new THREE.Vector3(-halfWidth - offset, -halfHeight, z),
           new THREE.Vector3(-halfWidth - offset, halfHeight, z), Math.round(height) + " мм",
           new THREE.Vector3(-halfWidth - offset * 1.8, 0, z), dimensionScale * 0.85, night);
-        const constructionBack = frameReferenceRear;
-        const constructionFront = maxLetterRear + bodyDepth;
         addDimension(dimensionGroup, new THREE.Vector3(halfWidth + offset, halfHeight, constructionBack),
           new THREE.Vector3(halfWidth + offset, halfHeight, constructionFront), Math.round(constructionFront - constructionBack) + " мм",
           new THREE.Vector3(halfWidth + offset * 1.65, halfHeight, (constructionBack + constructionFront) / 2), dimensionScale * 0.65, night);
