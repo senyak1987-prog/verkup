@@ -45,6 +45,10 @@ jobs:
           npm run test:cdr-import
           npm run test:backer-contours
           npm run test:rc-game
+          npm run test:rc-suspension
+          npm run test:rc-props
+          npm run test:rc-vehicle
+          npm run test:trx-asset
           npm run test:facade-rc
       - name: Build site
         env:
