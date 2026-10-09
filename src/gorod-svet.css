@@ -147,7 +147,9 @@ main.public-sign-configurator.sign-studio .canvas-text-input { position:absolute
 main.public-sign-configurator.sign-studio .canvas-text-caret { position:absolute; top:-3px; bottom:-3px; width:2px; background:#073c2d; box-shadow:0 0 0 1px #fff; animation:canvas-caret-blink 1s steps(1,end) infinite; }
 main.public-sign-configurator.sign-studio .canvas-text-selection { position:absolute; top:0; bottom:0; background:#2584dc55; outline:1px solid #2584dc; }
 main.public-sign-configurator.sign-studio .canvas-typing-hint { font-size:11px; color:#e0e9e3; white-space:nowrap; }
-main.public-sign-configurator.sign-studio .editor-selection:is([data-object="line-0"],[data-object="line-1"],[data-object="line-2"]) { cursor:text; }
+main.public-sign-configurator.sign-studio .editor-text-hit { fill:transparent; stroke:none; pointer-events:fill; cursor:text; }
+main.public-sign-configurator.sign-studio .editor-move-frame { fill:none; stroke:transparent; stroke-width:12px; pointer-events:stroke; cursor:move; }
+@media(max-width:600px) { main.public-sign-configurator.sign-studio .editor-move-frame { stroke-width:18px; } }
 @keyframes canvas-caret-blink { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }
 @media(prefers-reduced-motion:reduce) { main.public-sign-configurator.sign-studio .canvas-text-caret { animation:none; } }
 main.public-sign-configurator.sign-studio .editor-selection { fill:transparent; stroke:#337f57; stroke-width:1; stroke-dasharray:5 4; cursor:move; }
