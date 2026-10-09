@@ -400,3 +400,30 @@ main.public-sign-configurator.sign-studio .mobile-editor-icon { display:none; }
 @media(max-width:360px) {
   main.public-sign-configurator.sign-studio .studio-brand > span { display:none; }
 }
+
+/* One preview row; the lighting switches remain adjacent at every width. */
+main.public-sign-configurator.sign-studio .studio-workspace { container-type: inline-size; }
+main.public-sign-configurator.sign-studio .canvas-unified-toolbar {
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scroll-padding-inline: 8px;
+}
+main.public-sign-configurator.sign-studio .canvas-unified-toolbar::-webkit-scrollbar { display: block; height: 5px; }
+main.public-sign-configurator.sign-studio .canvas-unified-toolbar::-webkit-scrollbar-thumb { background: #87a293; border-radius: 3px; }
+main.public-sign-configurator.sign-studio .canvas-lighting-tools { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+main.public-sign-configurator.sign-studio .canvas-unified-toolbar .scene-switch { margin-left: 0; }
+main.public-sign-configurator.sign-studio .canvas-unified-toolbar .placement-select { margin-left: 0; }
+main.public-sign-configurator.sign-studio .canvas-unified-toolbar .canvas-tools { flex: 0 0 auto; margin-left: auto; }
+@container (max-width: 1250px) {
+  main.public-sign-configurator.sign-studio .canvas-unified-toolbar :is(.view-caption, .editor-caption),
+  main.public-sign-configurator.sign-studio .canvas-unified-toolbar .placement-select > span { display: none; }
+  main.public-sign-configurator.sign-studio .canvas-unified-toolbar .mobile-editor-icon { display: block; }
+  main.public-sign-configurator.sign-studio .canvas-unified-toolbar .view-switch button { min-width: 44px; }
+  main.public-sign-configurator.sign-studio .canvas-unified-toolbar .editor-toggle { min-width: 36px; }
+  main.public-sign-configurator.sign-studio .canvas-unified-toolbar .scene-switch { width: 128px; min-width: 112px; padding: 2px; }
+  main.public-sign-configurator.sign-studio .canvas-unified-toolbar .celestial-track { display: none; }
+  main.public-sign-configurator.sign-studio .canvas-unified-toolbar .placement-select select { max-width: 145px; }
+}
