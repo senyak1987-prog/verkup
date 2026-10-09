@@ -31,6 +31,66 @@ const schema=new Function('LETTER_FONTS','resolveSignFont','normalizeLetterDepth
   schemaCompiled+';return {defaults:DEFAULT_PROJECT,validate:validateProject};')(contours.SIGN_FONTS,contours.resolveSignFont,construction.normalizeLetterDepth,backer.constrainBacker,neon.NEON_FONTS,panel.normalizePanelSize,panel.normalizePanelDepth,
   panel.PANEL_CORNER_RADIUS_MIN,panel.PANEL_CORNER_RADIUS_STEP,panel.panelCornerRadiusLimit,panel.normalizePanelCornerRadius,load('vectorArtwork').validateVectorArtwork);
 
+const artworkSource=source.slice(source.indexOf('function resetProjectSettings('),source.indexOf('function EmptySignPreview('));
+const artworkCompiled=ts.transpileModule(artworkSource,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
+const artwork=new Function('DEFAULT_PROJECT',artworkCompiled+';return {reset:resetProjectSettings,clear:clearProjectArtwork,isBlank:isProjectBlank,createText:createEmptyTextPatch};')(schema.defaults);
+
+test('Reset clears artwork for every product and keeps empty projects empty after saving and reopening',()=>{
+  const reset=artwork.reset(),nextReset=artwork.reset();
+  for(const key of ['lettersText','secondLineText','thirdLineText','neonText','panelImage','logoImage','backdropImage','neonReferenceImage'])assert.equal(reset[key],'',key);
+  assert.equal(reset.logoEnabled,false);assert.equal(reset.neonIcon,'none');
+  for(const [key,value] of Object.entries(schema.defaults)){
+    if(Array.isArray(value)){
+      assert.deepEqual(reset[key],[],'Reset removes saved row settings and vector artwork: '+key);
+      assert.notEqual(reset[key],value,'A reset cannot mutate the constructor defaults: '+key);
+      assert.notEqual(reset[key],nextReset[key],'Separate resets cannot share row settings: '+key);
+    }
+  }
+  for(const productId of ['letters','neon','panel']){
+    const restored=schema.validate(JSON.parse(JSON.stringify({version:1,project:{...reset,productId}})));
+    assert.equal(restored.productId,productId);
+    assert.equal(restored.panelImage,'','The prepared companion panel cannot reappear after reopening');
+    assert.equal(restored.logoEnabled,false);assert.deepEqual(restored.vectorArtwork,[]);
+    if(productId!=='panel')assert.equal(artwork.isBlank(restored),true,productId+' remains an empty text draft');
+    for(const key of ['letterFont','letterHeight','letterWidth','letterDepth','panelSize','panelDepth','panelCornerRadius','neonFont','neonHeight'])assert.deepEqual(restored[key],schema.defaults[key],key+' returns to its default');
+  }
+});
+
+test('Creating letters from a locally cleared draft uses default typography and dimensions instead of hidden row overrides',()=>{
+  const prior={...schema.defaults,lettersText:'СТАРЫЙ МАКЕТ',secondLineText:'СТРОКА 2',thirdLineText:'СТРОКА 3',
+    letterFont:contours.SIGN_FONTS.at(-1).value,letterHeight:231,letterWidth:1800,letterDepth:40,
+    letterLineFonts:[contours.SIGN_FONTS.at(-1).value],letterLineHeights:[231,140,170],letterLineOffsets:[{x:300,y:180}],
+    textOffsetX:400,textOffsetY:-200,glowMode:'face',mountMode:'wall',letterSideColor:{...schema.defaults.letterSideColor},
+    panelImage:'data:image/png;base64,AAAA',logoEnabled:true,logoImage:'data:image/png;base64,AAAA'};
+  const cleared=artwork.clear(prior);
+  assert.equal(artwork.isBlank(cleared),true);
+  assert.equal(cleared.letterHeight,231,'Local clear still retains construction settings until new text is created');
+  const next=schema.validate({version:1,project:{...cleared,...artwork.createText('letters','НОВАЯ ВЫВЕСКА')}});
+  assert.equal(next.lettersText,'НОВАЯ ВЫВЕСКА');assert.equal(next.secondLineText,'');assert.equal(next.thirdLineText,'');
+  for(const key of ['letterFont','letterHeight','letterWidth'])assert.equal(next[key],schema.defaults[key]);
+  assert.equal(next.letterDepth,construction.normalizeLetterDepth(schema.defaults.letterHeight,schema.defaults.letterDepth,prior.glowMode));
+  for(const key of ['letterLineFonts','letterLineHeights','letterLineOffsets'])assert.deepEqual(next[key],[]);
+  assert.equal(next.textOffsetX,0);assert.equal(next.textOffsetY,0);
+  assert.equal(next.glowMode,prior.glowMode);assert.equal(next.mountMode,prior.mountMode);assert.deepEqual(next.letterSideColor,prior.letterSideColor);
+  assert.equal(next.logoEnabled,false);assert.equal(next.panelImage,'');assert.deepEqual(next.vectorArtwork,[]);
+  assert.equal(prior.lettersText,'СТАРЫЙ МАКЕТ','The previous undo snapshot remains intact');
+  assert.deepEqual(prior.letterLineHeights,[231,140,170]);
+});
+
+test('Creating neon text from a cleared draft resets font, sizes, spacing and per-line overrides without changing its lighting color',()=>{
+  const prior={...schema.defaults,productId:'neon',neonText:'СТАРЫЙ\nНЕОН',neonFont:'technical',neonHeight:120,neonDiameter:8,
+    neonBackerWidth:2200,neonBackerHeight:800,neonTargetWidth:1700,neonKeepAspect:false,neonLetterSpacing:80,neonLineSpacing:250,
+    neonAlign:'right',neonLineFonts:['technical','rounded'],neonLineColors:['#ff0000','#00ff00'],neonLineScales:[.8,1.5],
+    neonLineOffsets:[{x:50,y:-70}],neonColor:'#00aaff'};
+  const cleared=artwork.clear(prior);assert.equal(artwork.isBlank(cleared),true);
+  const next=schema.validate({version:1,project:{...cleared,...artwork.createText('neon','ГОРОД\nСВЕТ')}});
+  assert.equal(next.neonText,'ГОРОД\nСВЕТ');assert.equal(artwork.isBlank(next),false);
+  for(const key of ['neonFont','neonHeight','neonDiameter','neonBackerWidth','neonBackerHeight','neonTargetWidth','neonKeepAspect','neonLetterSpacing','neonLineSpacing','neonAlign'])assert.equal(next[key],schema.defaults[key],key);
+  for(const key of ['neonLineFonts','neonLineColors','neonLineScales','neonLineOffsets'])assert.deepEqual(next[key],[]);
+  assert.equal(next.neonColor,prior.neonColor);assert.equal(next.neonIcon,'none');
+  assert.equal(prior.neonText,'СТАРЫЙ\nНЕОН');assert.deepEqual(prior.neonLineOffsets,[{x:50,y:-70}]);
+});
+
 const svgSource=source.slice(source.indexOf('function createLettersSvgMarkup('),source.indexOf('\nfunction createSvgObjectDimensions'));
 const svgCompiled=ts.transpileModule(svgSource,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
 const svgMarkup=new Function('roundSvg','escapeXml','hasHaloGlow',svgCompiled+';return createLettersSvgMarkup;')(
