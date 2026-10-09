@@ -4,16 +4,18 @@ import { layoutObjectBoxes, layoutSelectionBox, layoutSelectionObjects } from '.
 import type { LayoutSelection, LayoutOffsetPatch } from './signLayoutAlignment';
 
 export type GroupResizePatch = LayoutOffsetPatch & { letterLineHeights?: number[]; logoSizeMm?: number; letterWidth?: number };
+export type GroupResizeCorner = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 /** Scale from the opposite corner of the drag-start snapshot, never from the previous pointer event. */
 export function resizeLetterGroup(config: LetterRowsLayoutConfig, selection: LayoutSelection,
-  deltaX: number, deltaY: number, savedHeights: readonly number[] = []): GroupResizePatch {
+  deltaX: number, deltaY: number, savedHeights: readonly number[] = [], corner: GroupResizeCorner = 'top-right'): GroupResizePatch {
   const original = createLetterRowsLayout(config), logoEnabled = !!config.logoEnabled;
   const selected = layoutSelectionObjects(original, selection, logoEnabled);
   if (selected.length < 2 || !Number.isFinite(deltaX + deltaY)) return {};
   const bounds = layoutSelectionBox(original, selected, logoEnabled);
-  // Project the top-right handle's movement onto the group diagonal. Bottom-left stays anchored.
-  const requested = 1 + (deltaX * bounds.width - deltaY * bounds.height) / (bounds.width ** 2 + bounds.height ** 2);
+  const directionX = corner.endsWith('right') ? 1 : -1, directionY = corner.startsWith('bottom') ? 1 : -1;
+  // Project movement onto the chosen diagonal; its opposite corner stays anchored.
+  const requested = 1 + (deltaX * directionX * bounds.width + deltaY * directionY * bounds.height) / (bounds.width ** 2 + bounds.height ** 2);
   const heights = Array.from({ length: Math.max(3 + (config.vectorArtwork?.length ?? 0), savedHeights.length) }, (_, index) =>
     index < 3 ? (config.lineSettings.find(row => row.index === index)?.height ?? savedHeights[index] ?? 0)
       : config.vectorArtwork![index - 3].height);
@@ -26,7 +28,8 @@ export function resizeLetterGroup(config: LetterRowsLayoutConfig, selection: Lay
   }
   const factor = Math.max(minimum, Math.min(maximum, requested));
   if (Math.abs(factor - 1) < 1e-8) return {};
-  const objects = layoutObjectBoxes(original, logoEnabled), anchor = { x: bounds.x, y: bounds.y + bounds.height };
+  const objects = layoutObjectBoxes(original, logoEnabled), anchor = {
+    x: bounds.x + (directionX < 0 ? bounds.width : 0), y: bounds.y + (directionY < 0 ? bounds.height : 0) };
   const attempt = (scale: number) => {
     const nextHeights = heights.map((height, index) => selected.includes(`line-${index}`) ? height * scale : height);
     const nextLogo = selected.includes('logo') ? logoSize * scale : logoSize;
