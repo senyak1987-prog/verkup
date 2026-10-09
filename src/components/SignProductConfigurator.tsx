@@ -20,6 +20,7 @@ import { NeonControls } from "./NeonControls";
 import { NeonStudioEditor } from "./NeonStudioEditor";
 import { SignLayoutEditor } from "./SignLayoutEditor";
 import { LetterLinesControls } from "./LetterLinesControls";
+import { CanvasTextEditor } from "./CanvasTextEditor";
 import { VectorArtworkControls } from "./VectorArtworkControls";
 import { validateVectorArtwork, vectorArtworkBounds } from "../lib/vectorArtwork";
 import type { VectorArtworkObject } from "../lib/vectorArtwork";
@@ -611,6 +612,8 @@ export function SignProductConfigurator() {
   useEffect(() => { setSelectedNeonLine(index => Math.min(index, project.neonText.split('\n').length - 1)); }, [project.neonText]);
   const [editing, setEditing] = useState(true);
   const [layoutSelection, setLayoutSelection] = useState<LayoutObject>("composition");
+  const [canvasTextEdit, setCanvasTextEdit] = useState<{ index: number; text: string; font: string } | null>(null);
+  const canvasTextToggleRef = useRef<HTMLButtonElement>(null);
   const advancedConstructorRef = useRef<HTMLDetailsElement>(null);
   const selectLayoutObject = (selection: LayoutObject) => {
     setLayoutSelection(selection);
@@ -696,6 +699,13 @@ export function SignProductConfigurator() {
   const setLineFont = (index:number,font:string) => patchProject({...index===0?{letterFont:font}:{},letterLineFonts:Array.from({length:3},(_,i)=>i===index?font:project.letterLineFonts[i]||project.letterFont)});
   const setLineHeight = (index:number,height:number) => patchProject({...index===0?{letterHeight:height}:{},letterLineHeights:Array.from({length:3},(_,i)=>i===index?height:project.letterLineHeights[i]||project.letterHeight)});
   const selectLetterLine = (index:number) => { selectLayoutObject(`line-${index}`);setEditing(true);setViewMode("2d");setPlacement("none"); };
+  const editCanvasLine = (index: number) => {
+    const row = lineSettings.find(item => item.index === index);
+    if (index < 0 || index > 2 || !row?.text.trim()) return;
+    setLayoutSelection(`line-${index}`);
+    setCanvasTextEdit({ index, text: row.text, font: row.font });
+  };
+  const closeCanvasText = () => { setCanvasTextEdit(null); canvasTextToggleRef.current?.focus({ preventScroll: true }); };
   const addLetterLine = () => { const index=!project.secondLineText.trim()?1:2;patchProject({...index===1?{secondLineText:"НОВАЯ СТРОКА"}:{thirdLineText:"НОВАЯ СТРОКА"},letterLineFonts:Array.from({length:3},(_,i)=>i===index?project.letterLineFonts[0]||project.letterFont:project.letterLineFonts[i]||""),letterLineHeights:Array.from({length:3},(_,i)=>i===index?project.letterLineHeights[0]||project.letterHeight:project.letterLineHeights[i]||0),letterLineOffsets:Array.from({length:3},(_,i)=>i===index?{x:0,y:0}:project.letterLineOffsets[i]||{x:0,y:0})});selectLetterLine(index);setActiveSection("design"); };
   const removeLetterLine = (index:number) => { setLineText(index,"");setLayoutSelection("composition"); };
   const setLetterFaceColor = (value: ProjectState["letterFaceColor"]) => setProject(previous => ({ ...previous, letterFaceColor: value }));
@@ -728,6 +738,10 @@ export function SignProductConfigurator() {
   useEffect(()=>{let active=true;setNeonFontError("");void Promise.all([...new Set([project.neonFont,...project.neonLineFonts])].map(id=>loadNeonFont(id))).then(()=>{if(active)setNeonFontReady(neonFontKey);}).catch(error=>{if(active)setNeonFontError(error.message);});return()=>{active=false;};},[neonFontKey]);
   const [fitSignal, setFitSignal] = useState(0);
   const [viewMode, setViewMode] = useState<"2d" | "3d">("2d");
+  useEffect(() => { setCanvasTextEdit(null); }, [project.productId, viewMode, placement, editing, emptyTextRevision]);
+  useEffect(() => {
+    if (canvasTextEdit && (layoutSelection !== `line-${canvasTextEdit.index}` || lineSettings.find(row => row.index === canvasTextEdit.index)?.text !== canvasTextEdit.text)) setCanvasTextEdit(null);
+  }, [layoutSelection, lineSettings, canvasTextEdit]);
   const [rcPlaying, setRcPlaying] = useState(false);
   const [showDimensions, setShowDimensions] = useState(true);
   const [showFacadeSign, setShowFacadeSign] = useState(true);
@@ -787,7 +801,7 @@ export function SignProductConfigurator() {
     return () => { cancelAnimationFrame(frame); observer.disconnect(); changes.disconnect(); };
   }, [viewMode, placement, productId]);
   const previewTranslation = signZoomTranslation(previewFocus, previewFocus, zoom / 100);
-  useEffect(()=>{const host=workspaceRef.current;if(!host||viewMode!=="2d")return;const wheel=(event:WheelEvent)=>{if(!(event.target as Element).closest(".builder-preview"))return;event.preventDefault();setZoom(value=>Math.max(25,Math.min(400,Math.round(value*Math.exp(-event.deltaY*.0015)))));};host.addEventListener("wheel",wheel,{passive:false});return()=>host.removeEventListener("wheel",wheel);},[viewMode]);
+  useEffect(()=>{const host=workspaceRef.current;if(!host||viewMode!=="2d")return;const wheel=(event:WheelEvent)=>{if(!(event.target as Element).closest(".builder-preview")||(event.target as Element).closest(".canvas-text-editor"))return;event.preventDefault();setZoom(value=>Math.max(25,Math.min(400,Math.round(value*Math.exp(-event.deltaY*.0015)))));};host.addEventListener("wheel",wheel,{passive:false});return()=>host.removeEventListener("wheel",wheel);},[viewMode]);
   const fileMenuRef = useRef<HTMLDetailsElement>(null);
   const cartToggleRef = useRef<HTMLButtonElement>(null);
   const cartCloseRef = useRef<HTMLButtonElement>(null);
@@ -1237,6 +1251,7 @@ export function SignProductConfigurator() {
             </div>
             <span className="alignment-reference">{mountMode === "acp" ? "По подложке" : "По макету"}</span>
             <button type="button" aria-label="Отменить изменение макета" title="Отменить изменение макета (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={16}/></button>
+            <button ref={canvasTextToggleRef} type="button" disabled={!/^line-[012]$/.test(layoutSelection)} onClick={() => editCanvasLine(Number(layoutSelection.slice(5)))} title="Выберите строку и измените текст здесь. Можно дважды щёлкнуть по строке."><Type size={14} />Изменить текст</button>
             <button type="button" disabled={!!project.secondLineText.trim()&&!!project.thirdLineText.trim()} onClick={addLetterLine}>+ Строка ниже</button>
             <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
           </div>}
@@ -1250,6 +1265,12 @@ export function SignProductConfigurator() {
           className={`builder-preview ${sceneMode} glow-${glowMode} view-mode-${viewMode}`}
           aria-label="Визуализация"
         >
+          {canvasTextEdit && productId === "letters" && viewMode === "2d" && editing && placement === "none" && <CanvasTextEditor
+            key={`${canvasTextEdit.index}:${canvasTextEdit.text}`} index={canvasTextEdit.index} initialText={canvasTextEdit.text} font={canvasTextEdit.font} zoom={zoom}
+            onCancel={closeCanvasText} onApply={text => {
+              if (text !== canvasTextEdit.text) { lastUndoEdit.current = 0; setLineText(canvasTextEdit.index, text); lastUndoEdit.current = 0; }
+              closeCanvasText();
+            }} />}
           {!blankSign && (fontPending && productId === "letters" || productId === "neon" && neonFontReady!==neonFontKey && !neonFontError) && <div className="studio-font-loading" role="status">Обновляем шрифт…</div>}
           {blankSign ? <EmptySignPreview key={`${productId}:${emptyTextRevision}`} kind={productId === "neon" ? "neon" : "letters"} onCreate={text => {
             patchProject(createEmptyTextPatch(productId === "neon" ? "neon" : "letters", text)); setSelectedNeonLine(0);
@@ -1277,7 +1298,7 @@ export function SignProductConfigurator() {
               <LettersPreview
                 objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value,faceNoFilm:letterFaceColor.code==="none",logoNoFilm:project.logoFaceColor.code==="none"}}
                 lightsOn={project.lightsOn}
-                editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={selectLayoutObject} onChange={applyLayoutPatch} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon}/> : undefined}
+                editor={editing && !fontPending ? <SignLayoutEditor layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={selectLayoutObject} onChange={applyLayoutPatch} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon} onEditLine={editCanvasLine}/> : undefined}
                 sceneMode={sceneMode}
                 acpDepth={acpDepth}
                 acpColor={acpColor.value}
