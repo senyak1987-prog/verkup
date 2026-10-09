@@ -79,6 +79,27 @@ test('PDF curves remain cubic and quadratic after import',()=>{
   const result=importer.importPdfOperators(list([draw('fill',data)]),OPS,[1,0,0,1,0,0]);
   assert.match(result.objects[0].pathData,/C/);assert.match(result.objects[0].pathData,/Q/);
 });
+test('PDF repeated close commands normalize at the import boundary without weakening saved-path validation',()=>{
+  const repeated=[...rectangle,4,4];
+  const normalized=importer.pdfDrawPath(repeated);
+  assert.equal(normalized,path);
+  assert.doesNotThrow(()=>shared.parseVectorPath(normalized));
+  assert.throws(()=>shared.parseVectorPath(path+'Z'),/Некорректный векторный контур/);
+});
+test('PDF compound contours retain cubic curves, even-odd counters and dimensions with repeated closes',()=>{
+  const outer=[0,0,0,2,0,100,100,100,100,0,1,0,0,4,4];
+  const inner=[0,35,15,1,65,15,1,65,35,1,35,35,4,4,4];
+  const result=importer.importPdfOperators(list([draw('eoFill',[...outer,...inner])]),OPS,[1,0,0,1,0,0]);
+  const object=result.objects[0],commands=shared.parseVectorPath(object.pathData);
+  assert.equal(result.objects.length,1);
+  assert.equal(commands.filter(c=>c.type==='M').length,2);
+  assert.equal(commands.filter(c=>c.type==='Z').length,2);
+  assert.equal(commands.filter(c=>c.type==='C').length,1);
+  assert.deepEqual(object.box,{x:0,y:0,width:100,height:75});
+  const parsed=new TestSVGLoader().parse(`<svg><path d="${object.pathData}"/></svg>`);
+  assert.equal(parsed.paths[0].toShapes().length,1);
+  assert.equal(parsed.paths[0].toShapes()[0].holes.length,1);
+});
 test('PDF ordinary forms keep their transform and reject actual cropping',()=>{
   const result=importer.importPdfOperators(list([['paintFormXObjectBegin',[2,0,0,2,10,20],[0,0,100,50]],draw(),['paintFormXObjectEnd'],draw()]),OPS,[1,0,0,1,0,0]);
   assert.deepEqual(result.objects[0].box,{x:10,y:20,width:200,height:100});assert.deepEqual(result.objects[1].box,{x:0,y:0,width:100,height:50});
@@ -114,6 +135,26 @@ test('actual PDF.js6.4 operator output imports a physical cubic and colored fill
     const result=importer.importPdfOperators(await page.getOperatorList(),OPS,view.transform);
     assert.equal(result.objects.length,1);assert.match(result.objects[0].pathData,/C/);assert.equal(result.objects[0].color,'#ff8000');
     assert.ok(Math.abs(result.objects[0].box.height-75*25.4/72)<.001);
+  } finally {await task.destroy();}
+});
+test('actual Corel-style PDF repeated h and close-fill-stroke operators import all filled curves',async()=>{
+  const contents='0.1 0.4 0.8 rg\n0 0 m 0 100 100 100 100 0 c h h\n35 15 m 35 35 l 65 35 l 65 15 l h h\nb*\n1 0.5 0 rg\n150 0 100 50 re h b';
+  const task=getDocument({data:fixturePdf(contents),useSystemFonts:false});
+  try {
+    const document=await task.promise,page=await document.getPage(1),operators=await page.getOperatorList();
+    const paths=operators.argsArray.filter((_,i)=>operators.fnArray[i]===OPS.constructPath).map(args=>args[1][0]);
+    assert.ok(paths.some(values=>Array.from(values).some((value,i)=>value===4&&values[i+1]===4)),'fixture must exercise actual repeated DrawOPS.closePath output');
+    const result=importer.importPdfOperators(operators,OPS,page.getViewport({scale:25.4/72}).transform);
+    assert.equal(result.objects.length,2);
+    assert.deepEqual(result.objects.map(o=>o.color),['#1a66cc','#ff8000']);
+    const first=result.objects[0],commands=shared.parseVectorPath(first.pathData);
+    assert.equal(commands.filter(c=>c.type==='M').length,2);
+    assert.equal(commands.filter(c=>c.type==='Z').length,2);
+    assert.equal(commands.filter(c=>c.type==='C').length,1);
+    assert.ok(Math.abs(first.box.width-100*25.4/72)<.001);
+    assert.ok(Math.abs(first.box.height-75*25.4/72)<.001);
+    assert.equal(new TestSVGLoader().parse(`<svg><path d="${first.pathData}"/></svg>`).paths[0].toShapes()[0].holes.length,1);
+    assert.match(result.warnings.join(' '),/Обводки PDF пропущены/);
   } finally {await task.destroy();}
 });
 const fixtures={

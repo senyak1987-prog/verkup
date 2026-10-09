@@ -169,6 +169,8 @@ export function pdfDrawPath(data:ArrayLike<number>):string {
   while(i<data.length) {
     const op=data[i++],type=({0:'M',1:'L',2:'C',3:'Q',4:'Z'} as Record<number,VectorPathCommand['type']>)[op];
     if(!type) error('Неподдерживаемая команда PDF.');
+    // PDF closePath is idempotent; PDF.js may also close an already closed path for a close-fill paint operator.
+    if(type==='Z'&&!open) continue;
     if(type==='M'&&open) commands.push({type:'Z',values:[]});
     const count=({M:2,L:2,C:6,Q:4,Z:0})[type],values:Array<number>=[];
     for(let j=0;j<count;j++) values.push(data[i++]);
