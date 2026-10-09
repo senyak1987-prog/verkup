@@ -17,6 +17,28 @@ for(const font of neonFonts.EXTERNAL_NEON_FONTS)neonFonts.registerNeonFont(font.
 const contours=load('letterContours',{'./glyphPath':load('glyphPath'),'./systemFontContours':system});
 const construction=load('letterConstruction');
 const alignment=load('signLayoutAlignment');
+const selection=load('canvasTextSelection');
+test('Pointer selection uses proportional glyph stops and clamps beyond both ends',()=>{
+  const stops=[0,.1,.55,.75,1];
+  assert.equal(selection.caretAtFraction(stops,.5),2);
+  assert.equal(selection.caretAtFraction(stops,.12),1);
+  assert.equal(selection.caretAtFraction(stops,-2),0);
+  assert.equal(selection.caretAtFraction(stops,3),4);
+});
+test('Text selection preserves its anchor and direction for forward, reverse and extended ranges',()=>{
+  assert.deepEqual(selection.canvasSelectionRange('САЛОН КРАСОТЫ',2,5),{start:2,end:5,direction:'forward'});
+  assert.deepEqual(selection.canvasSelectionRange('САЛОН КРАСОТЫ',5,2),{start:2,end:5,direction:'backward'});
+  assert.deepEqual(selection.canvasSelectionRange('САЛОН КРАСОТЫ',5,11),{start:5,end:11,direction:'forward'});
+  assert.deepEqual(selection.canvasSelectionRange('ТЕКСТ',-20,50),{start:0,end:5,direction:'forward'});
+});
+test('Double click selects Cyrillic words, spaces or punctuation; triple click selects the entire row',()=>{
+  const text='САЛОН  КРАСОТЫ!';
+  assert.deepEqual(selection.canvasSelectionRange(text,9,9,'word'),{start:7,end:14,direction:'forward'});
+  assert.deepEqual(selection.canvasSelectionRange(text,5,5,'word'),{start:5,end:7,direction:'forward'});
+  assert.deepEqual(selection.canvasSelectionRange(text,15,15,'word'),{start:14,end:15,direction:'forward'});
+  assert.deepEqual(selection.canvasSelectionRange(text,9,9,'line'),{start:0,end:15,direction:'forward'});
+  assert.deepEqual(selection.canvasSelectionRange('',0,0,'word'),{start:0,end:0,direction:'forward'});
+});
 const source=fs.readFileSync(new URL('../src/components/SignProductConfigurator.tsx',import.meta.url),'utf8');
 const start=source.indexOf('function createLettersSvgLayout('),end=source.indexOf('\nfunction createLettersSvgMarkup',start);
 const compiled=ts.transpileModule(source.slice(start,end),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
