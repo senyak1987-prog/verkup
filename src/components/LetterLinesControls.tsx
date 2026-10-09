@@ -62,9 +62,10 @@ export function LetterLinesControls({ rows, onTextChange, onFontChange, onHeight
 }
 
 function RowHeightField({ number, value, onChange }: { number: number; value: number; onChange: (height: number) => void }) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
+  const [draft, setDraft] = useState(String(Math.round(value)));
+  useEffect(() => setDraft(String(Math.round(value))), [value]);
   const commit = () => {
+    if (draft === String(Math.round(value))) return;
     const parsed = draft.trim() ? Number(draft) : value;
     const next = Math.max(100, Math.min(700, Math.round(Number.isFinite(parsed) ? parsed : value)));
     setDraft(String(next)); onChange(next);

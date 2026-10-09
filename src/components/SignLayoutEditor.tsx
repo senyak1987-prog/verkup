@@ -11,9 +11,11 @@ export type LayoutPatch = Partial<{ logoOffsetX: number; logoOffsetY: number; te
   logoScale: number; logoSizeMm:number; letterWidth: number; letterHeight: number; letterLineOffsets: { x: number; y: number }[];
   letterLineHeights: number[] }>;
 
-export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSelect, onChange, onInteractionStart, onInteractionEnd, onUndo, onEditLine }:
+type ResizeGroup = (selection: LayoutSelection, dx: number, dy: number) => LayoutPatch;
+
+export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSelect, onChange, onResizeGroup, onInteractionStart, onInteractionEnd, onUndo, onEditLine }:
   { layout: Layout; project: EditorProject; selection: LayoutSelection; onSelect: (object: LayoutSelection) => void;
-    zoom?: number; onChange: (patch: LayoutPatch) => void; onInteractionStart?: () => void; onInteractionEnd?: () => void; onUndo?: () => void; onEditLine?: (index: number, pointerSelection?: CanvasPointerSelection) => void }) {
+    zoom?: number; onChange: (patch: LayoutPatch) => void; onResizeGroup?: ResizeGroup; onInteractionStart?: () => void; onInteractionEnd?: () => void; onUndo?: () => void; onEditLine?: (index: number, pointerSelection?: CanvasPointerSelection) => void }) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [handleSize, setHandleSize] = useState(24);
   const [framePadding, setFramePadding] = useState(12);
@@ -25,7 +27,7 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
   const selectionId = useRef(0);
   const [snapped, setSnapped] = useState({ x: false, y: false });
   const drag = useRef<{ point: DOMPoint; inverse: DOMMatrix; pointerId: number; target: LayoutSelection; resize: boolean;
-    project: EditorProject; layout: Layout; tolerance: number; moved: boolean } | null>(null);
+    project: EditorProject; layout: Layout; tolerance: number; moved: boolean; resizeGroup?: ResizeGroup } | null>(null);
   const pending = useRef<LayoutPatch | null>(null), frame = useRef(0);
   const onChangeRef = useRef(onChange);
   const onInteractionEndRef = useRef(onInteractionEnd);
@@ -83,11 +85,11 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
     const object = handle.getAttribute("data-object") as LayoutObject;
     const resize = handle.hasAttribute("data-resize");
     const selected = layoutSelectionObjects(layout, selection, project.logoEnabled);
-    const target = !resize && selected.length > 1 && (handle.hasAttribute("data-group-frame") || selected.includes(object)) ? selected : object;
+    const target = selected.length > 1 && (handle.hasAttribute("data-group-frame") || (!resize && selected.includes(object))) ? selected : object;
     onSelect(target); onInteractionStart?.();
     const inverse = matrix.inverse();
     drag.current = { point: new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse), inverse, pointerId: event.pointerId,
-      target, resize, project: { ...project }, layout, moved: false, tolerance: (event.pointerType === "touch" ? 8 : 6) / Math.hypot(matrix.a, matrix.b) };
+      target, resize, resizeGroup: onResizeGroup, project: { ...project }, layout, moved: false, tolerance: (event.pointerType === "touch" ? 8 : 6) / Math.hypot(matrix.a, matrix.b) };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const move = (event: PointerEvent<SVGSVGElement>) => {
@@ -111,7 +113,8 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
     active.moved = true;
     if (active.resize) {
       setSnapped({ x: false, y: false });
-      if (active.target === "logo") schedule({ logoSizeMm: Math.max(100, Math.min(700, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
+      if (typeof active.target !== "string") { const patch = active.resizeGroup?.(active.target, dx, dy); if (patch) schedule(patch); }
+      else if (active.target === "logo") schedule({ logoSizeMm: Math.max(100, Math.min(700, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
         (Math.abs(dx) > Math.abs(dy) ? dx : -dy)))) });
       else if (typeof active.target === "string" && active.target.startsWith("line-")) {
         const patch = resizeLayoutLine(active.layout, active.target, active.project.letterHeight, active.project.letterLineHeights, dx, -dy);
@@ -195,6 +198,11 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
     {objectFrames.map(({ id, box, text }) => <rect key={id} data-object={id} data-text-select={text ? "true" : undefined} {...box} className={text ? "editor-text-hit" : "editor-object-hit"}><title>{text ? "Протяните мышью, чтобы выделить текст" : "Перетащите, чтобы переместить объект"}</title></rect>)}
     {objectFrames.filter(({ id }) => selected.length === 1 && selected[0] === id).map(({ id, frameBox }) => <rect key={id} data-object={id} data-resize="true" x={frameBox.x + frameBox.width - handleSize / 2} y={frameBox.y - handleSize / 2}
       width={handleSize} height={handleSize} className="editor-resize" vectorEffect="non-scaling-stroke" />)}
+    {selected.length > 1 && !marquee && onResizeGroup && <rect data-object="composition" data-group-frame="true" data-resize="true"
+      x={groupBox.x + groupBox.width - handleSize / 2} y={groupBox.y - handleSize / 2} width={handleSize} height={handleSize}
+      className="editor-resize" vectorEffect="non-scaling-stroke" aria-label="Изменить размер группы пропорционально">
+      <title>Потяните угол, чтобы изменить размер всей группы пропорционально</title>
+    </rect>}
     {marquee && <rect {...marquee} className="editor-marquee" pointerEvents="none" vectorEffect="non-scaling-stroke" />}
   </svg>;
 }

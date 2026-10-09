@@ -9,6 +9,7 @@ import { systemFontAvailable } from "../lib/systemFontContours";
 import { SIGN_FONTS, loadLetterContours, resolveSignFont, combineLetterLines } from "../lib/letterContours";
 import type { LetterContours } from "../lib/letterContours";
 import { haloBackerContour } from "../lib/haloBackerContour";
+import { resizeLetterGroup } from "../lib/signGroupResize";
 import { createLetterRowsLayout, contourBackingRows } from "../lib/letterRowsLayout";
 import type { LetterRowLayout, LetterRowSetting } from "../lib/letterRowsLayout";
 import type { LetterFrameSegment } from "../lib/letterFrame";
@@ -898,7 +899,7 @@ export function SignProductConfigurator() {
     acpHeight,
     acpWidth,
   ]);
-  const lettersLayout = useMemo(() => { const layout=createLettersSvgLayout({
+  const lettersLayoutConfig = useMemo(() => ({
     lineSettings,
     vectorArtwork: project.vectorArtwork,
     acpLayout,
@@ -919,7 +920,7 @@ export function SignProductConfigurator() {
     widthOverride: letterWidth,
     logoEnabled,
     logoOffsetX: project.logoOffsetX, logoOffsetY: project.logoOffsetY, textOffsetX: project.textOffsetX, textOffsetY: project.textOffsetY,
-  }); return {...layout,haloBackerPath:haloBackerEnabled&&mountMode==="frame"&&hasHaloGlow(glowMode)?haloBackerContour(contourBackingRows(layout.textRows??[]),project.haloBackerOffsetMm):undefined}; }, [
+  }), [
     haloBackerEnabled,glowMode,project.haloBackerOffsetMm,project.logoSizeMm,
     acpLayout,
     frameBottomPosition,
@@ -938,6 +939,10 @@ export function SignProductConfigurator() {
     letterWidth,
     logoEnabled, project.logoOffsetX, project.logoOffsetY, project.textOffsetX, project.textOffsetY, lineSettings, project.vectorArtwork,
   ]);
+  const lettersLayout = useMemo(() => { const layout = createLettersSvgLayout(lettersLayoutConfig);
+    return { ...layout, haloBackerPath: haloBackerEnabled && mountMode === "frame" && hasHaloGlow(glowMode)
+      ? haloBackerContour(contourBackingRows(layout.textRows ?? []), project.haloBackerOffsetMm) : undefined };
+  }, [lettersLayoutConfig, haloBackerEnabled, mountMode, glowMode, project.haloBackerOffsetMm]);
   const applyLayoutPatch = (patch: LayoutPatch) => {
     const { letterLineOffsets, letterLineHeights, ...rest } = patch;
     patchProject({ ...rest,
@@ -1332,7 +1337,7 @@ export function SignProductConfigurator() {
               <LettersPreview
                 objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value,faceNoFilm:letterFaceColor.code==="none",logoNoFilm:project.logoFaceColor.code==="none"}}
                 lightsOn={project.lightsOn}
-                editor={editing && (!fontPending || canvasTextEdit) ? <SignLayoutEditor zoom={zoom} layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={selectLayoutObject} onChange={applyLayoutPatch} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon} onEditLine={editCanvasLine}/> : undefined}
+                editor={editing && (!fontPending || canvasTextEdit) ? <SignLayoutEditor zoom={zoom} layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={selectLayoutObject} onChange={applyLayoutPatch} onResizeGroup={(selection, dx, dy) => resizeLetterGroup(lettersLayoutConfig, selection, dx, dy, project.letterLineHeights)} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon} onEditLine={editCanvasLine}/> : undefined}
                 sceneMode={sceneMode}
                 acpDepth={acpDepth}
                 acpColor={acpColor.value}
@@ -2174,9 +2179,9 @@ function NumberField({
   onChange: (value: number) => void;
 }) {
   const max = suppliedMax ?? (label.startsWith("Ширина") ? 20000 : 10000);
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
-  const commit = () => { const bounded = Math.min(max, readPositiveInteger(draft, value, min)); const next = Math.min(max, min + Math.round((bounded - min) / step) * step); setDraft(String(next)); onChange(next); };
+  const [draft, setDraft] = useState(String(Math.round(value)));
+  useEffect(() => setDraft(String(Math.round(value))), [value]);
+  const commit = () => { if (draft === String(Math.round(value))) return; const bounded = Math.min(max, readPositiveInteger(draft, value, min)); const next = Math.min(max, min + Math.round((bounded - min) / step) * step); setDraft(String(next)); onChange(next); };
   return (
     <label className="builder-field">
       <span>{label}</span>

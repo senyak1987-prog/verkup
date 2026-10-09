@@ -66,6 +66,7 @@ export function systemFontContours(family: string, text: string, weight: number)
   ctx.font = font;
   const metric = ctx.measureText(normalized || 'Н');
   const reference = ctx.measureText(/[\p{Lu}\d]/u.test(normalized) ? 'Н' : 'н');
+  const support = /\p{Ll}/u.test(normalized) ? ctx.measureText('н') : reference;
   canvas.width = Math.max(32, Math.ceil(metric.width + 40)); canvas.height = Math.ceil(size * 1.67);
   ctx.font = font; ctx.fillStyle = '#000'; ctx.fillText(normalized, 20, baseline);
   const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -75,6 +76,8 @@ export function systemFontContours(family: string, text: string, weight: number)
   }
   if (!normalized) { x1 = 0; x2 = 0; y1 = baseline; y2 = baseline; }
   return { pathData: traceAlpha(pixels.data, canvas.width, canvas.height, 1.2, true),
+    supportBox: { x: x1, y: baseline - support.actualBoundingBoxAscent, width: Math.max(1, x2 - x1),
+      height: Math.max(1, support.actualBoundingBoxAscent + support.actualBoundingBoxDescent) },
     inkBox: { x: x1, y: y1, width: x2 - x1, height: y2 - y1 },
     mainBox: { x: x1, y: baseline - reference.actualBoundingBoxAscent, width: Math.max(1, x2 - x1),
       height: Math.max(1, reference.actualBoundingBoxAscent + reference.actualBoundingBoxDescent) } };

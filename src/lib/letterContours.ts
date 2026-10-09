@@ -34,6 +34,8 @@ export type LetterContours = {
   pathData: string;
   inkBox: { x: number; y: number; width: number; height: number };
   mainBox: { x: number; y: number; width: number; height: number };
+  /** Common body height for mounting rails, independent of the overall lettering size. */
+  supportBox?: { x: number; y: number; width: number; height: number };
   lineFactor?: number;
   lines?: LetterContours[];
 };
@@ -79,10 +81,12 @@ export function contoursFromFont(font: Font, text: string, weight: number): Lett
   // Н/н defines the common lettering line; Д, Ц, Щ, Й and accents extend beyond it.
   const reference = /[\p{Lu}\d]/u.test(normalized) ? "Н" : "н";
   const line = fontLetterPath(font, reference, weight).getBoundingBox();
+  const support = /\p{Ll}/u.test(normalized) ? fontLetterPath(font, "н", weight).getBoundingBox() : line;
   return {
     pathData: serializeGlyphPath(path),
     inkBox: { x: box.x1, y: box.y1, width: box.x2 - box.x1, height: box.y2 - box.y1 },
     mainBox: { x: box.x1, y: line.y1, width: Math.max(1, box.x2 - box.x1), height: Math.max(1, line.y2 - line.y1) },
+    supportBox: { x: box.x1, y: support.y1, width: Math.max(1, box.x2 - box.x1), height: Math.max(1, support.y2 - support.y1) },
   };
 }
 

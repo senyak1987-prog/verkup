@@ -15,6 +15,7 @@ const contourApi = load('letterContours', { './glyphPath': load('glyphPath'), '.
 const backer = load('backerConstraints'), frame = load('letterFrame');
 const { createLetterRowsLayout: layout } = load('letterRowsLayout', { './backerConstraints': backer, './letterFrame': frame, './vectorArtwork': load('vectorArtwork') });
 const alignment = load('signLayoutAlignment');
+const { resizeLetterGroup } = load('signGroupResize', { './letterRowsLayout': { createLetterRowsLayout: layout }, './signLayoutAlignment': alignment });
 const fonts = new Map(contourApi.SIGN_FONTS.filter(entry => entry.file).map(entry => {
   const bytes = fs.readFileSync(new URL('../public/fonts/' + entry.file, import.meta.url));
   return [entry.value, { ...entry, font: opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)) }];
@@ -42,6 +43,71 @@ function fixture(patch = {}, settings) {
     widthOverride: 0, logoOffsetX: 0, logoOffsetY: 0, textOffsetX: 0, textOffsetY: 0, mountMode: 'frame',
     acpLayout: { faceWidth: 2000, faceHeight: 900 }, frameTopPosition: 15, frameBottomPosition: 15, ...patch };
 }
+
+function applyGroupPatch(config, patch) {
+  return { ...config, logoSizeMm: patch.logoSizeMm ?? config.logoSizeMm, widthOverride: patch.letterWidth ?? config.widthOverride,
+    logoOffsetX: patch.logoOffsetX ?? config.logoOffsetX, logoOffsetY: patch.logoOffsetY ?? config.logoOffsetY,
+    lineSettings: config.lineSettings.map(row => ({ ...row, height: patch.letterLineHeights?.[row.index] ?? row.height,
+      offset: patch.letterLineOffsets?.[row.index] ?? row.offset })),
+    vectorArtwork: config.vectorArtwork?.map((object, i) => ({ ...object, height: patch.letterLineHeights?.[i + 3] ?? object.height,
+      offset: patch.letterLineOffsets?.[i + 3] ?? object.offset })) };
+}
+function checkGroup(config, ids, ratio, expectedRatio = ratio) {
+  const before = layout(config), bounds = alignment.layoutSelectionBox(before, ids, !!config.logoEnabled);
+  const patch = resizeLetterGroup(config, ids, bounds.width * (ratio - 1), -bounds.height * (ratio - 1));
+  const after = layout(applyGroupPatch(config, patch));
+  for (const object of alignment.layoutObjectBoxes(before, !!config.logoEnabled)) {
+    const actual = alignment.layoutObjectBoxes(after, !!config.logoEnabled).find(o => o.id === object.id).box;
+    const scale = ids.includes(object.id) ? expectedRatio : 1, b = object.box;
+    near(actual.width, b.width * scale, object.id + ' width', .02);
+    near(actual.height, b.height * scale, object.id + ' height', .02);
+    near(actual.x - after.viewWidth / 2, bounds.x + (b.x - bounds.x) * scale - before.viewWidth / 2, object.id + ' anchored X', .02);
+    near(actual.y - after.viewHeight / 2, bounds.y + bounds.height + (b.y - bounds.y - bounds.height) * scale - before.viewHeight / 2, object.id + ' anchored Y', .02);
+  }
+  return { before, after, patch };
+}
+test('Group corner preserves proportions, spacing, opposite anchor and unselected rows', () => {
+  const config = fixture({ logoOffsetX: -40, logoOffsetY: 80 });
+  checkGroup(config, ['line-0', 'logo'], 1.35);
+  checkGroup(config, ['line-0', 'line-1'], .8);
+  checkGroup(config, ['line-0', 'line-1', 'line-2', 'logo'], 1.5);
+});
+test('Group scaling preserves custom text stretch and letter outlines', () => {
+  checkGroup(fixture({ widthOverride: 2100, letterOutlineEnabled: true }), ['line-0', 'logo'], 1.3);
+});
+test('Group stops together at the minimum and maximum object sizes', () => {
+  checkGroup(fixture(), ['line-0', 'line-1'], .1, 100 / 160);
+  checkGroup(fixture(), ['line-0', 'logo'], 5, 700 / 210);
+});
+test('Imported vector and logo keep their spacing and aspect ratios while scaling', () => {
+  const config = fixture({ vectorArtwork: [{ id: 'shape', name: 'Shape', pathData: 'M0 0H80V120H0Z',
+    box: { x: 0, y: 0, width: 80, height: 120 }, height: 120, offset: { x: 45, y: -30 }, color: '#f00' }] });
+  checkGroup(config, ['line-3', 'logo'], 1.25);
+});
+test('Group scaling stays inside the backing without moving unselected objects', () => {
+  const config = fixture({ mountMode: 'acp', acpLayout: { faceWidth: 4000, faceHeight: 2000 } });
+  checkGroup(config, ['line-0', 'logo'], 1.2);
+  const before = layout(config), ids = ['line-0', 'line-1', 'line-2', 'logo'];
+  const bounds = alignment.layoutSelectionBox(before, ids, true);
+  const patch = resizeLetterGroup(config, ids, bounds.width * 4, -bounds.height * 4);
+  const after = layout(applyGroupPatch(config, patch)), ratio = after.logoBox.height / before.logoBox.height;
+  assert.ok(ratio > 1 && ratio < 5);
+  for (const { id, box } of alignment.layoutObjectBoxes(after, true)) {
+    inside(box, after.panelBox, id);
+    near(box.height / alignment.layoutObjectBoxes(before, true).find(o => o.id === id).box.height, ratio, id + ' common limit', .001);
+  }
+});
+test('Mixed-case rails follow the lowercase body without changing the letter dimensions', () => {
+  for (const font of selected) {
+    const config = fixture({ logoEnabled: false }, [{ index: 0, text: 'Цветы', font, height: 300, offset: { x: 0, y: 0 } }]);
+    const result = layout(config), row = result.textRows[0], contour = config.contours.lines[0];
+    assert.ok(row.frameBox.y > row.box.y + 20, font + ' rail must clear the capital top');
+    near(row.frameBox.y, row.pathBox.y + (contour.supportBox.y - contour.mainBox.y) * row.pathBox.height / contour.mainBox.height, 'Support top');
+    near(result.railTopY, row.frameBox.y + 15 + 7.5, 'Rail tucked behind lowercase tops');
+    near(row.box.height, 300, 'Nominal height unchanged');
+    near(row.pathBox.width / row.pathBox.height, contour.mainBox.width / contour.mainBox.height, 'Glyph geometry unchanged');
+  }
+});
 
 test('Each row keeps its own actual font outline, nominal height and natural proportions', () => {
   const config = fixture(), result = layout(config);

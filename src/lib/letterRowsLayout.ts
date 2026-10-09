@@ -9,6 +9,7 @@ export type LetterRowSetting = { index:number; text:string; font:string; height:
 export type LetterRowLayout = {
   id:string; index:number; text:string; font:string; box:Box; pathBox:Box; inkBox:Box;
   pathData:string; naturalBox:Box; defaultX:number; defaultY:number;
+  frameBox?:Box;
   kind?:'vector'; vectorRole?:'letter'|'backing'; color?:string; name?:string;
 };
 export type LetterRowsLayoutConfig = {
@@ -40,7 +41,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   const records=config.contours?.lines??(config.contours?[config.contours]:[]);
   const baseHeight=clamp(config.height,100,700);
   const draft=config.lineSettings.map((setting,i)=>{
-    const fallback={pathData:'',mainBox:{x:0,y:-714,width:Math.max(1,setting.text.length)*640,height:714},inkBox:{x:0,y:-714,width:Math.max(1,setting.text.length)*640,height:714}};
+    const fallback:LetterContours={pathData:'',mainBox:{x:0,y:-714,width:Math.max(1,setting.text.length)*640,height:714},inkBox:{x:0,y:-714,width:Math.max(1,setting.text.length)*640,height:714}};
     const record=records[i],data=record&&validBox(record.mainBox)&&validBox(record.inkBox)?record:fallback;
     const height=clamp(setting.height||baseHeight,100,700),outline=config.letterOutlineEnabled?Math.max(4,height*.035):0;
     const coreHeight=Math.max(1,height-outline*2),width=data.mainBox.width/data.mainBox.height*coreHeight;
@@ -100,7 +101,9 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
       width:Math.max(1,row.data.inkBox.width*sx+outlineX*2),height:Math.max(1,row.data.inkBox.height*sy+outlineY*2)};
     if(panelRequired){const bounded=containBox(inkBox,container),dx=bounded.x-inkBox.x,dy=bounded.y-inkBox.y;
       box={...box,x:box.x+dx,y:box.y+dy};pathBox={...pathBox,x:pathBox.x+dx,y:pathBox.y+dy};inkBox=bounded;}
-    return{id:'line-'+row.setting.index,index:row.setting.index,text:row.setting.text,font:row.setting.font,box,pathBox,inkBox,pathData:row.data.pathData,naturalBox:row.data.mainBox,defaultX,defaultY};
+    const support=row.data.supportBox??row.data.mainBox;
+    const frameBox={...box,y:pathBox.y+(support.y-row.data.mainBox.y)*sy-outlineY,height:support.height*sy+outlineY*2};
+    return{id:'line-'+row.setting.index,index:row.setting.index,text:row.setting.text,font:row.setting.font,box,pathBox,inkBox,frameBox,pathData:row.data.pathData,naturalBox:row.data.mainBox,defaultX,defaultY};
   });
   for(const {object,index,width,height} of vectors){
     const defaultX=groupX+(textWidth-vectorWidth*fit)/2+(object.box.x-vectorSourceBox.x)*fit+(config.textOffsetX??0);
@@ -117,11 +120,11 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   const textBox=textRows.length?union(textRows.map(r=>r.box)):emptyTextBox,textInkBox=textRows.length?union(textRows.map(r=>r.inkBox)):emptyTextBox;
   const signObjects=[...textRows.map(r=>r.box),...(config.logoEnabled?[logoBox]:[])];
   const signBox=signObjects.length?union(signObjects):{x:baseX,y:baseY,width:1,height:1};
-  const frame=letterFrameLayout(textRows.filter(r=>r.text.trim()&&r.vectorRole!=='backing').map(r=>({id:r.id,box:r.box})),{profile:15,topInset:config.frameTopPosition,bottomInset:config.frameBottomPosition,
+  const frame=letterFrameLayout(textRows.filter(r=>r.text.trim()&&r.vectorRole!=='backing').map(r=>({id:r.id,box:r.frameBox??r.box})),{profile:15,topInset:config.frameTopPosition,bottomInset:config.frameBottomPosition,
     logo:config.logoEnabled?{box:logoBox,shape:config.logoShape as 'circle'|'square'|'rounded',cornerRadius:logoBox.width*.16}:undefined});
   const firstRails=frame.rowRails[0];
   const haloBackerBox={x:signBox.x-baseHeight*fit*.16,y:signBox.y-baseHeight*fit*.11,width:signBox.width+baseHeight*fit*.32,height:signBox.height+baseHeight*fit*.22};
-  return{viewWidth,viewHeight,signBox,logoBox,logoCornerRadius:logoBox.width*.16,textRows,frameSegments:frame.segments,
+  return{viewWidth,viewHeight,signBox,logoBox,logoCornerRadius:logoBox.width*.16,textRows,frameSegments:frame.segments,textStretch:stretch,naturalTextWidth:textNaturalWidth,
     textX:textBox.x,textTop:textBox.y,textBaseline:textRows[0]?textRows[0].pathBox.y-textRows[0].naturalBox.y*textRows[0].pathBox.height/textRows[0].naturalBox.height:textBox.y+textBox.height,
     textWidth:textBox.width,textHeight:textBox.height,textInkBox,
     defaultTextX:textBox.x-(config.textOffsetX??0),defaultTextY:textBox.y-(config.textOffsetY??0),defaultLogoX,defaultLogoY,
