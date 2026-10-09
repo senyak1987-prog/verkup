@@ -22,7 +22,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - run: npm install
       - name: Validate sign studio
@@ -40,6 +40,9 @@ jobs:
           npm run test:letter-frame
           npm run test:letter-rows
           npm run test:vector-pdf
+          npm run test:vector-import
+          npm run test:vector-layout
+          npm run test:cdr-import
           npm run test:backer-contours
           npm run test:rc-game
           npm run test:facade-rc
