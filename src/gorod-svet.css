@@ -393,6 +393,9 @@ main.public-sign-configurator.sign-studio .studio-empty-text-form { display:grid
 main.public-sign-configurator.sign-studio .studio-empty-text-form label { display:grid; gap:6px; text-align:left; font-size:13px; }
 main.public-sign-configurator.sign-studio .studio-empty-text-form :is(input,textarea) { box-sizing:border-box; width:100%; min-height:44px; padding:10px 12px; border:1px solid #a3b4a9; border-radius:5px; background:#f6f8f5; color:#073c2d; font:inherit; font-size:16px; line-height:1.4; }
 main.public-sign-configurator.sign-studio .studio-empty-text-form textarea { resize:vertical; }
+main.public-sign-configurator.sign-studio .studio-empty-text-form :is(input,textarea)::placeholder { color:#58645d; opacity:1; font:400 13px/1.4 Manrope,Arial,sans-serif; }
+main.public-sign-configurator.sign-studio .letter-line-heading { box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; padding:0; }
+main.public-sign-configurator.sign-studio .letter-line-heading .studio-remove { flex:0 0 auto; min-height:32px; font-size:12px; white-space:nowrap; }
 main.public-sign-configurator.sign-studio .studio-empty-text-form small { font-size:11px; text-align:left; }
 main.public-sign-configurator.sign-studio .studio-empty-text-form .studio-button { min-height:44px; background:#d3bc84; border-color:#d3bc84; }
 main.public-sign-configurator.sign-studio .builder-preview.night .studio-empty-preview { color:#e7e7e7; }
