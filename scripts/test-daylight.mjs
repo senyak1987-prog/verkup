@@ -22,6 +22,42 @@ const geometry = load('signSceneGeometry', {
   'three/examples/jsm/loaders/SVGLoader.js': { SVGLoader: class { parse() { return { paths: [] }; } } },
 });
 
+test('Dimension overlays invert the surface without daylight tint or opaque texture rectangles', async () => {
+  const previousDocument = globalThis.document, inks = [];
+  globalThis.document = { createElement: () => ({ width: 0, height: 0, getContext: () => ({
+    measureText: text => ({ width: text.length * 24 }),
+    fillText() { inks.push(this.fillStyle); },
+  }) }) };
+  let model;
+  try {
+    model = await geometry.buildSignModel({
+      productId: 'panel', panelShape: 'circle', panelSize: 550, panelWallGap: 120,
+      sceneMode: 'day', panelFaceColor: { value: '#280b57' }, panelSideColor: { value: '#25364b' }, panelImage: '',
+    }, {}, 550, 550, 160, true);
+    const dimensions = model.getObjectByName('dimensions');
+    assert.ok(dimensions.children.some(child => child instanceof THREE.Sprite));
+    assert.ok(dimensions.children.some(child => child instanceof THREE.LineSegments));
+    for (const night of [0, .5, 1, 0]) {
+      geometry.applySignLighting(model, night, true);
+      for (const child of dimensions.children) {
+        const material = child.material;
+        assert.equal(material.color.getHexString(), 'ffffff', 'Lighting cannot darken the inverse-colour source');
+        assert.equal(material.blending, THREE.CustomBlending);
+        assert.equal(material.blendSrc, THREE.OneMinusDstColorFactor);
+        assert.equal(material.blendDst, THREE.OneMinusSrcAlphaFactor);
+        assert.equal(material.premultipliedAlpha, true, 'Transparent atlas pixels preserve the existing background');
+        assert.equal(material.depthWrite, false);
+        assert.equal(material.toneMapped, false);
+        assert.ok(child.renderOrder >= 1000, 'Measurements are composited after the physical surfaces');
+      }
+    }
+    assert.ok(inks.length > 0 && inks.every(ink => ink === '#ffffff'));
+  } finally {
+    if (model) geometry.disposeSignObject(model);
+    if (previousDocument === undefined) delete globalThis.document; else globalThis.document = previousDocument;
+  }
+});
+
 test('Millimetre point daylight keeps the same irradiance across sign sizes and marker positions', () => {
   const center = { x: 125, y: -640, z: 80 };
   for (const span of [100, 550, 1200, 7800]) for (const marker of [{ x: .18, y: .2 }, { x: .5, y: .5 }, { x: .94, y: .06 }]) {

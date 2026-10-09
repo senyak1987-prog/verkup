@@ -140,6 +140,33 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       renderer.shadowMap.type = THREE.PCFShadowMap;
       renderer.setClearColor(0, 0);
       const scene = new THREE.Scene();
+      // Render the preview background inside WebGL too, so inverse-colour dimensions
+      // sample the visible backdrop rather than transparent black outside the sign.
+      const backdropCanvas = document.createElement('canvas');
+      backdropCanvas.width = backdropCanvas.height = 256;
+      const backdropContext = backdropCanvas.getContext('2d')!;
+      const backdropTexture = new THREE.CanvasTexture(backdropCanvas);
+      backdropTexture.colorSpace = THREE.SRGBColorSpace;
+      scene.background = backdropTexture;
+      let backdropNight = -1;
+      const paintBackdrop = (night: number) => {
+        if (night === backdropNight) return;
+        backdropNight = night;
+        const ctx = backdropContext, size = backdropCanvas.width;
+        ctx.globalAlpha = 1;
+        const day = ctx.createLinearGradient(0, 0, size, size);
+        day.addColorStop(0, '#e6e6e6'); day.addColorStop(1, '#bcbcbc');
+        ctx.fillStyle = day; ctx.fillRect(0, 0, size, size);
+        ctx.globalAlpha = night;
+        const dark = ctx.createLinearGradient(0, 0, size, size);
+        dark.addColorStop(0, '#343434'); dark.addColorStop(1, '#1e1e1e');
+        ctx.fillStyle = dark; ctx.fillRect(0, 0, size, size);
+        const glow = ctx.createRadialGradient(size * .8, size * .05, 0, size * .8, size * .05, size * .75);
+        glow.addColorStop(0, '#505050'); glow.addColorStop(1, '#50505000');
+        ctx.fillStyle = glow; ctx.fillRect(0, 0, size, size);
+        ctx.globalAlpha = 1; backdropTexture.needsUpdate = true;
+      };
+      paintBackdrop(lightFraction.current);
       const camera = new THREE.OrthographicCamera(-500, 500, 500, -500, 1, 100000);
       camera.position.set(400, 180, 1800);
       camera.zoom = Math.max(0.25, Math.min(4, zoomRef.current / 100));
@@ -240,6 +267,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           requestRender();
         },
         light(night, windows, lightsOn) {
+          paintBackdrop(night);
           ambient.intensity = DAYLIGHT_LEVELS.ambient + (.08 - DAYLIGHT_LEVELS.ambient) * night;
           key.intensity = daylightIntensity * (1 - night);
           fill.intensity = DAYLIGHT_LEVELS.fill + (.025 - DAYLIGHT_LEVELS.fill) * night;
@@ -393,6 +421,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         currentControls.dispose();
         if (runtime.model) disposeSignObject(runtime.model);
         environment.dispose();
+        backdropTexture.dispose();
         key.shadow.dispose();
         currentRenderer.renderLists.dispose();
         currentRenderer.dispose();

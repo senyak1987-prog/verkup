@@ -294,14 +294,21 @@ async function applyArtwork(mesh: THREE.Mesh, shape: THREE.Shape, source: string
 }
 
 function addDimension(group: THREE.Group, start: THREE.Vector3, end: THREE.Vector3,
-  label: string, labelPosition: THREE.Vector3, scale: number, night: boolean) {
+  label: string, labelPosition: THREE.Vector3, scale: number, _night: boolean) {
   const direction = end.clone().sub(start).normalize();
   const tick = new THREE.Vector3(-direction.y + direction.z * 0.6, direction.x, -direction.x * 0.4)
     .normalize().multiplyScalar(Math.max(8, scale * 0.018));
   const points = [start, end, start.clone().sub(tick), start.clone().add(tick),
     end.clone().sub(tick), end.clone().add(tick)];
+  // White annotation pixels invert the already-rendered surface, including panel edges.
+  // Premultiplied alpha keeps antialiased glyph edges and empty texture pixels transparent.
+  const contrastBlend = { transparent: true, depthTest: false, depthWrite: false, toneMapped: false,
+    premultipliedAlpha: true, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneMinusDstColorFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor };
   const line = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points),
-    new THREE.LineBasicMaterial({ color: night ? "#c3d0d9" : "#77838a", transparent: true, opacity: 0.8 }));
+    new THREE.LineBasicMaterial({ color: "#ffffff", ...contrastBlend }));
+  line.renderOrder = 1000;
   group.add(line);
   const canvas = document.createElement("canvas");
   canvas.width = 512; canvas.height = 64;
@@ -310,12 +317,13 @@ function addDimension(group: THREE.Group, start: THREE.Vector3, end: THREE.Vecto
   canvas.width = Math.ceil(context.measureText(label).width + 24);
   context.font = "500 42px Arial, sans-serif";
   context.textAlign = "center"; context.textBaseline = "middle";
-  context.fillStyle = night ? "#dce4e7" : "#47535b";
+  context.fillStyle = "#ffffff";
   context.fillText(label, canvas.width / 2, 32);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true,
-    depthTest: false, depthWrite: false, toneMapped: false }));
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, ...contrastBlend }));
+  sprite.material.userData.dimensionInversion = true;
+  sprite.renderOrder = 1001;
   sprite.position.copy(labelPosition);
   sprite.userData.labelPosition = labelPosition.clone();
   sprite.userData.labelAnchor = start.clone().add(end).multiplyScalar(.5);
@@ -810,7 +818,7 @@ export function applySignLighting(group: THREE.Object3D, night: number, lightsOn
       if (material.userData.lightOpacity !== undefined) material.opacity = material.userData.lightOpacity * night * on;
       if (material.userData.neonCore) material.opacity = on * (.25 + night * .55) * (material.userData.neonBrightness??1);
       if (material.userData.neonAura) material.opacity = night * .055 * on;
-      if (child instanceof THREE.Sprite) (material as THREE.SpriteMaterial).color.set('#45515e').lerp(new THREE.Color('#ffffff'), night);
+      if (child instanceof THREE.Sprite && !material.userData.dimensionInversion) (material as THREE.SpriteMaterial).color.set('#45515e').lerp(new THREE.Color('#ffffff'), night);
     }
   });
 }
