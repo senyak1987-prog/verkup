@@ -110,26 +110,79 @@ main.public-sign-configurator.sign-studio .studio-workspace.is-rc-playing {
   border-radius: 0;
 }
 main.public-sign-configurator.sign-studio .studio-workspace.is-rc-playing > :not(.studio-preview-surface) { display: none; }
-main.public-sign-configurator.sign-studio .canvas-toolbar { min-height: 48px; flex-wrap: nowrap; gap: 10px; padding: 4px 12px; }
+/* Preview tools share one type scale and control size; the artwork keeps its own fonts. */
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar, .facade-context-toolbar) {
+  --preview-control-height: 36px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar, .facade-context-toolbar) :is(button, select, label, span) {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar, .facade-context-toolbar) :is(button, select) {
+  min-height: var(--preview-control-height);
+  box-sizing: border-box;
+  font-weight: 500;
+  border-radius: 5px;
+}
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar, .facade-context-toolbar) button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar, .facade-context-toolbar) svg { width: 18px; height: 18px; flex-shrink: 0; }
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar, .facade-context-toolbar) label {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--preview-control-height);
+  gap: 8px;
+  white-space: nowrap;
+}
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-mode-toolbar, .editor-toolbar, .facade-context-toolbar) input[type="checkbox"] {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #d3bc84;
+  cursor: pointer;
+}
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar, .facade-context-toolbar) :is(button, select, input):focus-visible { outline: 2px solid #f2d678; outline-offset: 2px; }
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar) button:enabled:hover { background-color: #315b47; }
+main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar) button:disabled { opacity: .45; cursor: default; }
+main.public-sign-configurator.sign-studio .studio-workspace :is(.scene-switch, .view-switch) button.active:hover { background-color: #e4d8b8; }
+main.public-sign-configurator.sign-studio .studio-workspace .editor-toggle.active:hover { background-color: #e0ca92; }
+main.public-sign-configurator.sign-studio .studio-workspace .editor-toolbar .layout-pack-button:hover { background-color: #ffe8ab; }
+main.public-sign-configurator.sign-studio .canvas-toolbar { min-height: 54px; flex-wrap: nowrap; justify-content: flex-start; gap: 12px; padding: 6px 12px; }
 main.public-sign-configurator.sign-studio .canvas-title { flex-basis: auto; }
-main.public-sign-configurator.sign-studio .canvas-title strong { font-size: 11px; }
-main.public-sign-configurator.sign-studio .canvas-title span { font-size: 9px; color: #b7cbbd; }
-main.public-sign-configurator.sign-studio .sign-power-switch { min-height: 32px; padding: 4px 7px; font-size: 10px; }
-main.public-sign-configurator.sign-studio .scene-switch { order: 0; flex-shrink: 0; width: 150px; margin-left: auto; }
-main.public-sign-configurator.sign-studio .scene-switch button { min-height: 28px; }
+main.public-sign-configurator.sign-studio .studio-workspace .canvas-title strong { font-size: 14px; font-weight: 600; }
+main.public-sign-configurator.sign-studio .studio-workspace .canvas-title span { font-size: 12px; color: #b7cbbd; }
+main.public-sign-configurator.sign-studio .sign-power-switch { min-height: 36px; padding: 7px 10px; }
+main.public-sign-configurator.sign-studio .scene-switch { order: 0; flex-shrink: 0; width: 176px; margin-left: auto; padding: 2px 2px 2px 30px; }
+main.public-sign-configurator.sign-studio .scene-switch button { min-height: 36px; padding: 7px 10px; }
 main.public-sign-configurator.sign-studio .canvas-tools { border-left: 1px solid #52745f; padding-left: 8px; }
-main.public-sign-configurator.sign-studio .canvas-tools button { width: 29px; min-width: 29px; height: 32px; min-height: 32px; }
-main.public-sign-configurator.sign-studio .canvas-mode-toolbar { min-height: 44px; gap: 6px; padding: 4px 12px; }
+main.public-sign-configurator.sign-studio .canvas-tools button { width: 36px; min-width: 36px; height: 36px; min-height: 36px; }
+main.public-sign-configurator.sign-studio .zoom-value { min-width: 42px; }
+main.public-sign-configurator.sign-studio .canvas-mode-toolbar { min-height: 54px; justify-content: flex-start; flex-wrap: nowrap; gap: 8px; padding: 6px 12px; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #87a293 #073c2d; }
+main.public-sign-configurator.sign-studio .canvas-mode-toolbar > * { flex-shrink: 0; }
 main.public-sign-configurator.sign-studio .canvas-mode-toolbar .view-switch { padding: 2px; min-height: 0; }
-main.public-sign-configurator.sign-studio .canvas-mode-toolbar .view-switch button { min-height: 29px; padding: 5px 8px; font-size: 10px; }
-main.public-sign-configurator.sign-studio .editor-toggle { min-height: 32px; padding: 5px 7px; font-size: 10px; }
-main.public-sign-configurator.sign-studio .placement-select { margin-left: auto; gap: 5px; font-size: 10px; }
-main.public-sign-configurator.sign-studio .placement-select select { min-height: 32px; max-width: 134px; font-size: 10px; }
-main.public-sign-configurator.sign-studio .canvas-mode-toolbar .dimensions-toggle { min-height: 32px; padding-block: 0; font-size: 10px; }
-main.public-sign-configurator.sign-studio .editor-toolbar { min-height: 40px; padding: 4px 10px; gap: 5px; }
-main.public-sign-configurator.sign-studio .editor-toolbar :is(button, select) { min-height: 30px; }
-main.public-sign-configurator.sign-studio .facade-context-toolbar { min-height: 38px; padding: 2px 12px; gap: 6px 14px; font-size: 10px; }
-main.public-sign-configurator.sign-studio .facade-context-toolbar label { min-height: 30px; gap: 5px; }
+main.public-sign-configurator.sign-studio .canvas-mode-toolbar .view-switch button { min-height: 36px; padding: 7px 10px; }
+main.public-sign-configurator.sign-studio .editor-toggle { min-height: 36px; padding: 7px 10px; }
+main.public-sign-configurator.sign-studio .placement-select { margin-left: auto; gap: 8px; }
+main.public-sign-configurator.sign-studio .placement-select select { min-height: 36px; max-width: 174px; padding: 7px 10px; }
+main.public-sign-configurator.sign-studio .canvas-mode-toolbar .dimensions-toggle { min-height: 36px; padding: 0 2px; }
+main.public-sign-configurator.sign-studio .editor-toolbar { min-height: 50px; padding: 6px 12px; gap: 8px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #87a293 #184833; }
+main.public-sign-configurator.sign-studio .editor-toolbar > * { flex: 0 0 auto; }
+main.public-sign-configurator.sign-studio .editor-toolbar :is(button, select) { min-height: 36px; padding: 7px 10px; }
+main.public-sign-configurator.sign-studio .editor-toolbar .layout-object-select select { width: 180px; min-width: 145px; max-width: 180px; }
+main.public-sign-configurator.sign-studio .editor-toolbar .alignment-actions { gap: 6px; }
+main.public-sign-configurator.sign-studio .facade-context-toolbar { min-height: 50px; padding: 6px 12px; gap: 8px 16px; }
+main.public-sign-configurator.sign-studio .facade-context-toolbar label { min-height: 36px; gap: 8px; }
 main.public-sign-configurator.sign-studio .facade-context-toolbar > span { display: none; }
 
 main.public-sign-configurator.sign-studio .studio-preview-surface {
@@ -210,7 +263,7 @@ main.public-sign-configurator.sign-studio .studio-cart-panel .sign-cart-header {
 @media (max-width: 1100px) {
   main.public-sign-configurator.sign-studio .studio-header-meta { display: none; }
   main.public-sign-configurator.sign-studio .canvas-title { display: none; }
-  main.public-sign-configurator.sign-studio .scene-switch { width: 142px; }
+  main.public-sign-configurator.sign-studio .scene-switch { width: 160px; }
   main.public-sign-configurator.sign-studio .power-caption { display: none; }
 }
 
@@ -250,27 +303,29 @@ main.public-sign-configurator.sign-studio .studio-cart-panel .sign-cart-header {
   main.public-sign-configurator.sign-studio .product-tabs strong { font-size: 10px; }
   main.public-sign-configurator.sign-studio .product-tabs button > svg:first-child { display: none; }
   main.public-sign-configurator.sign-studio .sign-builder-layout { grid-template-rows: minmax(0, 1.45fr) minmax(0, 1fr); gap: 6px; }
-  main.public-sign-configurator.sign-studio .canvas-toolbar { min-height: 48px; gap: 3px; padding: 2px 6px; }
-  main.public-sign-configurator.sign-studio .sign-power-switch { min-height: 40px; padding: 5px; gap: 5px; }
+  main.public-sign-configurator.sign-studio .studio-workspace > :is(.canvas-toolbar, .canvas-mode-toolbar, .editor-toolbar, .facade-context-toolbar) { --preview-control-height: 44px; }
+  main.public-sign-configurator.sign-studio .canvas-toolbar { min-height: 54px; flex-wrap: wrap; gap: 4px; padding: 4px 6px; }
+  main.public-sign-configurator.sign-studio .sign-power-switch { min-height: 44px; padding: 5px; gap: 5px; }
   main.public-sign-configurator.sign-studio .power-state { display: none; }
-  main.public-sign-configurator.sign-studio .scene-switch { width: 126px; padding: 2px; }
-  main.public-sign-configurator.sign-studio .scene-switch button { min-height: 38px; padding: 5px 4px; font-size: 10px; }
+  main.public-sign-configurator.sign-studio .scene-switch { width: 112px; min-width: 112px; padding: 2px; }
+  main.public-sign-configurator.sign-studio .scene-switch .celestial-track { display: none; }
+  main.public-sign-configurator.sign-studio .scene-switch button { min-height: 44px; padding: 5px 4px; }
   main.public-sign-configurator.sign-studio .canvas-tools { gap: 0; padding-left: 3px; margin-left: auto; }
-  main.public-sign-configurator.sign-studio .canvas-tools button { width: 30px; min-width: 30px; height: 40px; min-height: 40px; }
-  main.public-sign-configurator.sign-studio .zoom-value { min-width: 29px; font-size: 9px; }
-  main.public-sign-configurator.sign-studio .canvas-mode-toolbar { min-height: 48px; padding: 2px 6px; gap: 3px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  main.public-sign-configurator.sign-studio .canvas-tools button { width: 44px; min-width: 44px; height: 44px; min-height: 44px; }
+  main.public-sign-configurator.sign-studio .zoom-value { min-width: 38px; }
+  main.public-sign-configurator.sign-studio .canvas-mode-toolbar { min-height: 54px; padding: 4px 6px; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   main.public-sign-configurator.sign-studio .canvas-mode-toolbar::-webkit-scrollbar { display: none; }
   main.public-sign-configurator.sign-studio .canvas-mode-toolbar > * { flex-shrink: 0; }
-  main.public-sign-configurator.sign-studio .canvas-mode-toolbar .view-switch button { min-height: 40px; padding: 5px 7px; font-size: 9px; }
-  main.public-sign-configurator.sign-studio .editor-toggle { min-height: 40px; padding: 5px 7px; font-size: 9px; }
+  main.public-sign-configurator.sign-studio .canvas-mode-toolbar .view-switch button { min-height: 44px; padding: 7px 10px; }
+  main.public-sign-configurator.sign-studio .editor-toggle { min-height: 44px; padding: 7px 10px; }
   main.public-sign-configurator.sign-studio .placement-select { margin-left: 3px; }
   main.public-sign-configurator.sign-studio .placement-select span { display: none; }
-  main.public-sign-configurator.sign-studio .placement-select select { min-height: 40px; max-width: 124px; }
-  main.public-sign-configurator.sign-studio .canvas-mode-toolbar .dimensions-toggle { min-height: 40px; padding: 4px; }
-  main.public-sign-configurator.sign-studio .editor-toolbar { min-height: 46px; padding: 3px 6px; }
-  main.public-sign-configurator.sign-studio .editor-toolbar :is(button, select) { min-height: 40px; }
-  main.public-sign-configurator.sign-studio .facade-context-toolbar { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; min-height: 46px; gap: 12px; padding: 3px 8px; scrollbar-width: thin; }
-  main.public-sign-configurator.sign-studio .facade-context-toolbar label { flex-shrink: 0; min-height: 40px; }
+  main.public-sign-configurator.sign-studio .placement-select select { min-height: 44px; max-width: 154px; }
+  main.public-sign-configurator.sign-studio .canvas-mode-toolbar .dimensions-toggle { min-height: 44px; padding: 4px; }
+  main.public-sign-configurator.sign-studio .editor-toolbar { min-height: 54px; padding: 4px 6px; }
+  main.public-sign-configurator.sign-studio .editor-toolbar :is(button, select) { min-height: 44px; }
+  main.public-sign-configurator.sign-studio .facade-context-toolbar { flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; min-height: 54px; gap: 12px; padding: 4px 8px; scrollbar-width: thin; }
+  main.public-sign-configurator.sign-studio .facade-context-toolbar label { flex-shrink: 0; min-height: 44px; }
   main.public-sign-configurator.sign-studio .canvas-footer { min-height: 28px; padding-inline: 8px; }
   main.public-sign-configurator.sign-studio .canvas-footer > span { max-width: calc(100% - 40px); font-size: 8px; }
   main.public-sign-configurator.sign-studio .canvas-footer button { min-height: 28px; }
