@@ -30,6 +30,7 @@ export function VectorArtworkControls({ objects, selectedIndex, importing, repor
       </ul>
       <p>Сканы и фотографии не превращаются в вектор. Градиенты, тени, прозрачности и обтравочные маски нужно убрать или преобразовать в простые залитые контуры. До 64 объектов в макете.</p>
       <p>Импорт сохраняет форму и взаимное расположение объектов. Начальный размер подбирается для макета; проверьте размер в миллиметрах после загрузки. Надпись в кривых редактируется как фигура, её шрифт и исходный текст не восстанавливаются.</p>
+      <p>Прямоугольник вокруг надписи распознаётся как плоская подложка, остальные контуры — как объёмные буквы. Назначение каждого объекта можно изменить вручную.</p>
       <p>Файл обрабатывается на вашем устройстве и не отправляется на сервер.</p>
     </details>
     {report && <p className="vector-import-report control-note" role="status">{report}</p>}
@@ -40,6 +41,13 @@ export function VectorArtworkControls({ objects, selectedIndex, importing, repor
         </select>
       </label>
       {selected && <fieldset className="control-section vector-object-fields" aria-label="Настройки векторного объекта">
+        <label className="builder-field"><span>Назначение</span>
+          <select aria-label="Назначение векторного объекта" value={selected.role ?? 'letter'} onChange={event => onChange(selectedIndex, { role: event.target.value as 'letter' | 'backing' })}>
+            <option value="letter">Буквы · объёмные</option>
+            <option value="backing">Подложка · плоская</option>
+          </select>
+        </label>
+        <p className="control-note">{selected.role === 'backing' ? 'Плоская подложка толщиной 3 мм. Буквы размещаются перед ней.' : 'Глубина букв — из настроек надписи. При контражуре используются проставки 20 мм.'}</p>
         <label className="builder-field"><span>Название</span><input type="text" aria-label="Название векторного объекта" value={selected.name} maxLength={80}
           onChange={event => onChange(selectedIndex, { name: event.target.value })} /></label>
         <div className="dimension-number-grid">
