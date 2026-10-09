@@ -10,10 +10,11 @@ export type LayoutPatch = Partial<{ logoOffsetX: number; logoOffsetY: number; te
   logoScale: number; logoSizeMm:number; letterWidth: number; letterHeight: number; letterLineOffsets: { x: number; y: number }[];
   letterLineHeights: number[] }>;
 
-export function SignLayoutEditor({ layout, project, selection, onSelect, onChange, onInteractionStart, onInteractionEnd, onUndo }:
+export function SignLayoutEditor({ layout, project, selection, onSelect, onChange, onInteractionStart, onInteractionEnd, onUndo, onEditLine }:
   { layout: Layout; project: EditorProject; selection: LayoutObject; onSelect: (object: LayoutObject) => void;
-    onChange: (patch: LayoutPatch) => void; onInteractionStart?: () => void; onInteractionEnd?: () => void; onUndo?: () => void }) {
+    onChange: (patch: LayoutPatch) => void; onInteractionStart?: () => void; onInteractionEnd?: () => void; onUndo?: () => void; onEditLine?: (index: number) => void }) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const pressedTextLine = useRef<number | null>(null);
   const [handleSize, setHandleSize] = useState(24);
   const [snapped, setSnapped] = useState({ x: false, y: false });
   const drag = useRef<{ point: DOMPoint; inverse: DOMMatrix; pointerId: number; target: LayoutObject; resize: boolean;
@@ -37,6 +38,8 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
   const start = (event: PointerEvent<SVGSVGElement>) => {
     if (!event.isPrimary || event.button !== 0 || drag.current) return;
     const handle = (event.target as SVGElement).closest("[data-object]");
+    const editableLine = handle?.getAttribute("data-object") ?? "";
+    pressedTextLine.current = /^line-[012]$/.test(editableLine) && !handle?.hasAttribute("data-resize") ? Number(editableLine.slice(5)) : null;
     const matrix = event.currentTarget.getScreenCTM();
     if (!handle || !matrix) return;
     event.preventDefault(); event.currentTarget.focus();
@@ -53,6 +56,7 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     const active = drag.current; if (!active || active.pointerId !== event.pointerId) return;
     const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(active.inverse);
     const dx = point.x - active.point.x, dy = point.y - active.point.y;
+    if (Math.hypot(dx, dy) > active.tolerance) pressedTextLine.current = null;
     if (active.resize) {
       setSnapped({ x: false, y: false });
       if (active.target === "logo") schedule({ logoSizeMm: Math.max(100, Math.min(700, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
@@ -74,6 +78,9 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     flush(); drag.current = null; setSnapped({ x: false, y: false }); onInteractionEnd?.();
   };
   const keyboard = (event: KeyboardEvent<SVGSVGElement>) => {
+    if ((event.key === "Enter" || event.key === "F2") && /^line-[012]$/.test(selection) && onEditLine) {
+      event.preventDefault(); onEditLine(Number(selection.slice(5))); return;
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !event.shiftKey) { event.preventDefault(); onUndo?.(); return; }
     if (!event.key.startsWith("Arrow")) return;
     event.preventDefault(); const step = event.shiftKey ? 10 : 1;
@@ -92,7 +99,8 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
   const alignedX = snapped.x || Math.abs(selectedBox.x + selectedBox.width / 2 - centerX) < .01;
   const alignedY = snapped.y || Math.abs(selectedBox.y + selectedBox.height / 2 - centerY) < .01;
   return <svg ref={svgRef} className="layout-editor-overlay" viewBox={`0 0 ${layout.viewWidth} ${layout.viewHeight}`} tabIndex={0} role="group"
-    aria-label="Редактор макета. Нажмите на строку или часть вектора, либо выберите объект над макетом. Перетащите для перемещения, маркер сверху справа меняет размер. Стрелки — 1 мм, Shift — 10 мм. Alt отключает привязку к центру. Ctrl или Command Z отменяет изменение."
+    aria-label="Редактор макета. Двойной щелчок по строке или Enter меняет текст. Перетащите для перемещения, маркер сверху справа меняет размер. Стрелки — 1 мм, Shift — 10 мм. Alt отключает привязку к центру. Ctrl или Command Z отменяет изменение."
+    onDoubleClick={() => { if (pressedTextLine.current !== null) onEditLine?.(pressedTextLine.current); }}
     onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={finish} onKeyDown={keyboard}>
     <g aria-hidden="true" pointerEvents="none" stroke="#65b787" vectorEffect="non-scaling-stroke">
       <line x1={centerX} y1={reference.y} x2={centerX} y2={reference.y + reference.height} strokeWidth={alignedX ? 2 : 1}
@@ -103,7 +111,9 @@ export function SignLayoutEditor({ layout, project, selection, onSelect, onChang
     </g>
     {selection === "composition" && <rect data-object="composition" {...selectedBox} className="editor-selection selected" vectorEffect="non-scaling-stroke" />}
     {boxes.map(({ id, box }) => <g key={id}>
-      <rect data-object={id} {...box} className={selection === id ? "editor-selection selected" : "editor-selection"} vectorEffect="non-scaling-stroke" />
+      <rect data-object={id} {...box} className={selection === id ? "editor-selection selected" : "editor-selection"} vectorEffect="non-scaling-stroke">
+        {/^line-[012]$/.test(id) && <title>Двойной щелчок — изменить текст строки</title>}
+      </rect>
       {selection === id && <rect data-object={id} data-resize="true" x={box.x + box.width - handleSize / 2} y={box.y - handleSize / 2}
         width={handleSize} height={handleSize} className="editor-resize" vectorEffect="non-scaling-stroke" />}
     </g>)}
