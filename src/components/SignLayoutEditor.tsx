@@ -3,6 +3,7 @@ import type { PointerEvent, KeyboardEvent } from "react";
 import { layoutObjectBoxes, layoutReferenceBox, layoutSelectionBox, layoutSelectionObjects, marqueeBox, marqueeLayoutSelection, moveLayoutSelection, resizeLayoutLine } from "../lib/signLayoutAlignment";
 import type { AlignmentBox, AlignmentLayout, LayoutObject, LayoutSelection } from "../lib/signLayoutAlignment";
 import type { CanvasPointerSelection } from "../lib/canvasTextSelection";
+import type { GroupResizeCorner } from "../lib/signGroupResize";
 
 type Layout = AlignmentLayout & { signBox: { x: number; y: number; width: number; height: number } };
 type EditorProject = { logoEnabled: boolean; logoScale: number; logoSizeMm?:number; letterHeight: number; mountMode: string;
@@ -11,7 +12,13 @@ export type LayoutPatch = Partial<{ logoOffsetX: number; logoOffsetY: number; te
   logoScale: number; logoSizeMm:number; letterWidth: number; letterHeight: number; letterLineOffsets: { x: number; y: number }[];
   letterLineHeights: number[] }>;
 
-type ResizeGroup = (selection: LayoutSelection, dx: number, dy: number) => LayoutPatch;
+type ResizeGroup = (selection: LayoutSelection, dx: number, dy: number, corner: GroupResizeCorner) => LayoutPatch;
+const GROUP_CORNERS = [
+  { id: 'top-left', x: 0, y: 0, label: 'верхний левый' },
+  { id: 'top-right', x: 1, y: 0, label: 'верхний правый' },
+  { id: 'bottom-left', x: 0, y: 1, label: 'нижний левый' },
+  { id: 'bottom-right', x: 1, y: 1, label: 'нижний правый' },
+] as const;
 
 export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSelect, onChange, onResizeGroup, onInteractionStart, onInteractionEnd, onUndo, onEditLine }:
   { layout: Layout; project: EditorProject; selection: LayoutSelection; onSelect: (object: LayoutSelection) => void;
@@ -27,7 +34,7 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
   const selectionId = useRef(0);
   const [snapped, setSnapped] = useState({ x: false, y: false });
   const drag = useRef<{ point: DOMPoint; inverse: DOMMatrix; pointerId: number; target: LayoutSelection; resize: boolean;
-    project: EditorProject; layout: Layout; tolerance: number; moved: boolean; resizeGroup?: ResizeGroup } | null>(null);
+    project: EditorProject; layout: Layout; tolerance: number; moved: boolean; resizeGroup?: ResizeGroup; corner: GroupResizeCorner } | null>(null);
   const pending = useRef<LayoutPatch | null>(null), frame = useRef(0);
   const onChangeRef = useRef(onChange);
   const onInteractionEndRef = useRef(onInteractionEnd);
@@ -89,7 +96,8 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
     onSelect(target); onInteractionStart?.();
     const inverse = matrix.inverse();
     drag.current = { point: new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse), inverse, pointerId: event.pointerId,
-      target, resize, resizeGroup: onResizeGroup, project: { ...project }, layout, moved: false, tolerance: (event.pointerType === "touch" ? 8 : 6) / Math.hypot(matrix.a, matrix.b) };
+      target, resize, resizeGroup: onResizeGroup, corner: (handle.getAttribute("data-resize-corner") ?? 'top-right') as GroupResizeCorner,
+      project: { ...project }, layout, moved: false, tolerance: (event.pointerType === "touch" ? 8 : 6) / Math.hypot(matrix.a, matrix.b) };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const move = (event: PointerEvent<SVGSVGElement>) => {
@@ -113,7 +121,7 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
     active.moved = true;
     if (active.resize) {
       setSnapped({ x: false, y: false });
-      if (typeof active.target !== "string") { const patch = active.resizeGroup?.(active.target, dx, dy); if (patch) schedule(patch); }
+      if (typeof active.target !== "string") { const patch = active.resizeGroup?.(active.target, dx, dy, active.corner); if (patch) schedule(patch); }
       else if (active.target === "logo") schedule({ logoSizeMm: Math.max(100, Math.min(700, Math.round((active.project.logoSizeMm??active.layout.logoBox.height) +
         (Math.abs(dx) > Math.abs(dy) ? dx : -dy)))) });
       else if (typeof active.target === "string" && active.target.startsWith("line-")) {
@@ -169,12 +177,19 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
   const reference = layoutReferenceBox(layout, project.mountMode === "acp");
   const centerX = reference.x + reference.width / 2, centerY = reference.y + reference.height / 2;
   const selectedBox = layoutSelectionBox(layout, selection, project.logoEnabled);
-  const groupBox = { x: selectedBox.x - framePadding * 2, y: selectedBox.y - framePadding * 2,
-    width: selectedBox.width + framePadding * 4, height: selectedBox.height + framePadding * 4 };
+  // Keep all four grips within the preview when the artwork itself fits on screen.
+  const groupPaddingX = surfaceBox ? Math.max(0, Math.min(framePadding * 2,
+    selectedBox.x - surfaceBox.x - handleSize * .6,
+    surfaceBox.x + surfaceBox.width - selectedBox.x - selectedBox.width - handleSize * .6)) : framePadding * 2;
+  const groupPaddingY = surfaceBox ? Math.max(0, Math.min(framePadding * 2,
+    selectedBox.y - surfaceBox.y - handleSize * .6,
+    surfaceBox.y + surfaceBox.height - selectedBox.y - selectedBox.height - handleSize * .6)) : framePadding * 2;
+  const groupBox = { x: selectedBox.x - groupPaddingX, y: selectedBox.y - groupPaddingY,
+    width: selectedBox.width + groupPaddingX * 2, height: selectedBox.height + groupPaddingY * 2 };
   const alignedX = snapped.x || Math.abs(selectedBox.x + selectedBox.width / 2 - centerX) < .01;
   const alignedY = snapped.y || Math.abs(selectedBox.y + selectedBox.height / 2 - centerY) < .01;
   return <svg ref={svgRef} className="layout-editor-overlay" viewBox={`0 0 ${layout.viewWidth} ${layout.viewHeight}`} tabIndex={0} role="group" data-selected-objects={selected.join(" ")}
-    aria-label="Редактор макета. Обведите объекты на свободном месте, чтобы выделить несколько. Перетащите рамку для перемещения выделенного. Протяните мышью по буквам, чтобы выделить текст. Маркер сверху справа меняет размер. Escape снимает выделение."
+    aria-label="Редактор макета. Обведите объекты на свободном месте, чтобы выделить несколько. Перетащите рамку для перемещения выделенного. Протяните мышью по буквам, чтобы выделить текст. Любой угол общей рамки меняет размер группы пропорционально. Маркер отдельного объекта сверху справа меняет его размер. Escape снимает выделение."
     onClick={event => { const text = lastTextPress.current; if (text && event.detail >= 2) onEditLine?.(text.index,
       { id: ++selectionId.current, anchorX: text.x, focusX: text.x, mode: event.detail >= 3 ? "line" : "word" }); }}
     onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={finish} onKeyDown={keyboard}>
@@ -198,11 +213,13 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
     {objectFrames.map(({ id, box, text }) => <rect key={id} data-object={id} data-text-select={text ? "true" : undefined} {...box} className={text ? "editor-text-hit" : "editor-object-hit"}><title>{text ? "Протяните мышью, чтобы выделить текст" : "Перетащите, чтобы переместить объект"}</title></rect>)}
     {objectFrames.filter(({ id }) => selected.length === 1 && selected[0] === id).map(({ id, frameBox }) => <rect key={id} data-object={id} data-resize="true" x={frameBox.x + frameBox.width - handleSize / 2} y={frameBox.y - handleSize / 2}
       width={handleSize} height={handleSize} className="editor-resize" vectorEffect="non-scaling-stroke" />)}
-    {selected.length > 1 && !marquee && onResizeGroup && <rect data-object="composition" data-group-frame="true" data-resize="true"
-      x={groupBox.x + groupBox.width - handleSize / 2} y={groupBox.y - handleSize / 2} width={handleSize} height={handleSize}
-      className="editor-resize" vectorEffect="non-scaling-stroke" aria-label="Изменить размер группы пропорционально">
-      <title>Потяните угол, чтобы изменить размер всей группы пропорционально</title>
-    </rect>}
+    {selected.length > 1 && !marquee && onResizeGroup && GROUP_CORNERS.map(corner => <rect key={corner.id}
+      data-object="composition" data-group-frame="true" data-resize="true" data-resize-corner={corner.id}
+      x={groupBox.x + groupBox.width * corner.x - handleSize / 2} y={groupBox.y + groupBox.height * corner.y - handleSize / 2}
+      width={handleSize} height={handleSize} className="editor-resize" vectorEffect="non-scaling-stroke"
+      aria-label={`Изменить размер группы пропорционально: ${corner.label} угол`}>
+      <title>Потяните {corner.label} угол, чтобы изменить размер всей группы пропорционально</title>
+    </rect>)}
     {marquee && <rect {...marquee} className="editor-marquee" pointerEvents="none" vectorEffect="non-scaling-stroke" />}
   </svg>;
 }
