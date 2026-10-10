@@ -1,6 +1,7 @@
+import { ChevronDown } from 'lucide-react';
 import { createFacadeSvg, SIGN_PLACEMENTS } from '../lib/signFacade';
 import type { FacadeOptions, FacadeSignBox, SignPlacement } from '../lib/signFacade';
-import type { ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 export function SignPlacements({markup,signBox,panelMount,night,selected,palette='stone',onPaletteChange,onChange,children}:{markup:string;signBox:FacadeSignBox;panelMount?:FacadeOptions['panelMount'];night:boolean;selected:SignPlacement;palette?:'stone'|'brick'|'charcoal';onPaletteChange?:(value:'stone'|'brick'|'charcoal')=>void;onChange:(value:SignPlacement)=>void;children?:ReactNode}) {
   return <section className={'sign-placements '+(night?'night':'day')} aria-label="Примеры размещения вывески">
     <div className="placements-heading"><h2>На вашем фасаде</h2><button type="button" aria-pressed={selected==='none'} onClick={()=>onChange('none')}>Без фасада</button></div>
@@ -18,14 +19,20 @@ type PlacementThumbnailProps = {
 };
 
 export function SignPlacementThumbnails({ markup, signBox, panelMount, night, selected, palette, onChange }: PlacementThumbnailProps) {
-  return <nav className={'scene-placement-thumbnails ' + (night ? 'night' : 'day')} aria-label="Размещение вывески в 3D">
-    <button className="scene-placement-none" type="button" aria-pressed={selected === 'none'} onClick={() => onChange('none')}>Без фасада</button>
+  const [expanded, setExpanded] = useState(false);
+  const id = useId(), toggle = useRef<HTMLButtonElement>(null);
+  const choose = (value: SignPlacement) => { onChange(value); setExpanded(false); if (toggle.current?.offsetParent) toggle.current.focus(); };
+  return <div className={'scene-placement-picker ' + (night ? 'night' : 'day') + (expanded ? ' is-open' : '')}
+    onKeyDown={event => { if (event.key === 'Escape') { setExpanded(false); toggle.current?.focus(); } }}>
+    <button ref={toggle} type="button" className="scene-placement-toggle" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(value => !value)}>Фасад <ChevronDown size={16} aria-hidden="true" /></button>
+    <nav id={id} className={'scene-placement-thumbnails ' + (night ? 'night' : 'day')} aria-label="Размещение вывески в 3D">
+    <button className="scene-placement-none" type="button" aria-pressed={selected === 'none'} onClick={() => choose('none')}>Без фасада</button>
     {(['shop', 'windows', 'canopy', 'entrance'] as const).map(id => {
       const title = SIGN_PLACEMENTS.find(place => place.id === id)!.title;
-      return <button className="scene-placement-card" type="button" key={id} aria-label={'Разместить вывеску: ' + title} aria-pressed={selected === id} onClick={() => onChange(id)}>
+      return <button className="scene-placement-card" type="button" key={id} aria-label={'Разместить вывеску: ' + title} aria-pressed={selected === id} onClick={() => choose(id)}>
         <span className="scene-placement-image" aria-hidden="true" dangerouslySetInnerHTML={{ __html: createFacadeSvg(id, markup, night, 'scene-picker-' + id, { palette, signBox, panelMount }) }}/>
         <span className="scene-placement-caption">{title}</span>
       </button>;
     })}
-  </nav>;
+  </nav></div>;
 }

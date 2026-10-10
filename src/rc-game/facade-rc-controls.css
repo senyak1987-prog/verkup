@@ -155,3 +155,19 @@
 @media (prefers-reduced-motion: reduce) {
   .facade-rc-controls button { transition: none; }
 }
+
+/* Keep the driving controls clear of notches and home gestures. */
+.facade-rc-toolbar { top:max(8px,env(safe-area-inset-top)); left:max(8px,env(safe-area-inset-left)); right:max(8px,env(safe-area-inset-right)); }
+.facade-rc-bottom { bottom:max(8px,env(safe-area-inset-bottom)); left:max(8px,env(safe-area-inset-left)); right:max(8px,env(safe-area-inset-right)); }
+.facade-rc-telemetry { top:calc(max(8px,env(safe-area-inset-top)) + 60px); }
+@container facade-rc (max-width:420px) {
+  .facade-rc-settings { flex-wrap:wrap; justify-content:center; }
+  .facade-rc-controls .facade-rc-segmented button { min-width:44px; font-size:12px; }
+  .facade-rc-instructions { font-size:11px; }
+}
+@media (max-height:500px) and (orientation:landscape) {
+  .facade-rc-title { display:none; }
+  .facade-rc-toolbar { right:auto; }
+  .facade-rc-telemetry { top:max(8px,env(safe-area-inset-top)); right:max(8px,env(safe-area-inset-right)); }
+  .facade-rc-instructions { display:none; }
+}

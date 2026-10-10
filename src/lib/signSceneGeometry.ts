@@ -800,7 +800,7 @@ export function applySignLighting(group: THREE.Object3D, night: number, lightsOn
           ? (material.userData.maxEmission ?? 0) * night
           : material.userData.neonEmission !== undefined
             ? material.userData.neonEmission * (.35 + .65 * night) * on
-            : (material.userData.maxEmission ?? 0) * (.02 + .98 * night) * on;
+            : (material.userData.maxEmission ?? 0) * (.22 + .78 * night) * on;
       }
       if (material.userData.dayColor && lit.color) {
         lit.color.copy(material.userData.dayColor);
@@ -815,9 +815,9 @@ export function applySignLighting(group: THREE.Object3D, night: number, lightsOn
         const day = material.userData.dayEnvIntensity ?? 1, dark = material.userData.nightEnvIntensity ?? .3;
         lit.envMapIntensity = day + (dark - day) * night;
       }
-      if (material.userData.lightOpacity !== undefined) material.opacity = material.userData.lightOpacity * night * on;
+      if (material.userData.lightOpacity !== undefined) material.opacity = material.userData.lightOpacity * (.18 + .82 * night) * on;
       if (material.userData.neonCore) material.opacity = on * (.25 + night * .55) * (material.userData.neonBrightness??1);
-      if (material.userData.neonAura) material.opacity = night * .055 * on;
+      if (material.userData.neonAura) material.opacity = (.18 + .82 * night) * .055 * on;
       if (child instanceof THREE.Sprite && !material.userData.dimensionInversion) (material as THREE.SpriteMaterial).color.set('#45515e').lerp(new THREE.Color('#ffffff'), night);
     }
   });
