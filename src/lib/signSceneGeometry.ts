@@ -796,12 +796,14 @@ export function applySignLighting(group: THREE.Object3D, night: number, lightsOn
         const delay = Math.min(material.userData.windowIndex ?? 0, 7) * .035;
         const localWindowLight = Math.max(0, Math.min(1, (windowLight - delay) / (1 - delay)));
         lit.emissiveIntensity = material.userData.windowLight
-          ? (material.userData.maxWindowEmission ?? material.userData.maxEmission ?? 0) * localWindowLight
+          ? (material.userData.maxWindowEmission ?? material.userData.maxEmission ?? 0) * localWindowLight + (material.userData.dayWindowEmission ?? 0) * (1 - night)
           : material.userData.facadeEmission
           ? (material.userData.maxEmission ?? 0) * night
           : material.userData.neonEmission !== undefined
             ? material.userData.neonEmission * (.35 + .65 * night) * on
             : (material.userData.maxEmission ?? 0) * (.22 + .78 * night) * on;
+        if (material.userData.interiorAmbient !== undefined)
+          lit.emissiveIntensity = material.userData.interiorAmbient * ((1 - night) + .35 * windowLight);
       }
       if (material.userData.dayColor && lit.color) {
         lit.color.copy(material.userData.dayColor);

@@ -301,7 +301,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
           const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
           const center = runtime.fitCenter;
           let halfWidth = 0, halfHeight = 0;
-          const box = runtime.bounds;
+          // Frame the architecture in sign mode; the game frames its own courtyard on start.
+          const box = runtime.model.getObjectByName('facade') ? new THREE.Box3().setFromObject(runtime.model) : runtime.bounds;
           for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
             const point = new THREE.Vector3(x, y, z).sub(center);
             halfWidth = Math.max(halfWidth, Math.abs(point.dot(right)));
@@ -340,7 +341,6 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
               for (const part of child.children) if (part.name !== 'dimensions') box.expandByObject(part);
             } else if (child.name !== 'dimensions') box.expandByObject(child);
           }
-          if (runtime.rc?.available) box.expandByObject(runtime.rc.group);
           if (box.isEmpty()) return;
           const center = panelRef.current || runtime.model.getObjectByName('facade') ? box.getCenter(new THREE.Vector3()) : new THREE.Vector3(0, 0, box.max.z / 2);
           const view = layoutRef.current;

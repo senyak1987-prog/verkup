@@ -24,6 +24,24 @@ const scene = load('signFacade3D', { three: THREE, './signFacade': facade, './pa
 const places = facade.SIGN_PLACEMENTS.filter(place => place.id !== 'none');
 const dimensions = [[600, 180], [1800, 300], [5000, 300], [1200, 800]];
 
+test('Rebuilt house uses physical roof seams and bounded instance geometry without extra lights', () => {
+  for (const {id:palette} of facade.FACADE_PALETTES) for (const {id} of places) {
+    const model=scene.createFacadeModel(id,1800,300,{palette});
+    assert.ok(model.getObjectByName('architectural-roof-ridge'));
+    const seams=model.children.filter(o=>o.name==='architectural-roof-seam');
+    assert.ok(seams.length>=28 && seams.every(o=>o.userData.batched));
+    const planterLeaves=model.children.filter(o=>o.name==='architectural-planter-leaf');
+    assert.ok(planterLeaves.length>0 && planterLeaves.every(o=>o.userData.batched),'Planter foliage shares instance batches with the interior plants');
+    const panes=model.children.filter(o=>o.userData.facadeKind==='glass');
+    assert.equal(model.children.filter(o=>o.isLight).length,panes.length*2,'Details reuse the existing window lights');
+    let triangles=0;
+    model.traverse(o=>{if(o.isMesh && o.visible)triangles+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3*(o.isInstancedMesh?o.count:1);});
+    assert.ok(triangles<60000,`Architecture including furnished rooms stays below 60k triangles: ${triangles}`);
+    for(const pane of panes)assert.equal(pane.material.transmission,0,'No extra scene refraction render');
+    dispose(model);
+  }
+});
+
 test('Scandi facade keeps mounting planes and door clear while batching timber details', () => {
   for (const { id } of places) {
     const original = scene.createFacadeModel(id, 1800, 300, { palette: 'stone' });
@@ -293,7 +311,7 @@ test('Windows have true apertures, restrained reflections and separated glazing 
         anchor.y - glass.y - glass.h * .25, 5000), new THREE.Vector3(0, 0, -1));
       const hit = ray.intersectObjects(model.children, false)[0];
       assert.equal(hit?.object.userData.facadeKind, 'glass', place.id + ': glazing must be visible through the wall');
-      assert.ok(hit.object.material.roughness >= (palette === 'scandi' ? .2 : .5) && hit.object.material.roughness <= .75
+      assert.ok(hit.object.material.roughness >= .2 && hit.object.material.roughness <= .4
         && hit.object.material.envMapIntensity >= .2 && hit.object.material.envMapIntensity <= 1.25,
         'Glazing has readable reflections without becoming a perfect mirror');
       assert.ok(hit.object.material.userData.facadeEmission, 'Interior light is independent of the sign switch');
@@ -322,7 +340,7 @@ test('Facade glass has separate stable light identities and architecture casts r
     for(const mesh of glass) {
       const material=mesh.material;
       assert.ok(material.isMeshPhysicalMaterial,'Glass uses a physical dielectric material');
-      assert.ok(material.roughness>=(palette==='scandi'?.2:.5)&&material.roughness<=.75,'Clear and frosted windows retain roughness rather than mirror reflections');
+      assert.ok(material.roughness>=.2&&material.roughness<=.4,'Clear windows retain roughness rather than mirror reflections');
       assert.equal(material.metalness,0,'Architectural glass remains a dielectric surface');
       assert.ok(material.envMapIntensity>=.2&&material.envMapIntensity<=1.25,'Scene reflections are present but restrained');
       assert.ok(material.userData.windowLight&&material.userData.facadeEmission,'The window light is separated from the sign lighting switch');
@@ -479,13 +497,13 @@ test('Perpendicular panel mounts retain the existing canopy context and real wal
 });
 
 
-test('A complete building has four walls, a closed pitched roof, a real floor and furnished interiors behind frosted glass',()=>{
+test('A complete building has four walls, a closed pitched roof, a real floor and furnished interiors behind clear glass',()=>{
   for(const place of places){
     const model=scene.createFacadeModel(place.id,2000,400);
     for(const name of ['facade-wall','building-left-wall','building-right-wall','building-back-wall','building-roof-front','building-roof-rear','interior-floor','interior-ceiling'])assert.ok(model.getObjectByName(name),name);
     assert.equal(model.userData.buildingDepthMm,5000);
     const glass=model.children.filter(mesh=>mesh.userData.facadeKind==='glass');
-    assert.ok(glass.every(mesh=>mesh.material.transparent&&mesh.material.opacity>=.65&&mesh.material.opacity<=.8&&mesh.material.roughness>=.5&&mesh.material.thickness>0));
+    assert.ok(glass.every(mesh=>mesh.material.transparent&&mesh.material.opacity>=.2&&mesh.material.opacity<=.4&&mesh.material.roughness>=.2&&mesh.material.thickness>0&&mesh.material.transmission===0));
     assert.ok(model.children.some(mesh=>mesh.name.startsWith('interior-display-')));
     assert.equal(model.children.filter(mesh=>mesh.isPointLight).length,glass.length);
     for(const pane of glass){
@@ -511,7 +529,7 @@ test('Every window casts a soft exterior pool from its own aperture and shares t
       close(light.position.x,pane.position.x,'The light emerges from the same window');
       assert.ok(light.position.z>pane.position.z&&light.target.position.z>light.position.z,'Light travels outside the shop');
       assert.ok(spill.position.y>pavement.max.y&&spill.position.y<pavement.max.y+2,'Light pool is attached to the actual pavement');
-      assert.ok(pane.material.userData.frostedGlass&&pane.material.transparent&&pane.material.opacity>=.65,'The furnished interior is diffusely transmitted through matte glass');
+      assert.ok(!pane.material.userData.frostedGlass&&pane.material.transparent&&pane.material.opacity<=.4,'Clear glazing reveals the furnished interior without a refraction pass');
     }
     const svg=facade.createFacadeSvg(place.id,'<svg viewBox="0 0 2000 400"/>',true);
     assert.equal((svg.match(/data-window-spill="true"/g)??[]).length,glass.length);
