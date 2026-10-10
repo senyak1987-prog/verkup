@@ -65,7 +65,7 @@ test('Millimetre point daylight keeps the same irradiance across sign sizes and 
     const light = new THREE.PointLight('#ffffff', source.intensity, 0, 2);
     light.position.set(source.position.x, source.position.y, source.position.z);
     const distance = light.position.distanceTo(new THREE.Vector3(center.x, center.y, center.z));
-    assert.ok(Math.abs(light.intensity / distance ** light.decay - 1.05) < 1e-12,
+    assert.ok(Math.abs(light.intensity / distance ** light.decay - daylight.DAYLIGHT_LEVELS.targetIrradiance) < 1e-12,
       'Moving or resizing the model must not brighten its paint through an unscaled point light');
     assert.equal(light.distance, 0, 'No abrupt distance cutoff across the scene');
     assert.ok(source.shadowNear > 0 && source.shadowNear < distance);
@@ -86,7 +86,7 @@ test('Daylight markers clamp to the preview edges and malformed bounds cannot cr
   assert.deepEqual(invalid, daylight.daylightSource({ center, span: 100 }));
 });
 
-test('Daytime LED faces retain their pigment with weak emission while night output and switch remain intact', async () => {
+test('Daytime LED faces retain pigment and visible emission while night output and switch remain intact', async () => {
   const model = await geometry.buildSignModel({
     productId: 'panel', panelShape: 'circle', panelSize: 550, panelWallGap: 120,
     sceneMode: 'night', panelFaceColor: { value: '#1681d9' }, panelSideColor: { value: '#25364b' }, panelImage: '',
@@ -95,8 +95,8 @@ test('Daytime LED faces retain their pigment with weak emission while night outp
     const face = model.getObjectByName('panel-body').material[0];
     geometry.applySignLighting(model, 0, true);
     assert.equal(face.color.getHexString(), '1681d9', 'The chosen sRGB pigment survives the Linear working colour space');
-    assert.ok(face.emissiveIntensity > 0 && face.emissiveIntensity <= .05,
-      'LEDs remain on in daylight without the old 0.168 emission that washed out saturated faces');
+    assert.ok(face.emissiveIntensity >= .2 && face.emissiveIntensity < .5,
+      'Daytime LEDs remain visibly lit below night output without changing the selected pigment');
     geometry.applySignLighting(model, 1, true);
     assert.equal(face.emissiveIntensity, 1.4, 'Full night brightness remains unchanged');
     geometry.applySignLighting(model, 0, false);
@@ -143,5 +143,20 @@ test('Weak day emission does not change neon output or the independent delayed w
     geometry.applySignLighting(group, 1, true, 0);
     assert.equal(neon.emissiveIntensity, 1.8);
     assert.equal(window.emissiveIntensity, 0, 'Night and the later window illumination phase remain independent');
+  } finally { geometry.disposeSignObject(group); }
+});
+
+test('Daytime halo remains visible, fades continuously into night, and switches fully off', () => {
+  const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: .8 });
+  material.userData.lightOpacity = .8;
+  const group = new THREE.Group();
+  group.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material));
+  try {
+    geometry.applySignLighting(group, 0, true); const day = material.opacity;
+    geometry.applySignLighting(group, .5, true); const dusk = material.opacity;
+    geometry.applySignLighting(group, 1, true); const night = material.opacity;
+    assert.ok(day > .1 && day < dusk && dusk < night);
+    assert.equal(night, .8);
+    for (const fraction of [0, .5, 1]) { geometry.applySignLighting(group, fraction, false); assert.equal(material.opacity, 0); }
   } finally { geometry.disposeSignObject(group); }
 });
