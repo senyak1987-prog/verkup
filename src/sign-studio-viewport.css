@@ -506,3 +506,8 @@ main.public-sign-configurator.sign-studio .scene-placement-toggle { display:none
   main.public-sign-configurator.sign-studio .sign-scene-3d-hint { display:none; }
   main.public-sign-configurator.sign-studio .controls-heading h2 { display:none; }
 }
+main.public-sign-configurator.sign-studio .studio-workspace > .editor-toolbar:has(.backer-quick-size) { flex-wrap:wrap; overflow:visible; }
+main.public-sign-configurator.sign-studio .editor-toolbar .backer-quick-size { flex-shrink:0; }
+main.public-sign-configurator.sign-studio .editor-toolbar .backer-quick-size span { color:#e8eee8; }
+
+main.public-sign-configurator.sign-studio .backer-quick-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
