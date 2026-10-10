@@ -325,6 +325,26 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
             }
             viewHeight = Math.max(viewHeight, halfHeight * 2.15, halfWidth * 2.15 / aspect);
           }
+          if (runtime.model.getObjectByName('facade')) {
+            // Keep both configured products inside the usable screen at the default close-up.
+            const products = signFocusBounds(runtime.model);
+            const companion = runtime.model.getObjectByName('companion-sign');
+            if (companion?.visible) products.union(signFocusBounds(companion));
+            if (!products.isEmpty()) {
+              const defaultZoom = FACADE_PREVIEW_ZOOM / 100;
+              const focus = center.clone().lerp(runtime.signAnchor, zoomFocusWeight(defaultZoom));
+              const reserve = host.clientWidth >= 600 ? 125 : 24;
+              const usableWidth = Math.max(.3, 1 - 2 * reserve / Math.max(1, host.clientWidth));
+              const usableHeight = Math.max(.35, 1 - 110 / Math.max(1, host.clientHeight));
+              let productWidth = 0, productHeight = 0;
+              for (const x of [products.min.x, products.max.x]) for (const y of [products.min.y, products.max.y]) for (const z of [products.min.z, products.max.z]) {
+                const point = new THREE.Vector3(x,y,z).sub(focus);
+                productWidth = Math.max(productWidth, Math.abs(point.dot(right)));
+                productHeight = Math.max(productHeight, Math.abs(point.dot(up)));
+              }
+              viewHeight = Math.max(viewHeight, productWidth * 2.15 * defaultZoom / (aspect * usableWidth), productHeight * 2.15 * defaultZoom / usableHeight);
+            }
+          }
           camera.left = -viewHeight * aspect / 2; camera.right = -camera.left;
           camera.top = viewHeight / 2; camera.bottom = -camera.top;
           camera.updateProjectionMatrix();
