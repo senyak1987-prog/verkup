@@ -11,7 +11,7 @@
     "test:rc-game": "node scripts/test-rc-physics.mjs",
     "test:rc-suspension": "node scripts/test-rc-suspension.mjs",
     "test:rc-vehicle": "node scripts/test-rc-vehicle-lifecycle.mjs",
-    "test:trx-asset": "node scripts/test-trx-asset.mjs",
+    "test:trx-asset": "node scripts/test-trx-asset.mjs && node scripts/test-render-quality.mjs",
     "test:rc-props": "node scripts/test-rc-props.mjs",
     "test:facade-rc": "node scripts/test-facade-rc.mjs",
     "build:rc-embed": "node scripts/build-rc-embed.mjs",
