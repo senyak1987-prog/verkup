@@ -447,3 +447,10 @@ main.public-sign-configurator.sign-studio .canvas-logo-shapes button svg { flex-
 main.public-sign-configurator.sign-studio .canvas-logo-shapes button:hover { background:#315b47; }
 main.public-sign-configurator.sign-studio .canvas-logo-shapes button[aria-pressed="true"] { background:#d3bc84; color:#073c2d; border-color:#d3bc84; }
 main.public-sign-configurator.sign-studio .canvas-logo-shapes button:focus-visible { outline:2px solid #f2d678; outline-offset:2px; }
+
+.backer-quick-size { display:flex; gap:8px; flex-wrap:wrap; }
+.backer-quick-size label { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+.backer-quick-size input { width:96px; min-height:36px; padding:4px 8px; border:1px solid #8ca698; border-radius:5px; color:#123e30; background:#f6f8f3; font:inherit; }
+
+main.public-sign-configurator.sign-studio .backer-quick-size .builder-field { display:flex; flex-direction:row; align-items:center; gap:6px; margin:0; }
+main.public-sign-configurator.sign-studio .backer-quick-size .builder-field input { width:96px; min-height:36px; padding:4px 8px; }

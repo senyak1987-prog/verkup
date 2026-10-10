@@ -13,6 +13,7 @@ export type LetterRowLayout = {
   kind?:'vector'; vectorRole?:'letter'|'backing'; color?:string; name?:string;
 };
 export type LetterRowsLayoutConfig = {
+  preserveArtworkSize?: boolean;
   height:number; contours?:LetterContours|null; lineSettings:LetterRowSetting[];
   logoEnabled?:boolean; logoScale:number; logoSizeMm?:number; logoShape:string; letterOutlineEnabled:boolean;
   widthOverride?:number; logoOffsetX?:number; logoOffsetY?:number; textOffsetX?:number; textOffsetY?:number;
@@ -74,7 +75,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
   const signHeight=Math.max(textNaturalHeight,logoSize);
   const panelRequired=config.mountMode==='acp';
   const minimumFit=Math.max(0,...draft.map(row=>100/row.height),...vectors.map(row=>1/row.height),...(logoSize?[100/logoSize]:[]));
-  const fit=panelRequired?Math.max(minimumFit,Math.min(1,(config.acpLayout.faceWidth-12)/widthRequested,
+  const fit=panelRequired && !config.preserveArtworkSize?Math.max(minimumFit,Math.min(1,(config.acpLayout.faceWidth-12)/widthRequested,
     (config.acpLayout.faceHeight-12)/(signHeight+overTop+overBottom))):1;
   const textWidth=hasArtwork?(widthRequested-logoSize-gap)*fit:0,textHeight=textNaturalHeight*fit;
   const offsets=[...config.lineSettings.map(s=>({x:coordinate(s.offset?.x),y:coordinate(s.offset?.y)})),
@@ -99,7 +100,7 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
     let inkBox={x:pathBox.x+(row.data.inkBox.x-row.data.mainBox.x)*sx-outlineX,
       y:pathBox.y+(row.data.inkBox.y-row.data.mainBox.y)*sy-outlineY,
       width:Math.max(1,row.data.inkBox.width*sx+outlineX*2),height:Math.max(1,row.data.inkBox.height*sy+outlineY*2)};
-    if(panelRequired){const bounded=containBox(inkBox,container),dx=bounded.x-inkBox.x,dy=bounded.y-inkBox.y;
+    if(panelRequired && !config.preserveArtworkSize){const bounded=containBox(inkBox,container),dx=bounded.x-inkBox.x,dy=bounded.y-inkBox.y;
       box={...box,x:box.x+dx,y:box.y+dy};pathBox={...pathBox,x:pathBox.x+dx,y:pathBox.y+dy};inkBox=bounded;}
     const support=row.data.supportBox??row.data.mainBox;
     const frameBox={...box,y:pathBox.y+(support.y-row.data.mainBox.y)*sy-outlineY,height:support.height*sy+outlineY*2};
@@ -109,13 +110,13 @@ export function createLetterRowsLayout(config:LetterRowsLayoutConfig) {
     const defaultX=groupX+(textWidth-vectorWidth*fit)/2+(object.box.x-vectorSourceBox.x)*fit+(config.textOffsetX??0);
     const defaultY=groupY+(vectorTop+object.box.y-vectorSourceBox.y)*fit+(config.textOffsetY??0);
     let box={x:defaultX+coordinate(object.offset?.x),y:defaultY+coordinate(object.offset?.y),width:width*fit,height:height*fit};
-    if(panelRequired)box=containBox(box,container);
+    if(panelRequired && !config.preserveArtworkSize)box=containBox(box,container);
     textRows.push({id:'line-'+(3+index),index:3+index,text:object.name||'Вектор '+(index+1),font:'',kind:'vector',vectorRole:object.role??'letter',name:object.name,color:object.color,
       box,pathBox:box,inkBox:box,pathData:object.pathData,naturalBox:object.box,defaultX,defaultY});
   }
   const defaultLogoX=baseX,defaultLogoY=baseY+(signHeight-logoSize)*fit/2;
   let logoBox={x:defaultLogoX+(config.logoOffsetX??0),y:defaultLogoY+(config.logoOffsetY??0),width:logoSize*fit,height:logoSize*fit};
-  if(panelRequired)logoBox=containBox(logoBox,container);
+  if(panelRequired && !config.preserveArtworkSize)logoBox=containBox(logoBox,container);
   const emptyTextBox={x:groupX+(config.textOffsetX??0),y:groupY+(config.textOffsetY??0),width:1,height:1};
   const textBox=textRows.length?union(textRows.map(r=>r.box)):emptyTextBox,textInkBox=textRows.length?union(textRows.map(r=>r.inkBox)):emptyTextBox;
   const signObjects=[...textRows.map(r=>r.box),...(config.logoEnabled?[logoBox]:[])];

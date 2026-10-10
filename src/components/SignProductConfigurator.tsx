@@ -115,6 +115,7 @@ type LettersSvgLayout = {
 };
 
 type LettersSvgLayoutConfig = {
+  preserveArtworkSize?: boolean;
   vectorArtwork?: VectorArtworkObject[];
   lineSettings?: LetterRowSetting[];
   acpLayout: AcpLayout;
@@ -615,11 +616,13 @@ export function SignProductConfigurator() {
   useEffect(() => { setSelectedNeonLine(index => Math.min(index, project.neonText.split('\n').length - 1)); }, [project.neonText]);
   const [editing, setEditing] = useState(true);
   const [logoPickerOpen, setLogoPickerOpen] = useState(false);
+  const [backerSelected, setBackerSelected] = useState(false);
   const [layoutSelection, setLayoutSelection] = useState<LayoutSelection>([]);
   const [canvasTextEdit, setCanvasTextEdit] = useState<{ index: number; originalText: string; pointerSelection?: CanvasPointerSelection } | null>(null);
   const canvasTextUndoBase = useRef<ProjectState | null>(null);
   const advancedConstructorRef = useRef<HTMLDetailsElement>(null);
   const selectLayoutObject = (selection: LayoutSelection) => {
+    setBackerSelected(false);
     setCanvasTextEdit(null);
     setLayoutSelection(selection);
     if (typeof selection === "string" && selection.startsWith("line-") && Number(selection.slice(5)) >= 3 && advancedConstructorRef.current) {
@@ -636,7 +639,7 @@ export function SignProductConfigurator() {
   const contourKey = JSON.stringify(lineSettings.map(row=>[row.index,row.font,row.text]));
   const patchProject = (patch: Partial<ProjectState>, remember = true) => {
     const layoutEdit = project.productId === "letters" && Object.keys(patch).some(key =>
-      ["logoEnabled", "logoShape", "logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "logoSizeMm", "letterWidth", "letterHeight", "lettersText", "letterFont", "secondLineText", "thirdLineText", "letterLineFonts", "letterLineHeights", "letterLineOffsets", "vectorArtwork"].includes(key));
+      ["acpWidth", "acpHeight", "logoEnabled", "logoShape", "logoOffsetX", "logoOffsetY", "textOffsetX", "textOffsetY", "logoScale", "logoSizeMm", "letterWidth", "letterHeight", "lettersText", "letterFont", "secondLineText", "thirdLineText", "letterLineFonts", "letterLineHeights", "letterLineOffsets", "vectorArtwork"].includes(key));
     if (remember && (layoutEdit || project.productId === 'neon' && Object.keys(patch).some(key=>key.startsWith('neon')))) {
       if (layoutInteraction.current === "start" || layoutInteraction.current !== "active" && (Date.now()-lastUndoEdit.current > 800 || !undoHistory.current.length)) {
         undoHistory.current.push(project); if (undoHistory.current.length>30) undoHistory.current.shift(); setCanUndo(true);
@@ -900,6 +903,7 @@ export function SignProductConfigurator() {
     acpWidth,
   ]);
   const lettersLayoutConfig = useMemo(() => ({
+    preserveArtworkSize: true,
     lineSettings,
     vectorArtwork: project.vectorArtwork,
     acpLayout,
@@ -1282,7 +1286,11 @@ export function SignProductConfigurator() {
               <button type="button" title={mountMode === "acp" ? "По центру подложки по вертикали" : "По центру макета по вертикали"} disabled={fontPending} onClick={() => alignLayoutSelection("y")}><AlignVerticalJustifyCenter size={16}/>Центр Y</button>
             </div>
             <button type="button" aria-label="Отменить изменение макета" title="Отменить изменение макета (Ctrl / Command Z)" disabled={!canUndo} onClick={undoNeon}><Undo2 size={16}/></button>
-            <label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>setMountMode(e.target.checked ? "acp" : "frame")}/>Подложка</label>
+            <div className="backer-quick-controls"><label><input type="checkbox" checked={mountMode === "acp"} onChange={e=>{setMountMode(e.target.checked ? "acp" : "frame");setBackerSelected(e.target.checked);setLayoutSelection([]);}}/>Подложка</label>
+            {mountMode === "acp" && <div className="backer-quick-size">
+              <NumberField label="↔ Ширина, мм" min={400} max={20000} value={acpWidth} onChange={value=>applyLayoutPatch({acpWidth:value})}/>
+              <NumberField label="↕ Высота, мм" min={250} max={backerLimits(acpDepth).height} value={acpHeight} onChange={value=>applyLayoutPatch({acpHeight:value})}/>
+            </div>}</div>
             <span className="canvas-typing-hint">Обведите объекты для выделения · рамка — перемещение</span>
           </div>}
             {productId === "letters" && viewMode === "2d" && editing && logoPickerOpen && <div id="canvas-logo-shapes" className="canvas-logo-shapes" role="group" aria-label="Форма логотипа" onKeyDown={event => {
@@ -1339,7 +1347,7 @@ export function SignProductConfigurator() {
               <LettersPreview
                 objectColors={{logoFaceColor:project.logoFaceColor.value,logoSideColor:project.logoSideColor.value,haloLightColor:project.haloLightColor.value,faceNoFilm:letterFaceColor.code==="none",logoNoFilm:project.logoFaceColor.code==="none"}}
                 lightsOn={project.lightsOn}
-                editor={editing && (!fontPending || canvasTextEdit) ? <SignLayoutEditor zoom={zoom} layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={selectLayoutObject} onChange={applyLayoutPatch} onResizeGroup={(selection, dx, dy, corner) => resizeLetterGroup(lettersLayoutConfig, selection, dx, dy, project.letterLineHeights, corner)} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon} onEditLine={editCanvasLine}/> : undefined}
+                editor={editing && (!fontPending || canvasTextEdit) ? <SignLayoutEditor backerSelected={backerSelected} onSelectBacker={setBackerSelected} zoom={zoom} layout={lettersLayout} project={{...project,letterLineHeights:[...Array.from({length:3},(_,i)=>project.letterLineHeights[i]||letterHeight),...project.vectorArtwork.map(object=>object.height)]}} selection={layoutSelection} onSelect={selectLayoutObject} onChange={applyLayoutPatch} onResizeGroup={(selection, dx, dy, corner) => resizeLetterGroup(lettersLayoutConfig, selection, dx, dy, project.letterLineHeights, corner)} onInteractionStart={beginLayoutInteraction} onInteractionEnd={endLayoutInteraction} onUndo={undoNeon} onEditLine={editCanvasLine}/> : undefined}
                 sceneMode={sceneMode}
                 acpDepth={acpDepth}
                 acpColor={acpColor.value}

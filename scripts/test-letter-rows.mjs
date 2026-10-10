@@ -301,3 +301,17 @@ test('Unfilmed acrylic stays white when switched off while its emitted light use
   scene.disposeSignObject(model);
  } } finally {if(previousDocument===undefined)delete globalThis.document;else globalThis.document=previousDocument;if(previousPath===undefined)delete globalThis.Path2D;else globalThis.Path2D=previousPath;}
 });
+
+test('Direct backing dimensions preserve artwork sizes and placement relative to its centre',()=>{
+  const config=fixture({mountMode:'acp',preserveArtworkSize:true});
+  const before=layout(config), after=layout({...config,acpLayout:{faceWidth:500,faceHeight:300}});
+  for(const [index,row] of before.textRows.entries()){
+    const next=after.textRows[index];
+    near(next.inkBox.width,row.inkBox.width,'Letter width');
+    near(next.inkBox.height,row.inkBox.height,'Letter height');
+    near(next.inkBox.x-after.viewWidth/2,row.inkBox.x-before.viewWidth/2,'Horizontal placement');
+    near(next.inkBox.y-after.viewHeight/2,row.inkBox.y-before.viewHeight/2,'Vertical placement');
+  }
+  near(after.logoBox.width,before.logoBox.width,'Logo width');
+  near(after.logoBox.height,before.logoBox.height,'Logo height');
+});
