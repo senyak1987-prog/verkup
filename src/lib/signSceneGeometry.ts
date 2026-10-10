@@ -15,7 +15,7 @@ export type SignSceneProject = {
   neonText?: string; neonFont?: string; neonHeight?: number; neonDiameter?: number; neonColor?: string;
   neonLetterSpacing?: number; neonLineSpacing?: number;
   neonBackerShape?: string; neonBrightness?: number; neonAlign?: string;
-  lightsOn?: boolean; facadePalette?: 'stone'|'brick'|'charcoal';
+  lightsOn?: boolean; facadePalette?: 'stone'|'brick'|'charcoal'|'scandi';
   backdropImage?: string; backdropWidth?: number;
   neonBackerColor?: 'clear'|'white'|'black'; neonInstallMode?: 'standoffs'|'hanging'; neonKeepAspect?:boolean; neonTargetWidth?:number;
   neonLineFonts?: string[]; neonLineColors?:string[]; neonLineScales?:number[]; neonLineOffsets?:{x:number;y:number}[]; neonIcon?:string;

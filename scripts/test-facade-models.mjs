@@ -24,6 +24,30 @@ const scene = load('signFacade3D', { three: THREE, './signFacade': facade, './pa
 const places = facade.SIGN_PLACEMENTS.filter(place => place.id !== 'none');
 const dimensions = [[600, 180], [1800, 300], [5000, 300], [1200, 800]];
 
+test('Scandi facade keeps mounting planes and door clear while batching timber details', () => {
+  for (const { id } of places) {
+    const original = scene.createFacadeModel(id, 1800, 300, { palette: 'stone' });
+    const model = scene.createFacadeModel(id, 1800, 300, { palette: 'scandi' });
+    const mountName = id === 'canopy' ? 'facade-canopy-fascia' : 'facade-sign-mounting-band';
+    assert.deepEqual(bounds(model.getObjectByName(mountName)), bounds(original.getObjectByName(mountName)));
+    const door = bounds(model.getObjectByName('facade-door-opening'));
+    const slats = model.children.filter(mesh => mesh.name === 'facade-scandi-wood-slat');
+    assert.equal(slats.length, 8);
+    for (const slat of slats) {
+      const b = bounds(slat);
+      assert.ok(b.max.x < door.min.x || b.min.x > door.max.x, 'Timber never blocks the doorway');
+      assert.ok(slat.userData.batched && slat.material.map, 'Repeated timber uses a textured instance batch');
+    }
+    const canopy = model.getObjectByName('facade-scandi-entry-canopy');
+    if (id === 'canopy') assert.equal(canopy, undefined, 'Do not duplicate the existing large canopy');
+    else assert.ok(bounds(canopy).min.y > door.max.y, 'Entry canopy stays above the door');
+    const panes = model.children.filter(mesh => mesh.userData.facadeKind === 'glass');
+    assert.ok(panes.every(mesh => mesh.material.opacity < .4 && mesh.material.transmission === 0));
+    assert.equal(model.children.filter(mesh => mesh.isLight).length, original.children.filter(mesh => mesh.isLight).length);
+    dispose(model); dispose(original);
+  }
+});
+
 test('The CC0 superhero has authored parted hair and the brand is printed into one opaque cape surface', () => {
   const building=scene.createFacadeModel('windows',2000,400),brand=new THREE.Texture();
   const person=scene.createScalePerson(building,new THREE.Vector3(0,0,200),brand,asset);
@@ -269,7 +293,7 @@ test('Windows have true apertures, restrained reflections and separated glazing 
         anchor.y - glass.y - glass.h * .25, 5000), new THREE.Vector3(0, 0, -1));
       const hit = ray.intersectObjects(model.children, false)[0];
       assert.equal(hit?.object.userData.facadeKind, 'glass', place.id + ': glazing must be visible through the wall');
-      assert.ok(hit.object.material.roughness >= .5 && hit.object.material.roughness <= .75
+      assert.ok(hit.object.material.roughness >= (palette === 'scandi' ? .2 : .5) && hit.object.material.roughness <= .75
         && hit.object.material.envMapIntensity >= .2 && hit.object.material.envMapIntensity <= 1.25,
         'Glazing has readable reflections without becoming a perfect mirror');
       assert.ok(hit.object.material.userData.facadeEmission, 'Interior light is independent of the sign switch');
@@ -298,7 +322,7 @@ test('Facade glass has separate stable light identities and architecture casts r
     for(const mesh of glass) {
       const material=mesh.material;
       assert.ok(material.isMeshPhysicalMaterial,'Glass uses a physical dielectric material');
-      assert.ok(material.roughness>=.5&&material.roughness<=.75,'Window reflections stay softer than a mirror');
+      assert.ok(material.roughness>=(palette==='scandi'?.2:.5)&&material.roughness<=.75,'Clear and frosted windows retain roughness rather than mirror reflections');
       assert.equal(material.metalness,0,'Architectural glass remains a dielectric surface');
       assert.ok(material.envMapIntensity>=.2&&material.envMapIntensity<=1.25,'Scene reflections are present but restrained');
       assert.ok(material.userData.windowLight&&material.userData.facadeEmission,'The window light is separated from the sign lighting switch');

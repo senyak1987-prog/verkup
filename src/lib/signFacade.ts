@@ -10,6 +10,7 @@ export const FACADE_PALETTES = [
   { id: 'stone', title: 'Светлый камень' },
   { id: 'brick', title: 'Тёплый кирпич' },
   { id: 'charcoal', title: 'Графит и дерево' },
+  { id: 'scandi', title: 'Сканди — светлый и дерево' },
 ] as const;
 export type FacadePalette = typeof FACADE_PALETTES[number]['id'];
 export const FACADE_SIGN_ANCHOR = { x: 3900, y: 800 } as const;
@@ -44,6 +45,7 @@ export const FACADE_COLORS = {
   stone: { wall: '#ddd7cd', joint: '#c8c0b4', trim: '#e8e1d7', frame: '#39444a', glass: '#5d7781', fascia: '#444c50', wood: '#a58261', ground: '#b3ada4', planter: '#877366' },
   brick: { wall: '#bc8062', joint: '#ab9580', trim: '#d7c7b5', frame: '#303b43', glass: '#526d7b', fascia: '#39444d', wood: '#a87d57', ground: '#ada59b', planter: '#725348' },
   charcoal: { wall: '#757e85', joint: '#657078', trim: '#b9b6ad', frame: '#28333e', glass: '#587486', fascia: '#303c46', wood: '#b59a77', ground: '#a9aaa5', planter: '#655f59' },
+  scandi: { wall: '#e7e1d3', joint: '#b8b1a2', trim: '#d6cebb', frame: '#35453f', glass: '#839d9e', fascia: '#a98458', wood: '#b68b5a', ground: '#b6b5ab', planter: '#49594c' },
 } as const;
 
 function nightColor(hex: string, night: boolean, amount = .58) {
@@ -61,7 +63,7 @@ export function facadeRects(place: SignPlacement, night: boolean, options: Facad
   add(0, 0, 7800, 3990, c.wall, wallZ, 200, 'wall', { kind: 'wall' });
   add(0, 0, 7800, 100, c.trim, wallZ + 25, 45, 'cornice');
   add(0, 100, 7800, 15, c.joint, wallZ + 8, 12, 'cornice-shadow');
-  add(0, 3860, 7800, 130, c.trim, wallZ + 20, 45, 'plinth');
+  add(0, palette === 'scandi' ? 3770 : 3860, 7800, palette === 'scandi' ? 220 : 130, palette === 'scandi' ? '#71736b' : c.trim, wallZ + 20, 45, 'plinth');
   add(0, 3990, 7800, 60, c.ground, wallZ + 2400, 2650, 'pavement');
 
   if (palette === 'stone') {
@@ -86,6 +88,17 @@ export function facadeRects(place: SignPlacement, night: boolean, options: Facad
       add(x + w / 2 + 18, y + h * .57, w / 2 - 63, 36, c.frame, wallZ + 15, 80, id + '-transom-right');
     }
     if (door) {
+      if (palette === 'scandi') {
+        // Timber remains outside the physical door aperture and below the sign band.
+        for (const sx of [x - 220, x + w + 60]) {
+          add(sx, y - 100, 160, h + 100, '#70583d', wallZ + 18, 30, 'scandi-timber-backing');
+          for (let slat = 0; slat < 4; slat++) add(sx + slat * 40, y - 100, 28, h + 100, c.wood, wallZ + 45, 40, 'scandi-wood-slat');
+        }
+        if (place !== 'canopy') {
+          add(x - 250, y - 170, w + 500, 80, c.frame, wallZ + 760, 780, 'scandi-entry-canopy');
+          add(x - 220, y - 90, w + 440, 22, c.wood, wallZ + 720, 700, 'scandi-canopy-soffit');
+        }
+      }
       add(x + w - 135, y + 950, 25, 300, '#c8c7bc', wallZ + 70, 35, 'door-handle');
       add(x + 45, y + h - 190, w - 90, 145, c.frame, wallZ + 12, 65, 'door-bottom-rail');
       add(x - 50, y + h - 15, w + 100, 15, '#d4cabb', wallZ + 130, 190, 'entrance-threshold');
@@ -142,7 +155,7 @@ export function facadeRects(place: SignPlacement, night: boolean, options: Facad
       }
     }
   } else {
-    add(300, 430, 7200, 710, palette === 'charcoal' ? '#555f67' : palette === 'brick' ? '#e0d4c3' : '#eee8de', wallZ + 3, 7, 'sign-mounting-band');
+    add(300, 430, 7200, 710, palette === 'scandi' ? c.wood : palette === 'charcoal' ? '#555f67' : palette === 'brick' ? '#e0d4c3' : '#eee8de', wallZ + 3, 7, 'sign-mounting-band');
     add(300, 1140, 7200, 12, c.joint, wallZ + 5, 12, 'sign-band-bottom');
   }
 

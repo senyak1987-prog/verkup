@@ -54,7 +54,7 @@ export function batchFacadeDetails(group: THREE.Group) {
   for (const child of group.children) {
     const mesh = child as THREE.Mesh;
     if (!mesh.isMesh || Array.isArray(mesh.material) || mesh.material.transparent || mesh.material.userData.windowLight) continue;
-    if (!['foliage', 'flower'].includes(mesh.userData.facadeKind) && !/-(frame|mullion)|interior-(shelf|display|counter|pendant-wire)/.test(mesh.name)) continue;
+    if (!['foliage', 'flower'].includes(mesh.userData.facadeKind) && !/-(frame|mullion)|scandi-wood-slat|interior-(shelf|display|counter|pendant-wire)/.test(mesh.name)) continue;
     const key = mesh.geometry.uuid + mesh.material.uuid;
     const items = buckets.get(key) ?? []; items.push(mesh); buckets.set(key, items);
   }
@@ -163,6 +163,7 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
   const leafGeometry = new THREE.SphereGeometry(.5, 10, 7);
   const masonry = palette === 'brick' ? masonryTexture() : undefined;
   const plaster = masonry ? undefined : surfaceTexture('plaster');
+  const facadeTimber = palette === 'scandi' ? surfaceTexture('wood') : undefined;
   const occlusion = architecturalOcclusion(dayRects);
   group.userData.palette = palette; group.userData.signMountZ = anchorZ;
   group.userData.signAnchor = { x: anchorX, y: anchorY };
@@ -172,20 +173,25 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
 
   for (const [index, r] of dayRects.entries()) {
     const kind = r.kind ?? 'detail';
+    const timberDetail = palette === 'scandi' && ['sign-mounting-band', 'scandi-wood-slat', 'scandi-canopy-soffit', 'canopy-fascia'].includes(r.name ?? '');
     const windowIndex = kind === 'glass' ? windowCount++ : undefined;
-    const materialKey = kind + ':' + (kind === 'glass' ? r.name : r.color);
+    const materialKey = kind + ':' + (kind === 'glass' ? r.name : r.color) + (timberDetail ? ':timber' : '');
     let material = materials.get(materialKey);
     if (!material) {
       material = kind === 'glass'
-        ? new THREE.MeshPhysicalMaterial({ color: '#c4c7c5', roughness: .52, metalness: 0,
+        ? new THREE.MeshPhysicalMaterial({ color: palette === 'scandi' ? '#b9cfce' : '#c4c7c5', roughness: palette === 'scandi' ? .23 : .52, metalness: 0,
           // Alpha glazing keeps the furnished room visible without a full-scene refraction pass.
           ior: 1.45, transmission: 0, thickness: 80, attenuationColor: '#d8d3c5', attenuationDistance: 1800,
-          clearcoat: .3, clearcoatRoughness: .28, specularIntensity: .65, envMapIntensity: .7, transparent: true, opacity: .70, depthWrite: false, side: THREE.DoubleSide })
+          clearcoat: .3, clearcoatRoughness: .28, specularIntensity: .65, envMapIntensity: .7, transparent: true, opacity: palette === 'scandi' ? .32 : .70, depthWrite: false, side: THREE.DoubleSide })
         : new THREE.MeshStandardMaterial({ color: r.color,
           roughness: kind === 'foliage' ? .86 : kind === 'wall' ? .98 : .77,
           metalness: r.name?.includes('frame') || r.name?.includes('canopy') ? .12 : 0, envMapIntensity: .3 });
       material.userData.dayColor = material.color.clone();
       material.userData.nightColor = new THREE.Color(nightRects[index].color);
+      if (timberDetail && facadeTimber) {
+        material.map = material.bumpMap = material.roughnessMap = facadeTimber;
+        material.bumpScale = .65; material.roughness = .8;
+      }
       // Interior light remains independent of the sign's lighting switch.
       if (kind === 'glass') {
         material.emissive.set('#ffd8a1');
@@ -195,7 +201,7 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
         material.userData.windowLight = true; material.userData.windowIndex = windowIndex;
         material.userData.nightColor = new THREE.Color('#bcb8ad');
         material.userData.dayEnvIntensity = .7; material.userData.nightEnvIntensity = .3;
-        material.userData.frostedGlass = true;
+        material.userData.frostedGlass = palette !== 'scandi';
       }
       if (kind === 'lamp') { material.emissive.set(nightRects[index].color); material.userData.maxEmission = .65; material.userData.facadeEmission = true; }
       if (kind === 'wall' && masonry) {
@@ -274,7 +280,7 @@ function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:numb
     add('building-back-wall',wall.w,wall.h,200,(left+right)/2,(top+bottom)/2,frontZ-depth+100,stone);
     add('interior-floor',wall.w-400,70,depth-400,(left+right)/2,bottom+485,frontZ-depth/2,floor);
     add('interior-ceiling',wall.w-400,80,depth-400,(left+right)/2,top-100,frontZ-depth/2,cream);
-    const roof=material('#565a5c',.65),rise=750,half=depth/2+160,roofSlope=Math.hypot(half,rise);
+    const roof=material(options.palette === 'scandi' ? '#343f3b' : '#565a5c',.65),rise=750,half=depth/2+160,roofSlope=Math.hypot(half,rise);
     const roofTexture = surfaceTexture('roof'); roofTexture.repeat.set(4, 2);
     roof.map = roof.bumpMap = roof.roughnessMap = roofTexture; roof.bumpScale = 2;
     for(const direction of [-1,1]){
@@ -288,6 +294,15 @@ function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:numb
       const mesh=new THREE.Mesh(geometry,stone);mesh.position.set(x-100,top,frontZ-depth/2);mesh.name='building-roof-gable';mesh.castShadow=mesh.receiveShadow=true;group.add(mesh);
     }
     group.userData.buildingDepthMm=depth;group.userData.closedBuilding=true;
+    if (options.palette === 'scandi') {
+      const metal = material('#35453f', .55), base = material('#71736b');
+      add('scandi-front-gutter',wall.w+300,85,95,(left+right)/2,top+30,frontZ+180,metal);
+      if (!options.openRight) {
+        add('scandi-side-plinth',225,220,depth,right-100,bottom+110,frontZ-depth/2,base);
+        add('scandi-rain-pipe',75,wall.h-100,75,right-30,(top+bottom)/2,frontZ+80,metal);
+        add('scandi-pipe-outlet',75,75,160,right-30,bottom+85,frontZ+125,metal);
+      }
+    }
   }
   for(const [index,r]of rects.filter(r=>r.kind==='glass').entries()){
     const cx=r.x+r.w/2-anchor.x,base=anchor.y-r.y-r.h,behind=frontZ-1050;
@@ -342,7 +357,7 @@ function addWindowSpill(group: THREE.Group, pane: FacadeRect, index: number,
 export function createPanelMountContext(panel: PanelFacadeMount, palette: FacadeOptions['palette'] = 'stone') {
   const group = new THREE.Group(); group.name = 'panel-mount-context';
   const span = Math.max(750, panel.size * 1.2), height = Math.max(700, panel.size * 1.4), thickness = 90;
-  const colors = { stone: '#d8d2c8', brick: '#bc8062', charcoal: '#68747d' };
+  const colors = { stone: '#d8d2c8', brick: '#bc8062', charcoal: '#68747d', scandi: '#e7e1d3' };
   const material = new THREE.MeshStandardMaterial({ color: colors[palette ?? 'stone'], roughness: .96 });
   material.userData.dayColor = material.color.clone();
   const masonry = palette === 'brick' ? masonryTexture() : undefined;
