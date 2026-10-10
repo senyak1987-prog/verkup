@@ -55,9 +55,9 @@ async function offline(url, run, response = () => fixture) {
     const requested = typeof input === 'string' ? input : input.url;
     // An external texture or other accidental request must fail the test rather
     // than silently reaching the internet.
-    assert.equal(requested, url, 'The GLB must be self-contained and use the caller-provided URL');
+    assert.ok((Array.isArray(url) ? url : [url]).includes(requested), 'The GLB must be self-contained and use the caller-provided URL');
     requests.push(requested);
-    const bytes = await response(requests.length);
+    const bytes = await response(requests.length, requested);
     return new Response(bytes, { status: 200, headers: {
       'Content-Type': 'model/gltf-binary', 'Content-Length': String(bytes.length),
     } });
@@ -244,4 +244,33 @@ test('A malformed prepared hierarchy is rejected and can be replaced by a valid 
     try { assert.equal(requests.length, 2); assert.equal(rig.rotors.length, 4); }
     finally { rig.dispose(); }
   }, attempt => attempt === 1 ? malformed : fixture);
+});
+
+test('Mobile and far rigs change detail with hysteresis, share paint and release both resource sets', async () => {
+  const urls = ['https://trx-asset.invalid/mobile.glb', 'https://trx-asset.invalid/far.glb'];
+  await offline(urls, async () => {
+    const rig = await createTrxAssetLoader(urls[0], { farUrl: urls[1], lightweight: true })();
+    const tracked = trackDisposal(rig);
+    assert.equal(rig.body.userData.detail, 'mobile');
+    rig.setDetail(100); assert.equal(rig.body.userData.detail, 'far');
+    rig.setDetail(200); assert.equal(rig.body.userData.detail, 'far');
+    rig.setDetail(250); assert.equal(rig.body.userData.detail, 'mobile');
+    rig.setDetail(200); assert.equal(rig.body.userData.detail, 'mobile');
+    rig.setColor('#ff7700');
+    for (const material of tracked.materials) {
+      assert.ok(!material.isMeshPhysicalMaterial, 'Mobile avoids clearcoat/transmission render passes');
+      if (material.name === 'x3_null__PAINT_1') assert.equal(material.color.getHexString(), 'ff7700');
+    }
+    for (const rotor of rig.rotors) assert.equal(rotor.children.filter(child => child.visible).length, 1);
+    rig.dispose(); rig.dispose();
+    assert.ok([...tracked.counts.values()].every(count => count === 1));
+  }, (_, url) => fs.readFileSync('public/models/ram-trx-' + (url === urls[0] ? 'mobile' : 'far') + '.glb'));
+});
+
+test('An unavailable optional far mesh keeps the usable primary rig', async () => {
+  const urls = ['https://trx-asset.invalid/primary.glb', 'https://trx-asset.invalid/missing.glb'];
+  await offline(urls, async () => {
+    const rig = await createTrxAssetLoader(urls[0], { farUrl: urls[1] })();
+    assert.ok(rig.body); assert.equal(rig.rotors.length, 4); rig.dispose();
+  }, (_, url) => { if (url === urls[1]) throw new Error('Optional LOD unavailable'); return fixture; });
 });
