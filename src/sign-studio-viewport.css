@@ -427,3 +427,36 @@ main.public-sign-configurator.sign-studio .canvas-unified-toolbar .canvas-tools 
   main.public-sign-configurator.sign-studio .canvas-unified-toolbar .celestial-track { display: none; }
   main.public-sign-configurator.sign-studio .canvas-unified-toolbar .placement-select select { max-width: 145px; }
 }
+
+/* Facade choices stay with the 3D canvas, below its camera actions. */
+main.public-sign-configurator.sign-studio .scene-placement-thumbnails {
+  position: absolute; top: 62px; right: 14px; z-index: 4;
+  display: flex; flex-direction: column; gap: 8px; width: 116px;
+  max-height: calc(100% - 110px); overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: #789687 transparent;
+  padding: 3px; scroll-padding-block: 3px;
+}
+main.public-sign-configurator.sign-studio .scene-placement-thumbnails button {
+  flex: 0 0 auto; width: 100%; padding: 0; overflow: hidden;
+  border: 2px solid #a5b4a9; border-radius: 8px;
+  background: #f8faf5; color: #184833; font: inherit; font-size: 11px; font-weight: 600;
+  line-height: 1.25; cursor: pointer;
+}
+main.public-sign-configurator.sign-studio .scene-placement-thumbnails .scene-placement-none { min-height: 36px; padding: 7px 4px; }
+main.public-sign-configurator.sign-studio .scene-placement-image { display: block; aspect-ratio: 7800 / 4050; background: #ddd9d0; pointer-events: none; }
+main.public-sign-configurator.sign-studio .scene-placement-image > svg { display: block; width: 100%; height: 100%; }
+main.public-sign-configurator.sign-studio .scene-placement-caption { display: block; padding: 6px 2px; }
+main.public-sign-configurator.sign-studio .scene-placement-thumbnails button[aria-pressed="true"] { border-color: #16803d; background: #e7f2e9; }
+main.public-sign-configurator.sign-studio .scene-placement-thumbnails button:focus-visible { outline: 2px solid #16803d; outline-offset: 1px; }
+main.public-sign-configurator.sign-studio .scene-placement-thumbnails.night button { background: #243e33; color: #edf4ee; border-color: #708e7c; }
+main.public-sign-configurator.sign-studio .scene-placement-thumbnails.night button[aria-pressed="true"] { border-color: #e5ce93; background: #3b4c3d; }
+main.public-sign-configurator.sign-studio .scene-placement-thumbnails.night button:focus-visible { outline-color: #e5ce93; }
+@media (hover: hover) {
+  main.public-sign-configurator.sign-studio .scene-placement-thumbnails button:hover { border-color: #16803d; }
+  main.public-sign-configurator.sign-studio .scene-placement-thumbnails.night button:hover { border-color: #e5ce93; }
+}
+@container (max-width: 600px) {
+  main.public-sign-configurator.sign-studio .scene-placement-thumbnails { top: 62px; right: 7px; width: 88px; gap: 6px; max-height: calc(100% - 110px); }
+  main.public-sign-configurator.sign-studio .scene-placement-thumbnails .scene-placement-none { min-height: 44px; }
+  main.public-sign-configurator.sign-studio .scene-placement-caption { font-size: 10px; padding: 5px 1px; }
+}
