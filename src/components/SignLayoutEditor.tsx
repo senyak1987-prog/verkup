@@ -3,12 +3,13 @@ import type { PointerEvent, KeyboardEvent } from "react";
 import { layoutObjectBoxes, layoutReferenceBox, layoutSelectionBox, layoutSelectionObjects, marqueeBox, marqueeLayoutSelection, moveLayoutSelection, resizeLayoutLine } from "../lib/signLayoutAlignment";
 import type { AlignmentBox, AlignmentLayout, LayoutObject, LayoutSelection } from "../lib/signLayoutAlignment";
 import type { CanvasPointerSelection } from "../lib/canvasTextSelection";
+import { constrainBacker } from "../lib/backerConstraints";
 import type { GroupResizeCorner } from "../lib/signGroupResize";
 
 type Layout = AlignmentLayout & { signBox: { x: number; y: number; width: number; height: number } };
-type EditorProject = { logoEnabled: boolean; logoScale: number; logoSizeMm?:number; letterHeight: number; mountMode: string;
+type EditorProject = { logoEnabled: boolean; logoScale: number; logoSizeMm?:number; letterHeight: number; mountMode: string; acpWidth: number; acpHeight: number; acpDepth: number;
   letterLineOffsets?: { x: number; y: number }[]; letterLineHeights?: number[] };
-export type LayoutPatch = Partial<{ logoOffsetX: number; logoOffsetY: number; textOffsetX: number; textOffsetY: number;
+export type LayoutPatch = Partial<{ acpWidth: number; acpHeight: number; logoOffsetX: number; logoOffsetY: number; textOffsetX: number; textOffsetY: number;
   logoScale: number; logoSizeMm:number; letterWidth: number; letterHeight: number; letterLineOffsets: { x: number; y: number }[];
   letterLineHeights: number[] }>;
 
@@ -20,9 +21,10 @@ const GROUP_CORNERS = [
   { id: 'bottom-right', x: 1, y: 1, label: 'нижний правый' },
 ] as const;
 
-export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSelect, onChange, onResizeGroup, onInteractionStart, onInteractionEnd, onUndo, onEditLine }:
+export function SignLayoutEditor({ layout, project, selection, backerSelected = false, onSelectBacker, zoom = 100, onSelect, onChange, onResizeGroup, onInteractionStart, onInteractionEnd, onUndo, onEditLine }:
   { layout: Layout; project: EditorProject; selection: LayoutSelection; onSelect: (object: LayoutSelection) => void;
-    zoom?: number; onChange: (patch: LayoutPatch) => void; onResizeGroup?: ResizeGroup; onInteractionStart?: () => void; onInteractionEnd?: () => void; onUndo?: () => void; onEditLine?: (index: number, pointerSelection?: CanvasPointerSelection) => void }) {
+    backerSelected?: boolean; onSelectBacker?: (selected: boolean) => void; zoom?: number; onChange: (patch: LayoutPatch) => void; onResizeGroup?: ResizeGroup; onInteractionStart?: () => void; onInteractionEnd?: () => void; onUndo?: () => void; onEditLine?: (index: number, pointerSelection?: CanvasPointerSelection) => void }) {
+  const backerDrag = useRef<{ pointerId: number; inverse: DOMMatrix; point: DOMPoint; edge: string; width: number; height: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const [handleSize, setHandleSize] = useState(24);
   const [framePadding, setFramePadding] = useState(12);
@@ -64,12 +66,24 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
     if (pending.current) { onChangeRef.current(pending.current); pending.current = null; }
   };
   const schedule = (patch: LayoutPatch) => { pending.current = patch; if (!frame.current) frame.current = requestAnimationFrame(flush); };
-  useEffect(() => () => { if (frame.current) cancelAnimationFrame(frame.current); if (drag.current) onInteractionEndRef.current?.(); }, []);
+  useEffect(() => () => { if (frame.current) cancelAnimationFrame(frame.current); if (drag.current || backerDrag.current) onInteractionEndRef.current?.(); }, []);
   const start = (event: PointerEvent<SVGSVGElement>) => {
     if (!event.isPrimary || event.button !== 0 || drag.current || textDrag.current || marqueeDrag.current) return;
     const handle = (event.target as SVGElement).closest("[data-object]");
     const matrix = event.currentTarget.getScreenCTM();
     if (!matrix) return;
+    const backer = (event.target as SVGElement).closest("[data-backer]");
+    if (backer) {
+      event.preventDefault(); event.currentTarget.focus({ preventScroll: true }); onSelect([]); onSelectBacker?.(true);
+      const edge = backer.getAttribute("data-backer");
+      if (edge && edge !== "body") {
+        const inverse = matrix.inverse();
+        backerDrag.current = { pointerId: event.pointerId, inverse, point: new DOMPoint(event.clientX, event.clientY).matrixTransform(inverse), edge, width: project.acpWidth, height: project.acpHeight };
+        onInteractionStart?.(); event.currentTarget.setPointerCapture(event.pointerId);
+      }
+      return;
+    }
+    onSelectBacker?.(false);
     if (!handle) {
       lastTextPress.current = null;
       event.preventDefault(); event.currentTarget.focus({ preventScroll: true });
@@ -101,6 +115,14 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
     event.currentTarget.setPointerCapture(event.pointerId);
   };
   const move = (event: PointerEvent<SVGSVGElement>) => {
+    const backing = backerDrag.current;
+    if (backing && backing.pointerId === event.pointerId) {
+      event.preventDefault(); const point = new DOMPoint(event.clientX, event.clientY).matrixTransform(backing.inverse);
+      const width = backing.width + (backing.edge === "right" ? 2 : backing.edge === "left" ? -2 : 0) * (point.x - backing.point.x);
+      const height = backing.height + (backing.edge === "bottom" ? 2 : backing.edge === "top" ? -2 : 0) * (point.y - backing.point.y);
+      const bounded = constrainBacker(Math.round(width), Math.round(height), project.acpDepth);
+      schedule({ acpWidth: bounded.width, acpHeight: bounded.height }); return;
+    }
     const area = marqueeDrag.current;
     if (area && area.pointerId === event.pointerId) {
       event.preventDefault();
@@ -137,6 +159,7 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
     }
   };
   const finish = (event: PointerEvent<SVGSVGElement>) => {
+    if (backerDrag.current?.pointerId === event.pointerId) { flush(); backerDrag.current = null; onInteractionEnd?.(); return; }
     if (marqueeDrag.current?.pointerId === event.pointerId) {
       const area = marqueeDrag.current; marqueeDrag.current = null; setMarquee(null);
       if (event.type === "pointerup" && area.moved) {
@@ -156,7 +179,9 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
   };
   const keyboard = (event: KeyboardEvent<SVGSVGElement>) => {
     if (event.key === "Escape") {
-      event.preventDefault(); marqueeDrag.current = null; setMarquee(null);
+      event.preventDefault(); onSelectBacker?.(false);
+      if (backerDrag.current) { flush(); backerDrag.current = null; onInteractionEnd?.(); }
+      marqueeDrag.current = null; setMarquee(null);
       if (drag.current) { flush(); drag.current = null; setSnapped({ x: false, y: false }); onInteractionEnd?.(); }
       onSelect([]); return;
     }
@@ -194,6 +219,7 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
       { id: ++selectionId.current, anchorX: text.x, focusX: text.x, mode: event.detail >= 3 ? "line" : "word" }); }}
     onPointerDown={start} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish} onLostPointerCapture={finish} onKeyDown={keyboard}>
     <rect {...(surfaceBox ?? { x: 0, y: 0, width: layout.viewWidth, height: layout.viewHeight })} fill="transparent" pointerEvents="all" />
+    {project.mountMode === "acp" && <rect {...layout.panelBox} data-backer="body" fill="transparent" pointerEvents="all" style={{ cursor: "pointer" }} />}
     <g aria-hidden="true" pointerEvents="none" stroke="#65b787" vectorEffect="non-scaling-stroke">
       <line x1={centerX} y1={reference.y} x2={centerX} y2={reference.y + reference.height} strokeWidth={alignedX ? 2 : 1}
         strokeDasharray={alignedX ? undefined : "5 5"} opacity={alignedX ? .95 : .5} vectorEffect="non-scaling-stroke" />
@@ -206,7 +232,7 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
       <rect data-object="composition" data-group-frame="true" {...groupBox} className="editor-move-frame" vectorEffect="non-scaling-stroke"><title>Переместить выделенные объекты: {selected.length}</title></rect>
     </g>}
     {objectFrames.map(({ id, frameBox }) => <g key={id}>
-      {(selected.length <= 1 || marquee) && <rect {...frameBox} pointerEvents="none" className={selected.includes(id) ? "editor-selection selected" : "editor-selection"} vectorEffect="non-scaling-stroke" />}
+      {!backerSelected && (selected.length <= 1 || marquee) && <rect {...frameBox} pointerEvents="none" className={selected.includes(id) ? "editor-selection selected" : "editor-selection"} vectorEffect="non-scaling-stroke" />}
       <rect data-object={id} data-move-frame="true" {...frameBox} className="editor-move-frame" vectorEffect="non-scaling-stroke"><title>Перетащите рамку, чтобы переместить выделенное</title></rect>
     </g>)}
     {/* Text hit areas stay above every expanded frame, including frames of neighbouring rows. */}
@@ -220,6 +246,22 @@ export function SignLayoutEditor({ layout, project, selection, zoom = 100, onSel
       aria-label={`Изменить размер группы пропорционально: ${corner.label} угол`}>
       <title>Потяните {corner.label} угол, чтобы изменить размер всей группы пропорционально</title>
     </rect>)}
+    {backerSelected && project.mountMode === "acp" && <g>
+      <rect {...layout.panelBox} fill="none" stroke="#15834b" strokeWidth="2" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+      {(["left", "right", "top", "bottom"] as const).map(edge => {
+        const b = layout.panelBox, horizontal = edge === "top" || edge === "bottom";
+        return <rect key={edge} data-backer={edge}
+          x={horizontal ? b.x : b.x + (edge === "right" ? b.width : 0) - handleSize / 2}
+          y={horizontal ? b.y + (edge === "bottom" ? b.height : 0) - handleSize / 2 : b.y}
+          width={horizontal ? b.width : handleSize} height={horizontal ? handleSize : b.height}
+          fill="transparent" pointerEvents="all" style={{ cursor: horizontal ? "ns-resize" : "ew-resize" }}>
+          <title>Потяните край, чтобы изменить {horizontal ? "высоту" : "ширину"} подложки</title>
+        </rect>;
+      })}
+      {[[0,.5],[1,.5],[.5,0],[.5,1]].map(([x,y],i) => <rect key={i} pointerEvents="none"
+        x={layout.panelBox.x + layout.panelBox.width*x - handleSize/2} y={layout.panelBox.y + layout.panelBox.height*y - handleSize/2}
+        width={handleSize} height={handleSize} className="editor-resize" vectorEffect="non-scaling-stroke" />)}
+    </g>}
     {marquee && <rect {...marquee} className="editor-marquee" pointerEvents="none" vectorEffect="non-scaling-stroke" />}
   </svg>;
 }
