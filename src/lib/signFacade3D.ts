@@ -6,6 +6,70 @@ import type { PanelMountMode } from './panelConstruction';
 
 type PanelFacadeMount = { mode: PanelMountMode; size: number; depth: number; gap: number; shape?: string; cornerRadius?: number };
 
+const surfacePixels = new Map<string, Uint8Array>();
+/** Tileable micro-relief, generated once; each facade owns its GPU textures. */
+function surfaceTexture(kind: 'plaster' | 'roof' | 'wood') {
+  const size = 512;
+  let pixels = surfacePixels.get(kind);
+  if (!pixels) {
+    pixels = new Uint8Array(size * size * 4);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const noise = ((Math.imul(x + 17, 374761393) ^ Math.imul(y + 31, 668265263)) >>> 0) % 19;
+      const seam = kind === 'roof' && x % 128 < 5;
+      const grain = kind === 'wood' ? Math.sin(x * Math.PI / 16 + Math.sin(y * Math.PI / 256) * 2) * 12 : 0;
+      const value = Math.round(seam ? 120 : 230 + noise + grain);
+      const i = (y * size + x) * 4;
+      pixels[i] = pixels[i + 1] = pixels[i + 2] = Math.min(255, value); pixels[i + 3] = 255;
+    }
+    surfacePixels.set(kind, pixels);
+  }
+  const texture = new THREE.DataTexture(pixels, size, size, THREE.RGBAFormat);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.generateMipmaps = true; texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter; texture.anisotropy = 2; texture.needsUpdate = true;
+  return texture;
+}
+
+function architecturalOcclusion(rects: FacadeRect[]) {
+  if (typeof document === 'undefined') return;
+  const wall = rects.find(r => r.kind === 'wall')!;
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 512;
+  const ctx = canvas.getContext('2d'); if (!ctx) return;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 512, 512);
+  // Soft contact shade is baked once, never evaluated as a screen-space effect.
+  const shade = (x: number, y: number, w: number, h: number, blur: number) => {
+    ctx.shadowColor = '#000000'; ctx.shadowBlur = blur; ctx.fillStyle = '#555555';
+    ctx.fillRect(x, y, w, h);
+  };
+  shade(-20, -12, 552, 12, 22); shade(-20, 512, 552, 12, 28);
+  for (const r of rects.filter(r => r.kind === 'opening'))
+    shade((r.x - wall.x) / wall.w * 512, (r.y - wall.y) / wall.h * 512, r.w / wall.w * 512, r.h / wall.h * 512, 10);
+  const texture = new THREE.CanvasTexture(canvas); texture.channel = 1;
+  return texture;
+}
+
+/** Keep named architectural anchors for dimensions/collisions, render identical opaque parts in batches. */
+export function batchFacadeDetails(group: THREE.Group) {
+  const buckets = new Map<string, THREE.Mesh[]>();
+  for (const child of group.children) {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh || Array.isArray(mesh.material) || mesh.material.transparent || mesh.material.userData.windowLight) continue;
+    if (!['foliage', 'flower'].includes(mesh.userData.facadeKind) && !/-(frame|mullion)|interior-(shelf|display|counter|pendant-wire)/.test(mesh.name)) continue;
+    const key = mesh.geometry.uuid + mesh.material.uuid;
+    const items = buckets.get(key) ?? []; items.push(mesh); buckets.set(key, items);
+  }
+  let saved = 0;
+  for (const meshes of buckets.values()) {
+    if (meshes.length < 2) continue;
+    const first = meshes[0], batch = new THREE.InstancedMesh(first.geometry, first.material, meshes.length);
+    batch.name = 'facade-batch-' + first.name; batch.castShadow = first.castShadow; batch.receiveShadow = first.receiveShadow;
+    batch.userData.facadeKind = first.userData.facadeKind;
+    meshes.forEach((mesh, i) => { mesh.updateMatrix(); batch.setMatrixAt(i, mesh.matrix); mesh.visible = false; mesh.userData.batched = true; });
+    batch.computeBoundingBox(); batch.computeBoundingSphere(); group.add(batch); saved += meshes.length - 1;
+  }
+  group.userData.savedDrawCalls = saved;
+}
+
 /** Restrained masonry colour and shallow joints, with no high frequency glass texture. */
 function masonryTexture(): { color: THREE.CanvasTexture; bump: THREE.CanvasTexture } | undefined {
   if (typeof document === 'undefined') return;
@@ -51,6 +115,9 @@ function wallGeometry(rects: FacadeRect[], anchor: { x: number; y: number }) {
   const positions = geometry.getAttribute('position'), uv = geometry.getAttribute('uv');
   // A 1000 × 560 texture contains 80 × 26 pixel bricks: 240 × 78 mm in the scene.
   for (let i = 0; i < uv.count; i++) uv.setXY(i, (positions.getX(i) - left) / 3000, (positions.getY(i) - bottom) / 1680);
+  const aoUv = new Float32Array(uv.count * 2);
+  for (let i = 0; i < uv.count; i++) { aoUv[i * 2] = (positions.getX(i) - left) / wall.w; aoUv[i * 2 + 1] = (positions.getY(i) - bottom) / wall.h; }
+  geometry.setAttribute('uv1', new THREE.BufferAttribute(aoUv, 2));
   return geometry;
 }
 
@@ -95,6 +162,8 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
   const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
   const leafGeometry = new THREE.SphereGeometry(.5, 10, 7);
   const masonry = palette === 'brick' ? masonryTexture() : undefined;
+  const plaster = masonry ? undefined : surfaceTexture('plaster');
+  const occlusion = architecturalOcclusion(dayRects);
   group.userData.palette = palette; group.userData.signMountZ = anchorZ;
   group.userData.signAnchor = { x: anchorX, y: anchorY };
   group.userData.signFitsSurface = placement.fits;
@@ -109,7 +178,8 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     if (!material) {
       material = kind === 'glass'
         ? new THREE.MeshPhysicalMaterial({ color: '#c4c7c5', roughness: .52, metalness: 0,
-          ior: 1.45, transmission: .15, thickness: 80, attenuationColor: '#d8d3c5', attenuationDistance: 1800,
+          // Alpha glazing keeps the furnished room visible without a full-scene refraction pass.
+          ior: 1.45, transmission: 0, thickness: 80, attenuationColor: '#d8d3c5', attenuationDistance: 1800,
           clearcoat: .3, clearcoatRoughness: .28, specularIntensity: .65, envMapIntensity: .7, transparent: true, opacity: .70, depthWrite: false, side: THREE.DoubleSide })
         : new THREE.MeshStandardMaterial({ color: r.color,
           roughness: kind === 'foliage' ? .86 : kind === 'wall' ? .98 : .77,
@@ -132,6 +202,11 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
         material.color.set('#ffffff'); material.userData.dayColor = material.color.clone();
         material.userData.nightColor = material.color.clone().multiplyScalar(.58);
         material.map = masonry.color; material.bumpMap = masonry.bump; material.bumpScale = 1.3;
+      }
+      if (kind === 'wall') {
+        if (plaster) { material.map = plaster; material.bumpMap = plaster; material.roughnessMap = plaster; material.bumpScale = .8; }
+        if (masonry) material.roughnessMap = masonry.bump;
+        if (occlusion) { material.aoMap = occlusion; material.aoMapIntensity = .7; }
       }
       materials.set(materialKey, material);
     }
@@ -158,19 +233,39 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     group.add(mesh);
   }
   addBuildingInterior(group,dayRects,{x:anchorX,y:anchorY,z:anchorZ},options,boxGeometry);
+  batchFacadeDetails(group);
   group.userData.windowCount = windowCount;
   return group;
 }
 
 /** Four physical walls, a pitched roof, and a furnished shop behind real glazing apertures. */
 function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:number;y:number;z:number},
-  options:{shell?:boolean;shellDepth?:number;openRight?:boolean},boxGeometry:THREE.BoxGeometry){
+  options:{shell?:boolean;shellDepth?:number;openRight?:boolean;palette?:FacadeOptions['palette']},boxGeometry:THREE.BoxGeometry){
   const wall=rects.find(r=>r.kind==='wall')!,frontZ=anchor.z+(wall.z??0),depth=options.shellDepth??5000;
   const left=wall.x-anchor.x,right=left+wall.w,top=anchor.y-wall.y,bottom=top-wall.h;
-  const material=(color:string,roughness=.8)=>{const m=new THREE.MeshStandardMaterial({color,roughness});m.userData.dayColor=m.color.clone();return m;};
+  const materialCache = new Map<string, THREE.MeshStandardMaterial>();
+  const material=(color:string,roughness=.8)=>{const key=color+':'+roughness; const cached=materialCache.get(key);if(cached)return cached;
+    const m=new THREE.MeshStandardMaterial({color,roughness});m.userData.dayColor=m.color.clone();materialCache.set(key,m);return m;};
   const stone=material(wall.color),floor=material('#9e8b71'),wood=material('#a87b50'),dark=material('#40494d'),cream=material('#ded3bf');
+  const plaster = surfaceTexture('plaster'), timber = surfaceTexture('wood');
+  plaster.repeat.set(3, 2); timber.repeat.set(3, 1);
+  stone.map = stone.bumpMap = stone.roughnessMap = plaster; stone.bumpScale = .8;
+  const shellMasonry = options.palette === 'brick' ? masonryTexture() : undefined;
+  if (shellMasonry) {
+    stone.map = shellMasonry.color; stone.bumpMap = stone.roughnessMap = shellMasonry.bump;
+    stone.bumpScale = 1.3; stone.color.set('#ffffff'); stone.userData.dayColor = stone.color.clone();
+    plaster.dispose();
+  }
+  wood.map = wood.bumpMap = wood.roughnessMap = timber; wood.bumpScale = .5;
   const add=(name:string,w:number,h:number,d:number,x:number,y:number,z:number,m:THREE.MeshStandardMaterial)=>{
     const mesh=new THREE.Mesh(boxGeometry,m);mesh.name=name;mesh.scale.set(w,h,d);mesh.position.set(x,y,z);
+    if (m === stone) {
+      mesh.geometry = boxGeometry.clone();
+      const p = mesh.geometry.attributes.position, normal = mesh.geometry.attributes.normal, uv = mesh.geometry.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i,
+        (Math.abs(normal.getX(i)) > .5 ? p.getZ(i) * d : p.getX(i) * w) / 3000,
+        (Math.abs(normal.getY(i)) > .5 ? p.getZ(i) * d : p.getY(i) * h) / 1680);
+    }
     mesh.castShadow=mesh.receiveShadow=true;mesh.userData.facadeKind='interior';group.add(mesh);return mesh;
   };
   if(options.shell!==false){
@@ -180,6 +275,8 @@ function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:numb
     add('interior-floor',wall.w-400,70,depth-400,(left+right)/2,bottom+485,frontZ-depth/2,floor);
     add('interior-ceiling',wall.w-400,80,depth-400,(left+right)/2,top-100,frontZ-depth/2,cream);
     const roof=material('#565a5c',.65),rise=750,half=depth/2+160,roofSlope=Math.hypot(half,rise);
+    const roofTexture = surfaceTexture('roof'); roofTexture.repeat.set(4, 2);
+    roof.map = roof.bumpMap = roof.roughnessMap = roofTexture; roof.bumpScale = 2;
     for(const direction of [-1,1]){
       const mesh=add('building-roof-'+(direction===1?'rear':'front'),wall.w+320,80,roofSlope,
         (left+right)/2,top+rise/2+45,frontZ-depth/2+direction*half/2,roof);
@@ -205,7 +302,7 @@ function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:numb
         }
       }
     }
-    const lamp=material('#f2ddae');lamp.emissive.set('#ffe0a0');
+    const lamp=material('#f2ddae').clone();lamp.emissive.set('#ffe0a0');
     lamp.userData.windowLight=true;lamp.userData.windowIndex=index;lamp.userData.facadeEmission=true;lamp.userData.maxWindowEmission=1.8;
     add('interior-pendant-'+index,170,90,170,cx,anchor.y-r.y+100,behind,lamp);
     add('interior-pendant-wire-'+index,8,350,8,cx,anchor.y-r.y+300,behind,dark);

@@ -768,6 +768,7 @@ export function disposeSignObject(object: THREE.Object3D) {
   const textures = new Set<THREE.Texture>();
   object.traverse((child) => {
     const drawable = child as THREE.Mesh;
+    if (drawable instanceof THREE.InstancedMesh) drawable.dispose();
     if (drawable.geometry) geometries.add(drawable.geometry);
     if (drawable.material) for (const material of Array.isArray(drawable.material) ? drawable.material : [drawable.material]) {
       materials.add(material);
