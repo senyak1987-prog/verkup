@@ -371,7 +371,7 @@ const DEFAULT_PROJECT = {
   productId: "letters" as ProductId,
   sceneMode: "day" as SceneMode,
   lightsOn: true,
-  facadePalette: "stone" as "stone" | "brick" | "charcoal",
+  facadePalette: "stone" as "stone" | "brick" | "charcoal" | "scandi",
   panelShape: "circle" as PanelShape,
   panelSize: 500,
   panelDepth: 130,
@@ -443,7 +443,7 @@ const SECTION_GROUPS: Record<string, StudioSection> = {
 };
 const PROJECT_ENUMS: Record<string, readonly unknown[]> = {
   letterWhiteTone: ["cool","neutral","warm"], logoWhiteTone: ["cool","neutral","warm"],
-  facadePalette: ["stone","brick","charcoal"], neonIcon: ["none","heart","star","bolt","cup","music","infinity"], neonBackerColor:["clear","white","black"], neonInstallMode:["standoffs","hanging"], neonUse:["indoor","outdoor"],
+  facadePalette: ["stone","brick","charcoal","scandi"], neonIcon: ["none","heart","star","bolt","cup","music","infinity"], neonBackerColor:["clear","white","black"], neonInstallMode:["standoffs","hanging"], neonUse:["indoor","outdoor"],
   productId: ["panel", "letters", "neon"], neonFont: NEON_FONTS.map(font=>font.id), neonDiameter: [6, 8], neonBackerShape: ["rectangle","rounded","contour"], neonAlign: ["left","center","right"], sceneMode: ["day", "night"],
   panelShape: ["circle", "square", "rounded"], panelMountMode: ["wall", "corner", "corner-front", "corner-side"], logoShape: ["circle", "square", "rounded"],
   glowMode: ["face", "faceSide", "faceHalo", "halo"], mountMode: ["wall", "frame", "acp"],
