@@ -21,7 +21,8 @@ export function sandMaterial(width: number, depth: number) {
 
 /** Actual bevelled pavers share their per-cell height with the four tyre contacts. */
 export function addPaving(parent: THREE.Group, surface: RcSurface) {
-  const geometry = new RoundedBoxGeometry(PAVER_WIDTH - .018, .10, PAVER_DEPTH - .018, 2, .012);
+  const joint = .006;
+  const geometry = new RoundedBoxGeometry(PAVER_WIDTH - joint, .10, PAVER_DEPTH - joint, 1, .004);
   const cells: Array<{ x: number; y: number; z: number; width: number; depth: number }> = [];
   const patches = (surface.paving ?? []).map(patch=>({...patch}));
   for(let i=0;i<patches.length;i++)for(let j=i+1;j<patches.length;j++) {
@@ -37,8 +38,8 @@ export function addPaving(parent: THREE.Group, surface: RcSurface) {
       for (let x = patch.minX - PAVER_WIDTH / 2; x < patch.maxX + PAVER_WIDTH; x += PAVER_WIDTH) {
         const cell = pavingCell(x, z), key = `${cell.cx.toFixed(4)},${cell.cz.toFixed(4)}`;
         if (seen.has(key))continue;
-        const left=Math.max(patch.minX,cell.cx-PAVER_WIDTH/2+.009),right=Math.min(patch.maxX,cell.cx+PAVER_WIDTH/2-.009);
-        const back=Math.max(patch.minZ,cell.cz-PAVER_DEPTH/2+.009),front=Math.min(patch.maxZ,cell.cz+PAVER_DEPTH/2-.009);
+        const left=Math.max(patch.minX,cell.cx-PAVER_WIDTH/2+joint/2),right=Math.min(patch.maxX,cell.cx+PAVER_WIDTH/2-joint/2);
+        const back=Math.max(patch.minZ,cell.cz-PAVER_DEPTH/2+joint/2),front=Math.min(patch.maxZ,cell.cz+PAVER_DEPTH/2-joint/2);
         if(right-left<.025||front-back<.025)continue;
         if (surface.height(cell.cx, cell.cz) > patch.baseHeight + .06) continue;
         seen.add(key); cells.push({ x: (left+right)/2, y: patch.baseHeight + cell.top - .05, z: (back+front)/2,
@@ -52,9 +53,11 @@ export function addPaving(parent: THREE.Group, surface: RcSurface) {
   mesh.castShadow = mesh.receiveShadow = true;
   const matrix = new THREE.Matrix4(), color = new THREE.Color();
   cells.forEach((cell, index) => {
-    matrix.makeScale(cell.width/(PAVER_WIDTH-.018),1,cell.depth/(PAVER_DEPTH-.018));
+    matrix.makeScale(cell.width/(PAVER_WIDTH-joint),1,cell.depth/(PAVER_DEPTH-joint));
     matrix.setPosition(cell.x, cell.y, cell.z); mesh.setMatrixAt(index, matrix);
-    color.setHex([0xb6b2a6, 0xa9a79c, 0xc4bfb0, 0x999c94][index % 4]); mesh.setColorAt(index, color);
+    // Low-contrast mineral colours selected by position avoid repetitive diagonal stripes.
+    const shade = Math.abs(Math.floor(cell.x * 7387) ^ Math.floor(cell.z * 1931)) % 5;
+    color.setHex([0xb5b3aa, 0xb1afa6, 0xb9b7ae, 0xb3b1a8, 0xb7b5ac][shade]); mesh.setColorAt(index, color);
   });
   mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); parent.add(mesh);
 }

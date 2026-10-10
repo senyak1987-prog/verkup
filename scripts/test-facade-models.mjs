@@ -60,7 +60,7 @@ test('Scandi facade keeps mounting planes and door clear while batching timber d
     if (id === 'canopy') assert.equal(canopy, undefined, 'Do not duplicate the existing large canopy');
     else assert.ok(bounds(canopy).min.y > door.max.y, 'Entry canopy stays above the door');
     const panes = model.children.filter(mesh => mesh.userData.facadeKind === 'glass');
-    assert.ok(panes.every(mesh => mesh.material.opacity < .4 && mesh.material.transmission === 0));
+    assert.ok(panes.every(mesh => mesh.material.opacity >= .5 && mesh.material.opacity <= .65 && mesh.material.transmission === 0));
     assert.equal(model.children.filter(mesh => mesh.isLight).length, original.children.filter(mesh => mesh.isLight).length);
     dispose(model); dispose(original);
   }
@@ -311,7 +311,7 @@ test('Windows have true apertures, restrained reflections and separated glazing 
         anchor.y - glass.y - glass.h * .25, 5000), new THREE.Vector3(0, 0, -1));
       const hit = ray.intersectObjects(model.children, false)[0];
       assert.equal(hit?.object.userData.facadeKind, 'glass', place.id + ': glazing must be visible through the wall');
-      assert.ok(hit.object.material.roughness >= .2 && hit.object.material.roughness <= .4
+      assert.ok(hit.object.material.roughness >= .5 && hit.object.material.roughness <= .65
         && hit.object.material.envMapIntensity >= .2 && hit.object.material.envMapIntensity <= 1.25,
         'Glazing has readable reflections without becoming a perfect mirror');
       assert.ok(hit.object.material.userData.facadeEmission, 'Interior light is independent of the sign switch');
@@ -340,7 +340,7 @@ test('Facade glass has separate stable light identities and architecture casts r
     for(const mesh of glass) {
       const material=mesh.material;
       assert.ok(material.isMeshPhysicalMaterial,'Glass uses a physical dielectric material');
-      assert.ok(material.roughness>=.2&&material.roughness<=.4,'Clear windows retain roughness rather than mirror reflections');
+      assert.ok(material.roughness>=.5&&material.roughness<=.65,'Matte windows soften reflections');
       assert.equal(material.metalness,0,'Architectural glass remains a dielectric surface');
       assert.ok(material.envMapIntensity>=.2&&material.envMapIntensity<=1.25,'Scene reflections are present but restrained');
       assert.ok(material.userData.windowLight&&material.userData.facadeEmission,'The window light is separated from the sign lighting switch');
@@ -503,7 +503,7 @@ test('A complete building has four walls, a closed pitched roof, a real floor an
     for(const name of ['facade-wall','building-left-wall','building-right-wall','building-back-wall','building-roof-front','building-roof-rear','interior-floor','interior-ceiling'])assert.ok(model.getObjectByName(name),name);
     assert.equal(model.userData.buildingDepthMm,5000);
     const glass=model.children.filter(mesh=>mesh.userData.facadeKind==='glass');
-    assert.ok(glass.every(mesh=>mesh.material.transparent&&mesh.material.opacity>=.2&&mesh.material.opacity<=.4&&mesh.material.roughness>=.2&&mesh.material.thickness>0&&mesh.material.transmission===0));
+    assert.ok(glass.every(mesh=>mesh.material.transparent&&mesh.material.opacity>=.5&&mesh.material.opacity<=.65&&mesh.material.roughness>=.5&&mesh.material.thickness>0&&mesh.material.transmission===0));
     assert.ok(model.children.some(mesh=>mesh.name.startsWith('interior-display-')));
     assert.equal(model.children.filter(mesh=>mesh.isPointLight).length,glass.length);
     for(const pane of glass){
@@ -529,7 +529,7 @@ test('Every window casts a soft exterior pool from its own aperture and shares t
       close(light.position.x,pane.position.x,'The light emerges from the same window');
       assert.ok(light.position.z>pane.position.z&&light.target.position.z>light.position.z,'Light travels outside the shop');
       assert.ok(spill.position.y>pavement.max.y&&spill.position.y<pavement.max.y+2,'Light pool is attached to the actual pavement');
-      assert.ok(!pane.material.userData.frostedGlass&&pane.material.transparent&&pane.material.opacity<=.4,'Clear glazing reveals the furnished interior without a refraction pass');
+      assert.ok(pane.material.userData.frostedGlass&&pane.material.transparent&&pane.material.opacity>=.5&&pane.material.opacity<=.65,'Matte glazing softens the furnished interior without a refraction pass');
     }
     const svg=facade.createFacadeSvg(place.id,'<svg viewBox="0 0 2000 400"/>',true);
     assert.equal((svg.match(/data-window-spill="true"/g)??[]).length,glass.length);

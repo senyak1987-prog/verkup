@@ -190,10 +190,10 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     let material = materials.get(materialKey);
     if (!material) {
       material = kind === 'glass'
-        ? new THREE.MeshPhysicalMaterial({ color: '#b9cecd', roughness: .22, metalness: 0,
+        ? new THREE.MeshPhysicalMaterial({ color: '#b9cecd', roughness: .55, metalness: 0,
           // Alpha glazing keeps the furnished room visible without a full-scene refraction pass.
           ior: 1.45, transmission: 0, thickness: 80, attenuationColor: '#d8d3c5', attenuationDistance: 1800,
-          clearcoat: .3, clearcoatRoughness: .28, specularIntensity: .65, envMapIntensity: .85, transparent: true, opacity: .28, depthWrite: false, side: THREE.FrontSide })
+          clearcoat: .12, clearcoatRoughness: .6, specularIntensity: .4, envMapIntensity: .55, transparent: true, opacity: .58, depthWrite: false, side: THREE.FrontSide })
         : new THREE.MeshStandardMaterial({ color: r.color,
           roughness: kind === 'foliage' ? .86 : kind === 'wall' ? .98 : .77,
           metalness: r.name?.includes('frame') || r.name?.includes('canopy') ? .12 : 0, envMapIntensity: .3 });
@@ -211,8 +211,8 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
         material.userData.facadeEmission = true;
         material.userData.windowLight = true; material.userData.windowIndex = windowIndex;
         material.userData.nightColor = new THREE.Color('#bcb8ad');
-        material.userData.dayEnvIntensity = .85; material.userData.nightEnvIntensity = .3;
-        material.userData.frostedGlass = false;
+        material.userData.dayEnvIntensity = .55; material.userData.nightEnvIntensity = .3;
+        material.userData.frostedGlass = true;
       }
       if (kind === 'lamp') { material.emissive.set(nightRects[index].color); material.userData.maxEmission = .65; material.userData.facadeEmission = true; }
       if (kind === 'wall' && masonry) {
