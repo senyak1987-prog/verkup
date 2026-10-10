@@ -1,9 +1,9 @@
 export const DAYLIGHT_LEVELS = {
-  ambient: .18,
-  environment: .25,
-  fill: .07,
+  ambient: .14,
+  environment: .16,
+  fill: .05,
   exposure: .9,
-  targetIrradiance: 1.05,
+  targetIrradiance: .65,
 } as const;
 
 type Point = { x: number; y: number; z: number };

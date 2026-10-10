@@ -19,7 +19,7 @@ export function createPanelSvgMarkup(config: PanelSvgConfig) {
   const size = Math.min(3000, Math.max(100, config.size));
   const mount = panelMountLayout(size, config.shape, config.wallGap, config.cornerRadius, config.depth, config.mountMode);
   const night = config.sceneMode === "night";
-  const lit = night && config.lightsOn !== false;
+  const lit = config.lightsOn !== false;
   const box=panelSvgFaceBox(size,mount.gap,mount.mode),margin=box.margin;
   const wallX = margin+box.left, faceX = box.x, faceY = box.y;
   const centerX = faceX + size / 2, centerY = faceY + size / 2;
@@ -48,7 +48,7 @@ export function createPanelSvgMarkup(config: PanelSvgConfig) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${n(viewWidth)}" height="${n(viewHeight)}" viewBox="0 0 ${n(viewWidth)} ${n(viewHeight)}" data-panel-mount="${mount.mode}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Двусторонняя панель-кронштейн, ${isPanelCornerMount(mount.mode)?'на углу здания':'перпендикулярно стене'}. Вид лица и схема сверху">
   <defs><clipPath id="panel-face-clip">${geometry("#fff", mount.rim)}</clipPath>
-    <filter id="panel-face-light" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="${n(size * 0.025)}" flood-color="${escape(config.faceColor)}" flood-opacity="0.55" /></filter></defs>
+    <filter id="panel-face-light" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="0" stdDeviation="${n(size * 0.025)}" flood-color="${escape(config.faceColor)}" flood-opacity="${night ? .55 : .2}" /></filter></defs>
 
   <rect x="${n(wallX-(mount.mode==='corner'?mount.anchorOffset*Math.SQRT1_2+45:margin*.36))}" y="${n(faceY-margin*.18)}" width="${n(mount.mode==='corner'?mount.anchorOffset*Math.SQRT1_2+45:margin*.36)}" height="${n(size+margin*.36)}" fill="${night?'#5b6167':'#c8c0b4'}" data-mount-wall="true"/>
   <g id="wall-bracket">${brackets}</g>
