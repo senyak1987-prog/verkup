@@ -44,7 +44,7 @@ export function facadeSignPlacement(place: SignPlacement, width: number, height:
 export const FACADE_COLORS = {
   stone: { wall: '#ddd7cd', joint: '#c8c0b4', trim: '#e8e1d7', frame: '#39444a', glass: '#5d7781', fascia: '#444c50', wood: '#a58261', ground: '#b3ada4', planter: '#877366' },
   brick: { wall: '#bc8062', joint: '#ab9580', trim: '#d7c7b5', frame: '#303b43', glass: '#526d7b', fascia: '#39444d', wood: '#a87d57', ground: '#ada59b', planter: '#725348' },
-  charcoal: { wall: '#757e85', joint: '#657078', trim: '#b9b6ad', frame: '#28333e', glass: '#587486', fascia: '#303c46', wood: '#b59a77', ground: '#a9aaa5', planter: '#655f59' },
+  charcoal: { wall: '#e3e0d8', joint: '#aaa89f', trim: '#3c4242', frame: '#293332', glass: '#789698', fascia: '#353c3b', wood: '#b99061', ground: '#b4b2a9', planter: '#414947' },
   scandi: { wall: '#e7e1d3', joint: '#b8b1a2', trim: '#d6cebb', frame: '#35453f', glass: '#839d9e', fascia: '#a98458', wood: '#b68b5a', ground: '#b6b5ab', planter: '#49594c' },
 } as const;
 
@@ -63,32 +63,30 @@ export function facadeRects(place: SignPlacement, night: boolean, options: Facad
   add(0, 0, 7800, 3990, c.wall, wallZ, 200, 'wall', { kind: 'wall' });
   add(0, 0, 7800, 100, c.trim, wallZ + 25, 45, 'cornice');
   add(0, 100, 7800, 15, c.joint, wallZ + 8, 12, 'cornice-shadow');
-  add(0, palette === 'scandi' ? 3770 : 3860, 7800, palette === 'scandi' ? 220 : 130, palette === 'scandi' ? '#71736b' : c.trim, wallZ + 20, 45, 'plinth');
+  add(0, 3770, 7800, 220, '#666b67', wallZ + 20, 45, 'plinth');
   add(0, 3990, 7800, 60, c.ground, wallZ + 2400, 2650, 'pavement');
 
   if (palette === 'stone') {
     for (const y of [450, 1350, 3780]) add(0, y, 7800, 8, c.joint, wallZ + 2, 3, 'stone-course');
     for (const [x, y, h] of [[1800, 120, 330], [6000, 120, 330], [240, 460, 890], [7540, 460, 890]]) add(x, y, 8, h, c.joint, wallZ + 2, 3, 'stone-joint');
-  } else if (palette === 'charcoal') {
-    for (let x = 300; x < 7800; x += 900) add(x, 120, 8, 1220, c.joint, wallZ + 2, 3, 'cladding-joint');
   }
 
   const window = (x: number, y: number, w: number, h: number, divided: boolean, door = false) => {
     const id = door ? 'door' : 'window-' + x;
     // Back of the opening, glazing, frame and stone trim have distinct depths.
     add(x, y, w, h, '#293942', wallZ - 130, 12, id + '-opening', { kind: 'opening' });
-    add(x + 45, y + 45, w - 90, h - 90, night ? '#dcc294' : c.glass, wallZ - 65, 10, id + '-glass', { kind: 'glass', color: night ? '#dcc294' : c.glass });
+    add(x + 45, y + 45, w - 90, h - 90, night ? '#dcc294' : c.glass, wallZ - 110, 10, id + '-glass', { kind: 'glass', color: night ? '#dcc294' : c.glass });
     for (const [bx, by, bw, bh] of [[x - 50, y - 50, w + 100, 50], [x - 50, y + h, w + 100, 50], [x - 50, y, 50, h], [x + w, y, 50, h]])
       add(bx, by, bw, bh, c.trim, wallZ + 25, 90, id + '-stone-reveal');
     for (const [bx, by, bw, bh] of [[x, y, w, 45], [x, y + h - 45, w, 45], [x, y + 45, 45, h - 90], [x + w - 45, y + 45, 45, h - 90]])
-      add(bx, by, bw, bh, c.frame, wallZ + 15, 80, id + '-frame');
+      add(bx, by, bw, bh, c.frame, wallZ - 25, 95, id + '-frame');
     if (divided) {
-      add(x + w / 2 - 18, y + 45, 36, h - 90, c.frame, wallZ + 15, 80, id + '-mullion');
-      add(x + 45, y + h * .57, w / 2 - 63, 36, c.frame, wallZ + 15, 80, id + '-transom-left');
-      add(x + w / 2 + 18, y + h * .57, w / 2 - 63, 36, c.frame, wallZ + 15, 80, id + '-transom-right');
+      add(x + w / 2 - 18, y + 45, 36, h - 90, c.frame, wallZ - 25, 85, id + '-mullion');
+      add(x + 45, y + h * .72, w / 2 - 63, 30, c.frame, wallZ - 25, 85, id + '-transom-left');
+      add(x + w / 2 + 18, y + h * .72, w / 2 - 63, 30, c.frame, wallZ - 25, 85, id + '-transom-right');
     }
     if (door) {
-      if (palette === 'scandi') {
+      if (palette !== 'stone') {
         // Timber remains outside the physical door aperture and below the sign band.
         for (const sx of [x - 220, x + w + 60]) {
           add(sx, y - 100, 160, h + 100, '#70583d', wallZ + 18, 30, 'scandi-timber-backing');
@@ -125,7 +123,7 @@ export function facadeRects(place: SignPlacement, night: boolean, options: Facad
     window(3350, 1440, 1100, 2100, false, true);
     window(5450, 1540, 1700, 2000, true);
   } else {
-    for (const x of [400, 2250, 4100]) window(x, 1690, 1400, 1850, true);
+    for (const x of [400, 2250, 4100]) window(x, 1440, 1400, 2100, true);
     window(5950, 1440, 1100, 2100, false, true);
   }
 
@@ -155,8 +153,10 @@ export function facadeRects(place: SignPlacement, night: boolean, options: Facad
       }
     }
   } else {
-    add(300, 430, 7200, 710, palette === 'scandi' ? c.wood : palette === 'charcoal' ? '#555f67' : palette === 'brick' ? '#e0d4c3' : '#eee8de', wallZ + 3, 7, 'sign-mounting-band');
+    add(300, 430, 7200, 710, palette === 'scandi' ? c.wood : palette === 'charcoal' ? c.fascia : palette === 'brick' ? '#e0d4c3' : '#eee8de', wallZ + 3, 7, 'sign-mounting-band');
     add(300, 1140, 7200, 12, c.joint, wallZ + 5, 12, 'sign-band-bottom');
+    for (const [x,y,w,h] of [[288,418,7224,12],[288,1140,7224,12],[288,430,12,710],[7500,430,12,710]])
+      add(x,y,w,h,palette === 'charcoal' ? '#5b6361' : c.trim,wallZ+8,18,'sign-band-edge');
   }
 
   const planter = (x: number, width: number, flowers = false) => {

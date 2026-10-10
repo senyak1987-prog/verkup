@@ -14,10 +14,12 @@ function surfaceTexture(kind: 'plaster' | 'roof' | 'wood') {
   if (!pixels) {
     pixels = new Uint8Array(size * size * 4);
     for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const noise = ((Math.imul(x + 17, 374761393) ^ Math.imul(y + 31, 668265263)) >>> 0) % 19;
-      const seam = kind === 'roof' && x % 128 < 5;
-      const grain = kind === 'wood' ? Math.sin(x * Math.PI / 16 + Math.sin(y * Math.PI / 256) * 2) * 12 : 0;
-      const value = Math.round(seam ? 120 : 230 + noise + grain);
+      const noise = ((Math.imul(x + 17, 374761393) ^ Math.imul(y + 31, 668265263)) >>> 0) % 7;
+      const cloud = Math.sin(x * Math.PI / 128) * Math.cos(y * Math.PI / 128) * 3;
+      const grain = kind === 'wood' ? Math.sin(x * Math.PI / 8 + Math.sin(y * Math.PI / 256) * 1.4) * 13
+        + Math.sin(x * Math.PI / 2 + Math.sin(y * Math.PI / 128)) * 4 : 0;
+      // Seams are physical geometry. High-contrast per-pixel roof bumps caused moire.
+      const value = Math.round(kind === 'roof' ? 244 : 238 + noise + cloud + grain);
       const i = (y * size + x) * 4;
       pixels[i] = pixels[i + 1] = pixels[i + 2] = Math.min(255, value); pixels[i + 3] = 255;
     }
@@ -54,7 +56,7 @@ export function batchFacadeDetails(group: THREE.Group) {
   for (const child of group.children) {
     const mesh = child as THREE.Mesh;
     if (!mesh.isMesh || Array.isArray(mesh.material) || mesh.material.transparent || mesh.material.userData.windowLight) continue;
-    if (!['foliage', 'flower'].includes(mesh.userData.facadeKind) && !/-(frame|mullion)|scandi-wood-slat|interior-(shelf|display|counter|pendant-wire)/.test(mesh.name)) continue;
+    if (!['foliage', 'flower'].includes(mesh.userData.facadeKind) && !/-(frame|mullion)|wood-slat|architectural-|interior-(shelf|display|counter|pendant-wire)/.test(mesh.name)) continue;
     const key = mesh.geometry.uuid + mesh.material.uuid;
     const items = buckets.get(key) ?? []; items.push(mesh); buckets.set(key, items);
   }
@@ -88,6 +90,14 @@ function masonryTexture(): { color: THREE.CanvasTexture; bump: THREE.CanvasTextu
     relief.fillStyle = '#a5a5a5'; relief.fillRect(x + 2, y + 2, 76, 22);
     relief.fillStyle = '#8b8b8b'; relief.fillRect(x + 2, y + 23, 76, 1);
   }
+  const surface = ctx.getImageData(0, 0, 1000, 560);
+  for (let y = 0; y < 560; y++) for (let x = 0; x < 1000; x++) {
+    const n = (((Math.imul(x + 1, 73856093) ^ Math.imul(y + 7, 19349663)) >>> 0) % 13) - 6;
+    const variation = n + Math.sin(x / 14) * Math.cos(y / 11) * 3;
+    const i = (y * 1000 + x) * 4;
+    for (let c = 0; c < 3; c++) surface.data[i + c] += variation;
+  }
+  ctx.putImageData(surface, 0, 0);
   const color = new THREE.CanvasTexture(canvas), bump = new THREE.CanvasTexture(heightMap);
   color.colorSpace = THREE.SRGBColorSpace;
   for (const texture of [color, bump]) {
@@ -163,7 +173,7 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
   const leafGeometry = new THREE.SphereGeometry(.5, 10, 7);
   const masonry = palette === 'brick' ? masonryTexture() : undefined;
   const plaster = masonry ? undefined : surfaceTexture('plaster');
-  const facadeTimber = palette === 'scandi' ? surfaceTexture('wood') : undefined;
+  const facadeTimber = palette === 'scandi' || dayRects.some(r=>r.name?.includes('wood-slat')) ? surfaceTexture('wood') : undefined;
   const occlusion = architecturalOcclusion(dayRects);
   group.userData.palette = palette; group.userData.signMountZ = anchorZ;
   group.userData.signAnchor = { x: anchorX, y: anchorY };
@@ -173,16 +183,17 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
 
   for (const [index, r] of dayRects.entries()) {
     const kind = r.kind ?? 'detail';
-    const timberDetail = palette === 'scandi' && ['sign-mounting-band', 'scandi-wood-slat', 'scandi-canopy-soffit', 'canopy-fascia'].includes(r.name ?? '');
+    const timberDetail = r.name?.includes('wood-slat') || r.name === 'scandi-canopy-soffit' ||
+      palette === 'scandi' && ['sign-mounting-band', 'canopy-fascia'].includes(r.name ?? '');
     const windowIndex = kind === 'glass' ? windowCount++ : undefined;
     const materialKey = kind + ':' + (kind === 'glass' ? r.name : r.color) + (timberDetail ? ':timber' : '');
     let material = materials.get(materialKey);
     if (!material) {
       material = kind === 'glass'
-        ? new THREE.MeshPhysicalMaterial({ color: palette === 'scandi' ? '#b9cfce' : '#c4c7c5', roughness: palette === 'scandi' ? .23 : .52, metalness: 0,
+        ? new THREE.MeshPhysicalMaterial({ color: '#b9cecd', roughness: .22, metalness: 0,
           // Alpha glazing keeps the furnished room visible without a full-scene refraction pass.
           ior: 1.45, transmission: 0, thickness: 80, attenuationColor: '#d8d3c5', attenuationDistance: 1800,
-          clearcoat: .3, clearcoatRoughness: .28, specularIntensity: .65, envMapIntensity: .7, transparent: true, opacity: palette === 'scandi' ? .32 : .70, depthWrite: false, side: THREE.DoubleSide })
+          clearcoat: .3, clearcoatRoughness: .28, specularIntensity: .65, envMapIntensity: .85, transparent: true, opacity: .28, depthWrite: false, side: THREE.FrontSide })
         : new THREE.MeshStandardMaterial({ color: r.color,
           roughness: kind === 'foliage' ? .86 : kind === 'wall' ? .98 : .77,
           metalness: r.name?.includes('frame') || r.name?.includes('canopy') ? .12 : 0, envMapIntensity: .3 });
@@ -195,13 +206,13 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
       // Interior light remains independent of the sign's lighting switch.
       if (kind === 'glass') {
         material.emissive.set('#ffd8a1');
-        material.userData.maxWindowEmission = .13 + (windowIndex! % 4) * .015;
+        material.userData.maxWindowEmission = .025;
         material.userData.maxEmission = material.userData.maxWindowEmission;
         material.userData.facadeEmission = true;
         material.userData.windowLight = true; material.userData.windowIndex = windowIndex;
         material.userData.nightColor = new THREE.Color('#bcb8ad');
-        material.userData.dayEnvIntensity = .7; material.userData.nightEnvIntensity = .3;
-        material.userData.frostedGlass = palette !== 'scandi';
+        material.userData.dayEnvIntensity = .85; material.userData.nightEnvIntensity = .3;
+        material.userData.frostedGlass = false;
       }
       if (kind === 'lamp') { material.emissive.set(nightRects[index].color); material.userData.maxEmission = .65; material.userData.facadeEmission = true; }
       if (kind === 'wall' && masonry) {
@@ -239,6 +250,7 @@ export function createFacadeModel(place: SignPlacement, _signWidth: number, _sig
     group.add(mesh);
   }
   addBuildingInterior(group,dayRects,{x:anchorX,y:anchorY,z:anchorZ},options,boxGeometry);
+  addArchitecturalFinish(group, dayRects, {x:anchorX,y:anchorY,z:anchorZ}, options, boxGeometry);
   batchFacadeDetails(group);
   group.userData.windowCount = windowCount;
   return group;
@@ -272,6 +284,9 @@ function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:numb
         (Math.abs(normal.getX(i)) > .5 ? p.getZ(i) * d : p.getX(i) * w) / 3000,
         (Math.abs(normal.getY(i)) > .5 ? p.getZ(i) * d : p.getY(i) * h) / 1680);
     }
+    if (name.startsWith('interior-') && !m.userData.windowLight) {
+      m.emissive.copy(m.color); m.userData.interiorAmbient = .075;
+    }
     mesh.castShadow=mesh.receiveShadow=true;mesh.userData.facadeKind='interior';group.add(mesh);return mesh;
   };
   if(options.shell!==false){
@@ -280,28 +295,38 @@ function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:numb
     add('building-back-wall',wall.w,wall.h,200,(left+right)/2,(top+bottom)/2,frontZ-depth+100,stone);
     add('interior-floor',wall.w-400,70,depth-400,(left+right)/2,bottom+485,frontZ-depth/2,floor);
     add('interior-ceiling',wall.w-400,80,depth-400,(left+right)/2,top-100,frontZ-depth/2,cream);
-    const roof=material(options.palette === 'scandi' ? '#343f3b' : '#565a5c',.65),rise=750,half=depth/2+160,roofSlope=Math.hypot(half,rise);
+    const roof=material(options.palette === 'scandi' ? '#46504b' : '#4c5255',.58),rise=1050,half=depth/2+220,roofSlope=Math.hypot(half,rise);
     const roofTexture = surfaceTexture('roof'); roofTexture.repeat.set(4, 2);
-    roof.map = roof.bumpMap = roof.roughnessMap = roofTexture; roof.bumpScale = 2;
+    roof.map = roof.roughnessMap = roofTexture;
     for(const direction of [-1,1]){
-      const mesh=add('building-roof-'+(direction===1?'rear':'front'),wall.w+320,80,roofSlope,
+      const mesh=add('building-roof-'+(direction===1?'rear':'front'),wall.w+400,60,roofSlope,
         (left+right)/2,top+rise/2+45,frontZ-depth/2+direction*half/2,roof);
       mesh.rotation.x=direction*Math.atan2(rise,half);
+      for (let x = left - 160; x <= right + 160; x += 520) {
+        const seam = add('architectural-roof-seam',18,32,roofSlope,x,mesh.position.y,mesh.position.z,roof);
+        seam.rotation.copy(mesh.rotation);
+        seam.position.add(new THREE.Vector3(0,46,0).applyEuler(mesh.rotation));
+      }
+      for (const x of [left-205,right+205]) {
+        const edge = add('architectural-roof-verge',32,110,roofSlope+40,x,mesh.position.y,mesh.position.z,roof);
+        edge.rotation.copy(mesh.rotation);
+      }
     }
+    add('architectural-roof-ridge',wall.w+450,60,130,(left+right)/2,top+rise+80,frontZ-depth/2,roof);
+    for (const edgeZ of [frontZ+170,frontZ-depth-170])
+      add('architectural-eaves-fascia',wall.w+400,150,110,(left+right)/2,top+25,edgeZ,roof);
     const shape=new THREE.Shape();shape.moveTo(-depth/2,0);shape.lineTo(depth/2,0);shape.lineTo(0,rise);shape.closePath();
     for(const x of [left+100,right-100]){
       const geometry=new THREE.ExtrudeGeometry(shape,{depth:200,bevelEnabled:false});geometry.rotateY(Math.PI/2);
+      const positions=geometry.attributes.position, uv=geometry.attributes.uv;
+      for(let i=0;i<uv.count;i++)uv.setXY(i,(positions.getZ(i)+depth/2)/3000,positions.getY(i)/1680);
       const mesh=new THREE.Mesh(geometry,stone);mesh.position.set(x-100,top,frontZ-depth/2);mesh.name='building-roof-gable';mesh.castShadow=mesh.receiveShadow=true;group.add(mesh);
     }
     group.userData.buildingDepthMm=depth;group.userData.closedBuilding=true;
-    if (options.palette === 'scandi') {
-      const metal = material('#35453f', .55), base = material('#71736b');
-      add('scandi-front-gutter',wall.w+300,85,95,(left+right)/2,top+30,frontZ+180,metal);
-      if (!options.openRight) {
-        add('scandi-side-plinth',225,220,depth,right-100,bottom+110,frontZ-depth/2,base);
-        add('scandi-rain-pipe',75,wall.h-100,75,right-30,(top+bottom)/2,frontZ+80,metal);
-        add('scandi-pipe-outlet',75,75,160,right-30,bottom+85,frontZ+125,metal);
-      }
+    const base = material('#666b67');
+    add('architectural-left-plinth',225,220,depth,left+100,bottom+110,frontZ-depth/2,base);
+    if (!options.openRight) {
+      add('architectural-right-plinth',225,220,depth,right-100,bottom+110,frontZ-depth/2,base);
     }
   }
   for(const [index,r]of rects.filter(r=>r.kind==='glass').entries()){
@@ -318,12 +343,75 @@ function addBuildingInterior(group:THREE.Group,rects:FacadeRect[],anchor:{x:numb
       }
     }
     const lamp=material('#f2ddae').clone();lamp.emissive.set('#ffe0a0');
-    lamp.userData.windowLight=true;lamp.userData.windowIndex=index;lamp.userData.facadeEmission=true;lamp.userData.maxWindowEmission=1.8;
-    add('interior-pendant-'+index,170,90,170,cx,anchor.y-r.y+100,behind,lamp);
-    add('interior-pendant-wire-'+index,8,350,8,cx,anchor.y-r.y+300,behind,dark);
+    lamp.userData.windowLight=true;lamp.userData.windowIndex=index;lamp.userData.facadeEmission=true;lamp.userData.maxWindowEmission=1.8;lamp.userData.dayWindowEmission=.18;
+    const pendant = new THREE.Mesh(new THREE.ConeGeometry(140,150,16,1,true),dark);
+    pendant.name='interior-pendant-shade-'+index;pendant.position.set(cx,anchor.y-r.y-200,behind);pendant.castShadow=true;group.add(pendant);
+    add('interior-pendant-'+index,125,24,125,cx,anchor.y-r.y-265,behind,lamp);
+    add('interior-pendant-wire-'+index,8,600,8,cx,anchor.y-r.y+160,behind,dark);
     const light=new THREE.PointLight('#ffd6a0',0,2600,2);light.name='interior-light-'+index;
-    light.position.set(cx,base+r.h*.75,frontZ-950);light.userData.windowIndex=index;light.userData.windowIntensity=700000;group.add(light);
+    light.position.set(cx,base+r.h*.75,frontZ-950);light.userData.windowIndex=index;light.userData.windowIntensity=1000000;light.userData.dayWindowIntensity=.4;group.add(light);
     addWindowSpill(group, r, index, anchor, frontZ);
+  }
+}
+
+/** Small, instanced construction details and planted displays give the realtime house its scale. */
+function addArchitecturalFinish(group: THREE.Group, rects: FacadeRect[], anchor: {x:number;y:number;z:number},
+  options: {shell?:boolean;shellDepth?:number;openRight?:boolean;palette?:FacadeOptions['palette']}, box: THREE.BoxGeometry) {
+  const wall = rects.find(r=>r.kind==='wall')!, z = anchor.z+(wall.z??0);
+  const left = wall.x-anchor.x, right = left+wall.w, top=anchor.y-wall.y, floor=top-wall.h;
+  const material=(color:string,roughness=.75)=>{
+    const m=new THREE.MeshStandardMaterial({color,roughness});m.userData.dayColor=m.color.clone();return m;
+  };
+  const metal=material(options.palette==='scandi'?'#35453f':'#41494b',.48), rubber=material('#202a29');
+  const leafGeo=new THREE.SphereGeometry(.5,6,4), budGeo=new THREE.IcosahedronGeometry(.5,0);
+  const potGeo=new THREE.CylinderGeometry(.42,.32,1,10), pipeGeo=new THREE.CylinderGeometry(.5,.5,1,12);
+  const leaves=['#425f38','#597544','#7b8d55'].map(c=>material(c,.9));
+  const flowers=['#e5dbc3','#b99a70','#cfb6b0'].map(c=>material(c));
+  const ceramic=material('#b4a18a'), soil=material('#3e382e');
+  const place=(name:string,geometry:THREE.BufferGeometry,m:THREE.MeshStandardMaterial,
+    x:number,y:number,pz:number,w:number,h:number,d:number,kind='detail')=>{
+    const mesh=new THREE.Mesh(geometry,m);mesh.name='architectural-'+name;mesh.position.set(x,y,pz);mesh.scale.set(w,h,d);
+    mesh.userData.facadeKind=kind;mesh.castShadow=mesh.receiveShadow=true;group.add(mesh);return mesh;
+  };
+  if(options.shell!==false){
+    const depth=options.shellDepth??5000;
+    for(const gz of [z+235,z-depth-235]){
+      const gutter=place('gutter',pipeGeo,metal,(left+right)/2,top+4,gz,110,wall.w+430,110);
+      gutter.rotation.z=Math.PI/2;
+    }
+    if(!options.openRight){
+      place('downpipe',pipeGeo,metal,right-55,floor+wall.h/2,z+90,85,wall.h-100,85);
+      for(const py of [floor+350,floor+1800,top-300])place('pipe-bracket',box,metal,right-55,py,z+80,120,28,115);
+      const outlet=place('pipe-elbow',pipeGeo,metal,right-55,floor+110,z+140,85,210,85);outlet.rotation.x=-Math.PI/3;
+    }
+  }
+  for(const r of rects.filter(r=>r.kind==='glass')){
+    const cx=r.x+r.w/2-anchor.x, cy=anchor.y-r.y-r.h/2, pz=anchor.z+(r.z??0)+7;
+    // Thin inner seals and side reveals remain outside the clear glazing aperture.
+    for(const x of [cx-r.w/2-5,cx+r.w/2+5])place('window-seal',box,rubber,x,cy,pz,10,r.h+20,12);
+    for(const y of [cy-r.h/2-5,cy+r.h/2+5])place('window-seal',box,rubber,cx,y,pz,r.w+20,10,12);
+    if(r.name?.startsWith('door'))continue;
+    const bottom=cy-r.h/2;
+    for(let k=0;k<3;k++){
+      const px=cx+(k-1)*r.w*.25, py=bottom+665, pz=z-880;
+      place('display-pot',potGeo,ceramic,px,py+95,pz,180,190,180);
+      place('pot-soil',pipeGeo,soil,px,py+189,pz,145,8,145);
+      for(let i=0;i<18;i++){
+        const angle=i*2.399, radius=45+(i%4)*22, height=py+230+(i%7)*32;
+        const leaf=place('display-leaf',leafGeo,leaves[i%3],px+Math.cos(angle)*radius,height,pz+Math.sin(angle)*radius,110,35,58,'foliage');
+        leaf.rotation.set(.3*Math.sin(angle),angle,.3*Math.cos(angle));
+      }
+      for(let i=0;i<5;i++)place('display-flower',budGeo,flowers[k%3],px+Math.cos(i*2.4)*65,py+450+(i%2)*40,pz+Math.sin(i*2.4)*65,65,60,65,'flower');
+    }
+  }
+  for(const r of rects.filter(r=>r.name==='planter-box')){
+    const cx=r.x+r.w/2-anchor.x, cy=anchor.y-r.y, pz=anchor.z+(r.z??0)-(r.depth??0)/2;
+    for(let i=0;i<90;i++){
+      const angle=i*2.399, radius=40+(i%9)*18, height=70+(i%11)*36;
+      const leaf=place('planter-leaf',leafGeo,leaves[i%3],cx+Math.cos(angle)*radius,cy+height,pz+Math.sin(angle)*radius,100,38,64,'foliage');
+      leaf.rotation.set(.5*Math.cos(angle),angle,.45*Math.sin(angle));
+    }
+    for(let i=0;i<18;i++)place('planter-blossom',budGeo,flowers[i%3],cx+Math.cos(i*2.4)*160,cy+250+(i%5)*35,pz+Math.sin(i*2.4)*160,42,40,42,'flower');
   }
 }
 
