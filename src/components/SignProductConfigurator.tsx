@@ -31,9 +31,9 @@ import type { LayoutPatch } from "./SignLayoutEditor";
 import { AlignHorizontalJustifyCenter, AlignVerticalJustifyCenter, Undo2 } from "lucide-react";
 import { centerLayoutSelection, packLayoutComposition } from "../lib/signLayoutAlignment";
 import type { AlignmentAxis, LayoutSelection } from "../lib/signLayoutAlignment";
-import { SignPlacements } from "./SignPlacements";
+import { SignPlacements, SignPlacementThumbnails } from "./SignPlacements";
 import { SignPhotoPreview } from "./SignPhotoPreview";
-import { createFacadeSvg, SIGN_PLACEMENTS } from "../lib/signFacade";
+import { createFacadeSvg } from "../lib/signFacade";
 import type { FacadeSignBox, SignPlacement } from "../lib/signFacade";
 import { loadNeonFont } from "../lib/neonFonts";
 import { NEON_FONTS } from "../lib/neonConstruction";
@@ -1261,7 +1261,6 @@ export function SignProductConfigurator() {
             </div></div>
             <div className="view-switch" role="group" aria-label="Вид макета"><button type="button" aria-pressed={viewMode === "2d"} className={viewMode === "2d" ? "active" : ""} onClick={() => { setViewMode("2d"); setZoom(100); setPlacement('none'); setEditing(true); }} aria-label="Конструктор · 2D"><span className="view-caption">Конструктор · </span>2D</button><button type="button" aria-pressed={viewMode === "3d"} className={viewMode === "3d" ? "active" : ""} onClick={() => { setViewMode("3d"); setZoom(100); setPlacement('none'); setEditing(false); }} aria-label="Визуализация 3D"><span className="view-caption">Визуализация </span>3D</button></div>
             {productId !== "panel" && viewMode === "2d" && <button className={"editor-toggle " + (editing ? "active" : "")} type="button" aria-label="Редактировать макет" title="Редактировать макет" aria-pressed={editing} onClick={() => { setPlacement("none"); setEditing(!editing); }}><Settings2 className="mobile-editor-icon" size={16}/><span className="editor-caption">Редактировать макет</span></button>}
-            <label className="placement-select"><span>Размещение</span><select aria-label="Размещение в основном просмотре" value={placement} onChange={e=>{setPlacement(e.target.value as SignPlacement);setEditing(false);}}>{SIGN_PLACEMENTS.map(place=><option key={place.id} value={place.id}>{place.title}</option>)}</select></label>
             <label className="dimensions-toggle" onMouseDown={event => event.preventDefault()}><input type="checkbox" checked={showDimensions} onChange={event => setShowDimensions(event.target.checked)} />Размеры</label>
             <div className="canvas-tools"><button type="button" aria-label="Уменьшить макет" disabled={zoom <= 25} onClick={() => setZoom(value => Math.max(25, value - 10))}><Minus size={16} /></button><span className="zoom-value" title="100% — масштаб после подгонки">{zoom}%</span><button type="button" aria-label="Увеличить макет" disabled={zoom >= 400} onClick={() => setZoom(value => Math.min(400, value + 10))}><Plus size={16} /></button><button type="button" aria-label="Подогнать макет" onClick={handleFitPreview}><Maximize size={16} /></button></div>
           </header>
@@ -1364,7 +1363,10 @@ export function SignProductConfigurator() {
           </div></div>}
           {showDimensions && !blankSign && viewMode === "2d" && <SignDimensions2D sourceRef={previewArtRef} />}
           {showDimensions && !blankSign && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
-        </section></div>
+        </section>
+          {viewMode === '3d' && !blankSign && !rcPlaying && <SignPlacementThumbnails markup={createCurrentSvg(false)} signBox={facadeSignBox} panelMount={panelMount}
+            night={sceneMode === 'night'} selected={placement} palette={project.facadePalette} onChange={value => { setPlacement(value); setEditing(false); }}/>}
+        </div>
           {!blankSign && (productId!=="panel" || viewMode==="3d"&&placement!=="none"&&showFacadeSign) && <div className="canvas-object-dimensions" aria-label="Размеры элементов вывески" aria-hidden={!showDimensions} style={{ visibility: showDimensions ? "visible" : "hidden" }}>{visibleObjectDimensions.map(item=><span key={item.id}><strong>{item.label}</strong> {Math.round(item.width)} × {Math.round(item.height)} мм</span>)}</div>}
           <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `Борт ${letterDepth} мм${glowHasHalo && mountMode === "acp" ? " · проставки 20 мм" : glowHasHalo && haloBackerEnabled && mountMode === "frame" ? " · проставки 20 мм · подложка 3 мм" : ""}` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
         </section>

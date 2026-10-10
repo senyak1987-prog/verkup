@@ -10,3 +10,22 @@ export function SignPlacements({markup,signBox,panelMount,night,selected,palette
     </button>)}</div><p>Вывеска и фасад в едином масштабе: дверь 1100 × 2100 мм. Козырёк выступает на 1500 мм, с двумя опорами и тремя ступенями.</p>{children}
   </section>;
 }
+
+type PlacementThumbnailProps = {
+  markup: string; signBox: FacadeSignBox; panelMount?: FacadeOptions['panelMount'];
+  night: boolean; selected: SignPlacement; palette: NonNullable<FacadeOptions['palette']>;
+  onChange: (value: SignPlacement) => void;
+};
+
+export function SignPlacementThumbnails({ markup, signBox, panelMount, night, selected, palette, onChange }: PlacementThumbnailProps) {
+  return <nav className={'scene-placement-thumbnails ' + (night ? 'night' : 'day')} aria-label="Размещение вывески в 3D">
+    <button className="scene-placement-none" type="button" aria-pressed={selected === 'none'} onClick={() => onChange('none')}>Без фасада</button>
+    {(['shop', 'windows', 'canopy', 'entrance'] as const).map(id => {
+      const title = SIGN_PLACEMENTS.find(place => place.id === id)!.title;
+      return <button className="scene-placement-card" type="button" key={id} aria-label={'Разместить вывеску: ' + title} aria-pressed={selected === id} onClick={() => onChange(id)}>
+        <span className="scene-placement-image" aria-hidden="true" dangerouslySetInnerHTML={{ __html: createFacadeSvg(id, markup, night, 'scene-picker-' + id, { palette, signBox, panelMount }) }}/>
+        <span className="scene-placement-caption">{title}</span>
+      </button>;
+    })}
+  </nav>;
+}
