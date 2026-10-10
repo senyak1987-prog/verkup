@@ -1,0 +1,15 @@
+{
+  "sourceBytes": 4841864,
+  "variants": [
+    {
+      "name": "mobile",
+      "triangles": 25691,
+      "bytes": 1419020
+    },
+    {
+      "name": "far",
+      "triangles": 12604,
+      "bytes": 793444
+    }
+  ]
+}

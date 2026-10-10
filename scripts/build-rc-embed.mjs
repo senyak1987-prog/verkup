@@ -17,4 +17,5 @@ await build({
   },
 });
 await copyFile('public/models/ram-trx.glb', 'dist/rc-embed/ram-trx.glb');
+for (const lod of ['mobile', 'far']) await copyFile(`public/models/ram-trx-${lod}.glb`, `dist/rc-embed/ram-trx-${lod}.glb`);
 await copyFile('public/models/ram-trx-attribution.txt', 'dist/rc-embed/ram-trx-attribution.txt');

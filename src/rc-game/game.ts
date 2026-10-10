@@ -4,6 +4,7 @@ import type { CarInput } from './physics';
 import { createRcWorld, type RcMode, type RcTelemetry } from './world';
 import { createTrxAssetLoader } from './trxAsset';
 import { TRX_VEHICLE_PROFILE } from './trxAssetProfile';
+import { QUALITY, deviceRenderTier, createQualityGovernor, applyRenderQuality, resizeShadow } from './renderQuality';
 export type { RcMode, RcTelemetry } from './world';
 
 export type RcCamera = 'overview' | 'follow' | 'rear' | 'detail';
@@ -25,7 +26,8 @@ const clamp = THREE.MathUtils.clamp;
 /** Framework-free renderer. Events, GPU resources and animation belong to this instance only. */
 export function mountRcGame(host: HTMLElement, options: RcGameOptions = {}): RcGameController {
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+  const quality = createQualityGovernor(deviceRenderTier());
+  applyRenderQuality(renderer, quality.tier, host);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -42,10 +44,11 @@ export function mountRcGame(host: HTMLElement, options: RcGameOptions = {}): RcG
   const camera = new THREE.PerspectiveCamera(36, 1, .1, 150);
   const moduleLocation = import.meta.url;
   const vehicleUrl = options.vehicleUrl ?? (import.meta.env.MODE === 'rc-embed'
-    ? new URL('ram-trx.glb', moduleLocation).href
-    : `${import.meta.env.BASE_URL}models/ram-trx.glb`);
+    ? new URL(quality.tier === 'high' ? 'ram-trx.glb' : 'ram-trx-mobile.glb', moduleLocation).href
+    : `${import.meta.env.BASE_URL}models/${quality.tier === 'high' ? 'ram-trx.glb' : 'ram-trx-mobile.glb'}`);
   const world = createRcWorld({ onLap: options.onLap, vehicleProfile: TRX_VEHICLE_PROFILE,
-    loadVehicle: createTrxAssetLoader(vehicleUrl), onVehicleReady: () => schedule(),
+    loadVehicle: createTrxAssetLoader(vehicleUrl, { lightweight: quality.tier !== 'high',
+      farUrl: options.vehicleUrl ? undefined : vehicleUrl.replace(/ram-trx(?:-mobile)?\.glb$/, 'ram-trx-far.glb') }), onVehicleReady: () => schedule(),
     onVehicleError: error => console.warn('RAM TRX asset could not be loaded:', error) });
   const physics = world.physics;
   const vehicleScale = TRX_VEHICLE_PROFILE.halfLength / 1.0461677312850952;
@@ -66,7 +69,7 @@ export function mountRcGame(host: HTMLElement, options: RcGameOptions = {}): RcG
   const sun = new THREE.DirectionalLight('#fff0d9', 2.1);
   sun.position.set(-8, 17, 8);
   sun.castShadow = true;
-  const shadowSize=Math.min(4096,renderer.capabilities.maxTextureSize);
+  const shadowSize=Math.min(QUALITY[quality.tier].shadow,renderer.capabilities.maxTextureSize);
   sun.shadow.mapSize.set(shadowSize, shadowSize);
   sun.shadow.camera.left = sun.shadow.camera.bottom = -15;
   sun.shadow.camera.right = sun.shadow.camera.top = 15;
@@ -164,10 +167,18 @@ export function mountRcGame(host: HTMLElement, options: RcGameOptions = {}): RcG
   function schedule() {if(!frame&&!destroyed&&!contextLost&&visible&&!document.hidden)frame=requestAnimationFrame(tick);}
   function tick(now:number) {
     frame=0;if(destroyed||contextLost||!visible||document.hidden){lastTime=0;return;}
+    if (!paused && lastTime && quality.sample(now-lastTime)) {
+      applyRenderQuality(renderer, quality.tier, host);
+      resizeShadow(sun, Math.min(QUALITY[quality.tier].shadow, renderer.capabilities.maxTextureSize));
+    }
+    if (paused || !lastTime) quality.reset();
     const dt=lastTime?Math.min((now-lastTime)/1000,.05):1/60;lastTime=now;
     const control=input();
     if(!paused)world.step(dt,control);
-    world.update(control,paused?0:dt,hasPointer&&!paused);updateCamera(dt);renderer.render(scene,camera);
+    world.update(control,paused?0:dt,hasPointer&&!paused);updateCamera(dt);
+    world.updateDetail(camera, host.clientHeight); renderer.render(scene,camera);
+    host.dataset.drawCalls = String(renderer.info.render.calls); host.dataset.triangles = String(renderer.info.render.triangles);
+    host.dataset.vehicleDetail = String(world.group.userData.vehicleDetail ?? 'loading');
     telemetryClock+=dt;if(telemetryClock>.10){telemetryClock=0;telemetry();}
     if(!paused)schedule();
   }

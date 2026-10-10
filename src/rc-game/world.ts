@@ -34,6 +34,7 @@ export interface RcWorld {
   setMode(mode: RcMode): void;
   setColor(hex: string): void;
   setLighting(night: number): void;
+  updateDetail(camera: THREE.Camera, viewportHeight: number): void;
   getTelemetry(paused?: boolean, driving?: boolean): RcTelemetry;
   dispose(): void;
 }
@@ -409,6 +410,15 @@ export function createRcWorld(options: RcWorldOptions = {}): RcWorld {
     setMode(value){if(disposed)return;mode=value;reset();},
     setColor(hex){if(!disposed&&/^#[0-9a-f]{6}$/i.test(hex)){requestedColor=hex;materials.body.color.set(hex);vehicleRig?.setColor(hex);}},
     setLighting(night){if(!disposed)effects.setLighting(night);},
+    updateDetail(camera, viewportHeight) {
+      if (!vehicleRig?.setDetail) return;
+      group.updateWorldMatrix(true, true); camera.updateMatrixWorld();
+      const center = chassis.getWorldPosition(new THREE.Vector3());
+      const diameter = 2 * (options.vehicleProfile?.halfLength ?? 1.05) * group.getWorldScale(new THREE.Vector3()).x;
+      const up = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 1).multiplyScalar(diameter);
+      const pixels = Math.abs(center.clone().add(up).project(camera).y - center.project(camera).y) * viewportHeight / 2;
+      vehicleRig.setDetail(pixels); group.userData.vehicleDetail = vehicleRig.body.userData.detail;
+    },
     getTelemetry(paused=false,driving=false){
       return {speed:Math.abs(physics.state.speed)*3.6,elapsed,checkpoint,checkpoints:CHECKPOINTS.length,lap,paused,driving,
         suspension:physics.state.wheels.map(w=>clamp(.5 + .5 * w.compression
