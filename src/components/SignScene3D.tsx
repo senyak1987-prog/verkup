@@ -9,6 +9,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { attachFacadePair, createFacadeModel, createPanelMountContext, setFacadeProductVisibility } from "../lib/signFacade3D";
 import { DAYLIGHT_LEVELS, daylightSource } from "../lib/signDaylight";
 import { DIMENSION_LABEL_HEIGHT_PX, scaleDimensionLabels, signFocusBounds, zoomFocusWeight } from "../lib/signCameraFocus";
+import { FACADE_PREVIEW_ZOOM } from "../lib/signZoomFocus";
 import type { DaylightMarker } from "../lib/signDaylight";
 import { sceneLightingAt, sceneLightingDuration } from "../lib/sceneLighting";
 import { panelMountLayout } from "../lib/panelConstruction";
@@ -619,7 +620,17 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       y: Math.max(.06, Math.min(.94, value.y + (event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0))) }));
   };
 
-  const changeView = (front: boolean) => { runtimeRef.current?.rc?.exit(); runtimeRef.current?.frame(front); };
+  const changeView = (front: boolean) => {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    runtime.rc?.exit();
+    if (!front && placement !== 'none') {
+      runtime.camera.zoom = FACADE_PREVIEW_ZOOM / 100;
+      runtime.camera.updateProjectionMatrix();
+      zoomChangeRef.current?.(FACADE_PREVIEW_ZOOM);
+    }
+    runtime.frame(front);
+  };
   const keyboard = (event: KeyboardEvent<HTMLDivElement>) => {
     if (runtimeRef.current?.rc?.active) {
       if (event.key === 'Escape') { event.preventDefault(); runtimeRef.current.rc.exit(); }
@@ -637,8 +648,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     const key = event.key.toLowerCase();
     if (!["arrowleft", "arrowright", "arrowup", "arrowdown", "+", "=", "-", "f", "r", "home"].includes(key)) return;
     event.preventDefault();
-    if (key === "f") { runtime.frame(true); return; }
-    if (key === "r" || key === "home") { runtime.frame(false); return; }
+    if (key === "f") { changeView(true); return; }
+    if (key === "r" || key === "home") { changeView(false); return; }
     const offset = runtime.camera.position.clone().sub(runtime.controls.target);
     const sphere = new THREE.Spherical().setFromVector3(offset);
     if (key === "arrowleft") sphere.theta -= 0.12;
