@@ -194,7 +194,7 @@ main.public-sign-configurator.sign-studio .studio-preview-surface {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: linear-gradient(145deg, #e6e6e6, #bcbcbc);
+  background: linear-gradient(145deg, #c5c9c7, #a2aaa7);
 }
 main.public-sign-configurator.sign-studio .studio-workspace :is(.builder-preview, .builder-preview.day, .builder-preview.night),
 main.public-sign-configurator.sign-studio .studio-workspace.is-3d :is(.builder-preview, .builder-preview.day, .builder-preview.night) {
@@ -459,4 +459,50 @@ main.public-sign-configurator.sign-studio .scene-placement-thumbnails.night butt
   main.public-sign-configurator.sign-studio .scene-placement-thumbnails { top: 62px; right: 7px; width: 88px; gap: 6px; max-height: calc(100% - 110px); }
   main.public-sign-configurator.sign-studio .scene-placement-thumbnails .scene-placement-none { min-height: 44px; }
   main.public-sign-configurator.sign-studio .scene-placement-caption { font-size: 10px; padding: 5px 1px; }
+}
+
+/* Facade choices open on demand on narrow canvases. */
+main.public-sign-configurator.sign-studio .scene-placement-picker { position:absolute; top:62px; right:14px; z-index:4; width:116px; max-height:calc(100% - 110px); display:flex; flex-direction:column; }
+main.public-sign-configurator.sign-studio .scene-placement-picker .scene-placement-thumbnails { position:static; width:100%; max-height:none; min-height:0; flex:1 1 auto; }
+main.public-sign-configurator.sign-studio .scene-placement-toggle { display:none; }
+@container (max-width:600px) {
+  main.public-sign-configurator.sign-studio .scene-placement-picker { top:62px; right:7px; width:112px; max-height:calc(100% - 72px); }
+  main.public-sign-configurator.sign-studio .scene-placement-toggle { display:flex; align-items:center; justify-content:space-between; flex:0 0 auto; gap:8px; min-height:44px; padding:8px 12px; border:1px solid #a5b4a9; border-radius:6px; background:#f8faf5; color:#184833; font:inherit; font-size:13px; cursor:pointer; }
+  main.public-sign-configurator.sign-studio .scene-placement-toggle:focus-visible { outline:2px solid #16803d; outline-offset:2px; }
+  main.public-sign-configurator.sign-studio .scene-placement-picker.night .scene-placement-toggle { background:#243e33; color:#edf4ee; }
+  main.public-sign-configurator.sign-studio .scene-placement-picker:not(.is-open) .scene-placement-thumbnails { display:none; }
+  main.public-sign-configurator.sign-studio .scene-placement-picker.is-open { bottom:10px; }
+  main.public-sign-configurator.sign-studio .scene-placement-picker.is-open .scene-placement-toggle svg { transform:rotate(180deg); }
+  main.public-sign-configurator.sign-studio .scene-placement-caption { font-size:12px; padding:7px 2px; }
+  main.public-sign-configurator.sign-studio .sign-scene-3d-actions button { min-height:44px; }
+}
+@media (max-width:900px) {
+  main.public-sign-configurator.sign-studio { padding-bottom:max(var(--studio-page-edge),env(safe-area-inset-bottom)); padding-left:max(var(--studio-page-edge),env(safe-area-inset-left)); padding-right:max(var(--studio-page-edge),env(safe-area-inset-right)); }
+  main.public-sign-configurator.sign-studio .studio-settings-pane :is(input:not([type=checkbox]):not([type=range]):not([type=color]),select,textarea) { font-size:16px; }
+  main.public-sign-configurator.sign-studio .studio-settings-pane :is(.facade-finishes button,.placements-heading button) { min-height:44px; }
+}
+@media (max-width:600px) {
+  main.public-sign-configurator.sign-studio .controls-heading h2 { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  main.public-sign-configurator.sign-studio .controls-heading { padding:8px 12px; }
+  main.public-sign-configurator.sign-studio .canvas-footer button { min-height:44px; min-width:44px; }
+}
+/* Product selection and file actions share the top row in short landscape viewports. */
+@media (max-width:950px) and (max-height:550px) and (orientation:landscape) {
+  main.public-sign-configurator.sign-studio .studio-header { min-height:52px; padding-block:4px; margin-bottom:6px; }
+  main.public-sign-configurator.sign-studio .studio-brand { display:none; }
+  main.public-sign-configurator.sign-studio .studio-header :is(.studio-action-label,.studio-cart-label) { display:none; }
+  main.public-sign-configurator.sign-studio .studio-header :is(.studio-button,.studio-cart-toggle,.studio-file-menu > summary) { min-width:44px; min-height:44px; padding:8px; }
+  main.public-sign-configurator.sign-studio .studio-file-menu-items .studio-action-label { display:inline; }
+  main.public-sign-configurator.sign-studio .product-tabs { position:absolute; top:4px; left:max(8px,env(safe-area-inset-left)); width:calc(100% - 245px - env(safe-area-inset-left) - env(safe-area-inset-right)); z-index:21; padding:0; margin:0; overflow-x:auto; }
+  main.public-sign-configurator.sign-studio .product-tabs button { min-height:44px; padding:5px 8px; flex:1 0 125px; }
+  main.public-sign-configurator.sign-studio .product-tabs strong { font-size:11px; }
+  main.public-sign-configurator.sign-studio .product-tabs button { color:#e5eee6; }
+  main.public-sign-configurator.sign-studio .product-tabs button.active { color:#073c2d; }
+  main.public-sign-configurator.sign-studio .product-tabs button > svg:first-child { display:none; }
+  main.public-sign-configurator.sign-studio .canvas-object-dimensions,
+  main.public-sign-configurator.sign-studio .canvas-footer { display:none; }
+  main.public-sign-configurator.sign-studio .facade-context-toolbar { min-height:44px; padding-block:0; }
+  main.public-sign-configurator.sign-studio .facade-context-toolbar label { min-height:44px; }
+  main.public-sign-configurator.sign-studio .sign-scene-3d-hint { display:none; }
+  main.public-sign-configurator.sign-studio .controls-heading h2 { display:none; }
 }
