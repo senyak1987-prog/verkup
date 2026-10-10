@@ -212,3 +212,31 @@ body.rc-standalone--embedded .rc-page--embedded { min-height: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .rc-page *, .rc-page *::before, .rc-page *::after { transition: none !important; }
 }
+
+/* Touch targets and a stage that fits short landscape screens. */
+@media (max-width:900px), (pointer:coarse) {
+  .rc-page :is(.rc-segmented button,.rc-button,.rc-help-button) { min-width:44px; min-height:44px; }
+  .rc-page .rc-color-swatch { width:44px; height:44px; border-width:10px; }
+  .rc-page .rc-camera-selector button { font-size:12px; }
+  .rc-page { padding-left:max(10px,env(safe-area-inset-left)); padding-right:max(10px,env(safe-area-inset-right)); padding-bottom:max(10px,env(safe-area-inset-bottom)); }
+  .rc-help-panel { max-height:calc(100% - 80px); overflow-y:auto; }
+}
+@media (max-width:950px) and (max-height:550px) and (orientation:landscape) {
+  .rc-page { height:100dvh; min-height:0; gap:4px; padding-top:max(4px,env(safe-area-inset-top)); padding-bottom:max(4px,env(safe-area-inset-bottom)); }
+  .rc-header { min-height:34px; }
+  .rc-title-group h1 { font-size:18px; }
+  .rc-title-group p,.rc-footer { display:none; }
+  .rc-brand img { width:100px; max-height:26px; }
+  .rc-toolbar { min-height:50px; padding:3px 8px; }
+  .rc-stage,.rc-page--embedded .rc-stage { min-height:100px; }
+  .rc-settings-bar { flex-wrap:nowrap; min-height:50px; padding:3px 8px; gap:10px; }
+  .rc-camera-setting { flex:1; }
+  .rc-settings-bar .rc-setting-label,.rc-help-button > span { display:none; }
+  .rc-camera-selector button { padding-inline:8px; }
+  .rc-game-shell > .ram-model-credit { padding:2px 8px; font-size:8px; }
+  .rc-speed-hud { bottom:8px; left:12px; }
+  .rc-speed strong { font-size:24px; }
+  .rc-suspension-hud { right:12px; bottom:8px; }
+  .rc-drive-prompt { bottom:12px; max-width:calc(100% - 230px); font-size:10px; }
+  .rc-help-panel { bottom:70px; }
+}
