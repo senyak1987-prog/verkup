@@ -155,7 +155,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         const ctx = backdropContext, size = backdropCanvas.width;
         ctx.globalAlpha = 1;
         const day = ctx.createLinearGradient(0, 0, size, size);
-        day.addColorStop(0, '#e6e6e6'); day.addColorStop(1, '#bcbcbc');
+        day.addColorStop(0, '#c5c9c7'); day.addColorStop(1, '#a2aaa7');
         ctx.fillStyle = day; ctx.fillRect(0, 0, size, size);
         ctx.globalAlpha = night;
         const dark = ctx.createLinearGradient(0, 0, size, size);

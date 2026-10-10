@@ -2373,7 +2373,7 @@ function createLettersSvgMarkup(
     : "";
   const haloMarkup = haloLit
     ? '<g id="sign-halo" transform="translate(' + n(extrusionX * 0.8) + " " +
-      n(extrusionY * 0.8) + ')" filter="url(#letters-halo)" opacity="' + (night?'0.78':'0.08') + '">' +
+      n(extrusionY * 0.8) + ')" filter="url(#letters-halo)" opacity="' + (night?'0.78':'0.22') + '">' +
       silhouette(escapeXml(config.haloLightColor ?? config.faceColor)) + "</g>"
     : "";
 
@@ -2401,14 +2401,14 @@ function createLettersSvgMarkup(
     '" flood-color="#020711" flood-opacity="' + (night ? "0.5" : "0.23") + '" /></filter>' +
     '<filter id="letters-face-light" x="-40%" y="-60%" width="180%" height="220%">' +
     '<feDropShadow dx="0" dy="0" stdDeviation="' + n(config.height * 0.014) +
-    '" flood-color="' + escapeXml(config.faceColor) + '" flood-opacity="' + (night?'0.85':'0.1') + '" />' +
+    '" flood-color="' + escapeXml(config.faceColor) + '" flood-opacity="' + (night?'0.85':'0.28') + '" />' +
     '<feDropShadow dx="0" dy="0" stdDeviation="' + n(config.height * 0.045) +
-    '" flood-color="' + escapeXml(config.faceColor) + '" flood-opacity="' + (night?'0.38':'0.035') + '" /></filter>' +
+    '" flood-color="' + escapeXml(config.faceColor) + '" flood-opacity="' + (night?'0.38':'0.1') + '" /></filter>' +
     '<filter id="logo-face-light" x="-40%" y="-60%" width="180%" height="220%">' +
     '<feDropShadow dx="0" dy="0" stdDeviation="' + n(config.height * 0.014) +
-    '" flood-color="' + escapeXml(config.logoFaceColor ?? config.faceColor) + '" flood-opacity="' + (night?'0.85':'0.1') + '" />' +
+    '" flood-color="' + escapeXml(config.logoFaceColor ?? config.faceColor) + '" flood-opacity="' + (night?'0.85':'0.28') + '" />' +
     '<feDropShadow dx="0" dy="0" stdDeviation="' + n(config.height * 0.045) +
-    '" flood-color="' + escapeXml(config.logoFaceColor ?? config.faceColor) + '" flood-opacity="' + (night?'0.38':'0.035') + '" /></filter>' +
+    '" flood-color="' + escapeXml(config.logoFaceColor ?? config.faceColor) + '" flood-opacity="' + (night?'0.38':'0.1') + '" /></filter>' +
     '<filter id="letters-side-light" x="-40%" y="-60%" width="180%" height="220%">' +
     '<feDropShadow dx="' + n(extrusionX * 0.15) + '" dy="' + n(extrusionY * 0.15) +
     '" stdDeviation="' + n(config.height * 0.035) + '" flood-color="' +
