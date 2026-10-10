@@ -16,6 +16,7 @@ import type { SignPlacement } from "../lib/signFacade";
 import { createFacadeRcGame, type FacadeRcGame, type FacadeRcCamera } from "../rc-game/facadeGame";
 import { createTrxAssetLoader } from "../rc-game/trxAsset";
 import { TRX_VEHICLE_PROFILE } from "../rc-game/trxAssetProfile";
+import { QUALITY, deviceRenderTier, createQualityGovernor, applyRenderQuality, resizeShadow } from "../rc-game/renderQuality";
 import { FacadeRcControls } from "../rc-game/FacadeRcControls";
 import type { RcMode, RcTelemetry } from "../rc-game/world";
 import "../sign-scene-3d.css";
@@ -132,7 +133,8 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
     };
     try {
       renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "low-power" });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      const quality = createQualityGovernor(deviceRenderTier());
+      applyRenderQuality(renderer, quality.tier, host);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.NeutralToneMapping;
       renderer.toneMappingExposure = DAYLIGHT_LEVELS.exposure;
@@ -189,7 +191,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const ambient = new THREE.HemisphereLight("#ffffff", "#5e6971", DAYLIGHT_LEVELS.ambient);
       const key = new THREE.PointLight("#ffffff", 1, 0, 2);
       key.castShadow = true;
-      const shadowSize = Math.min(2048, renderer.capabilities.maxCubemapSize);
+      const shadowSize = Math.min(QUALITY[quality.tier].cube, renderer.capabilities.maxCubemapSize);
       key.shadow.mapSize.set(shadowSize, shadowSize);
       // A point shadow has six faces: rebuild only when the source or geometry changes.
       key.shadow.autoUpdate = false;
@@ -206,6 +208,7 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       const currentControls = controls;
       const motionPreference=window.matchMedia('(prefers-reduced-motion: reduce)');
       let motionTimer:ReturnType<typeof setTimeout>|undefined,hostInView=true,skipFitAfterGameExit=false;
+      let qualityTime = 0;
       const render = () => {
         frameId = 0;
         clearTimeout(motionTimer);motionTimer=undefined;
@@ -213,8 +216,18 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
         try {
           const now=performance.now();
           const rcAnimating = runtime.rc?.update(now) ?? false;
+          if (rcAnimating && qualityTime && quality.sample(now - qualityTime)) {
+            applyRenderQuality(currentRenderer, quality.tier, host);
+            resizeShadow(key, Math.min(QUALITY[quality.tier].cube, currentRenderer.capabilities.maxCubemapSize));
+            const yard = scene.getObjectByName('rc-courtyard-sun') as THREE.DirectionalLight | undefined;
+            if (yard) resizeShadow(yard, Math.min(QUALITY[quality.tier].shadow, currentRenderer.capabilities.maxTextureSize));
+          }
+          if (!rcAnimating) quality.reset();
+          qualityTime = rcAnimating ? now : 0;
           scaleDimensionLabels(runtime.dimensionLabels, camera, host.clientHeight);
           currentRenderer.render(scene, camera);
+          host.dataset.drawCalls = String(currentRenderer.info.render.calls);
+          host.dataset.triangles = String(currentRenderer.info.render.triangles);
           host.dataset.cameraZoom = String(camera.zoom);
           host.dataset.cameraViewHeight = String(camera.top - camera.bottom);
           host.dataset.cameraViewWidth = String(camera.right - camera.left);
@@ -381,8 +394,10 @@ export function SignScene3D({ project, layout, width, height, depth, showDimensi
       runtimeRef.current = runtime;
       runtime.rc = createFacadeRcGame({ scene, camera, controls: currentControls, canvas: currentRenderer.domElement,
         vehicleProfile: TRX_VEHICLE_PROFILE,
-        shadowMapSize: Math.min(4096,currentRenderer.capabilities.maxTextureSize),
-        loadVehicle: createTrxAssetLoader(`${import.meta.env.BASE_URL}models/ram-trx.glb`),
+        shadowMapSize: Math.min(QUALITY[quality.tier].shadow,currentRenderer.capabilities.maxTextureSize),
+        loadVehicle: createTrxAssetLoader(`${import.meta.env.BASE_URL}models/${quality.tier === 'high' ? 'ram-trx.glb' : 'ram-trx-mobile.glb'}`, {
+          lightweight: quality.tier !== 'high', farUrl: `${import.meta.env.BASE_URL}models/ram-trx-far.glb`,
+        }),
         onVehicleError: error => console.warn('RAM TRX asset could not be loaded:', error),
         requestRender, onActive: value => {
           if (!disposed) {
