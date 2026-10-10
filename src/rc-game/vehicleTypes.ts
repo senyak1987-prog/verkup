@@ -35,5 +35,6 @@ export interface RcVehicleRig {
   body: THREE.Group;
   rotors: [THREE.Object3D, THREE.Object3D, THREE.Object3D, THREE.Object3D];
   setColor(hex: string): void;
+  setDetail?(screenPixels: number): void;
   dispose(): void;
 }

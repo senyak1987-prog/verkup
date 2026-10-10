@@ -54,7 +54,7 @@ function loadTemplate(url: string): Promise<THREE.Group> {
 }
 
 /** The downloaded source has untextured grey materials, named by physical finish. */
-function finish(name: string): THREE.MeshStandardMaterial {
+function finish(name: string, lightweight = false): THREE.MeshStandardMaterial {
   const side = THREE.FrontSide;
   const standard = (color: string, roughness = .6, metalness = 0) =>
     new THREE.MeshStandardMaterial({ color, roughness, metalness, side });
@@ -106,6 +106,15 @@ function finish(name: string): THREE.MeshStandardMaterial {
     result = standard('#6c7875', .45, .6);
   } else {
     result = standard(name.includes('grill') ? '#152120' : '#202a27', .64, .08);
+  }
+  if (lightweight && result instanceof THREE.MeshPhysicalMaterial) {
+    const physical = result;
+    result = standard('#ffffff', physical.roughness, physical.metalness);
+    result.color.copy(physical.color); result.emissive.copy(physical.emissive);
+    result.emissiveIntensity = physical.emissiveIntensity; result.side = physical.side;
+    // A transparent lens avoids the extra full-scene transmission render on phones.
+    if (physical.transmission > 0) { result.transparent = true; result.opacity = .18; result.depthWrite = false; }
+    physical.dispose();
   }
   result.name = name;
   result.shadowSide=THREE.FrontSide;
@@ -166,7 +175,7 @@ function addLivery(body: THREE.Group, material: THREE.Material, meshes: THREE.Me
   body.userData.liveryCount = count;
 }
 
-function instantiate(template: THREE.Group): RcVehicleRig {
+function instantiate(template: THREE.Group, lightweight = false): RcVehicleRig {
   const geometryCopies = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
   const materialCopies = new Map<THREE.Material, THREE.MeshStandardMaterial>();
   const clone = (source: THREE.Object3D) => {
@@ -179,7 +188,7 @@ function instantiate(template: THREE.Group): RcVehicleRig {
       mesh.geometry = geometry;
       const cloneMaterial = (original: THREE.Material) => {
         let material = materialCopies.get(original);
-        if (!material) { material = finish(original.name); materialCopies.set(original, material); }
+        if (!material) { material = finish(original.name, lightweight); materialCopies.set(original, material); }
         return material;
       };
       mesh.material = Array.isArray(mesh.material) ? mesh.material.map(cloneMaterial) : cloneMaterial(mesh.material);
@@ -232,6 +241,28 @@ function instantiate(template: THREE.Group): RcVehicleRig {
 }
 
 /** Callers own the asset URL and catch failures to retain the procedural fallback. */
-export function createTrxAssetLoader(url: string): () => Promise<RcVehicleRig> {
-  return async () => instantiate(await loadTemplate(url));
+export function createTrxAssetLoader(url: string, options: { farUrl?: string; lightweight?: boolean } = {}): () => Promise<RcVehicleRig> {
+  return async () => {
+    const near = instantiate(await loadTemplate(url), options.lightweight);
+    if (!options.farUrl) return near;
+    // A failed optional LOD never discards a usable primary vehicle.
+    const far = await loadTemplate(options.farUrl).then(value => instantiate(value, true)).catch(() => null);
+    if (!far) return near;
+    const body = new THREE.Group(); body.name = 'rc-trx-lod-body'; body.userData = { ...near.body.userData };
+    body.add(near.body, far.body);
+    const rotor = (i: number) => { const root = new THREE.Group(); root.add(near.rotors[i], far.rotors[i]); return root; };
+    const rotors: RcVehicleRig['rotors'] = [rotor(0), rotor(1), rotor(2), rotor(3)];
+    let distant = false;
+    const show = () => {
+      near.body.visible = !distant; far.body.visible = distant;
+      near.rotors.forEach(r => { r.visible = !distant; }); far.rotors.forEach(r => { r.visible = distant; });
+      body.userData.detail = distant ? 'far' : options.lightweight ? 'mobile' : 'high';
+    };
+    show();
+    return { body, rotors,
+      setDetail(pixels) { distant = pixels < (distant ? 220 : 180); show(); },
+      setColor(hex) { near.setColor(hex); far.setColor(hex); },
+      dispose() { near.dispose(); far.dispose(); body.removeFromParent(); rotors.forEach(r => r.removeFromParent()); },
+    };
+  };
 }

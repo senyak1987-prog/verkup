@@ -96,7 +96,7 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
   // remains cached. This map follows rendered transforms on every animation frame.
   const yardSun=new THREE.DirectionalLight('#fff0d9',1.1); yardSun.name='rc-courtyard-sun';
   yardSun.castShadow=true; yardSun.layers.set(1); yardSun.shadow.camera.layers.set(1);
-  const shadowSize=options.shadowMapSize??4096;
+  const shadowSize=options.shadowMapSize??2048;
   yardSun.shadow.mapSize.set(shadowSize,shadowSize); yardSun.shadow.radius=2;
   scene.add(yardSun,yardSun.target);
   function updateYardSun() {
@@ -297,12 +297,14 @@ export function createFacadeRcGame(options: Options): FacadeRcGame {
     },
     resize() { if (game.active) frameGame(); },
     update(now) {
+      if (!disposed && game.available) world.updateDetail(camera, canvas.clientHeight);
       if (disposed || !game.active) { lastTime = 0; return false; }
       const dt = lastTime ? Math.min((now - lastTime) / 1000, .05) : 0; lastTime = now;
       const control = input();
       if (!game.paused) world.step(dt, control);
       world.update(control, game.paused ? 0 : dt, !game.paused);
       if (view === 'car' || view === 'rear') frameGame();
+      world.updateDetail(camera, canvas.clientHeight);
       if (now - lastTelemetry > 100) { lastTelemetry = now; emit(); }
       return !game.paused;
     },
