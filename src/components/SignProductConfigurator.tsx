@@ -38,7 +38,7 @@ import type { FacadeSignBox, SignPlacement } from "../lib/signFacade";
 import { loadNeonFont } from "../lib/neonFonts";
 import { NEON_FONTS } from "../lib/neonConstruction";
 import { SCENE_LIGHTING_TIMING } from "../lib/sceneLighting";
-import { signZoomTranslation } from "../lib/signZoomFocus";
+import { FACADE_PREVIEW_ZOOM, signZoomTranslation } from "../lib/signZoomFocus";
 import { SignCart } from "./SignCart";
 
 const SignScene3D = lazy(() => import("./SignScene3D"));
@@ -1192,7 +1192,11 @@ export function SignProductConfigurator() {
 
   }
   function handle3DUnavailable() { setViewMode("2d"); setNotice("3D недоступен в этом браузере. Макет и размеры доступны в 2D."); }
-  function handleFitPreview() { setZoom(100); setFitSignal(value => value + 1); }
+  function handleFitPreview() { setZoom(viewMode === '3d' && placement !== 'none' ? FACADE_PREVIEW_ZOOM : 100); setFitSignal(value => value + 1); }
+  function handlePlacement(value: SignPlacement) {
+    setPlacement(value); setEditing(false);
+    setZoom(viewMode === '3d' && value !== 'none' ? FACADE_PREVIEW_ZOOM : 100);
+  }
   async function handleExportPdf() {
     if (!canOutputSign) return;
     try {
@@ -1365,7 +1369,7 @@ export function SignProductConfigurator() {
           {showDimensions && !blankSign && <div className="canvas-dimensions"><span className="dimension-line" /><span>{signWidth} × {signHeight} × {signDepth} мм</span><span className="dimension-line" /></div>}
         </section>
           {viewMode === '3d' && !blankSign && !rcPlaying && <SignPlacementThumbnails markup={createCurrentSvg(false)} signBox={facadeSignBox} panelMount={panelMount}
-            night={sceneMode === 'night'} selected={placement} palette={project.facadePalette} onChange={value => { setPlacement(value); setEditing(false); }}/>}
+            night={sceneMode === 'night'} selected={placement} palette={project.facadePalette} onChange={handlePlacement}/>}
         </div>
           {!blankSign && (productId!=="panel" || viewMode==="3d"&&placement!=="none"&&showFacadeSign) && <div className="canvas-object-dimensions" aria-label="Размеры элементов вывески" aria-hidden={!showDimensions} style={{ visibility: showDimensions ? "visible" : "hidden" }}>{visibleObjectDimensions.map(item=><span key={item.id}><strong>{item.label}</strong> {Math.round(item.width)} × {Math.round(item.height)} мм</span>)}</div>}
           <footer className="canvas-footer"><span><span className={`material-dot ${sceneMode}`} />{placement !== "none" ? `Дверь 1100 × 2100 мм${placement === "canopy" ? " · вынос козырька 1500 мм" : ""}` : productId === "letters" ? `Борт ${letterDepth} мм${glowHasHalo && mountMode === "acp" ? " · проставки 20 мм" : glowHasHalo && haloBackerEnabled && mountMode === "frame" ? " · проставки 20 мм · подложка 3 мм" : ""}` : productId === "neon" ? "Неон " + project.neonDiameter + " мм · " +(project.neonBackerColor==='black'?'черная':project.neonBackerColor==='white'?'белая':'прозрачная')+" подложка" : "Лицевое свечение"}</span><button type="button" onClick={handleFitPreview}><RotateCcw size={13} />Масштаб по размеру окна</button></footer>
@@ -1545,7 +1549,7 @@ export function SignProductConfigurator() {
             <p className="purchase-basis">{productId === "letters" ? "120 ₽ за 1 см высоты каждой буквы. Пробелы не считаются. Монтаж, подложка и доставка рассчитываются отдельно." : "Сохраните макет в корзину для согласования стоимости."}</p>
           </div>
         </aside>
-        <SignPlacements panelMount={panelMount} markup={createCurrentSvg(false)} signBox={facadeSignBox} night={sceneMode === "night"} selected={placement} palette={project.facadePalette} onPaletteChange={value=>patchProject({facadePalette:value})} onChange={value=>{setPlacement(value);setEditing(false);}}>
+        <SignPlacements panelMount={panelMount} markup={createCurrentSvg(false)} signBox={facadeSignBox} night={sceneMode === "night"} selected={placement} palette={project.facadePalette} onPaletteChange={value=>patchProject({facadePalette:value})} onChange={handlePlacement}>
           <details className="photo-backdrop-controls"><summary>Примерить на своём фото</summary><label className="studio-button photo-upload"><ImagePlus size={16}/>Загрузить фасад<input type="file" accept="image/png,image/jpeg,image/webp" onChange={event=>void handleImageUpload(event,value=>{patchProject({backdropImage:value});setPlacement('none');setEditing(false);})}/></label><p>PNG, JPG или WebP до 2 МБ. Укажите ширину участка на фотографии для примерного масштаба.</p>{project.backdropImage&&<><label className="builder-field"><span>Ширина участка на фото, мм</span><input type="number" min={500} max={20000} step={100} value={project.backdropWidth} onChange={event=>patchProject({backdropWidth:Math.max(500,Math.min(20000,Number(event.target.value)||500))})}/></label><button type="button" className="studio-remove" onClick={()=>patchProject({backdropImage:''})}><X size={14}/>Убрать фото</button></>}</details>
         </SignPlacements>
         </div></section>
