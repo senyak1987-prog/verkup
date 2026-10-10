@@ -1,3 +1,6 @@
+/** Close facade framing requested for the sign preview; 100% remains the whole-model fit. */
+export const FACADE_PREVIEW_ZOOM = 190;
+
 /** Preserve the context target at 100%; then bring the sign progressively toward the centre. */
 export function zoomFocusWeight(zoom: number) {
   const value = Number.isFinite(zoom) ? Math.max(1, zoom) : 1;
